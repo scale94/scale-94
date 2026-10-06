@@ -13,6 +13,7 @@ import MercuryPlanet   from './MercuryPlanet';
 import MercuryPerfHud from './MercuryPerfHud';
 import { TIERS, pickTier, perfHudOn } from './planet/planetQuality';
 import { CAMERA_DIST, CAMERA_FOV_DEG } from './planet/planetLook';
+import { gasCounts } from './planet/gasStreak';
 import usePhaseTransition from './usePhaseTransition';
 import useCalm from './useCalm';
 import { createAetherClock, configureAetherClock } from './planet/aetherClock';
@@ -70,8 +71,12 @@ export default function MercuryCanvas({
     if (strikesRef.current.length < 8) strikesRef.current.push(phase);
   }, []);
 
-  const densityFor = (phase) =>
-    phase === activePhase ? (params.density ?? (isMobile ? 600 : 1200)) : GHOST_DENSITY;
+  // Gas counts (mirror-sky spec §3e): fog = the old (base) count; the tier multiplier feeds the filaments.
+  // Fire: body = the old body count, embers = the old ember count × the multiplier. Ghosts: GHOST_DENSITY, ×1.
+  const gasBase = params.density ?? (isMobile ? 600 : 1200);
+  const gasFor = (phase) => phase === activePhase
+    ? gasCounts(gasBase, TIERS[TIER].gasDensity, phase === 'thermal')
+    : gasCounts(GHOST_DENSITY, 1, phase === 'thermal');
 
   // Active phase capped at 0.45 — additive blending accumulates fast, the planet (MercuryPlanet) must remain legible
   const opacityFor = (phase) =>
@@ -100,7 +105,8 @@ export default function MercuryCanvas({
           curlAmp={params.curlAmp ?? 0.02}
           tubeRadius={params.tubeRadius ?? 0.32}
           chromatic={params.chromatic ?? 0}
-          density={densityFor('fluid')}
+          density={gasFor('fluid').n}
+          fogCount={gasFor('fluid').fog}
           opacityMultiplier={opacityFor('fluid')}
           blending={THREE.NormalBlending}
           onFps={activePhase === 'fluid' ? onFps : null}
@@ -115,7 +121,8 @@ export default function MercuryCanvas({
           speed={params.speed}
           turbulence={params.turbulence ?? 0.4}
           flameWidth={params.flameWidth ?? 0.85}
-          density={densityFor('thermal')}
+          density={gasFor('thermal').n}
+          fogCount={gasFor('thermal').fog}
           opacityMultiplier={opacityFor('thermal')}
           blending={THREE.NormalBlending}
           onFps={activePhase === 'thermal' ? onFps : null}
@@ -130,7 +137,8 @@ export default function MercuryCanvas({
           speed={params.speed}
           turbulence={params.turbulence ?? 0.25}
           eruptStrength={params.eruptStrength ?? 0.8}
-          density={densityFor('earth')}
+          density={gasFor('earth').n}
+          fogCount={gasFor('earth').fog}
           opacityMultiplier={opacityFor('earth')}
           blending={THREE.NormalBlending}
           onFps={activePhase === 'earth' ? onFps : null}
@@ -145,7 +153,8 @@ export default function MercuryCanvas({
           orbitalSpeed={params.orbitalSpeed ?? 1.2}
           turbulence={params.turbulence ?? 0.18}
           spread={params.spread ?? 1.0}
-          density={densityFor('air')}
+          density={gasFor('air').n}
+          fogCount={gasFor('air').fog}
           opacityMultiplier={opacityFor('air')}
           blending={THREE.NormalBlending}
           onFps={activePhase === 'air' ? onFps : null}

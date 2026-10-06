@@ -5,7 +5,7 @@ import { PLANET_WINDOW_VS, PLANET_WINDOW_FS } from '../mercury/planet/planetWind
 import { R_SCENE, PLANET_TUNE } from '../mercury/planet/planetLook';
 import { AETHER_LIGHT_VS, aetherLightFS } from '../mercury/planet/aetherLight';
 import { SUN_DIR_WORLD } from '../mercury/planet/planetFrame';
-import { GAS_STREAK_VS, GAS_STREAK_FS, GAS_TUNE_UNIFORMS, writeGasTune } from '../mercury/planet/gasStreak';
+import { GAS_STREAK_VS, GAS_STREAK_FS, GAS_TUNE_UNIFORMS, writeGasTune, gasRoles } from '../mercury/planet/gasStreak';
 import { createAetherClock, configureAetherClock, tickAetherClock } from '../mercury/planet/aetherClock';
 
 // ── GLSL ───────────────────────────────────────────────────────────────────
@@ -25,6 +25,7 @@ const vertexShader = /* glsl */ `
   attribute float aSize;     // base screen size [0,1] → 0–5 px
   attribute float aAlt;      // altitude layer [0,1]
   attribute float aIon;      // 0=atmosphere, 1=ionospheric fast layer
+  attribute float aRole;   // 0 = fog (the old sprite), 1 = filament (mirror-sky spec §3b)
 
   varying float vAltitude;
   varying float vSpeed;
@@ -138,11 +139,14 @@ const vertexShader = /* glsl */ `
 
     vec4 mvPos = modelViewMatrix * vec4(pos, 1.0);
     vec4 mvPrev = modelViewMatrix * vec4(prev, 1.0);
-    float size = baseSize * (260.0 / -mvPos.z) * (1.0 - uCondense * uCondenseSizeBite) * uGasSize;
+    // Fog = the old sprite, untouched; filament = a thin capsule (mirror-sky spec §3b/§3c).
+    float fogSize = baseSize * (260.0 / -mvPos.z) * (1.0 - uCondense * uCondenseSizeBite);
+    float filW = gasFilWidth(-mvPos.z, aSize, 1.0 - uCondense * uCondenseSizeBite);
+    float size = aRole < 0.5 ? fogSize : filW;
     gl_Position  = projectionMatrix * mvPos;
-    gl_PointSize = gasStreak(gl_Position, projectionMatrix * mvPrev, size, STRETCH_MAX);
-    // Lanes across the cyclone: by altitude layer and ionosphere, slowly along the orbit.
-    vLane = gasLane(vec3(aAlt * 4.0, aIon * 2.0 + aSpeed, aPhase * 1.5), uTime) * uGasAlpha;
+    gl_PointSize = gasSprite(gl_Position, projectionMatrix * mvPrev, aRole, size, FIL_ASPECT, gasHash(aPhase, aSeed));
+    // Fog: × fogAlpha. Filaments: lanes by altitude layer and ionosphere, slowly along the orbit, × filAlpha.
+    vLane = gasAlpha(aRole, vec3(aAlt * 4.0, aIon * 2.0 + aSpeed, aPhase * 1.5), uTime);
     planetWindowVS(mvPos.xyz);
     aetherLightVS(mvPos.xyz, size);
   }
@@ -208,7 +212,7 @@ const fragmentShader = /* glsl */ `
 `;
 
 // ── Buffer init ────────────────────────────────────────────────────────────
-function buildBuffers(count) {
+function buildBuffers(count, nFog) {
   const ionFraction = 0.08;
 
   const positions = new Float32Array(count * 3);
@@ -232,7 +236,7 @@ function buildBuffers(count) {
     alts[i]    = Math.random();
     ions[i]    = Math.random() < ionFraction ? 1.0 : 0.0;
   }
-  return { positions, phases, speeds, seeds, sizes, alts, ions };
+  return { positions, phases, speeds, seeds, sizes, alts, ions, roles: gasRoles(count, nFog) };
 }
 
 // ── Component ──────────────────────────────────────────────────────────────
@@ -242,6 +246,7 @@ export default function AtmosphericFlow({
   turbulence        = 0.18,
   spread            = 1.0,
   density           = null,
+  fogCount = null,
   onFps             = null,
   opacityMultiplier = 1,
   condense = 0,
@@ -251,11 +256,12 @@ export default function AtmosphericFlow({
   aetherClock = null,
 }) {
   const PARTICLE_COUNT = density ?? (isMobile ? 4000 : 10000);
+  const N_FOG = fogCount ?? PARTICLE_COUNT; // MercuryCanvas passes gasCounts().fog; standalone = all fog, the old look (spec §3e)
   const materialRef = useRef();
   const fpsFrames   = useRef(0);
   const fpsTime     = useRef(0);
 
-  const buffers = useMemo(() => buildBuffers(PARTICLE_COUNT), [PARTICLE_COUNT]);
+  const buffers = useMemo(() => buildBuffers(PARTICLE_COUNT, N_FOG), [PARTICLE_COUNT, N_FOG]);
 
   // Created ONCE — see ParticleFlow.jsx for the stale-upload-bond note.
   const [uniforms] = useState(() => ({
@@ -287,7 +293,7 @@ export default function AtmosphericFlow({
       mat.uniforms.uTime.value = clk.t;
       mat.uniforms.uPhase.value = clk.phase.air;
       mat.uniforms.uPhaseRate.value = clk.rate.air;
-      writeGasTune(mat.uniforms, PLANET_TUNE);
+      writeGasTune(mat.uniforms, PLANET_TUNE, state.gl.getPixelRatio());
       mat.uniforms.uTurbulence.value    = turbulence;
       mat.uniforms.uSpread.value        = spread;
       mat.uniforms.uOpacity.value       = opacityMultiplier;
@@ -311,7 +317,7 @@ export default function AtmosphericFlow({
 
   return (
     <points frustumCulled={false}>
-      <bufferGeometry key={PARTICLE_COUNT}>
+      <bufferGeometry key={`${PARTICLE_COUNT}:${N_FOG}`}>
         <bufferAttribute attach="attributes-position" array={buffers.positions} count={PARTICLE_COUNT} itemSize={3} />
         <bufferAttribute attach="attributes-aPhase"   array={buffers.phases}    count={PARTICLE_COUNT} itemSize={1} />
         <bufferAttribute attach="attributes-aSpeed"   array={buffers.speeds}    count={PARTICLE_COUNT} itemSize={1} />
@@ -319,6 +325,7 @@ export default function AtmosphericFlow({
         <bufferAttribute attach="attributes-aSize"    array={buffers.sizes}     count={PARTICLE_COUNT} itemSize={1} />
         <bufferAttribute attach="attributes-aAlt"     array={buffers.alts}      count={PARTICLE_COUNT} itemSize={1} />
         <bufferAttribute attach="attributes-aIon"     array={buffers.ions}      count={PARTICLE_COUNT} itemSize={1} />
+        <bufferAttribute attach="attributes-aRole" array={buffers.roles} count={PARTICLE_COUNT} itemSize={1} />
       </bufferGeometry>
       <shaderMaterial
         ref={materialRef}

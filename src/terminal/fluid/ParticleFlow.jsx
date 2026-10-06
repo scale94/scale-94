@@ -5,7 +5,7 @@ import { PLANET_WINDOW_VS, PLANET_WINDOW_FS } from '../mercury/planet/planetWind
 import { R_SCENE, PLANET_TUNE } from '../mercury/planet/planetLook';
 import { AETHER_LIGHT_VS, aetherLightFS } from '../mercury/planet/aetherLight';
 import { SUN_DIR_WORLD } from '../mercury/planet/planetFrame';
-import { GAS_STREAK_VS, GAS_STREAK_FS, GAS_TUNE_UNIFORMS, writeGasTune } from '../mercury/planet/gasStreak';
+import { GAS_STREAK_VS, GAS_STREAK_FS, GAS_TUNE_UNIFORMS, writeGasTune, gasRoles } from '../mercury/planet/gasStreak';
 import { createAetherClock, configureAetherClock, tickAetherClock } from '../mercury/planet/aetherClock';
 
 // ── Torus Knot parametric helpers ──────────────────────────────────────────
@@ -32,6 +32,7 @@ const vertexShader = /* glsl */ `
   attribute float aPhase;
   attribute float aRadius;
   attribute float aOffset;
+  attribute float aRole;   // 0 = fog (the old sprite), 1 = filament (mirror-sky spec §3b)
   varying float vHue;
   varying float vBrightness;
 
@@ -162,12 +163,15 @@ const vertexShader = /* glsl */ `
 
     vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
     vec4 mvPrev = modelViewMatrix * vec4(prev, 1.0);
-    float size = (1.5 + aRadius * 2.0) * (300.0 / -mvPosition.z) * (1.0 - uCondense * uCondenseSizeBite) * uGasSize;
+    // Fog = the old sprite, untouched; filament = a thin capsule (mirror-sky spec §3b/§3c).
+    float fogSize = (1.5 + aRadius * 2.0) * (300.0 / -mvPosition.z) * (1.0 - uCondense * uCondenseSizeBite);
+    float filW = gasFilWidth(-mvPosition.z, aRadius, 1.0 - uCondense * uCondenseSizeBite);
+    float size = aRole < 0.5 ? fogSize : filW;
     gl_Position = projectionMatrix * mvPosition;
-    gl_PointSize = gasStreak(gl_Position, projectionMatrix * mvPrev, size, STRETCH_MAX);
-    // Lanes across the tube (its cross-section) and, slowly, along it: threads that ride the knot.
+    gl_PointSize = gasSprite(gl_Position, projectionMatrix * mvPrev, aRole, size, FIL_ASPECT, gasHash(aPhase, aRadius));
+    // Fog: × fogAlpha. Filaments: lanes across the tube (its cross-section) and, slowly, along it, × filAlpha.
     float laneA = aOffset * 6.283185307;
-    vLane = gasLane(vec3(cos(laneA) * aRadius * 3.0, sin(laneA) * aRadius * 3.0, aPhase * 1.5), uTime) * uGasAlpha;
+    vLane = gasAlpha(aRole, vec3(cos(laneA) * aRadius * 3.0, sin(laneA) * aRadius * 3.0, aPhase * 1.5), uTime);
     planetWindowVS(mvPosition.xyz);
     aetherLightVS(mvPosition.xyz, size);
   }
@@ -213,7 +217,7 @@ const fragmentShader = /* glsl */ `
 `;
 
 // ── Component ──────────────────────────────────────────────────────────────
-function buildBuffers(count) {
+function buildBuffers(count, nFog) {
   const positions = new Float32Array(count * 3);
   const phases    = new Float32Array(count);
   const radii     = new Float32Array(count);
@@ -228,7 +232,7 @@ function buildBuffers(count) {
     radii[i]   = Math.random();
     offsets[i]  = Math.random();
   }
-  return { positions, phases, radii, offsets };
+  return { positions, phases, radii, offsets, roles: gasRoles(count, nFog) };
 }
 
 export default function ParticleFlow({
@@ -238,6 +242,7 @@ export default function ParticleFlow({
   tubeRadius = 0.32,
   chromatic = 0.0,
   density = null,
+  fogCount = null,
   onFps = null,
   opacityMultiplier = 1,
   condense = 0,
@@ -247,12 +252,13 @@ export default function ParticleFlow({
   aetherClock = null,
 }) {
   const PARTICLE_COUNT = density ?? (isMobile ? 4000 : 10000);
+  const N_FOG = fogCount ?? PARTICLE_COUNT; // MercuryCanvas passes gasCounts().fog; standalone = all fog, the old look (spec §3e)
   const pointsRef = useRef();
   const materialRef = useRef();
   const fpsFrames = useRef(0);
   const fpsTime = useRef(0);
 
-  const buffers = useMemo(() => buildBuffers(PARTICLE_COUNT), [PARTICLE_COUNT]);
+  const buffers = useMemo(() => buildBuffers(PARTICLE_COUNT, N_FOG), [PARTICLE_COUNT, N_FOG]);
 
   // Uniforms are created ONCE (lazy useState). An inline object here is
   // rebuilt every render; r3f then replaces material.uniforms, but three's
@@ -290,7 +296,7 @@ export default function ParticleFlow({
       mat.uniforms.uTime.value = clk.t;
       mat.uniforms.uPhase.value = clk.phase.fluid;
       mat.uniforms.uPhaseRate.value = clk.rate.fluid;
-      writeGasTune(mat.uniforms, PLANET_TUNE);
+      writeGasTune(mat.uniforms, PLANET_TUNE, state.gl.getPixelRatio());
       mat.uniforms.uCurlAmp.value = curlAmp;
       mat.uniforms.uTubeRadius.value = tubeRadius;
       mat.uniforms.uChromatic.value = chromatic;
@@ -316,11 +322,12 @@ export default function ParticleFlow({
 
   return (
     <points ref={pointsRef} frustumCulled={false}>
-      <bufferGeometry key={PARTICLE_COUNT}>
+      <bufferGeometry key={`${PARTICLE_COUNT}:${N_FOG}`}>
         <bufferAttribute attach="attributes-position" array={buffers.positions} count={PARTICLE_COUNT} itemSize={3} />
         <bufferAttribute attach="attributes-aPhase"    array={buffers.phases}    count={PARTICLE_COUNT} itemSize={1} />
         <bufferAttribute attach="attributes-aRadius"   array={buffers.radii}     count={PARTICLE_COUNT} itemSize={1} />
         <bufferAttribute attach="attributes-aOffset"   array={buffers.offsets}   count={PARTICLE_COUNT} itemSize={1} />
+        <bufferAttribute attach="attributes-aRole" array={buffers.roles} count={PARTICLE_COUNT} itemSize={1} />
       </bufferGeometry>
       <shaderMaterial
         ref={materialRef}
