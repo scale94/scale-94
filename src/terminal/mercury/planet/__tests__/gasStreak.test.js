@@ -79,7 +79,7 @@ describe('gas roles (spec §3b, §3e)', () => {
 describe('gasSprite (spec §3c)', () => {
   it('fog passes the old size straight through: round, no floor, no stretch', () => {
     expect(GAS_STREAK_VS).toContain('float gasSprite(vec4 clipNow, vec4 clipPrev, float role, float size, float aspectMax, float jit) {');
-    expect(GAS_STREAK_VS).toMatch(/if \(role < 0\.5\) \{\s*vStreakDir = vec2\(1\.0, 0\.0\);\s*vStreakCap = vec2\(0\.0, 0\.5\);\s*return size;\s*\}/);
+    expect(GAS_STREAK_VS).toMatch(/if \(role < 0\.5\) \{\s*vStreakDir = vec2\(1\.0, 0\.0\);\s*vStreakDir2 = vStreakDir;\s*vStreakCap = vec2\(0\.0, 0\.5\);\s*return size;\s*\}/);
     expect(sprite(0, 0.4, 999).total).toBe(0.4);
     expect(sprite(0, 237, 999).total).toBe(237);
   });
@@ -89,7 +89,9 @@ describe('gasSprite (spec §3c)', () => {
     expect(GAS_STREAK_VS).toContain('v = (clipNow.xy / clipNow.w - clipPrev.xy / clipPrev.w) * 0.5 * uViewportPx / STREAK_DT;');
     expect(GAS_STREAK_VS).toContain('float L = min(sp * uStreakGain, max(aspectMax - 1.0, 0.0) * w) * (1.0 + FIL_JITTER * (2.0 * jit - 1.0));');
     expect(GAS_STREAK_VS).toContain('vec2 dir = tl > 1e-3 ? tng / tl : (sp > 1e-3 ? v / sp : vec2(1.0, 0.0));');
-    expect(GAS_STREAK_VS).toContain('vStreakDir = vec2(dir.x, -dir.y); // point coords: y down');
+    expect(GAS_STREAK_VS).toContain('vStreakDir = vec2(dirA.x, -dirA.y); // point coords: y down');
+    expect(GAS_STREAK_VS).toContain('vec2 dirA = tl > 1e-3 && length(dA) > 1e-3 ? normalize(dA) : dir;');
+    expect(GAS_STREAK_VS).toContain('vec2 dirB = tl > 1e-3 && length(dB) > 1e-3 ? normalize(dB) : dir;');
     expect(GAS_STREAK_VS).toContain('vStreakCap = vec2(0.5 * L / total, 0.5 * w / total);');
     expect(sprite(1, 0.5, 0).total).toBe(GAS_PX_FLOOR);                 // calm or sub-pixel → a 1.5 px round dot
     const f = sprite(1, 2.2, 355);                                      // spec §3g: fluid mean speed, 2.2 px core; shutter 0.05 → ~9x
@@ -304,7 +306,8 @@ describe('gap-closing filament dashes (Task 7f)', () => {
   it('end taper: the outer FIL_TAPER = 1 - 1/FIL_GAP_CLOSE of a filament dash fades (smoothstep, ordered edges); fog untouched', () => {
     expect(FIL_TAPER).toBeCloseTo(1 - 1 / 1.3, 12);
     expect(GAS_STREAK_FS).toContain(`const float FIL_TAPER = ${glf(FIL_TAPER)};`);
-    expect(GAS_STREAK_FS).toMatch(/float gasTaper\(vec2 pc\) \{\s*if \(vRole < 0\.5\) return 1\.0;\s*float s = abs\(dot\(pc - 0\.5, vStreakDir\)\);\s*return 1\.0 - smoothstep\(0\.5 - FIL_TAPER, 0\.5, s\);\s*\}/);
+    expect(GAS_STREAK_FS).toMatch(/float gasTaper\(vec2 pc\) \{\s*if \(vRole < 0\.5\) return 1\.0;/);
+    expect(GAS_STREAK_FS).toMatch(/float s = abs\(da <= db \? sa : sb\);\s*return 1\.0 - smoothstep\(0\.5 - FIL_TAPER, 0\.5, s\);\s*\}/);
     // two gap-closed dashes (length D = FIL_GAP_CLOSE x spacing) overlap by exactly their taper: the sum is flat
     const ss = (a, b, x) => { const t = Math.min(Math.max((x - a) / (b - a), 0), 1); return t * t * (3 - 2 * t); };
     const taper = (s) => 1 - ss(0.5 - FIL_TAPER, 0.5, Math.abs(s));
@@ -339,13 +342,27 @@ describe('gap-closing filament dashes (Task 7f)', () => {
 describe('FS + varyings', () => {
   it('capsule distance equals the old round radius when the streak is 0', () => {
     expect(GAS_STREAK_FS).toContain('float gasStreakDist(vec2 pc) {');
-    expect(GAS_STREAK_FS).toContain('float a = clamp(dot(q, vStreakDir), -vStreakCap.x, vStreakCap.x);');
-    expect(GAS_STREAK_FS).toContain('return length(q - vStreakDir * a) / vStreakCap.y;');
-    const dist = (pc, dir, cap) => {
+    expect(GAS_STREAK_FS).toContain('float a = clamp(dot(q, vStreakDir), 0.0, vStreakCap.x);');
+    expect(GAS_STREAK_FS).toContain('float b = clamp(-dot(q, vStreakDir2), 0.0, vStreakCap.x);');
+    expect(GAS_STREAK_FS).toContain('return min(length(q - vStreakDir * a), length(q + vStreakDir2 * b)) / vStreakCap.y;');
+    // the bent dash (Task 7g), JS mirror: ahead half along dir, back half along -dir2
+    const bent = (pc, dir, dir2, cap) => {
+      const q = [pc[0] - 0.5, pc[1] - 0.5];
+      const a = Math.min(Math.max(q[0] * dir[0] + q[1] * dir[1], 0), cap[0]);
+      const b = Math.min(Math.max(-(q[0] * dir2[0] + q[1] * dir2[1]), 0), cap[0]);
+      return Math.min(Math.hypot(q[0] - dir[0] * a, q[1] - dir[1] * a), Math.hypot(q[0] + dir2[0] * b, q[1] + dir2[1] * b)) / cap[1];
+    };
+    const dist = (pc, dir, cap) => bent(pc, dir, dir, cap);
+    // straight (dir2 = dir) = the old one-segment capsule clamp(±cap.x), anywhere in the sprite
+    const old = (pc, dir, cap) => {
       const q = [pc[0] - 0.5, pc[1] - 0.5];
       const a = Math.min(Math.max(q[0] * dir[0] + q[1] * dir[1], -cap[0]), cap[0]);
       return Math.hypot(q[0] - dir[0] * a, q[1] - dir[1] * a) / cap[1];
     };
+    const dd = [0.6, 0.8];
+    for (let x = 0; x <= 1; x += 0.0625) for (let y = 0; y <= 1; y += 0.0625) expect(dist([x, y], dd, [0.3, 0.1])).toBeCloseTo(old([x, y], dd, [0.3, 0.1]), 12);
+    // bent: the back half's tip sits on -dir2, not on -dir
+    expect(bent([0.5 - 0.3, 0.5], [0, 1], [1, 0], [0.3, 0.1])).toBeCloseTo(0, 12);
     expect(dist([0.8, 0.3], [1, 0], [0, 0.5])).toBeCloseTo(2 * Math.hypot(0.3, 0.2), 12); // the fog role
     // an 8x capsule along a diagonal: its end cap touches the rim on the axis, inside the sprite square
     const w = 1, L = 7, total = w + L, d = [Math.SQRT1_2, Math.SQRT1_2];
@@ -354,7 +371,7 @@ describe('FS + varyings', () => {
   });
 
   it('every varying is declared on both sides', () => {
-    for (const v of ['varying vec2 vStreakDir;', 'varying vec2 vStreakCap;', 'varying float vLane;']) {
+    for (const v of ['varying vec2 vStreakDir;', 'varying vec2 vStreakDir2;', 'varying vec2 vStreakCap;', 'varying float vLane;']) {
       expect(GAS_STREAK_VS).toContain(v);
       expect(GAS_STREAK_FS).toContain(v);
     }

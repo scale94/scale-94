@@ -7,7 +7,7 @@ import fluidBufSrc from '../../../fluid/particleFlowBuffers.js?raw';
 import airBufSrc from '../../../air/atmosphericFlowBuffers.js?raw';
 import * as fluidBuf from '../../../fluid/particleFlowBuffers';
 import * as airBuf from '../../../air/atmosphericFlowBuffers';
-import { gasRoles, THREAD_CROSS_CLIP } from '../gasStreak';
+import { gasRoles, THREAD_CROSS_CLIP, GAS_STREAK_VS, GAS_STREAK_FS } from '../gasStreak';
 import { measureThreads, spriteThread, proj, fluidFil } from './threadReplica';
 
 const STREAKED = {
@@ -406,7 +406,7 @@ describe('threads hold their shape (Task 7f fix)', () => {
 
   it('fluid replica: the shimmer at full amplitude would bend the path off the dash (the reviewer\'s 7f finding is visible here)', () => {
     const m = measureThreads('fluid', fluidBuf.buildBuffers(3600, 1200), { rate: 0.1, step: 3, devSteps: 12, shimK: 1 });
-    expect(m.devP95).toBeGreaterThan(3);
+    expect(m.devP95).toBeGreaterThan(2); // 7g: the bent dash follows the wiggle a little better (was > 3 straight); still > the 1.5 bar
   });
 
   it('calm (rate 0): every filament keeps a dash (length > width) along the path tangent: frozen threads, few visible gaps', () => {
@@ -464,5 +464,53 @@ describe('threads hold their shape (Task 7f fix)', () => {
     }
     expect(typeof fluidFil).toBe('function');
     expect(typeof proj).toBe('function');
+  });
+});
+
+describe('fluid calm threads are lines, not a staircase (Task 7g)', () => {
+  // The 7f dash was straight, centred on the particle, along its OWN streamline's secant; neighbours sit at their own
+  // cross-lane jitter, so neighbouring dashes were parallel but displaced sideways (calm fluid: step p50 2.0 px,
+  // p95 6.5 px, max 15 px at a 2.3 px core). Fix: a bent dash (each half aims at its lane-neighbour sample: no chord
+  // error on the knot's bends) + FLUID_SIGMA_R 0.03 → 0.0075 (the air precedent: σ cut ×4 in 7f).
+  it('fluid replica, calm: the sideways step where two dashes meet is sub-core (p50 ≤ 0.6 px, p95 ≤ 2 px); no new gaps', () => {
+    const m = measureThreads('fluid', fluidBuf.buildBuffers(3600, 1200), { rate: 0, step: 3, devSteps: 12 });
+    expect(m.stepP50).toBeLessThanOrEqual(0.6);
+    expect(m.stepP95).toBeLessThanOrEqual(2);
+    expect(m.openVis).toBeLessThanOrEqual(0.012);
+    expect(m.devP95).toBeLessThanOrEqual(1.5);
+  });
+
+  it('both halves of the fix are needed: the straight dash at the new σ, or the bent dash at the old σ, still steps', () => {
+    const straight = measureThreads('fluid', fluidBuf.buildBuffers(3600, 1200), { rate: 0, step: 6, devSteps: 4, straight: true });
+    expect(straight.stepP95).toBeGreaterThan(2.5); // chord error on the bends
+    const b = fluidBuf.buildBuffers(3600, 1200);
+    const cent = new Map();
+    b.lanes.forEach((k, i) => { if (k >= 0) { const c = cent.get(k) || [0, 0]; c[0] += b.radii[i]; c[1]++; cent.set(k, c); } });
+    const k4 = 0.03 / fluidBuf.FLUID_SIGMA_R;
+    b.lanes.forEach((k, i) => { if (k >= 0) { const c = cent.get(k)[0] / cent.get(k)[1]; b.radii[i] = c + (b.radii[i] - c) * k4; } });
+    const oldSigma = measureThreads('fluid', b, { rate: 0, step: 6, devSteps: 4 });
+    expect(oldSigma.stepP95).toBeGreaterThan(4);
+  });
+
+  it('air is no worse (calm step p95 ≤ 3.4 px, visible gaps ≤ 2.5 %)', () => {
+    const m = measureThreads('air', airBuf.buildBuffers(3600, 1200), { rate: 0, step: 6, devSteps: 6 });
+    expect(m.stepP95).toBeLessThanOrEqual(3.4);
+    expect(m.openVis).toBeLessThanOrEqual(0.025); // 0.0233 straight → 0.0242: the gap is now read along the ahead half (see report)
+  });
+
+  it('FLUID_SIGMA_R 0.0075', () => {
+    expect(fluidBuf.FLUID_SIGMA_R).toBe(0.0075);
+  });
+
+  it('shared chunk: the dash bends (ahead half vStreakDir, back half vStreakDir2); no thread (gasSprite) = one straight dash', () => {
+    const vs = GAS_STREAK_VS, fs = GAS_STREAK_FS;
+    expect(vs).toMatch(/varying vec2 vStreakDir2;/);
+    expect(fs).toMatch(/varying vec2 vStreakDir2;/);
+    expect(vs).toMatch(/vec2 dA = pAhead - pNow;/);
+    expect(vs).toMatch(/vec2 dB = pNow - pBack;/);
+    expect(vs).toMatch(/vStreakDir2 = vec2\(dirB\.x, -dirB\.y\);/);
+    expect(vs).toMatch(/gasSpriteThread\(clipNow, clipPrev, clipNow, clipNow,/); // tl = 0: dirA = dirB = dir
+    expect(fs).toMatch(/clamp\(dot\(q, vStreakDir\), 0\.0, vStreakCap\.x\)/);
+    expect(fs).toMatch(/clamp\(-dot\(q, vStreakDir2\), 0\.0, vStreakCap\.x\)/);
   });
 });

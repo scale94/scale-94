@@ -220,6 +220,7 @@ uniform float uDpr;
 uniform float uAirFilGain;
 uniform float uPointMax;
 varying vec2 vStreakDir;
+varying vec2 vStreakDir2;
 varying vec2 vStreakCap;
 varying float vLane;
 varying float vRole;
@@ -253,11 +254,14 @@ vec2 gasScreenPx(vec4 clip) {
 // (pass clipNow for both = no thread: the old gasSprite). Direction = the path secant back → ahead (stable at any
 // speed, so calm keeps the thread's shape); falls back to the time secant, then to x. Length = max(speed part
 // ≤ aspectMax x w, gap part ≤ FIL_GAP_ASPECT x w), clamped so the sprite never exceeds uPointMax (the GPU's point size
-// limit), width kept.
+// limit), width kept. Bent dash (Task 7g): on a thread the ahead half aims at pAhead (vStreakDir) and the back half
+// at pBack (vStreakDir2), so the dash follows the path's bend instead of a chord through the particle (the straight
+// dash stepped sideways from its neighbours on the knot's bends). No thread: vStreakDir2 = vStreakDir, one straight dash.
 float gasSpriteThread(vec4 clipNow, vec4 clipPrev, vec4 clipBack, vec4 clipAhead, float role, float size, float aspectMax, float jit) {
   vRole = role;
   if (role < 0.5) {
     vStreakDir = vec2(1.0, 0.0);
+    vStreakDir2 = vStreakDir;
     vStreakCap = vec2(0.0, 0.5);
     return size;
   }
@@ -278,7 +282,12 @@ float gasSpriteThread(vec4 clipNow, vec4 clipPrev, vec4 clipBack, vec4 clipAhead
   L = max(L, min(FIL_GAP_CLOSE * gapPx - w, (FIL_GAP_ASPECT - 1.0) * w));
   L = min(L, max(uPointMax - w, 0.0));
   float total = w + L;
-  vStreakDir = vec2(dir.x, -dir.y); // point coords: y down
+  vec2 dA = pAhead - pNow;
+  vec2 dB = pNow - pBack;
+  vec2 dirA = tl > 1e-3 && length(dA) > 1e-3 ? normalize(dA) : dir;
+  vec2 dirB = tl > 1e-3 && length(dB) > 1e-3 ? normalize(dB) : dir;
+  vStreakDir = vec2(dirA.x, -dirA.y); // point coords: y down
+  vStreakDir2 = vec2(dirB.x, -dirB.y);
   vStreakCap = vec2(0.5 * L / total, 0.5 * w / total);
   return total;
 }
@@ -310,21 +319,30 @@ float gasRoleAlpha(float role) {
 
 export const GAS_STREAK_FS = /* glsl */ `
 varying vec2 vStreakDir;
+varying vec2 vStreakDir2;
 varying vec2 vStreakCap;
 varying float vLane;
 varying float vRole;
 uniform float uPremult;
 const float FIL_TAPER = ${glf(FIL_TAPER)};
+// Capsule distance (/ half-width) to the bent dash: the ahead half along vStreakDir, the back half along -vStreakDir2
+// (equal for a straight dash = the old one segment ± vStreakCap.x).
 float gasStreakDist(vec2 pc) {
   vec2 q = pc - 0.5;
-  float a = clamp(dot(q, vStreakDir), -vStreakCap.x, vStreakCap.x);
-  return length(q - vStreakDir * a) / vStreakCap.y;
+  float a = clamp(dot(q, vStreakDir), 0.0, vStreakCap.x);
+  float b = clamp(-dot(q, vStreakDir2), 0.0, vStreakCap.x);
+  return min(length(q - vStreakDir * a), length(q + vStreakDir2 * b)) / vStreakCap.y;
 }
 // Filament dash ends fade over FIL_TAPER of the length (along the streak axis), so overlapping gap-closed dashes sum
 // to ~constant brightness. Fog: 1.
 float gasTaper(vec2 pc) {
   if (vRole < 0.5) return 1.0;
-  float s = abs(dot(pc - 0.5, vStreakDir));
+  vec2 q = pc - 0.5;
+  float sa = dot(q, vStreakDir), sb = -dot(q, vStreakDir2);
+  // the half this fragment is nearer to (its own axis), as in gasStreakDist
+  float da = length(q - vStreakDir * clamp(sa, 0.0, vStreakCap.x));
+  float db = length(q + vStreakDir2 * clamp(sb, 0.0, vStreakCap.x));
+  float s = abs(da <= db ? sa : sb);
   return 1.0 - smoothstep(0.5 - FIL_TAPER, 0.5, s);
 }
 // Output for a flow drawn with premultiplied blending (One / OneMinusSrcAlpha), Task 7c. a = the alpha without dither.

@@ -1,7 +1,8 @@
 // Geometry replicas of the fluid + air FILAMENT chains (GLSL ports, shimmer and curl included) and of
 // gasSpriteThread, for tests (not a test file itself). Desktop fit: camera z 4.43, vfov 42°, 1000 px tall (CSS px).
-// Metrics per lane: neighbour-pair coverage (mean dash / on-screen gap; < 1 = a visible gap) and dash-off-path
-// (max distance of the true path from the dash segment, px).
+// Metrics per lane: neighbour-pair coverage (mean dash / on-screen gap; < 1 = a visible gap), dash-off-path
+// (max distance of the true path from the dash, px) and step (Task 7g: the sideways jump where two dashes meet, px).
+// The dash is bent like the GLSL (ahead half along dirA, back half along dirB); straight: true = the 7f straight dash.
 import { snoise, curlFluid, curlAir } from './glslNoise';
 import { FIL_ASPECT, FIL_JITTER, FIL_GAP_CLOSE, FIL_GAP_ASPECT, GAS_PX_FLOOR, GAS_Z_REF } from '../gasStreak';
 import { PLANET_TUNE } from '../planetLook';
@@ -78,7 +79,12 @@ export function spriteThread(now, prev, back, ahead, w, jit, aspect, opts = {}) 
   const Ls = Math.min(sp * gain, Math.max(aspect - 1, 0) * w) * (1 + FIL_JITTER * (2 * jit - 1));
   const Lg = opts.movingOnly && sp <= 1e-3 ? 0 : Math.min((opts.gapClose ?? FIL_GAP_CLOSE) * gapPx - w, ((opts.gapAspect ?? FIL_GAP_ASPECT) - 1) * w);
   const L = Math.min(Math.max(Ls, Lg, 0), Math.max(pointMax - w, 0));
-  return { total: w + L, dir };
+  // bent dash (Task 7g): each half aims at its own lane-neighbour sample (ahead half at ahead, back half at back)
+  const unit = (x, y, f) => { const l = Math.hypot(x, y); return l > 1e-3 ? [x / l, y / l] : f; };
+  const bent = !opts.straight && tl > 1e-3;
+  const dirA = bent ? unit(ahead[0] - now[0], ahead[1] - now[1], dir) : dir;
+  const dirB = bent ? unit(now[0] - back[0], now[1] - back[1], dir) : dir;
+  return { total: w + L, dir, dirA, dirB };
 }
 
 const q = (a, f) => a[Math.min(a.length - 1, Math.floor(a.length * f))];
@@ -86,8 +92,8 @@ const q = (a, f) => a[Math.min(a.length - 1, Math.floor(a.length * f))];
 // One snapshot of a flow's filaments. flow = 'fluid' | 'air'; b = buildBuffers(); rate = the flow's phase rate;
 // ph = clock phase. Returns { cov, dev } arrays plus their quantiles.
 // legacy: true = the 828e26a0 rule (time-secant direction, gap minimum only while moving).
-export function measureThreads(flow, b, { ph = 0, rate, shimK, curlK, aspect, gapClose = true, legacy = false, gapAspect, closeK, lanes: laneIds = null, onSprite = null, step = 1, devSteps = 24 } = {}) {
-  const cov = [], dev = [], covAlong = [], lat = [], latW = [], gapVis = [];
+export function measureThreads(flow, b, { ph = 0, rate, shimK, curlK, aspect, gapClose = true, legacy = false, straight = false, gapAspect, closeK, lanes: laneIds = null, onSprite = null, step = 1, devSteps = 24 } = {}) {
+  const cov = [], dev = [], covAlong = [], lat = [], latW = [], gapVis = [], stepPx = [];
   const lanes = new Map();
   b.lanes.forEach((k, i) => {
     if (k < 0 || (laneIds && !laneIds.includes(k))) return;
@@ -96,7 +102,7 @@ export function measureThreads(flow, b, { ph = 0, rate, shimK, curlK, aspect, ga
   });
   for (const idx of lanes.values()) {
     idx.sort((x, y) => b.phases[x] - b.phases[y]);
-    const P = [], TT = [], DD = [], WW = [];
+    const P = [], TT = [], DD = [], DB = [], WW = [];
     for (let jj = 0; jj < idx.length; jj++) {
       const i = idx[jj];
       let at, aspectMax, w, jit;
@@ -122,11 +128,12 @@ export function measureThreads(flow, b, { ph = 0, rate, shimK, curlK, aspect, ga
       }
       const now = at(0), g = b.gaps[i];
       const back = gapClose ? at(-g) : now, ahead = gapClose ? at(g) : now;
-      const sprite = spriteThread(now, at.prev, back, ahead, w, jit, aspectMax, { velocityDir: legacy, movingOnly: legacy, gapAspect, gapClose: closeK });
-      P.push(now); TT.push(sprite.total); DD.push(sprite.dir); WW.push(w);
+      const sprite = spriteThread(now, at.prev, back, ahead, w, jit, aspectMax, { velocityDir: legacy, movingOnly: legacy, straight: straight || legacy, gapAspect, gapClose: closeK });
+      P.push(now); TT.push(sprite.total); DD.push(sprite.dirA); DB.push(sprite.dirB); WW.push(w);
       if (onSprite) onSprite({ now, back, ahead, w, sprite, at, g });
       if (jj % step === 0) {
-        // dash-off-path: the true path near the particle vs the dash segment (centre now, along dir, ± total / 2)
+        // dash-off-path: the true path near the particle vs the dash (centre now; the ahead half along dirA, the back
+        // half along -dirB, each total / 2 long; a straight dash has dirA = dirB = dir)
         let dv = 0;
         const half = sprite.total / 2;
         const gpx = Math.max(Math.hypot(ahead[0] - back[0], ahead[1] - back[1]) / 2, 1e-3);
@@ -134,9 +141,13 @@ export function measureThreads(flow, b, { ph = 0, rate, shimK, curlK, aspect, ga
         for (let e = -devSteps; e <= devSteps; e++) {
           const pt = at((e / devSteps) * span);
           const rx = pt[0] - now[0], ry = pt[1] - now[1];
-          const al = rx * sprite.dir[0] + ry * sprite.dir[1];
-          if (Math.abs(al) > half) continue;
-          dv = Math.max(dv, Math.abs(rx * sprite.dir[1] - ry * sprite.dir[0]));
+          let best = Infinity;
+          for (const [d, sg] of [[sprite.dirA, 1], [sprite.dirB, -1]]) {
+            const al = sg * (rx * d[0] + ry * d[1]);
+            if (al < 0 || al > half) continue;
+            best = Math.min(best, Math.abs(rx * d[1] - ry * d[0]));
+          }
+          if (best < Infinity) dv = Math.max(dv, best);
         }
         dev.push(dv);
       }
@@ -144,18 +155,22 @@ export function measureThreads(flow, b, { ph = 0, rate, shimK, curlK, aspect, ga
     for (let j = 0; j < P.length; j++) {
       const jn = (j + 1) % P.length, gp = Math.hypot(P[jn][0] - P[j][0], P[jn][1] - P[j][1]);
       if (gp > 0.5) cov.push((TT[j] + TT[jn]) / 2 / gp);
-      // split the neighbour offset along the dash axis (a gap) and across it (thread width / fray)
+      // split the neighbour offset along j's ahead half (a gap) and across it (thread width / fray)
       const dx = P[jn][0] - P[j][0], dy = P[jn][1] - P[j][1];
       const al = Math.abs(dx * DD[j][0] + dy * DD[j][1]), la = Math.abs(dx * DD[j][1] - dy * DD[j][0]);
       if (al > 0.5) covAlong.push((TT[j] + TT[jn]) / 2 / al);
       gapVis.push(al - (TT[j] + TT[jn]) / 2); // > 1 px: a gap the eye sees between soft-edged dashes
       lat.push(la);
       latW.push(la / WW[j]);
+      // step (Task 7g): the next particle off j's ahead-half line, and j off the next one's back-half line: the
+      // sideways jump where two dashes meet (a staircase when > the core half-width)
+      if (Math.hypot(dx, dy) > 0.5) stepPx.push(Math.max(la, Math.abs(dx * DB[jn][1] - dy * DB[jn][0])));
     }
   }
-  for (const a of [cov, dev, covAlong, lat, latW]) a.sort((x, y) => x - y);
+  for (const a of [cov, dev, covAlong, lat, latW, stepPx]) a.sort((x, y) => x - y);
   return {
-    cov, dev, covAlong, lat,
+    cov, dev, covAlong, lat, stepPx,
+    stepP50: q(stepPx, 0.5), stepP95: q(stepPx, 0.95), stepMax: stepPx[stepPx.length - 1],
     openAlong: covAlong.filter((x) => x < 1).length / covAlong.length,
     openVis: gapVis.filter((x) => x > 1).length / gapVis.length,
     latP50: q(lat, 0.5), latP95: q(lat, 0.95), latOverW: latW.filter((x) => x > 1).length / latW.length,
