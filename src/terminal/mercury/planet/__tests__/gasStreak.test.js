@@ -5,7 +5,9 @@ import { glf } from '../../../gl/glf';
 import {
   GAS_STREAK_VS, GAS_STREAK_FS, STREAK_DT, FIL_ASPECT, FIL_JITTER, FIRE_EMBER_STRETCH, FIRE_EMBER_GAIN, FIRE_EMBER_SHARE,
   GAS_PX_FLOOR, GAS_Z_REF, MASK_EVOLVE, gasCounts, gasRoles, GAS_TUNE_UNIFORMS, writeGasTune,
+  gasThreads, THREAD_ALONG_JITTER, THREAD_CROSS_CLIP, THREAD_WEIGHT_FLOOR, GAS_MASK_LOOP, GAS_MASK_LANE_GAP,
 } from '../gasStreak';
+import { mulberry32 } from '../prng';
 import { PLANET_TUNE } from '../planetLook';
 
 // Replica of gasSprite(): role 0 passes the size through; role 1 = floored width (CSS px × dpr) + jittered,
@@ -20,15 +22,15 @@ const sprite = (role, size, sp, aspect = FIL_ASPECT, jit = 0.5, gain = PLANET_TU
 const filWidth = (depth, s, bite = 1, dpr = 1) => PLANET_TUNE.filWidth * dpr * (GAS_Z_REF / Math.max(depth, 0.5)) * (0.75 + 0.5 * s) * bite;
 
 describe('gasStreak constants', () => {
-  it('filament cap ~8x ±30 %, fire embers ≤ 1.5x, no sub-pixel filaments; the old 3x cap is gone', () => {
-    expect(FIL_ASPECT).toBe(8);
+  it('filament cap 16x ±30 % (Task 7d threads), fire embers ≤ 1.5x, no sub-pixel filaments; the old 3x/8x caps are gone', () => {
+    expect(FIL_ASPECT).toBe(16);
     expect(FIL_JITTER).toBe(0.3);
     expect(FIRE_EMBER_STRETCH).toBe(1.5);
     expect(FIRE_EMBER_GAIN).toBe(20);
     expect(FIRE_EMBER_SHARE).toBe(0.15);
     expect(GAS_PX_FLOOR).toBe(1.5);
     expect(GAS_Z_REF).toBe(4.43);
-    for (const [n, v] of Object.entries({ STREAK_DT, FIL_ASPECT, FIL_JITTER, FIRE_EMBER_STRETCH, FIRE_EMBER_GAIN, GAS_PX_FLOOR, GAS_Z_REF, MASK_EVOLVE })) {
+    for (const [n, v] of Object.entries({ STREAK_DT, FIL_ASPECT, FIL_JITTER, FIRE_EMBER_STRETCH, FIRE_EMBER_GAIN, GAS_PX_FLOOR, GAS_Z_REF, MASK_EVOLVE, GAS_MASK_LOOP, GAS_MASK_LANE_GAP })) {
       expect(GAS_STREAK_VS).toContain(`const float ${n} = ${glf(v)};`);
     }
     expect(GAS_STREAK_VS).not.toContain('STRETCH_MAX');
@@ -89,12 +91,12 @@ describe('gasSprite (spec §3c)', () => {
     expect(GAS_STREAK_VS).toContain('vStreakDir = sp > 1e-3 ? vec2(v.x, -v.y) / sp : vec2(1.0, 0.0);'); // point coords: y down
     expect(GAS_STREAK_VS).toContain('vStreakCap = vec2(0.5 * L / total, 0.5 * w / total);');
     expect(sprite(1, 0.5, 0).total).toBe(GAS_PX_FLOOR);                 // calm or sub-pixel → a 1.5 px round dot
-    const f = sprite(1, 2.2, 355);                                      // spec §3g: fluid mean speed, 2.2 px core
-    expect(f.total / f.w).toBeGreaterThan(5);
-    expect(f.total / f.w).toBeLessThan(7);
+    const f = sprite(1, 2.2, 355);                                      // spec §3g: fluid mean speed, 2.2 px core; shutter 0.05 → ~9x
+    expect(f.total / f.w).toBeGreaterThan(8);
+    expect(f.total / f.w).toBeLessThan(10.5);
     expect(sprite(1, 2.2, 5000).total / 2.2).toBeCloseTo(FIL_ASPECT, 9);           // capped, jitter 0.5
-    expect(sprite(1, 2.2, 5000, FIL_ASPECT, 0).total / 2.2).toBeCloseTo(1 + 7 * 0.7, 9);
-    expect(sprite(1, 2.2, 5000, FIL_ASPECT, 1).total / 2.2).toBeCloseTo(1 + 7 * 1.3, 9);
+    expect(sprite(1, 2.2, 5000, FIL_ASPECT, 0).total / 2.2).toBeCloseTo(1 + 15 * 0.7, 9);
+    expect(sprite(1, 2.2, 5000, FIL_ASPECT, 1).total / 2.2).toBeCloseTo(1 + 15 * 1.3, 9);
     expect(sprite(1, 2.2, 5000, FIRE_EMBER_STRETCH, 0.5).total / 2.2).toBeCloseTo(1.5, 9); // embers pass jit 0.5
   });
 
@@ -132,6 +134,87 @@ describe('lane mask + role alpha (spec §3d)', () => {
   });
 });
 
+describe('lane mask along the threads (Task 7d)', () => {
+  it('gasThreadCoord: lane id offsets the noise, the along-lane label runs a seamless loop; no cross-lane jitter in it', () => {
+    expect(GAS_STREAK_VS).toContain('vec3 gasThreadCoord(float lane, float along) {');
+    expect(GAS_STREAK_VS).toContain('float a = along * 6.283185307;');
+    expect(GAS_STREAK_VS).toContain('return vec3(cos(a) * GAS_MASK_LOOP + lane * GAS_MASK_LANE_GAP, sin(a) * GAS_MASK_LOOP, 0.0);');
+    // lanes sit in disjoint stretches of noise space (loop diameter + a noise feature < the gap, at the default freq)
+    expect(GAS_MASK_LANE_GAP * PLANET_TUNE.maskFreq).toBeGreaterThan(2 * GAS_MASK_LOOP * PLANET_TUNE.maskFreq + 1);
+  });
+});
+
+describe('gasThreads: filament lane placement (Task 7d)', () => {
+  const build = (n = 2400, lanes = 12, seed = 7) => gasThreads(n, lanes, mulberry32(seed));
+  const gaps = (xs) => {
+    const s = [...xs].sort((a, b) => a - b);
+    const g = s.map((x, i) => (i + 1 < s.length ? s[i + 1] - x : s[0] + 1 - x));
+    return g;
+  };
+
+  it('deterministic for the same seed, different for another', () => {
+    const a = build(), b = build();
+    expect(a.lane).toEqual(b.lane);
+    expect(a.along).toEqual(b.along);
+    expect(a.cross).toEqual(b.cross);
+    expect(build(2400, 12, 8).along).not.toEqual(a.along);
+  });
+
+  it('every filament gets an integer lane in [0, lanes); counts sum to n', () => {
+    const t = build();
+    expect(t.lane).toBeInstanceOf(Float32Array);
+    expect(t.lane.length).toBe(2400);
+    expect(t.lane.every((k) => Number.isInteger(k) && k >= 0 && k < 12)).toBe(true);
+    expect(t.counts.reduce((s, c) => s + c, 0)).toBe(2400);
+    for (let k = 0; k < 12; k++) expect(t.lane.filter((x) => x === k).length).toBe(t.counts[k]);
+  });
+
+  it('lane weights are uneven (dense and faint threads) but every lane is non-empty', () => {
+    for (const seed of [1, 2, 3, 7, 42, 0x7d1f]) {
+      for (const [n, lanes] of [[2400, 12], [1200, 14], [600, 12], [30, 14]]) {
+        const { counts } = gasThreads(n, lanes, mulberry32(seed));
+        expect(Math.min(...counts)).toBeGreaterThanOrEqual(1);
+        if (n >= 600) expect(Math.max(...counts) / Math.min(...counts)).toBeGreaterThan(1.8);
+      }
+    }
+    expect(THREAD_WEIGHT_FLOOR).toBeGreaterThan(0);
+  });
+
+  it('within a lane the along positions are stratified: every gap ≤ 3x the mean spacing (uniform random would break this)', () => {
+    const t = build();
+    expect(THREAD_ALONG_JITTER).toBeLessThan(1);
+    for (let k = 0; k < 12; k++) {
+      const xs = Array.from(t.along).filter((_, i) => t.lane[i] === k);
+      expect(xs.every((x) => x >= 0 && x < 1)).toBe(true);
+      if (xs.length < 2) continue;
+      expect(Math.max(...gaps(xs))).toBeLessThanOrEqual(3 / xs.length);
+    }
+    // control: the same counts drawn uniformly do break the bound somewhere
+    const r = mulberry32(99);
+    const worst = Math.max(...t.counts.map((n) => Math.max(...gaps(Array.from({ length: n }, r))) * n));
+    expect(worst).toBeGreaterThan(3);
+  });
+
+  it('cross-lane jitter: a clipped unit normal (|z| ≤ THREAD_CROSS_CLIP, sd ~1), so a thread is a few px wide', () => {
+    const { cross } = build(4000, 12, 3);
+    expect(Math.max(...cross.map(Math.abs))).toBeLessThanOrEqual(THREAD_CROSS_CLIP);
+    const m = cross.reduce((s, x) => s + x, 0) / cross.length;
+    const sd = Math.sqrt(cross.reduce((s, x) => s + (x - m) ** 2, 0) / cross.length);
+    expect(Math.abs(m)).toBeLessThan(0.1);
+    expect(sd).toBeGreaterThan(0.85);
+    expect(sd).toBeLessThan(1.05);
+  });
+
+  it('edges: no filaments → empty; fewer filaments than lanes → one per lane, the rest empty', () => {
+    const z = gasThreads(0, 12, mulberry32(1));
+    expect(z.lane.length).toBe(0);
+    expect(Array.from(z.counts)).toEqual(new Array(12).fill(0));
+    const few = gasThreads(5, 12, mulberry32(1));
+    expect(few.counts.reduce((s, c) => s + c, 0)).toBe(5);
+    expect(Math.max(...few.counts)).toBe(1);
+  });
+});
+
 describe('FS + varyings', () => {
   it('capsule distance equals the old round radius when the streak is 0', () => {
     expect(GAS_STREAK_FS).toContain('float gasStreakDist(vec2 pc) {');
@@ -158,8 +241,8 @@ describe('FS + varyings', () => {
 });
 
 describe('tune knobs (spec §3g)', () => {
-  it('defaults are derived from the px targets; the old gasSize/gasAlpha are gone', () => {
-    expect(PLANET_TUNE).toMatchObject({ filWidth: 2.2, streakGain: 0.03, filAlpha: 1, fogAlpha: 0.9, maskFreq: 2.5, maskSharp: 3, maskDepth: 0.7 });
+  it('defaults: the 54d8ef0e live-sweep set (Task 7d); the old gasSize/gasAlpha are gone', () => {
+    expect(PLANET_TUNE).toMatchObject({ filWidth: 2.2, streakGain: 0.05, filAlpha: 3, fogAlpha: 0.7, maskFreq: 2.5, maskSharp: 3, maskDepth: 0.7 });
     expect(PLANET_TUNE.fogAlpha).toBeLessThan(1);
     expect('gasSize' in PLANET_TUNE).toBe(false);
     expect('gasAlpha' in PLANET_TUNE).toBe(false);

@@ -11,12 +11,16 @@
 // simplex in the flow's own cross-stream labels: lanes of particles travelling with the current, slowly evolving.
 // Counts (spec §3e, gasCounts): fog = the old (base) count, so the tier multiplier feeds the filaments; fire keeps
 // its old body count and multiplies its old ember count. gasRoles() spreads the fog slots evenly (exact, deterministic).
+// Threads (Task 7d, author 2026-10-06): fluid + air PLACE their filaments on a few lanes (gasThreads): irregular
+// seeded lane centres, uneven lane weights, stratified spacing along each lane, a clipped-normal cross jitter, so
+// dashes chain head to tail into threads. The lane mask then runs ALONG each thread (gasThreadCoord: lane id + the
+// along-lane label on a seamless loop), so a thread fades in and out along its length but is never re-shredded.
 // Needs uViewportPx (PLANET_WINDOW_VS) and the flow's snoise(vec3) declared before GAS_STREAK_VS.
 
 import { glf } from '../../gl/glf';
 
 export const STREAK_DT = 1 / 30;
-export const FIL_ASPECT = 8;          // filament length cap (× width), author 2026-10-05 (was 3)
+export const FIL_ASPECT = 16;         // filament length cap (× width), author 2026-10-06 (was 8, before that 3)
 export const FIL_JITTER = 0.3;        // ± per-particle length jitter (cap included)
 export const FIRE_EMBER_STRETCH = 1.5;
 export const FIRE_EMBER_GAIN = 20;    // fire embers: the old 0.006–0.018 alpha was sized for big overlapping discs
@@ -24,6 +28,11 @@ export const FIRE_EMBER_SHARE = 0.15;  // the old fire: 85 % body, 15 % embers
 export const GAS_PX_FLOOR = 1.5;      // CSS px (× uDpr): filaments never go sub-pixel (fog keeps its old size, unfloored)
 export const GAS_Z_REF = 4.43;        // fitted desktop camera distance (look probe 1600×1000): uFilWidth is CSS px here
 export const MASK_EVOLVE = 0.03;
+export const GAS_MASK_LOOP = 1.0;     // radius of the along-lane loop in mask label space (× uMaskFreq): ~8 bright stretches per lane
+export const GAS_MASK_LANE_GAP = 3.0; // lane id → mask x offset; > loop diameter + a noise feature, so lanes are independent
+export const THREAD_ALONG_JITTER = 0.8;  // stratified along-lane jitter, × the lane's mean spacing (max gap ≤ 1.8 spacings)
+export const THREAD_CROSS_CLIP = 2.5;    // cross-lane jitter = a unit normal clipped at ±this (flows scale it by their σ)
+export const THREAD_WEIGHT_FLOOR = 0.35; // lane weight = floor + Exp(1): uneven (dense + faint threads), none vanishing
 
 // Particle counts for one flow (spec §3e): `base` = its old count (params.density or GHOST_DENSITY), `mult` = the
 // tier's gasDensity (1 for ghosts). Fog = the old count; the multiplier feeds the filaments. Fire: body = the old
@@ -42,6 +51,57 @@ export function gasRoles(count, nFog) {
   const roles = new Float32Array(count);
   for (let i = 0; i < count; i++) roles[i] = Math.floor(((i + 1) * nFog) / count) > Math.floor((i * nFog) / count) ? 0 : 1;
   return roles;
+}
+
+// A unit normal clipped to ±THREAD_CROSS_CLIP (Box-Muller, rejection), from a [0, 1) rng.
+function clippedNormal(rng) {
+  for (;;) {
+    const z = Math.sqrt(-2 * Math.log(1 - rng())) * Math.cos(2 * Math.PI * rng());
+    if (Math.abs(z) <= THREAD_CROSS_CLIP) return z;
+  }
+}
+
+// Filament lane placement (Task 7d), pure + deterministic for a seeded rng (prng.js mulberry32). Per filament:
+// lane (integer, lane-major order), along ∈ [0, 1) (stratified within its lane from a random lane start, jittered by
+// THREAD_ALONG_JITTER of the spacing) and cross (a clipped unit normal; the flow scales it by its own σ). Lane counts
+// follow uneven weights (THREAD_WEIGHT_FLOOR + Exp(1), largest remainder) with ≥ 1 per lane while nFil ≥ lanes.
+export function gasThreads(nFil, lanes, rng) {
+  const lane = new Float32Array(nFil);
+  const along = new Float32Array(nFil);
+  const cross = new Float32Array(nFil);
+  const counts = new Int32Array(lanes);
+  if (nFil <= 0 || lanes <= 0) return { lane, along, cross, counts };
+  const used = Math.min(lanes, nFil);
+  const w = new Float64Array(used);
+  let sum = 0;
+  for (let k = 0; k < used; k++) { w[k] = THREAD_WEIGHT_FLOOR - Math.log(1 - rng()); sum += w[k]; }
+  const rest = nFil - used;
+  const rem = new Float64Array(used);
+  let given = 0;
+  for (let k = 0; k < used; k++) {
+    const q = (w[k] / sum) * rest;
+    counts[k] = 1 + Math.floor(q);
+    rem[k] = q - Math.floor(q);
+    given += counts[k];
+  }
+  for (; given < nFil; given++) {
+    let best = 0;
+    for (let k = 1; k < used; k++) if (rem[k] > rem[best]) best = k;
+    counts[best]++;
+    rem[best] = -1;
+  }
+  let i = 0;
+  for (let k = 0; k < used; k++) {
+    const n = counts[k];
+    const start = rng();
+    for (let j = 0; j < n; j++, i++) {
+      const a = start + (j + 0.5 + THREAD_ALONG_JITTER * (rng() - 0.5)) / n;
+      lane[i] = k;
+      along[i] = a - Math.floor(a);
+      cross[i] = clippedNormal(rng);
+    }
+  }
+  return { lane, along, cross, counts };
 }
 
 export const GAS_STREAK_VS = /* glsl */ `
@@ -66,6 +126,8 @@ const float FIRE_EMBER_GAIN = ${glf(FIRE_EMBER_GAIN)};
 const float GAS_PX_FLOOR = ${glf(GAS_PX_FLOOR)};
 const float GAS_Z_REF = ${glf(GAS_Z_REF)};
 const float MASK_EVOLVE = ${glf(MASK_EVOLVE)};
+const float GAS_MASK_LOOP = ${glf(GAS_MASK_LOOP)};
+const float GAS_MASK_LANE_GAP = ${glf(GAS_MASK_LANE_GAP)};
 
 float gasHash(float a, float b) {
   return fract(sin(a * 91.7 + b * 47.3) * 43758.5453);
@@ -98,6 +160,12 @@ float gasSprite(vec4 clipNow, vec4 clipPrev, float role, float size, float aspec
 float gasLane(vec3 laneCoord, float t) {
   float n = snoise(laneCoord * uMaskFreq + vec3(0.0, 0.0, t * MASK_EVOLVE));
   return mix(1.0, pow(max(1.0 - abs(n), 0.0), uMaskSharp), uMaskDepth);
+}
+
+// Mask label for a thread particle: its lane id (shared by the whole thread) + its along-lane label on a seamless loop.
+vec3 gasThreadCoord(float lane, float along) {
+  float a = along * 6.283185307;
+  return vec3(cos(a) * GAS_MASK_LOOP + lane * GAS_MASK_LANE_GAP, sin(a) * GAS_MASK_LOOP, 0.0);
 }
 
 float gasAlpha(float role, vec3 laneCoord, float t) {

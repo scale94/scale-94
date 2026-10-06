@@ -5,8 +5,9 @@ import { PLANET_WINDOW_VS, PLANET_WINDOW_FS } from '../mercury/planet/planetWind
 import { R_SCENE, PLANET_TUNE } from '../mercury/planet/planetLook';
 import { AETHER_LIGHT_VS, aetherLightFS } from '../mercury/planet/aetherLight';
 import { SUN_DIR_WORLD } from '../mercury/planet/planetFrame';
-import { GAS_STREAK_VS, GAS_STREAK_FS, GAS_TUNE_UNIFORMS, writeGasTune, gasRoles } from '../mercury/planet/gasStreak';
+import { GAS_STREAK_VS, GAS_STREAK_FS, GAS_TUNE_UNIFORMS, writeGasTune } from '../mercury/planet/gasStreak';
 import { createAetherClock, configureAetherClock, tickAetherClock } from '../mercury/planet/aetherClock';
+import { buildBuffers } from './atmosphericFlowBuffers';
 
 // ── GLSL ───────────────────────────────────────────────────────────────────
 const vertexShader = /* glsl */ `
@@ -26,6 +27,7 @@ const vertexShader = /* glsl */ `
   attribute float aAlt;      // altitude layer [0,1]
   attribute float aIon;      // 0=atmosphere, 1=ionospheric fast layer
   attribute float aRole;   // 0 = fog (the old sprite), 1 = filament (mirror-sky spec §3b)
+  attribute float aLane;   // filament thread id (Task 7d; -1 for fog)
 
   varying float vAltitude;
   varying float vSpeed;
@@ -145,8 +147,8 @@ const vertexShader = /* glsl */ `
     float size = aRole < 0.5 ? fogSize : filW;
     gl_Position  = projectionMatrix * mvPos;
     gl_PointSize = gasSprite(gl_Position, projectionMatrix * mvPrev, aRole, size, FIL_ASPECT, gasHash(aPhase, aSeed));
-    // Fog: × fogAlpha. Filaments: lanes by altitude layer and ionosphere, slowly along the orbit, × filAlpha.
-    vLane = gasAlpha(aRole, vec3(aAlt * 4.0, aIon * 2.0 + aSpeed, aPhase * 1.5), uTime);
+    // Fog: × fogAlpha. Filaments: the mask runs along each thread (lane id + orbit label), slowly evolving, × filAlpha.
+    vLane = gasAlpha(aRole, gasThreadCoord(aLane, aPhase), uTime);
     planetWindowVS(mvPos.xyz);
     aetherLightVS(mvPos.xyz, size);
   }
@@ -210,34 +212,6 @@ const fragmentShader = /* glsl */ `
     gl_FragColor = gasOut(col, (alpha * alphaScale * uOpacity * vLane) * planetWindow(), dither);
   }
 `;
-
-// ── Buffer init ────────────────────────────────────────────────────────────
-function buildBuffers(count, nFog) {
-  const ionFraction = 0.08;
-
-  const positions = new Float32Array(count * 3);
-  const phases    = new Float32Array(count);
-  const speeds    = new Float32Array(count);
-  const seeds     = new Float32Array(count);
-  const sizes     = new Float32Array(count);
-  const alts      = new Float32Array(count);
-  const ions      = new Float32Array(count);
-
-  for (let i = 0; i < count; i++) {
-    positions[i * 3]     = (Math.random() * 2 - 1) * 1.2;
-    positions[i * 3 + 1] = (Math.random() * 2 - 1) * 1.2;
-    positions[i * 3 + 2] = (Math.random() * 2 - 1) * 1.2;
-    phases[i]  = Math.random();
-    speeds[i]  = Math.random();
-    seeds[i]   = Math.random();
-    // Air particles are mostly tiny (molecules), skewed very small
-    sizes[i]   = Math.pow(Math.random(), 1.6);
-    // Altitude distributed across all layers, slight bias toward mid
-    alts[i]    = Math.random();
-    ions[i]    = Math.random() < ionFraction ? 1.0 : 0.0;
-  }
-  return { positions, phases, speeds, seeds, sizes, alts, ions, roles: gasRoles(count, nFog) };
-}
 
 // ── Component ──────────────────────────────────────────────────────────────
 export default function AtmosphericFlow({
@@ -328,6 +302,7 @@ export default function AtmosphericFlow({
         <bufferAttribute attach="attributes-aAlt"     array={buffers.alts}      count={PARTICLE_COUNT} itemSize={1} />
         <bufferAttribute attach="attributes-aIon"     array={buffers.ions}      count={PARTICLE_COUNT} itemSize={1} />
         <bufferAttribute attach="attributes-aRole" array={buffers.roles} count={PARTICLE_COUNT} itemSize={1} />
+        <bufferAttribute attach="attributes-aLane" array={buffers.lanes} count={PARTICLE_COUNT} itemSize={1} />
       </bufferGeometry>
       <shaderMaterial
         ref={materialRef}

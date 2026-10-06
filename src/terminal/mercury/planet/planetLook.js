@@ -63,10 +63,10 @@ export const PLANET_TUNE = {
   aetherSilver: 0,   // desaturation toward silver (0: the mirror shows the gas at its own hue, 2026-10-03)
   aetherFloor: 0.2,     // lit element flows never fall below this × their colour (umbra, worst phase) — aetherLight.js
   aetherPenumbra: 0.08, // half-width of the planet shadow cylinder's soft edge, scene units (planet radius 0.75)
-  streakGain: 0.03,  // filament shutter (s): length beyond the core = on-screen speed × this; fluid ~355 px/s → ~6× width (mirror-sky spec §3g)
+  streakGain: 0.05,  // filament shutter (s): length beyond the core = on-screen speed × this; fluid ~355 px/s → ~9× width (live sweep 2026-10-06)
   filWidth: 2.2,     // filament core width, CSS px at GAS_Z_REF (× the pixel ratio; ±25 % per particle, floored at GAS_PX_FLOOR)
-  filAlpha: 1,       // filament alpha × this, on the element's own per-particle alpha (fire embers: × FIRE_EMBER_GAIN too)
-  fogAlpha: 0.9,     // fog role (the old sprite, the old count) alpha × this: "a little dimmer" (body ≈ 0.9×)
+  filAlpha: 3,       // filament alpha × this, on the element's own per-particle alpha (fire embers: × FIRE_EMBER_GAIN too)
+  fogAlpha: 0.7,     // fog role (the old sprite, the old count) alpha × this: dimmer, so the additive threads read (live sweep 2026-10-06)
   maskFreq: 2.5,     // lane mask frequency in the flows' label space
   maskSharp: 3,      // lane ridge sharpness (higher = thinner filaments)
   maskDepth: 0.7,    // filaments only: 0 = no mask, 1 = everything off-ridge is carved away
