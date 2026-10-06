@@ -398,6 +398,16 @@ describe('tune knobs (spec §3g)', () => {
     expect(u.uPointMax.value).toBe(511);
     expect(Object.values(u)).toEqual(objs);
   });
+
+  it('a stale uniforms object (HMR added a knob after mount) is skipped, never throws per frame', () => {
+    const u = GAS_TUNE_UNIFORMS(PLANET_TUNE);
+    delete u.uEmberSize;
+    delete u.uPointMax;
+    expect(() => writeGasTune(u, { ...PLANET_TUNE, fogAlpha: 0.25 }, 2, 511)).not.toThrow();
+    expect(u.uFogAlpha.value).toBe(0.25);
+    expect(u.uDpr.value).toBe(2);
+    expect('uEmberSize' in u).toBe(false);
+  });
 });
 
 describe('fire ember + earth streak knobs (Task 8b)', () => {

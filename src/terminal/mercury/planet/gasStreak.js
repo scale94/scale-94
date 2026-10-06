@@ -400,9 +400,13 @@ export function gasPointMax(renderer) {
 }
 
 // Per frame: the knobs + the renderer's pixel ratio (state.gl.getPixelRatio()) + its point size limit
-// (gasPointMax(state.gl)), no allocation.
+// (gasPointMax(state.gl)), no allocation. A uniform missing from `uniforms` is skipped: after a hot reload adds a knob,
+// a flow's mount-time uniforms object lacks it, and a throw here would fire every frame (console flood, tab froze).
 export function writeGasTune(uniforms, tune, dpr = 1, pointMax = GAS_POINT_MAX_UNKNOWN) {
-  for (let i = 0; i < GAS_TUNE.length; i++) uniforms[GAS_TUNE[i][0]].value = tune[GAS_TUNE[i][1]];
-  uniforms.uDpr.value = dpr;
-  uniforms.uPointMax.value = pointMax;
+  for (let i = 0; i < GAS_TUNE.length; i++) {
+    const u = uniforms[GAS_TUNE[i][0]];
+    if (u) u.value = tune[GAS_TUNE[i][1]];
+  }
+  if (uniforms.uDpr) uniforms.uDpr.value = dpr;
+  if (uniforms.uPointMax) uniforms.uPointMax.value = pointMax;
 }
