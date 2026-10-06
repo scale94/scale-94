@@ -510,7 +510,7 @@ describe('fluid calm threads are lines, not a staircase (Task 7g)', () => {
     expect(vs).toMatch(/vec2 dA = pAhead - pNow;/);
     expect(vs).toMatch(/vec2 dB = pNow - pBack;/);
     expect(vs).toMatch(/vStreakDir2 = vec2\(dirB\.x, -dirB\.y\);/);
-    expect(vs).toMatch(/gasSpriteThread\(clipNow, clipPrev, clipNow, clipNow,/); // tl = 0: dirA = dirB = dir
+    expect(vs).toMatch(/gasSpriteCore\(clipNow, clipPrev, clipNow, clipNow,/); // tl = 0: dirA = dirB = dir
     expect(fs).toMatch(/clamp\(dot\(q, vStreakDir\), 0\.0, vStreakCap\.x\)/);
     expect(fs).toMatch(/clamp\(-dot\(q, vStreakDir2\), 0\.0, vStreakCap\.x\)/);
   });
@@ -530,7 +530,7 @@ describe('earth (spec §3f): dust fog + settling streaks', () => {
     expect(sedimentSrc).toContain('float fogSize = baseSize * ageFactor * (280.0 / -mvPos.z) * bite;');
     expect(sedimentSrc).toContain('float filW = gasFilWidth(-mvPos.z, aSize, bite);');
     expect(sedimentSrc).toContain('float size = aRole < 0.5 ? fogSize : filW;');
-    expect(sedimentSrc).toContain('gl_PointSize = gasSprite(gl_Position, projectionMatrix * mvPrev, aRole, size, sedStretch, gasHash(aPhase, aSeed));');
+    expect(sedimentSrc).toContain('gl_PointSize = gasSpriteGain(gl_Position, projectionMatrix * mvPrev, aRole, size, sedStretch, gasHash(aPhase, aSeed), uStreakGain * uEarthStreakGain);');
     expect(sedimentSrc).toContain('aetherLightVS(mvPos.xyz, size);');
     expect(sedimentSrc).toMatch(/float d = gasStreakDist\(gl_PointCoord\);/);
     expect(sedimentSrc).toContain('float alpha = smoothstep(1.0, 0.15, d) * gasTaper(gl_PointCoord);');
@@ -559,6 +559,17 @@ describe('earth (spec §3f): dust fog + settling streaks', () => {
   });
 });
 
+describe('fire ember + earth streak knobs reach only their own flow (Task 8b)', () => {
+  it('ember knobs: fire only, on the ember width/alpha (the body fogSize is untouched); earth shutter: earth only', () => {
+    expect(thermalSrc).toContain('float fogSize = min(baseSize * sizeFactor * (80.0 / depth), uPointSizeMax) * bite;');
+    expect(thermalSrc).toContain('float size = aEmber < 0.5 ? fogSize : filW;');
+    expect(thermalSrc).not.toContain('uEarthStreakGain');
+    expect(sedimentSrc).not.toMatch(/uEmberSize|uEmberGain/);
+    for (const src of [particleSrc, atmoSrc]) expect(src).not.toMatch(/uEmberSize|uEmberGain|uEarthStreakGain|gasSpriteGain/);
+    expect(sedimentSrc).toContain('float sedStretch = (agePrev > age || sinkPrev > sinkOffset) ? 1.0 : FIL_ASPECT;');
+  });
+});
+
 describe('fire (spec §3f): fog = the flame body, filament = embers only', () => {
   it('core sampled twice; the role IS aEmber, built by gasRoles (no random ember draw)', () => {
     expect(thermalSrc).toContain('${GAS_STREAK_VS}');
@@ -575,11 +586,11 @@ describe('fire (spec §3f): fog = the flame body, filament = embers only', () =>
 
   it('body: the old flame sprite; embers: small round dots ≤ 1.5x, never across a respawn, unmasked, boosted, no taper', () => {
     expect(thermalSrc).toContain('float fogSize = min(baseSize * sizeFactor * (80.0 / depth), uPointSizeMax) * bite;');
-    expect(thermalSrc).toContain('float filW = gasFilWidth(depth, aSize, bite * sizeFactor);');
+    expect(thermalSrc).toContain('float filW = gasFilWidth(depth, aSize, bite * sizeFactor) * uEmberSize;');
     expect(thermalSrc).toContain('float size = aEmber < 0.5 ? fogSize : filW;');
     expect(thermalSrc).toContain('float emberStretch = agePrev > age ? 1.0 : FIRE_EMBER_STRETCH;');
     expect(thermalSrc).toContain('gl_PointSize = gasSprite(gl_Position, projectionMatrix * mvPrev, aEmber, size, emberStretch, 0.5);');
-    expect(thermalSrc).toContain('vLane = gasRoleAlpha(aEmber) * mix(1.0, FIRE_EMBER_GAIN, aEmber);');
+    expect(thermalSrc).toContain('vLane = gasRoleAlpha(aEmber) * mix(1.0, FIRE_EMBER_GAIN * uEmberGain, aEmber);');
     expect(thermalSrc).not.toContain('gasLane(');
     expect(thermalSrc).not.toContain('gasAlpha(');
     expect(thermalSrc).not.toContain('gasTaper(');

@@ -156,14 +156,15 @@ const vertexShader = /* glsl */ `
     float bite = 1.0 - uCondense * uCondenseSizeBite;
     // Fog = the old flame-body sprite; embers = small round dots that shrink with age (mirror-sky spec §3f).
     float fogSize = min(baseSize * sizeFactor * (80.0 / depth), uPointSizeMax) * bite;
-    float filW = gasFilWidth(depth, aSize, bite * sizeFactor);
+    float filW = gasFilWidth(depth, aSize, bite * sizeFactor) * uEmberSize; // embers only (Task 8b knob)
     float size = aEmber < 0.5 ? fogSize : filW;
     gl_Position  = projectionMatrix * mvPos;
     // Embers stretch ≤ 1.5x (jitter pinned at 0.5 so the cap is exact), never across a respawn.
     float emberStretch = agePrev > age ? 1.0 : FIRE_EMBER_STRETCH;
     gl_PointSize = gasSprite(gl_Position, projectionMatrix * mvPrev, aEmber, size, emberStretch, 0.5);
-    // No lane mask on fire: body × fogAlpha; embers × filAlpha × FIRE_EMBER_GAIN (the old alpha was sized for big discs).
-    vLane = gasRoleAlpha(aEmber) * mix(1.0, FIRE_EMBER_GAIN, aEmber);
+    // No lane mask on fire: body × fogAlpha; embers × filAlpha × FIRE_EMBER_GAIN × uEmberGain (the old alpha was sized
+    // for big discs; uEmberGain: live knob, Task 8b).
+    vLane = gasRoleAlpha(aEmber) * mix(1.0, FIRE_EMBER_GAIN * uEmberGain, aEmber);
     planetWindowVS(mvPos.xyz);
   }
 `;

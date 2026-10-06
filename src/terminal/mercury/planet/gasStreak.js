@@ -218,6 +218,9 @@ uniform float uMaskSharp;
 uniform float uMaskDepth;
 uniform float uDpr;
 uniform float uAirFilGain;
+uniform float uEmberSize;
+uniform float uEmberGain;
+uniform float uEarthStreakGain;
 uniform float uPointMax;
 varying vec2 vStreakDir;
 varying vec2 vStreakDir2;
@@ -257,7 +260,9 @@ vec2 gasScreenPx(vec4 clip) {
 // limit), width kept. Bent dash (Task 7g): on a thread the ahead half aims at pAhead (vStreakDir) and the back half
 // at pBack (vStreakDir2), so the dash follows the path's bend instead of a chord through the particle (the straight
 // dash stepped sideways from its neighbours on the knot's bends). No thread: vStreakDir2 = vStreakDir, one straight dash.
-float gasSpriteThread(vec4 clipNow, vec4 clipPrev, vec4 clipBack, vec4 clipAhead, float role, float size, float aspectMax, float jit) {
+// gain: the shutter (s) for the speed part; gasSpriteThread / gasSprite pass uStreakGain, earth passes
+// uStreakGain x uEarthStreakGain (gasSpriteGain, Task 8b).
+float gasSpriteCore(vec4 clipNow, vec4 clipPrev, vec4 clipBack, vec4 clipAhead, float role, float size, float aspectMax, float jit, float gain) {
   vRole = role;
   if (role < 0.5) {
     vStreakDir = vec2(1.0, 0.0);
@@ -278,7 +283,7 @@ float gasSpriteThread(vec4 clipNow, vec4 clipPrev, vec4 clipBack, vec4 clipAhead
   float tl = length(tng);
   float gapPx = max(length(pNow - pBack), length(pAhead - pNow));
   vec2 dir = tl > 1e-3 ? tng / tl : (sp > 1e-3 ? v / sp : vec2(1.0, 0.0));
-  float L = min(sp * uStreakGain, max(aspectMax - 1.0, 0.0) * w) * (1.0 + FIL_JITTER * (2.0 * jit - 1.0));
+  float L = min(sp * gain, max(aspectMax - 1.0, 0.0) * w) * (1.0 + FIL_JITTER * (2.0 * jit - 1.0));
   L = max(L, min(FIL_GAP_CLOSE * gapPx - w, (FIL_GAP_ASPECT - 1.0) * w));
   L = min(L, max(uPointMax - w, 0.0));
   float total = w + L;
@@ -292,8 +297,18 @@ float gasSpriteThread(vec4 clipNow, vec4 clipPrev, vec4 clipBack, vec4 clipAhead
   return total;
 }
 
+float gasSpriteThread(vec4 clipNow, vec4 clipPrev, vec4 clipBack, vec4 clipAhead, float role, float size, float aspectMax, float jit) {
+  return gasSpriteCore(clipNow, clipPrev, clipBack, clipAhead, role, size, aspectMax, jit, uStreakGain);
+}
+
 float gasSprite(vec4 clipNow, vec4 clipPrev, float role, float size, float aspectMax, float jit) {
-  return gasSpriteThread(clipNow, clipPrev, clipNow, clipNow, role, size, aspectMax, jit);
+  return gasSpriteCore(clipNow, clipPrev, clipNow, clipNow, role, size, aspectMax, jit, uStreakGain);
+}
+
+// No thread, own shutter (earth, Task 8b): the dash lies along the time secant (the settling direction), length =
+// on-screen speed x gain, the cap (aspectMax) and the uPointMax guard unchanged.
+float gasSpriteGain(vec4 clipNow, vec4 clipPrev, float role, float size, float aspectMax, float jit, float gain) {
+  return gasSpriteCore(clipNow, clipPrev, clipNow, clipNow, role, size, aspectMax, jit, gain);
 }
 
 float gasLane(vec3 laneCoord, float t) {
@@ -357,7 +372,8 @@ vec4 gasOut(vec3 color, float a, float dither) {
 
 const GAS_TUNE = [['uStreakGain', 'streakGain'], ['uFilWidth', 'filWidth'], ['uFilAlpha', 'filAlpha'],
   ['uFogAlpha', 'fogAlpha'], ['uMaskFreq', 'maskFreq'], ['uMaskSharp', 'maskSharp'], ['uMaskDepth', 'maskDepth'],
-  ['uAirFilGain', 'airFilGain']];
+  ['uAirFilGain', 'airFilGain'], ['uEmberSize', 'emberSize'], ['uEmberGain', 'emberGain'],
+  ['uEarthStreakGain', 'earthStreakGain']];
 
 export const GAS_POINT_MAX_UNKNOWN = 1e4; // no clamp when the limit can't be read (non-WebGL contexts, tests)
 

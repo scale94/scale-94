@@ -71,6 +71,9 @@ export const PLANET_TUNE = {
   maskSharp: 3,      // lane ridge sharpness (higher = thinner filaments)
   maskDepth: 0.3,    // filaments only: 0 = no mask, 1 = everything off-ridge is carved away (threads: a light along-lane breath)
   airFilGain: 3,     // air filaments only: extra alpha × this on top of filAlpha (air threads read faint in the fog; Task 7e)
+  emberSize: 1.75,   // fire embers only: width × this (the body untouched; stretch cap FIRE_EMBER_STRETCH kept; Task 8b)
+  emberGain: 1.75,   // fire embers only: alpha × this on top of filAlpha × FIRE_EMBER_GAIN (Task 8b)
+  earthStreakGain: 5, // earth filaments only: shutter × this; settling dust ~32 px/s p50 → aspect p50 ~4.8 (was 1.75); cap FIL_ASPECT; Task 8b
   rayGain: 1.5,      // fresh crater-ray brightness (scar map G channel); 1.5 tuned 2026-10-02 (Task 7: 2+ flattens rays into a blob)
   modeGain: 1,       // body-mode + spin-bulge amplitude (the bead's wobble)
   waveGain: 1,       // capillary ripple slope

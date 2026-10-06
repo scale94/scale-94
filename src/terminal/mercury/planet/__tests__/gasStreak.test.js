@@ -87,7 +87,7 @@ describe('gasSprite (spec §3c)', () => {
   it('filament: floored width; length = speed x shutter, capped at (aspect - 1) x width, jitter on both', () => {
     expect(GAS_STREAK_VS).toContain('float w = max(size, GAS_PX_FLOOR * uDpr);');
     expect(GAS_STREAK_VS).toContain('v = (clipNow.xy / clipNow.w - clipPrev.xy / clipPrev.w) * 0.5 * uViewportPx / STREAK_DT;');
-    expect(GAS_STREAK_VS).toContain('float L = min(sp * uStreakGain, max(aspectMax - 1.0, 0.0) * w) * (1.0 + FIL_JITTER * (2.0 * jit - 1.0));');
+    expect(GAS_STREAK_VS).toContain('float L = min(sp * gain, max(aspectMax - 1.0, 0.0) * w) * (1.0 + FIL_JITTER * (2.0 * jit - 1.0));');
     expect(GAS_STREAK_VS).toContain('vec2 dir = tl > 1e-3 ? tng / tl : (sp > 1e-3 ? v / sp : vec2(1.0, 0.0));');
     expect(GAS_STREAK_VS).toContain('vStreakDir = vec2(dirA.x, -dirA.y); // point coords: y down');
     expect(GAS_STREAK_VS).toContain('vec2 dirA = tl > 1e-3 && length(dA) > 1e-3 ? normalize(dA) : dir;');
@@ -292,7 +292,7 @@ describe('gap-closing filament dashes (Task 7f)', () => {
     expect(FIL_GAP_ASPECT).toBe(24);
     for (const [n, v] of Object.entries({ FIL_GAP_CLOSE, FIL_GAP_ASPECT })) expect(GAS_STREAK_VS).toContain(`const float ${n} = ${glf(v)};`);
     expect(GAS_STREAK_VS).toContain('float gasSpriteThread(vec4 clipNow, vec4 clipPrev, vec4 clipBack, vec4 clipAhead, float role, float size, float aspectMax, float jit) {');
-    expect(GAS_STREAK_VS).toContain('return gasSpriteThread(clipNow, clipPrev, clipNow, clipNow, role, size, aspectMax, jit);');
+    expect(GAS_STREAK_VS).toContain('return gasSpriteCore(clipNow, clipPrev, clipNow, clipNow, role, size, aspectMax, jit, uStreakGain);'); // Task 8b: via the core
     expect(GAS_STREAK_VS).toContain('vec2 tng = pAhead - pBack;');
     expect(GAS_STREAK_VS).toContain('float gapPx = max(length(pNow - pBack), length(pAhead - pNow));');
     expect(GAS_STREAK_VS).toContain('L = max(L, min(FIL_GAP_CLOSE * gapPx - w, (FIL_GAP_ASPECT - 1.0) * w));');
@@ -388,7 +388,7 @@ describe('tune knobs (spec §3g)', () => {
 
   it('copied per frame without allocation, with the renderer pixel ratio', () => {
     const u = GAS_TUNE_UNIFORMS(PLANET_TUNE);
-    expect(Object.keys(u).sort()).toEqual(['uAirFilGain', 'uDpr', 'uFilAlpha', 'uFilWidth', 'uFogAlpha', 'uMaskDepth', 'uMaskFreq', 'uMaskSharp', 'uPointMax', 'uStreakGain']);
+    expect(Object.keys(u).sort()).toEqual(['uAirFilGain', 'uDpr', 'uEarthStreakGain', 'uEmberGain', 'uEmberSize', 'uFilAlpha', 'uFilWidth', 'uFogAlpha', 'uMaskDepth', 'uMaskFreq', 'uMaskSharp', 'uPointMax', 'uStreakGain']);
     expect(u.uFilWidth.value).toBe(PLANET_TUNE.filWidth);
     expect(u.uDpr.value).toBe(1);
     const objs = Object.values(u);
@@ -397,6 +397,40 @@ describe('tune knobs (spec §3g)', () => {
     expect(u.uDpr.value).toBe(2);
     expect(u.uPointMax.value).toBe(511);
     expect(Object.values(u)).toEqual(objs);
+  });
+});
+
+describe('fire ember + earth streak knobs (Task 8b)', () => {
+  it('defaults: embers ~1.75x wider + brighter, earth shutter x5; live in PLANET_TUNE', () => {
+    expect(PLANET_TUNE).toMatchObject({ emberSize: 1.75, emberGain: 1.75, earthStreakGain: 5 });
+  });
+
+  it('wired as uniforms (declared in the shared VS) and copied per frame', () => {
+    for (const u of ['uEmberSize', 'uEmberGain', 'uEarthStreakGain']) expect(GAS_STREAK_VS).toContain(`uniform float ${u};`);
+    const u = GAS_TUNE_UNIFORMS(PLANET_TUNE);
+    expect(u.uEmberSize.value).toBe(PLANET_TUNE.emberSize);
+    expect(u.uEmberGain.value).toBe(PLANET_TUNE.emberGain);
+    expect(u.uEarthStreakGain.value).toBe(PLANET_TUNE.earthStreakGain);
+    writeGasTune(u, { ...PLANET_TUNE, emberSize: 3, emberGain: 0.5, earthStreakGain: 7 }, 1, 511);
+    expect([u.uEmberSize.value, u.uEmberGain.value, u.uEarthStreakGain.value]).toEqual([3, 0.5, 7]);
+  });
+
+  it('one sprite core with the shutter as a parameter: thread/plain sprites pass uStreakGain, gasSpriteGain its own', () => {
+    expect(GAS_STREAK_VS).toContain('float gasSpriteCore(vec4 clipNow, vec4 clipPrev, vec4 clipBack, vec4 clipAhead, float role, float size, float aspectMax, float jit, float gain) {');
+    expect(GAS_STREAK_VS).toContain('return gasSpriteCore(clipNow, clipPrev, clipBack, clipAhead, role, size, aspectMax, jit, uStreakGain);');
+    expect(GAS_STREAK_VS).toContain('return gasSpriteCore(clipNow, clipPrev, clipNow, clipNow, role, size, aspectMax, jit, uStreakGain);');
+    expect(GAS_STREAK_VS).toContain('float gasSpriteGain(vec4 clipNow, vec4 clipPrev, float role, float size, float aspectMax, float jit, float gain) {');
+    expect(GAS_STREAK_VS).toContain('return gasSpriteCore(clipNow, clipPrev, clipNow, clipNow, role, size, aspectMax, jit, gain);');
+    expect(GAS_STREAK_VS).not.toContain('sp * uStreakGain');
+  });
+
+  it('replica: the earth shutter lengthens slow dashes but never past the FIL_ASPECT cap', () => {
+    const g = PLANET_TUNE.streakGain;
+    const slow = sprite(1, 2.2, 60, FIL_ASPECT, 0.5, g);                       // ~60 px/s settling dust
+    const earth = sprite(1, 2.2, 60, FIL_ASPECT, 0.5, g * PLANET_TUNE.earthStreakGain);
+    expect(slow.total / slow.w).toBeLessThan(2.5);                               // the old round-ish speck
+    expect(earth.total / earth.w).toBeGreaterThan(4);                            // a streak
+    expect(sprite(1, 2.2, 5000, FIL_ASPECT, 0.5, g * PLANET_TUNE.earthStreakGain).total / 2.2).toBeCloseTo(FIL_ASPECT, 9);
   });
 });
 

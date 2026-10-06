@@ -158,7 +158,9 @@ const vertexShader = /* glsl */ `
     float size = aRole < 0.5 ? fogSize : filW;
     gl_Position  = projectionMatrix * mvPos;
     float sedStretch = (agePrev > age || sinkPrev > sinkOffset) ? 1.0 : FIL_ASPECT;
-    gl_PointSize = gasSprite(gl_Position, projectionMatrix * mvPrev, aRole, size, sedStretch, gasHash(aPhase, aSeed));
+    // Own shutter (Task 8b): slow-settling dust x uEarthStreakGain, so the dash reads as a streak along the settling
+    // direction (the time secant); cap FIL_ASPECT, no thread.
+    gl_PointSize = gasSpriteGain(gl_Position, projectionMatrix * mvPrev, aRole, size, sedStretch, gasHash(aPhase, aSeed), uStreakGain * uEarthStreakGain);
     // Fog: × fogAlpha. Filaments: lanes by spawn direction and mass (strata of dust), × filAlpha.
     vLane = gasAlpha(aRole, vec3(sin(theta) * cos(phi) * 2.0, cos(theta) * 2.0, aMass * 2.0), uTime);
     planetWindowVS(mvPos.xyz);
