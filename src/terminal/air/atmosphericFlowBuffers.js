@@ -22,6 +22,11 @@ export const AIR_TILT_MAX = (20 * Math.PI) / 180;
 export const AIR_WANDER = 0.12;      // scene units of vertical wander amplitude (filaments)
 export const AIR_WANDER_R = 0.6;     // noise loop radius per orbit: ~2 slow undulations around it
 export const AIR_WANDER_RATE = 0.05; // noise time rate: slow
+// Task 7e fix 2: filaments are streamlines. The fine shimmer is fog-only and the curl is damped, so a dash is a chord
+// of a smooth arc: JS replica of the air chain (desktop camera, 1000 px, real dash lengths) → chord-vs-arc deviation
+// p95 4.4 / p99 10.7 px at curl x1 + shimmer + 16x; p95 0.45 / p99 1.6 px at curl x0.25, no shimmer, 6x.
+export const AIR_FIL_CURL = 0.25;    // filament curl × this (fog × 1)
+export const AIR_FIL_ASPECT = 6;     // air filament dash cap (× width); fluid keeps FIL_ASPECT 16
 
 export function buildBuffers(count, nFog, seed = AIR_THREAD_SEED) {
   const positions = new Float32Array(count * 3);
@@ -54,8 +59,10 @@ export function buildBuffers(count, nFog, seed = AIR_THREAD_SEED) {
     laneIon[order[k]] = 1;
   }
   const th = gasThreads(nFil, AIR_LANES, rng);
-  // Particle-weighted orbit rate of the NON-ion lanes ≈ the clock mean (AIR_ORBIT_MEAN excludes the ionosphere).
-  const laneSpeed = gasPaceMatch(laneSpeed0, th.counts, Array.from(laneIon, (x) => 1 - x));
+  // Particle-weighted orbit rate ≈ the clock mean in EACH hemisphere (the sky drives the upper and lower layer at
+  // AIR_ORBIT_MEAN on their own); the ion lane is left out (AIR_ORBIT_MEAN excludes the ionosphere).
+  const hemi = Array.from(laneAlt, (a, k) => (laneIon[k] ? -1 : a > 0.5 ? 1 : 0));
+  const laneSpeed = gasPaceMatch(laneSpeed0, th.counts, hemi);
 
   for (let i = 0, f = 0; i < count; i++) {
     if (roles[i] < 0.5) {

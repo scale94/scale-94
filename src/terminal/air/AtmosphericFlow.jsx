@@ -7,7 +7,9 @@ import { AETHER_LIGHT_VS, aetherLightFS } from '../mercury/planet/aetherLight';
 import { SUN_DIR_WORLD } from '../mercury/planet/planetFrame';
 import { GAS_STREAK_VS, GAS_STREAK_FS, GAS_TUNE_UNIFORMS, writeGasTune } from '../mercury/planet/gasStreak';
 import { createAetherClock, configureAetherClock, tickAetherClock } from '../mercury/planet/aetherClock';
-import { buildBuffers, AIR_TILT_MIN, AIR_TILT_MAX, AIR_WANDER, AIR_WANDER_R, AIR_WANDER_RATE } from './atmosphericFlowBuffers';
+import {
+  buildBuffers, AIR_TILT_MIN, AIR_TILT_MAX, AIR_WANDER, AIR_WANDER_R, AIR_WANDER_RATE, AIR_FIL_CURL, AIR_FIL_ASPECT,
+} from './atmosphericFlowBuffers';
 import { glf } from '../gl/glf';
 
 // ── GLSL ───────────────────────────────────────────────────────────────────
@@ -95,6 +97,8 @@ const vertexShader = /* glsl */ `
   const float AIR_WANDER = ${glf(AIR_WANDER)};
   const float AIR_WANDER_R = ${glf(AIR_WANDER_R)};
   const float AIR_WANDER_RATE = ${glf(AIR_WANDER_RATE)};
+  const float AIR_FIL_CURL = ${glf(AIR_FIL_CURL)};
+  const float AIR_FIL_ASPECT = ${glf(AIR_FIL_ASPECT)};
 
   // Filament threads (Task 7e): tilt a lane's orbit ring by a seeded 8–20° about a seeded horizontal axis
   // (Rodrigues). A tilt < 90° keeps the rotation sense; now and prev both go through orbitPos, so the dash follows
@@ -142,13 +146,14 @@ const vertexShader = /* glsl */ `
     // ── Atmospheric eddies (slow curl turbulence) ────────────────────────
     float t = uTime * 0.08;
     vec3 curl = curlNoise(pos * 0.9 + vec3(t, t * 0.6, t * 0.8));
-    pos += curl * uTurbulence * 0.3;
+    pos += curl * uTurbulence * 0.3 * (aRole < 0.5 ? 1.0 : AIR_FIL_CURL); // filaments: damped (streamlines)
 
-    // Fine molecular shimmer
+    // Fine molecular shimmer: fog only (on a filament it is crossed at orbital speed: a scribble, Task 7e fix 2)
     float st = uTime * 0.6;
-    float shimKey = aRole < 0.5 ? aPhase : aLane * 1.7; // filaments: lane-keyed, no seam at aPhase 0/1
-    pos.x += snoise(pos * 5.0 + vec3(st, 0.0, shimKey)) * 0.03;
-    pos.z += snoise(pos * 5.0 + vec3(shimKey, 0.0, st * 1.1)) * 0.03;
+    if (aRole < 0.5) {
+      pos.x += snoise(pos * 5.0 + vec3(st, 0.0, aPhase)) * 0.03;
+      pos.z += snoise(pos * 5.0 + vec3(aPhase, 0.0, st * 1.1)) * 0.03;
+    }
     return pos;
   }
 
@@ -183,7 +188,7 @@ const vertexShader = /* glsl */ `
     float filW = gasFilWidth(-mvPos.z, aSize, 1.0 - uCondense * uCondenseSizeBite);
     float size = aRole < 0.5 ? fogSize : filW;
     gl_Position  = projectionMatrix * mvPos;
-    gl_PointSize = gasSprite(gl_Position, projectionMatrix * mvPrev, aRole, size, FIL_ASPECT, gasHash(aPhase, aSeed));
+    gl_PointSize = gasSprite(gl_Position, projectionMatrix * mvPrev, aRole, size, AIR_FIL_ASPECT, gasHash(aPhase, aSeed));
     // Fog: × fogAlpha. Filaments: the mask runs along each thread (lane id + orbit label), slowly evolving, × filAlpha.
     vLane = gasAlpha(aRole, gasThreadCoord(aLane, aPhase), uTime) * (aRole < 0.5 ? 1.0 : uAirFilGain);
     planetWindowVS(mvPos.xyz);

@@ -24,7 +24,7 @@ const STREAKED = {
     core: 'vec3 orbitPos(float ph, out float angle) {',
     fogSize: 'float fogSize = baseSize * (260.0 / -mvPos.z) * (1.0 - uCondense * uCondenseSizeBite);',
     filW: 'float filW = gasFilWidth(-mvPos.z, aSize, 1.0 - uCondense * uCondenseSizeBite);',
-    sprite: 'gl_PointSize = gasSprite(gl_Position, projectionMatrix * mvPrev, aRole, size, FIL_ASPECT, gasHash(aPhase, aSeed));',
+    sprite: 'gl_PointSize = gasSprite(gl_Position, projectionMatrix * mvPrev, aRole, size, AIR_FIL_ASPECT, gasHash(aPhase, aSeed));',
   },
 };
 
@@ -60,7 +60,7 @@ describe('gas filaments: two roles in one draw', () => {
       expect(src).toContain('useMemo(() => buildBuffers(PARTICLE_COUNT, N_FOG), [PARTICLE_COUNT, N_FOG])');
       expect(bufSrc).toContain('export function buildBuffers(count, nFog, seed = ');
       expect(bufSrc).toContain('const roles = gasRoles(count, nFog);');
-      expect(src).toMatch(/import \{ buildBuffers[^}]*\} from '\.\/(particleFlowBuffers|atmosphericFlowBuffers)';/);
+      expect(src).toMatch(/import \{\s*buildBuffers[^}]*\} from '\.\/(particleFlowBuffers|atmosphericFlowBuffers)';/);
       expect(src).not.toContain('function buildBuffers(');
       expect(src).toContain('<bufferGeometry key={`${PARTICLE_COUNT}:${N_FOG}`}>');
       expect(src).toContain('<bufferAttribute attach="attributes-aRole" array={buffers.roles} count={PARTICLE_COUNT} itemSize={1} />');
@@ -225,10 +225,10 @@ describe('gas threads fix wave (Task 7d review + look)', () => {
     expect(atmoSrc).toContain('vec3 yArg = aRole < 0.5');
     expect(atmoSrc).toContain('pos.y += snoise(yArg) * 0.15;');
     expect(atmoSrc).not.toContain('pos.y += snoise(vec3(angle * 0.25');
-    // the shimmer was keyed on aPhase too: filaments key it on the lane (no seam), fog unchanged
-    expect(atmoSrc).toContain('float shimKey = aRole < 0.5 ? aPhase : aLane * 1.7;');
-    expect(atmoSrc).toContain('pos.x += snoise(pos * 5.0 + vec3(st, 0.0, shimKey)) * 0.03;');
-    expect(atmoSrc).toContain('pos.z += snoise(pos * 5.0 + vec3(shimKey, 0.0, st * 1.1)) * 0.03;');
+    // the shimmer (keyed on aPhase, a seam) is fog-only since Task 7e fix 2: the old lines, byte-identical
+    expect(atmoSrc).toContain('pos.x += snoise(pos * 5.0 + vec3(st, 0.0, aPhase)) * 0.03;');
+    expect(atmoSrc).toContain('pos.z += snoise(pos * 5.0 + vec3(aPhase, 0.0, st * 1.1)) * 0.03;');
+    expect(atmoSrc).not.toContain('shimKey');
   });
 
   it('fluid: filaments get a per-lane hue offset; fog hue unchanged', () => {
@@ -243,7 +243,8 @@ describe('gas threads look round 2 (Task 7e)', () => {
       for (const [n, f] of [[3600, 1200], [1800, 600], [2400, 1200]]) {
         const b = buf.buildBuffers(n, f);
         // air: the sky's AIR_ORBIT_MEAN is the non-ion mean, so the ion lane (x2.8) is left out of the balance
-        const xs = filOf(b, b[key]).filter((_, i) => !b.ions || filOf(b, b.ions)[i] === 0);
+        const ions = b.ions ? filOf(b, b.ions) : null;
+        const xs = filOf(b, b[key]).filter((_, i) => !ions || ions[i] === 0);
         const m = xs.reduce((s, x) => s + x, 0) / xs.length;
         expect(Math.abs(m - 0.5)).toBeLessThanOrEqual(0.02);
       }
@@ -288,13 +289,14 @@ describe('air thread dashes follow the wavy tilted path (Task 7e fix)', () => {
     // the chain itself is unchanged (fog byte-identical): y-noise, wander (filaments), curl, shimmer, in that order
     const body = atmoSrc.slice(atmoSrc.indexOf('vec3 airDisplace(vec3 core, float angle) {'), atmoSrc.indexOf('void main(){'));
     const order = ['pos.y += snoise(yArg) * 0.15;', 'if (aRole > 0.5) pos.y += snoise(vec3(cos(angle) * AIR_WANDER_R',
-      'vec3 curl = curlNoise(pos * 0.9 + vec3(t, t * 0.6, t * 0.8));', 'pos += curl * uTurbulence * 0.3;',
-      'pos.x += snoise(pos * 5.0 + vec3(st, 0.0, shimKey)) * 0.03;', 'pos.z += snoise(pos * 5.0 + vec3(shimKey, 0.0, st * 1.1)) * 0.03;', 'return pos;'];
+      'vec3 curl = curlNoise(pos * 0.9 + vec3(t, t * 0.6, t * 0.8));', 'pos += curl * uTurbulence * 0.3 * (aRole < 0.5 ? 1.0 : AIR_FIL_CURL);',
+      'if (aRole < 0.5) {', 'pos.x += snoise(pos * 5.0 + vec3(st, 0.0, aPhase)) * 0.03;', 'pos.z += snoise(pos * 5.0 + vec3(aPhase, 0.0, st * 1.1)) * 0.03;', 'return pos;'];
     let at = -1;
     for (const line of order) { const j = body.indexOf(line); expect(j).toBeGreaterThan(at); at = j; }
   });
 
-  it('JS replica: dash direction (now - prev on screen) matches the trajectory tangent within 3°; the old prev was off by far more at the limb', () => {
+  // Documents the geometry (a pure JS replica: it passes on any GLSL); the regression gate is the `prev` string pin above.
+  it('geometry note (JS replica): a prev through the same chain tracks the trajectory tangent; the old prev missed it by up to ~90° at the limb', () => {
     // a tilted ring + smooth stand-ins for the angle-keyed y-noise/wander and the position-keyed curl/shimmer
     const th = 0.25, az = 0.8, r = 1.0, h = 0.3;
     const u = [Math.cos(az), 0, Math.sin(az)];
@@ -332,5 +334,29 @@ describe('air thread dashes follow the wavy tilted path (Task 7e fix)', () => {
     }
     expect(worstNew).toBeLessThan(3);
     expect(worstOld).toBeGreaterThan(30);
+  });
+});
+
+describe('air threads as streamlines (Task 7e fix 2)', () => {
+  it('filaments: no shimmer, curl x AIR_FIL_CURL, their own dash cap AIR_FIL_ASPECT (glf); fluid keeps FIL_ASPECT', () => {
+    expect(airBuf.AIR_FIL_CURL).toBe(0.25);
+    expect(airBuf.AIR_FIL_ASPECT).toBe(6);
+    for (const c of ['AIR_FIL_CURL', 'AIR_FIL_ASPECT']) expect(atmoSrc).toContain(`const float ${c} = \${glf(${c})};`);
+    expect(atmoSrc).toContain('pos += curl * uTurbulence * 0.3 * (aRole < 0.5 ? 1.0 : AIR_FIL_CURL);');
+    expect(atmoSrc).toMatch(/if \(aRole < 0\.5\) \{\s*pos\.x \+= snoise\(pos \* 5\.0 \+ vec3\(st, 0\.0, aPhase\)\) \* 0\.03;\s*pos\.z \+= snoise\(pos \* 5\.0 \+ vec3\(aPhase, 0\.0, st \* 1\.1\)\) \* 0\.03;\s*\}/);
+    expect(particleSrc).toContain('aRole, size, FIL_ASPECT, gasHash(aPhase, aRadius));');
+  });
+
+  it('air pace per hemisphere: upper and lower non-ion particle-weighted aSpeed each near 0.5 (the sky drives each at AIR_ORBIT_MEAN)', () => {
+    for (const [n, f] of [[3600, 1200], [1800, 600]]) {
+      const b = airBuf.buildBuffers(n, f);
+      const spd = filOf(b, b.speeds), alt = filOf(b, b.alts), ion = filOf(b, b.ions);
+      for (const upper of [true, false]) {
+        const xs = spd.filter((_, i) => ion[i] === 0 && (alt[i] > 0.5) === upper);
+        expect(xs.length).toBeGreaterThan(0);
+        const m = xs.reduce((s, x) => s + x, 0) / xs.length;
+        expect(Math.abs(m - 0.5)).toBeLessThanOrEqual(0.05);
+      }
+    }
   });
 });

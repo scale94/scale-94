@@ -80,22 +80,27 @@ export function gasStratified(L, rng) {
   return out;
 }
 
-// Weight-aware lane pace (Task 7e): reorder `values` (one rate label per lane) over the lanes so the count-weighted
-// mean is as close to 0.5 as possible: exhaustive (Heap's permutations) for ≤ 8 lanes, else a greedy fill (each lane,
-// heaviest first, takes the value that best pulls the running mean to 0.5). Build time only. The multiset is kept,
-// so the rates stay stratified and irregular; only which lane gets which changes. `mask` (optional, per lane 1/0):
-// only masked lanes enter the mean (air: the non-ion lanes, as the sky's AIR_ORBIT_MEAN); the rest take what is left.
-export function gasPaceMatch(values, counts, mask = null) {
+// Weight-aware lane pace (Task 7e): reorder `values` (one rate label per lane) over the lanes so each group's
+// count-weighted mean is as close to 0.5 as possible (objective: the sum over groups of |mean_g - 0.5|).
+// `groups` (optional, per lane): a group id, or -1 to leave the lane out of every mean (it takes what is left);
+// null = one group of all lanes. Air: lower 0 / upper 1 hemisphere, the ion lane -1 (the sky drives each
+// hemisphere at AIR_ORBIT_MEAN, ionosphere excluded). Exhaustive (Heap's permutations) for ≤ 8 lanes, else a
+// greedy fill, heaviest first. Build time only. The multiset is kept, so the rates stay stratified and irregular.
+export function gasPaceMatch(values, counts, groups = null) {
   const L = values.length;
   const out = new Float32Array(values);
-  const wts = Array.from({ length: L }, (_, k) => counts[k] * (mask ? mask[k] : 1));
-  let total = 0;
-  for (let k = 0; k < L; k++) total += wts[k];
-  if (L < 2 || total <= 0) return out;
+  const grp = Array.from({ length: L }, (_, k) => (groups ? groups[k] : 0));
+  const G = Math.max(-1, ...grp) + 1;
+  const tot = new Float64Array(Math.max(G, 1));
+  for (let k = 0; k < L; k++) if (grp[k] >= 0) tot[grp[k]] += counts[k];
+  if (L < 2 || G < 1) return out;
+  const sums = new Float64Array(G);
   const err = (v) => {
-    let s = 0;
-    for (let k = 0; k < L; k++) s += v[k] * wts[k];
-    return Math.abs(s / total - 0.5);
+    sums.fill(0);
+    for (let k = 0; k < L; k++) if (grp[k] >= 0) sums[grp[k]] += v[k] * counts[k];
+    let e = 0;
+    for (let g = 0; g < G; g++) if (tot[g] > 0) e += Math.abs(sums[g] / tot[g] - 0.5);
+    return e;
   };
   if (L <= 8) {
     const a = Array.from(values);
@@ -117,18 +122,19 @@ export function gasPaceMatch(values, counts, mask = null) {
     out.set(bestA);
     return out;
   }
-  const order = Array.from({ length: L }, (_, k) => k).sort((x, y) => wts[y] - wts[x]);
+  const order = Array.from({ length: L }, (_, k) => k)
+    .sort((x, y) => (grp[y] >= 0 ? counts[y] : -1) - (grp[x] >= 0 ? counts[x] : -1));
   const pool = Array.from(values);
-  let s = 0, n = 0;
+  const s = new Float64Array(G), n = new Float64Array(G);
   for (const k of order) {
+    const g = grp[k];
     let bi = 0, be = Infinity;
     for (let i = 0; i < pool.length; i++) {
-      const e = n + wts[k] > 0 ? Math.abs((s + pool[i] * wts[k]) / (n + wts[k]) - 0.5) : 0;
+      const e = g >= 0 && n[g] + counts[k] > 0 ? Math.abs((s[g] + pool[i] * counts[k]) / (n[g] + counts[k]) - 0.5) : 0;
       if (e < be) { be = e; bi = i; }
     }
     out[k] = pool[bi];
-    s += pool[bi] * wts[k];
-    n += wts[k];
+    if (g >= 0) { s[g] += pool[bi] * counts[k]; n[g] += counts[k]; }
     pool.splice(bi, 1);
   }
   return out;
