@@ -12,10 +12,11 @@ import { gasRoles, gasThreads, gasStratified, gasPaceMatch, THREAD_CROSS_CLIP } 
 import { mulberry32 } from '../mercury/planet/prng';
 
 export const AIR_LANES = 8;     // fix wave: fewer, denser threads
-export const AIR_SIGMA_ALT = 0.006;   // aAlt jitter: × 2.5 orbit height ≈ 0.015 scene units
+export const AIR_SIGMA_ALT = 0.0015;  // aAlt jitter (7f fix, was 0.006: neighbours p95 13 px apart ACROSS the thread)
 export const AIR_ION_SHARE = 0.08;    // the old ionosphere fraction, now per lane
 export const AIR_FLIP_GAP = THREAD_CROSS_CLIP * AIR_SIGMA_ALT + 0.005; // lane centre ↔ the aAlt 0.5 flip
 export const AIR_THREAD_SEED = 0xa17d;
+export const AIR_ALONG_JITTER = 0.8;  // along-lane jitter (× spacing) for air threads
 // Task 7e: filament orbits are tilted per lane (no flat rungs side-on) and wander vertically, periodic in the angle.
 export const AIR_TILT_MIN = (8 * Math.PI) / 180;   // rad; tilt axis azimuth is random per lane (gasHash(aLane, .))
 export const AIR_TILT_MAX = (20 * Math.PI) / 180;
@@ -37,6 +38,7 @@ export function buildBuffers(count, nFog, seed = AIR_THREAD_SEED) {
   const alts      = new Float32Array(count);
   const ions      = new Float32Array(count);
   const lanes     = new Float32Array(count).fill(-1);
+  const gaps      = new Float32Array(count); // filaments: the larger neighbour gap in aPhase units (fog 0, unused)
   const roles = gasRoles(count, nFog);
   let nFil = 0;
   for (let i = 0; i < count; i++) nFil += roles[i];
@@ -58,7 +60,7 @@ export function buildBuffers(count, nFog, seed = AIR_THREAD_SEED) {
     [order[k], order[j]] = [order[j], order[k]];
     laneIon[order[k]] = 1;
   }
-  const th = gasThreads(nFil, AIR_LANES, rng);
+  const th = gasThreads(nFil, AIR_LANES, rng, AIR_ALONG_JITTER);
   // Particle-weighted orbit rate ≈ the clock mean in EACH hemisphere (the sky drives the upper and lower layer at
   // AIR_ORBIT_MEAN on their own); the ion lane is left out (AIR_ORBIT_MEAN excludes the ionosphere).
   const hemi = Array.from(laneAlt, (a, k) => (laneIon[k] ? -1 : a > 0.5 ? 1 : 0));
@@ -91,8 +93,9 @@ export function buildBuffers(count, nFog, seed = AIR_THREAD_SEED) {
       alts[i]   = c > 0.5 ? Math.min(Math.max(a, 0.5 + 1e-4), 1) : Math.min(Math.max(a, 0), 0.5);
       ions[i]   = laneIon[k];
       lanes[i]  = k;
+      gaps[i]   = th.gap[f];
       f++;
     }
   }
-  return { positions, phases, speeds, seeds, sizes, alts, ions, lanes, roles };
+  return { positions, phases, speeds, seeds, sizes, alts, ions, lanes, gaps, roles };
 }

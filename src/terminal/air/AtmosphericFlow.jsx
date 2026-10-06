@@ -5,7 +5,7 @@ import { PLANET_WINDOW_VS, PLANET_WINDOW_FS } from '../mercury/planet/planetWind
 import { R_SCENE, PLANET_TUNE } from '../mercury/planet/planetLook';
 import { AETHER_LIGHT_VS, aetherLightFS } from '../mercury/planet/aetherLight';
 import { SUN_DIR_WORLD } from '../mercury/planet/planetFrame';
-import { GAS_STREAK_VS, GAS_STREAK_FS, GAS_TUNE_UNIFORMS, writeGasTune } from '../mercury/planet/gasStreak';
+import { GAS_STREAK_VS, GAS_STREAK_FS, GAS_TUNE_UNIFORMS, writeGasTune, gasPointMax } from '../mercury/planet/gasStreak';
 import { createAetherClock, configureAetherClock, tickAetherClock } from '../mercury/planet/aetherClock';
 import {
   buildBuffers, AIR_TILT_MIN, AIR_TILT_MAX, AIR_WANDER, AIR_WANDER_R, AIR_WANDER_RATE, AIR_FIL_CURL, AIR_FIL_ASPECT,
@@ -31,6 +31,7 @@ const vertexShader = /* glsl */ `
   attribute float aIon;      // 0=atmosphere, 1=ionospheric fast layer
   attribute float aRole;   // 0 = fog (the old sprite), 1 = filament (mirror-sky spec §3b)
   attribute float aLane;   // filament thread id (Task 7d; -1 for fog)
+  attribute float aGap;    // filament: the larger along gap to its lane neighbours, aPhase units (Task 7f fix; fog 0)
 
   varying float vAltitude;
   varying float vSpeed;
@@ -112,8 +113,8 @@ const vertexShader = /* glsl */ `
     return v * c + cross(u, v) * s + u * dot(u, v) * (1.0 - c);
   }
 
-  // The cyclone orbit alone (the big motion) at air phase ph.
-  vec3 orbitPos(float ph, out float angle) {
+  // The orbit ring (tilted for filaments) at orbit angle.
+  vec3 orbitAt(float angle) {
     // Orbital radius: widest at mid-altitude (eye-wall), narrows at base and top
     float eyeWall     = sin(aAlt * 3.14159);           // peaks at mid-altitude
     float baseRadius  = (0.15 + eyeWall * 1.1) * uSpread;
@@ -122,14 +123,19 @@ const vertexShader = /* glsl */ `
     float radius      = mix(baseRadius, ionRadius, aIon);
     // Orbit height spans full geode
     float orbitHeight = -1.2 + aAlt * 2.5;
+    vec3 ring = vec3(cos(angle) * radius, 0.0, sin(angle) * radius);
+    if (aRole > 0.5) ring = airTilt(ring, aLane);
+    return vec3(0.0, orbitHeight, 0.0) + ring;
+  }
+
+  // The cyclone orbit alone (the big motion) at air phase ph.
+  vec3 orbitPos(float ph, out float angle) {
     // Contra-rotating layers: lower half CW, upper half CCW (realistic cyclone)
     float direction  = aAlt > 0.5 ? 1.0 : -0.85;
     float ionSpeedMult = mix(1.0, 2.8, aIon); // ionosphere is fast
     float orbitRate  = (0.4 + aSpeed * 0.7) * direction * ionSpeedMult; // × orbitalSpeed lives in uPhase (the clock)
     angle            = aPhase * 6.28318 + ph * orbitRate;
-    vec3 ring = vec3(cos(angle) * radius, 0.0, sin(angle) * radius);
-    if (aRole > 0.5) ring = airTilt(ring, aLane);
-    return vec3(0.0, orbitHeight, 0.0) + ring;
+    return orbitAt(angle);
   }
 
   // Everything the flow adds on top of the orbit core at this orbit angle. Fog: the old chain, op for op.
@@ -188,7 +194,17 @@ const vertexShader = /* glsl */ `
     float filW = gasFilWidth(-mvPos.z, aSize, 1.0 - uCondense * uCondenseSizeBite);
     float size = aRole < 0.5 ? fogSize : filW;
     gl_Position  = projectionMatrix * mvPos;
-    gl_PointSize = gasSprite(gl_Position, projectionMatrix * mvPrev, aRole, size, AIR_FIL_ASPECT, gasHash(aPhase, aSeed));
+    // Threads (Task 7f fix): the lane neighbours sit ±aGap along the orbit: the full filament chain there gives the
+    // path secant (direction) and the gap, as in the fluid.
+    vec4 clipBack = gl_Position;
+    vec4 clipAhead = gl_Position;
+    if (aRole > 0.5) {
+      float dA = aGap * 6.28318;
+      float squash = 1.0 - uCondense * uCondense;
+      clipBack = projectionMatrix * (modelViewMatrix * vec4(airDisplace(orbitAt(angle - dA), angle - dA) * squash, 1.0));
+      clipAhead = projectionMatrix * (modelViewMatrix * vec4(airDisplace(orbitAt(angle + dA), angle + dA) * squash, 1.0));
+    }
+    gl_PointSize = gasSpriteThread(gl_Position, projectionMatrix * mvPrev, clipBack, clipAhead, aRole, size, AIR_FIL_ASPECT, gasHash(aPhase, aSeed));
     // Fog: × fogAlpha. Filaments: the mask runs along each thread (lane id + orbit label), slowly evolving, × filAlpha.
     vLane = gasAlpha(aRole, gasThreadCoord(aLane, aPhase), uTime) * (aRole < 0.5 ? 1.0 : uAirFilGain);
     planetWindowVS(mvPos.xyz);
@@ -208,7 +224,7 @@ const fragmentShader = /* glsl */ `
   void main(){
     float d = gasStreakDist(gl_PointCoord);
     // Very soft — air has no hard edges
-    float alpha = smoothstep(1.0, 0.0, d);
+    float alpha = smoothstep(1.0, 0.0, d) * gasTaper(gl_PointCoord);
     if (alpha < 0.003) discard;
 
     // ── 8-stop atmospheric spectrum ───────────────────────────────────────
@@ -311,7 +327,7 @@ export default function AtmosphericFlow({
       mat.uniforms.uTime.value = clk.t;
       mat.uniforms.uPhase.value = clk.phase.air;
       mat.uniforms.uPhaseRate.value = clk.rate.air;
-      writeGasTune(mat.uniforms, PLANET_TUNE, state.gl.getPixelRatio());
+      writeGasTune(mat.uniforms, PLANET_TUNE, state.gl.getPixelRatio(), gasPointMax(state.gl));
       mat.uniforms.uTurbulence.value    = turbulence;
       mat.uniforms.uSpread.value        = spread;
       mat.uniforms.uOpacity.value       = opacityMultiplier;
@@ -345,6 +361,7 @@ export default function AtmosphericFlow({
         <bufferAttribute attach="attributes-aIon"     array={buffers.ions}      count={PARTICLE_COUNT} itemSize={1} />
         <bufferAttribute attach="attributes-aRole" array={buffers.roles} count={PARTICLE_COUNT} itemSize={1} />
         <bufferAttribute attach="attributes-aLane" array={buffers.lanes} count={PARTICLE_COUNT} itemSize={1} />
+        <bufferAttribute attach="attributes-aGap" array={buffers.gaps} count={PARTICLE_COUNT} itemSize={1} />
       </bufferGeometry>
       <shaderMaterial
         ref={materialRef}

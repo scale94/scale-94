@@ -14,6 +14,7 @@ export const FLUID_LANES = 8;   // fewer, denser threads (dashes overlap instead
 export const FLUID_SIGMA_R = 0.03;        // radial jitter, in tube-radius units (× uTubeRadius 0.32 ≈ 0.01 scene units)
 export const FLUID_LANE_R = [0.08, 0.95]; // lane-centre radius range (tube-radius units)
 export const FLUID_THREAD_SEED = 0x7d1f;
+export const FLUID_FIL_SHIMMER = 0.15; // filament shimmer x this (fog x 1): it is crossed at knot speed, bending the path
 export const FLUID_ALONG_JITTER = 0.3; // along-lane jitter (× spacing): more even gaps for the gap-closing dashes (7f)
 
 export function knotPoint(t, R = 1, r = 0.4) {

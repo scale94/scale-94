@@ -28,12 +28,16 @@ export const FIRE_EMBER_SHARE = 0.15;  // the old fire: 85 % body, 15 % embers
 export const GAS_PX_FLOOR = 1.5;      // CSS px (× uDpr): filaments never go sub-pixel (fog keeps its old size, unfloored)
 export const GAS_Z_REF = 4.43;        // fitted desktop camera distance (look probe 1600×1000): uFilWidth is CSS px here
 export const MASK_EVOLVE = 0.03;
-// Task 7f, continuous fluid threads: a moving filament's dash is at least FIL_GAP_CLOSE x the on-screen distance to
-// its farther lane neighbour (gasSpriteGap), capped at FIL_GAP_ASPECT x width. The speed-driven part keeps its
-// aspectMax cap; only the gap minimum may run past it (the sparse lanes need ~1.6x their spacing past 16w: measured
-// 5.8 % of neighbour pairs still open at a 16w cap vs 1.0 % at 24w, chord-vs-arc p95 1.47 px).
-export const FIL_GAP_CLOSE = 1.15;
+// Threads (Task 7f + fix): a filament's dash lies along its lane's PATH (the secant between the same chain sampled at
+// its two lane neighbours' along positions, gasSpriteThread) and is at least FIL_GAP_CLOSE x the on-screen distance
+// to the farther neighbour, capped at FIL_GAP_ASPECT x width (author: up to 24x allowed). The speed-driven part keeps
+// its aspectMax cap. Calm (rate 0): the speed part is 0, the gap part stays: frozen threads. FIL_GAP_CLOSE 1.3
+// (replica, task-7d-report: calm visible gaps fluid 2.0 → 1.2 %, air 3.7 → 2.3 % vs 1.15; dash-off-path p95 ≤ 1.37 px).
+// FIL_TAPER: the dash ends fade over this fraction of the length, = the overlap a gap-closed pair has (1 - 1/1.3),
+// so two such dashes' complementary smoothstep ramps sum to ~1 (no beading at the particle spacing).
+export const FIL_GAP_CLOSE = 1.3;
 export const FIL_GAP_ASPECT = 24;
+export const FIL_TAPER = 1 - 1 / FIL_GAP_CLOSE;
 export const GAS_MASK_LOOP = 1.0;     // radius of the along-lane loop in mask label space (× uMaskFreq): ~8 bright stretches per lane
 export const GAS_MASK_LANE_GAP = 3.0; // lane id → mask x offset; > loop diameter + a noise feature, so lanes are independent
 export const THREAD_ALONG_JITTER = 0.8;  // stratified along-lane jitter, × the lane's mean spacing (max gap ≤ 1.8 spacings)
@@ -214,6 +218,7 @@ uniform float uMaskSharp;
 uniform float uMaskDepth;
 uniform float uDpr;
 uniform float uAirFilGain;
+uniform float uPointMax;
 varying vec2 vStreakDir;
 varying vec2 vStreakCap;
 varying float vLane;
@@ -239,15 +244,17 @@ float gasFilWidth(float depth, float s01, float bite) {
   return uFilWidth * uDpr * (GAS_Z_REF / max(depth, 0.5)) * mix(0.75, 1.25, s01) * bite;
 }
 
-// On-screen (buffer px) distance between a particle and its gap neighbour sample (Task 7f).
-float gasGapPx(vec4 clipNow, vec4 clipGap) {
-  if (clipNow.w <= 1e-4 || clipGap.w <= 1e-4) return 0.0;
-  return length((clipNow.xy / clipNow.w - clipGap.xy / clipGap.w) * 0.5 * uViewportPx);
+// Clip → buffer px (0 behind the camera).
+vec2 gasScreenPx(vec4 clip) {
+  return clip.w > 1e-4 ? clip.xy / clip.w * 0.5 * uViewportPx : vec2(0.0);
 }
 
-// gasSprite with a gap-closing minimum length (gapPx, buffer px; 0 = none). Moving filaments only: under calm
-// (sp = 0) the dash collapses to its round core like all gas, since there is no direction to stretch along.
-float gasSpriteGap(vec4 clipNow, vec4 clipPrev, float role, float size, float aspectMax, float jit, float gapPx) {
+// Thread sprite (Task 7f fix). clipBack / clipAhead: the filament's own chain at its lane neighbours' along positions
+// (pass clipNow for both = no thread: the old gasSprite). Direction = the path secant back → ahead (stable at any
+// speed, so calm keeps the thread's shape); falls back to the time secant, then to x. Length = max(speed part
+// ≤ aspectMax x w, gap part ≤ FIL_GAP_ASPECT x w), clamped so the sprite never exceeds uPointMax (the GPU's point size
+// limit), width kept.
+float gasSpriteThread(vec4 clipNow, vec4 clipPrev, vec4 clipBack, vec4 clipAhead, float role, float size, float aspectMax, float jit) {
   vRole = role;
   if (role < 0.5) {
     vStreakDir = vec2(1.0, 0.0);
@@ -260,16 +267,24 @@ float gasSpriteGap(vec4 clipNow, vec4 clipPrev, float role, float size, float as
     v = (clipNow.xy / clipNow.w - clipPrev.xy / clipPrev.w) * 0.5 * uViewportPx / STREAK_DT;
   }
   float sp = length(v);
+  vec2 pNow = gasScreenPx(clipNow);
+  vec2 pBack = gasScreenPx(clipBack);
+  vec2 pAhead = gasScreenPx(clipAhead);
+  vec2 tng = pAhead - pBack;
+  float tl = length(tng);
+  float gapPx = max(length(pNow - pBack), length(pAhead - pNow));
+  vec2 dir = tl > 1e-3 ? tng / tl : (sp > 1e-3 ? v / sp : vec2(1.0, 0.0));
   float L = min(sp * uStreakGain, max(aspectMax - 1.0, 0.0) * w) * (1.0 + FIL_JITTER * (2.0 * jit - 1.0));
-  if (sp > 1e-3) L = max(L, min(FIL_GAP_CLOSE * gapPx - w, (FIL_GAP_ASPECT - 1.0) * w));
+  L = max(L, min(FIL_GAP_CLOSE * gapPx - w, (FIL_GAP_ASPECT - 1.0) * w));
+  L = min(L, max(uPointMax - w, 0.0));
   float total = w + L;
-  vStreakDir = sp > 1e-3 ? vec2(v.x, -v.y) / sp : vec2(1.0, 0.0);
+  vStreakDir = vec2(dir.x, -dir.y); // point coords: y down
   vStreakCap = vec2(0.5 * L / total, 0.5 * w / total);
   return total;
 }
 
 float gasSprite(vec4 clipNow, vec4 clipPrev, float role, float size, float aspectMax, float jit) {
-  return gasSpriteGap(clipNow, clipPrev, role, size, aspectMax, jit, 0.0);
+  return gasSpriteThread(clipNow, clipPrev, clipNow, clipNow, role, size, aspectMax, jit);
 }
 
 float gasLane(vec3 laneCoord, float t) {
@@ -299,10 +314,18 @@ varying vec2 vStreakCap;
 varying float vLane;
 varying float vRole;
 uniform float uPremult;
+const float FIL_TAPER = ${glf(FIL_TAPER)};
 float gasStreakDist(vec2 pc) {
   vec2 q = pc - 0.5;
   float a = clamp(dot(q, vStreakDir), -vStreakCap.x, vStreakCap.x);
   return length(q - vStreakDir * a) / vStreakCap.y;
+}
+// Filament dash ends fade over FIL_TAPER of the length (along the streak axis), so overlapping gap-closed dashes sum
+// to ~constant brightness. Fog: 1.
+float gasTaper(vec2 pc) {
+  if (vRole < 0.5) return 1.0;
+  float s = abs(dot(pc - 0.5, vStreakDir));
+  return 1.0 - smoothstep(0.5 - FIL_TAPER, 0.5, s);
 }
 // Output for a flow drawn with premultiplied blending (One / OneMinusSrcAlpha), Task 7c. a = the alpha without dither.
 // uPremult 0 (standalone pages, additive/normal blending): the old output. Premultiplied: fog = color * A, A (= normal
@@ -318,12 +341,34 @@ const GAS_TUNE = [['uStreakGain', 'streakGain'], ['uFilWidth', 'filWidth'], ['uF
   ['uFogAlpha', 'fogAlpha'], ['uMaskFreq', 'maskFreq'], ['uMaskSharp', 'maskSharp'], ['uMaskDepth', 'maskDepth'],
   ['uAirFilGain', 'airFilGain']];
 
+export const GAS_POINT_MAX_UNKNOWN = 1e4; // no clamp when the limit can't be read (non-WebGL contexts, tests)
+
 export function GAS_TUNE_UNIFORMS(tune) {
-  return { ...Object.fromEntries(GAS_TUNE.map(([u, k]) => [u, { value: tune[k] }])), uDpr: { value: 1 } };
+  return {
+    ...Object.fromEntries(GAS_TUNE.map(([u, k]) => [u, { value: tune[k] }])),
+    uDpr: { value: 1 },
+    uPointMax: { value: GAS_POINT_MAX_UNKNOWN },
+  };
 }
 
-// Per frame: the knobs + the renderer's pixel ratio (state.gl.getPixelRatio()), no allocation.
-export function writeGasTune(uniforms, tune, dpr = 1) {
+// The GPU's largest point size (ALIASED_POINT_SIZE_RANGE[1], buffer px), read once per renderer and cached.
+const pointMaxCache = new WeakMap();
+export function gasPointMax(renderer) {
+  if (!renderer) return GAS_POINT_MAX_UNKNOWN;
+  let v = pointMaxCache.get(renderer);
+  if (v === undefined) {
+    const ctx = renderer.getContext ? renderer.getContext() : null;
+    const r = ctx && ctx.getParameter ? ctx.getParameter(ctx.ALIASED_POINT_SIZE_RANGE) : null;
+    v = r && r[1] > 0 ? r[1] : GAS_POINT_MAX_UNKNOWN;
+    pointMaxCache.set(renderer, v);
+  }
+  return v;
+}
+
+// Per frame: the knobs + the renderer's pixel ratio (state.gl.getPixelRatio()) + its point size limit
+// (gasPointMax(state.gl)), no allocation.
+export function writeGasTune(uniforms, tune, dpr = 1, pointMax = GAS_POINT_MAX_UNKNOWN) {
   for (let i = 0; i < GAS_TUNE.length; i++) uniforms[GAS_TUNE[i][0]].value = tune[GAS_TUNE[i][1]];
   uniforms.uDpr.value = dpr;
+  uniforms.uPointMax.value = pointMax;
 }

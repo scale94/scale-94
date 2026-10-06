@@ -5,9 +5,10 @@ import { PLANET_WINDOW_VS, PLANET_WINDOW_FS } from '../mercury/planet/planetWind
 import { R_SCENE, PLANET_TUNE } from '../mercury/planet/planetLook';
 import { AETHER_LIGHT_VS, aetherLightFS } from '../mercury/planet/aetherLight';
 import { SUN_DIR_WORLD } from '../mercury/planet/planetFrame';
-import { GAS_STREAK_VS, GAS_STREAK_FS, GAS_TUNE_UNIFORMS, writeGasTune } from '../mercury/planet/gasStreak';
+import { GAS_STREAK_VS, GAS_STREAK_FS, GAS_TUNE_UNIFORMS, writeGasTune, gasPointMax } from '../mercury/planet/gasStreak';
 import { createAetherClock, configureAetherClock, tickAetherClock } from '../mercury/planet/aetherClock';
-import { buildBuffers } from './particleFlowBuffers';
+import { buildBuffers, FLUID_FIL_SHIMMER } from './particleFlowBuffers';
+import { glf } from '../gl/glf';
 
 // ── GLSL Shaders ───────────────────────────────────────────────────────────
 const vertexShader = /* glsl */ `
@@ -127,6 +128,18 @@ const vertexShader = /* glsl */ `
     return center + normal * (cos(angle) * rad + gravNormal) + binormal * (sin(angle) * rad + gravBinormal);
   }
 
+  const float FLUID_FIL_SHIMMER = ${glf(FLUID_FIL_SHIMMER)};
+
+  // A filament's full position at knot phase ph (Task 7f fix: its lane neighbours' samples for the path secant):
+  // the knot + damped shimmer + curl drift, as in main.
+  vec3 fluidFilAt(float ph) {
+    vec3 c;
+    vec3 b = knotPos(ph, c);
+    vec3 j = vec3(snoise(b * 8.0 + vec3(uTime, 0.0, 0.0)), snoise(b * 8.0 + vec3(0.0, uTime, 0.0)),
+      snoise(b * 8.0 + vec3(0.0, 0.0, uTime))) * (0.012 * FLUID_FIL_SHIMMER);
+    return b + j + curlNoise(c * 2.0 + uTime * 0.1) * uCurlAmp;
+  }
+
   void main() {
     // ── Primary motion: tangential drift along knot (now, and STREAK_DT of clock time ago) ──
     vec3 center, centerPrev;
@@ -134,9 +147,11 @@ const vertexShader = /* glsl */ `
     vec3 prevCore = knotPos(uPhase - STREAK_DT * uPhaseRate, centerPrev);
 
     // ── Per-particle granular jitter (sand shimmer) ──
-    float jx = snoise(basePos * 8.0 + vec3(uTime, 0.0, 0.0)) * 0.012;
-    float jy = snoise(basePos * 8.0 + vec3(0.0, uTime, 0.0)) * 0.012;
-    float jz = snoise(basePos * 8.0 + vec3(0.0, 0.0, uTime)) * 0.012;
+    // Filaments: damped (Task 7f fix): the shimmer is crossed at knot speed, so it bends the thread's path.
+    float shimK = aRole < 0.5 ? 1.0 : FLUID_FIL_SHIMMER;
+    float jx = snoise(basePos * 8.0 + vec3(uTime, 0.0, 0.0)) * 0.012 * shimK;
+    float jy = snoise(basePos * 8.0 + vec3(0.0, uTime, 0.0)) * 0.012 * shimK;
+    float jz = snoise(basePos * 8.0 + vec3(0.0, 0.0, uTime)) * 0.012 * shimK;
 
     // ── Subtle curl drift (environmental, not primary) ──
     vec3 curl = curlNoise(center * 2.0 + uTime * 0.1) * uCurlAmp;
@@ -162,16 +177,17 @@ const vertexShader = /* glsl */ `
     float filW = gasFilWidth(-mvPosition.z, aRadius, 1.0 - uCondense * uCondenseSizeBite);
     float size = aRole < 0.5 ? fogSize : filW;
     gl_Position = projectionMatrix * mvPosition;
-    // Continuous threads (Task 7f): the gap neighbour sits aGap behind on the same streamline (same aOffset, so the
-    // same knot speed): the knot chain at an earlier phase, plus this particle's shimmer + curl (pre-condense), like prev.
-    float gapPx = 0.0;
+    // Threads (Task 7f + fix): the lane neighbours sit ±aGap along the same streamline (same aOffset, so the same
+    // knot speed): the full filament chain at those knot phases gives the path secant (direction) and the gap.
+    vec4 clipBack = gl_Position;
+    vec4 clipAhead = gl_Position;
     if (aRole > 0.5) {
-      vec3 centerGap;
-      vec3 gapPos = knotPos(uPhase - aGap / (0.6 + aOffset * 0.4), centerGap) + vec3(jx, jy, jz) + curl;
-      gapPos *= 1.0 - uCondense * uCondense;
-      gapPx = gasGapPx(gl_Position, projectionMatrix * (modelViewMatrix * vec4(gapPos, 1.0)));
+      float dph = aGap / (0.6 + aOffset * 0.4);
+      float squash = 1.0 - uCondense * uCondense;
+      clipBack = projectionMatrix * (modelViewMatrix * vec4(fluidFilAt(uPhase - dph) * squash, 1.0));
+      clipAhead = projectionMatrix * (modelViewMatrix * vec4(fluidFilAt(uPhase + dph) * squash, 1.0));
     }
-    gl_PointSize = gasSpriteGap(gl_Position, projectionMatrix * mvPrev, aRole, size, FIL_ASPECT, gasHash(aPhase, aRadius), gapPx);
+    gl_PointSize = gasSpriteThread(gl_Position, projectionMatrix * mvPrev, clipBack, clipAhead, aRole, size, FIL_ASPECT, gasHash(aPhase, aRadius));
     // Fog: × fogAlpha. Filaments: the mask runs along each thread (lane id + knot label), slowly evolving, × filAlpha.
     vLane = gasAlpha(aRole, gasThreadCoord(aLane, aPhase), uTime);
     planetWindowVS(mvPosition.xyz);
@@ -190,7 +206,7 @@ const fragmentShader = /* glsl */ `
   void main() {
     // Sharp sprite — bright core with tight halo
     float d = gasStreakDist(gl_PointCoord);
-    float alpha = smoothstep(1.0, 0.3, d);
+    float alpha = smoothstep(1.0, 0.3, d) * gasTaper(gl_PointCoord);
     if (alpha < 0.01) discard;
 
     // Bioluminescent palette: magenta → violet → cyan → magenta
@@ -282,7 +298,7 @@ export default function ParticleFlow({
       mat.uniforms.uTime.value = clk.t;
       mat.uniforms.uPhase.value = clk.phase.fluid;
       mat.uniforms.uPhaseRate.value = clk.rate.fluid;
-      writeGasTune(mat.uniforms, PLANET_TUNE, state.gl.getPixelRatio());
+      writeGasTune(mat.uniforms, PLANET_TUNE, state.gl.getPixelRatio(), gasPointMax(state.gl));
       mat.uniforms.uCurlAmp.value = curlAmp;
       mat.uniforms.uTubeRadius.value = tubeRadius;
       mat.uniforms.uChromatic.value = chromatic;
