@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import useStageCameraDist from './useStageCameraDist';
 import * as THREE from 'three';
@@ -19,7 +19,8 @@ import useCalm from './useCalm';
 import { createAetherClock, configureAetherClock } from './planet/aetherClock';
 
 const isMobile = typeof navigator !== 'undefined' && /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
-const GHOST_DENSITY = isMobile ? 150 : 300;
+// The gas cap: additive blending accumulates fast — the planet (MercuryPlanet) must stay legible.
+const ACTIVE_OPACITY = 0.45;
 const SEARCH = typeof window !== 'undefined' ? window.location.search : '';
 const TIER = pickTier({ isMobile, search: SEARCH });
 const PERF_HUD = import.meta.env.DEV && perfHudOn(SEARCH);
@@ -44,14 +45,7 @@ export default function MercuryCanvas({
   onFps = null,
   overlay = false,
 }) {
-  const {
-    activePhase,
-    pendingPhase,
-    phaseOpacities,
-    phaseCondense,
-    sphereState,
-    triggerTransition,
-  } = usePhaseTransition('fluid');
+  const { activePhase, fades, holdLiquid, triggerTransition } = usePhaseTransition();
 
   const calm = useCalm();
   // One time base for the gas and the mirror sky (mirror-sky spec §1). Configured every render, ticked per frame.
@@ -59,31 +53,27 @@ export default function MercuryCanvas({
   configureAetherClock(aetherClock, { speed: params.speed ?? 0.1, orbitalSpeed: params.orbitalSpeed ?? 1.2, calm });
   const dpr = [1, TIERS[TIER].dprMax];
 
+  // A tap on the lit node means neutral, so the phase is reported from the machine, not from the tap.
   const handleNodeTap = useCallback((phase) => {
     triggerTransition(phase);
-    onPhaseChange?.(phase);
-  }, [triggerTransition, onPhaseChange]);
+  }, [triggerTransition]);
+  useEffect(() => {
+    onPhaseChange?.(activePhase);
+  }, [activePhase, onPhaseChange]);
 
   // Element strikes for the planet (MercuryPlanet drains this every frame and launches a visitor per strike).
-  // The press fires once per pointerdown; onNodeTap fires on both pointerdown and click.
+  // The press and onNodeTap both fire once per pointerdown.
   const strikesRef = useRef([]);
   const handleElementFired = useCallback((phase) => {
     if (strikesRef.current.length < 8) strikesRef.current.push(phase);
   }, []);
 
   // Gas counts (mirror-sky spec §3e): fog = the old (base) count; the tier multiplier feeds the filaments.
-  // Fire: body = the old body count, embers = the old ember count × the multiplier. Ghosts: GHOST_DENSITY, ×1.
+  // Fire: body = the old body count, embers = the old ember count × the multiplier.
   const gasBase = params.density ?? (isMobile ? 600 : 1200);
-  const gasFor = (phase) => phase === activePhase
-    ? gasCounts(gasBase, TIERS[TIER].gasDensity, phase === 'thermal')
-    : gasCounts(GHOST_DENSITY, 1, phase === 'thermal');
+  const gasFor = (phase) => gasCounts(gasBase, TIERS[TIER].gasDensity, phase === 'thermal');
 
-  // Active phase capped at 0.45 — additive blending accumulates fast, the planet (MercuryPlanet) must remain legible
-  const opacityFor = (phase) =>
-    Math.min(phase === activePhase ? 0.45 : 0.12, phaseOpacities[phase]);
-
-  // Condensation: bite applied HERE, once — shaders receive the final value.
-  const condenseFor = (phase) => phaseCondense[phase] * TUNE.condenseBite;
+  const opacityFor = (phase) => fades[phase] * ACTIVE_OPACITY;
 
   return (
     <Canvas
@@ -111,7 +101,8 @@ export default function MercuryCanvas({
           blending={THREE.NormalBlending}
           premultiplied
           onFps={activePhase === 'fluid' ? onFps : null}
-          condense={condenseFor('fluid')}
+          visible={fades.fluid > 0}
+          condense={0}
           condenseSizeBite={TUNE.condenseSizeBite}
           planetWindow={1}
         />
@@ -128,7 +119,8 @@ export default function MercuryCanvas({
           blending={THREE.NormalBlending}
           premultiplied
           onFps={activePhase === 'thermal' ? onFps : null}
-          condense={condenseFor('thermal')}
+          visible={fades.thermal > 0}
+          condense={0}
           condenseSizeBite={TUNE.condenseSizeBite}
           planetWindow={1}
         />
@@ -145,7 +137,8 @@ export default function MercuryCanvas({
           blending={THREE.NormalBlending}
           premultiplied
           onFps={activePhase === 'earth' ? onFps : null}
-          condense={condenseFor('earth')}
+          visible={fades.earth > 0}
+          condense={0}
           condenseSizeBite={TUNE.condenseSizeBite}
           planetWindow={1}
         />
@@ -162,7 +155,8 @@ export default function MercuryCanvas({
           blending={THREE.NormalBlending}
           premultiplied
           onFps={activePhase === 'air' ? onFps : null}
-          condense={condenseFor('air')}
+          visible={fades.air > 0}
+          condense={0}
           condenseSizeBite={TUNE.condenseSizeBite}
           planetWindow={1}
         />
@@ -181,13 +175,13 @@ export default function MercuryCanvas({
           overlay={overlay}
           activePhase={activePhase}
           aetherClock={aetherClock}
-          pendingPhase={pendingPhase}
-          skyOpacities={phaseOpacities}
+          fades={fades}
+          holdLiquid={holdLiquid}
+          onFps={activePhase ? null : onFps}
         />
         <MercurySphere
           activePhase={activePhase}
-          pendingPhase={pendingPhase}
-          sphereState={sphereState}
+          activeFade={activePhase ? fades[activePhase] : 0}
           onNodeTap={handleNodeTap}
           onElementFired={handleElementFired}
           isMobile={isMobile}

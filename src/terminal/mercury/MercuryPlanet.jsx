@@ -276,7 +276,7 @@ function stepDrop(drop, { body, surf, camera, ds, calm, stepS, t, bufferW, buffe
   drop.coreScale = coreScale(fam); // phase 6: the planet's live size (1 unless a hyper family is out)
 }
 
-export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = false, emitters = {}, strikes = null, overlay = false, activePhase = 'fluid', aetherClock = null, pendingPhase = null, skyOpacities = null }) {
+export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = false, emitters = {}, strikes = null, overlay = false, activePhase = null, aetherClock = null, fades = null, holdLiquid = false, onFps = null }) {
   const gl = useThree((s) => s.gl);
   const camera = useThree((s) => s.camera);
   // The drawing buffer's height in device px: the pops are sized from it (mercuryRoil.popZoom).
@@ -466,7 +466,19 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
   // A new material starts from the mount-time ephemeris; refresh it on the very next frame.
   const nextEphemeris = useRef(0);
   useLayoutEffect(() => { nextEphemeris.current = 0; }, [material]);
+  // Neutral has no gas flow to count frames, so the planet does.
+  const fpsFrames = useRef(0);
+  const fpsTime = useRef(0);
   useFrame(({ clock }, delta) => {
+    if (onFps) {
+      fpsFrames.current++;
+      fpsTime.current += delta;
+      if (fpsTime.current >= 1) {
+        onFps(Math.round(fpsFrames.current / fpsTime.current));
+        fpsFrames.current = 0;
+        fpsTime.current = 0;
+      }
+    }
     const u = material.uniforms;
     const t = clock.elapsedTime;
     u.uTime.value = t;
@@ -500,6 +512,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     const ds = drag.sample(performance.now());
     const { dragging, omegaPtr } = ds;
     const stepS = Math.min(delta, MAX_FRAME_DT_S);
+    body.holdLiquid = holdLiquid;
     stepBody(body, stepS, { dragging, omegaPtr, target, calm });
     coolBody(body, delta - stepS); // the clamp holds the body still, not the heat: a hidden tab still cools
     u.uBodyRot.value.setFromMatrix4(m4.makeRotationFromQuaternion(body.q));
@@ -674,13 +687,13 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
       u.uEmitCol.value[i].set(c.r * o, c.g * o, c.b * o);
     });
 
-    // The mirror sky (aetherSky.js) on the gas's own clock; only the active element (two during a switch).
+    // The mirror sky (aetherSky.js) on the gas's own clock, weighted by the element fades; quiet in neutral.
     if (aetherClock) {
       tickAetherClock(aetherClock, t, delta);
       u.uSkyT.value = aetherClock.t;
       u.uSkyPhase.value.set(aetherClock.phase.fluid, aetherClock.phase.thermal, aetherClock.phase.earth, aetherClock.phase.air);
     }
-    skyWeights(activePhase, pendingPhase, skyOpacities, skyW);
+    skyWeights(fades, skyW);
     u.uSkyW.value.set(skyW[0], skyW[1], skyW[2], skyW[3]);
 
     beadCtx.phase = activePhase;

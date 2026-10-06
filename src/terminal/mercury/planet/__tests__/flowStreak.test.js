@@ -70,10 +70,9 @@ describe('gas filaments: two roles in one draw', () => {
     });
   }
 
-  it('canvas: counts from gasCounts (spec §3e): the active flow x the tier multiplier, ghosts x1, fire flagged', () => {
+  it('canvas: counts from gasCounts (spec §3e): every flow x the tier multiplier, fire flagged', () => {
     expect(canvasSrc).toContain('const gasBase = params.density ?? (isMobile ? 600 : 1200);');
-    expect(canvasSrc).toContain('? gasCounts(gasBase, TIERS[TIER].gasDensity, phase === \'thermal\')');
-    expect(canvasSrc).toContain(': gasCounts(GHOST_DENSITY, 1, phase === \'thermal\');');
+    expect(canvasSrc).toContain("const gasFor = (phase) => gasCounts(gasBase, TIERS[TIER].gasDensity, phase === 'thermal');");
     for (const el of ['fluid', 'thermal', 'earth', 'air']) {
       expect(canvasSrc).toContain(`density={gasFor('${el}').n}`);
       expect(canvasSrc).toContain(`fogCount={gasFor('${el}').fog}`);

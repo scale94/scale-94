@@ -68,7 +68,7 @@ export default function MercuryControls({
   return (
     <div className="font-mono text-[11px] border border-cyan-900/30 rounded-lg p-3 bg-black/50 backdrop-blur-sm space-y-1">
       <div className="text-[9px] text-cyan-400/40 tracking-widest mb-3 border-b border-cyan-900/20 pb-2">
-        {PHASE_LABEL[activePhase]}
+        {PHASE_LABEL[activePhase] ?? '// neutral :: liquid'}
       </div>
 
       <Slider label="speed"      value={params.speed}      min={0.01} max={0.4}  step={0.01} onChange={v => handleChange('speed', v)} />

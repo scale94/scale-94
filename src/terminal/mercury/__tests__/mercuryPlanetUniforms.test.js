@@ -46,7 +46,7 @@ describe('MercuryPlanet impulse wiring', () => {
 describe('THE SLOW NOON wiring', () => {
   it('MercuryPlanet owns uOverlay / uCaloris and eases the overlay every frame', () => {
     expect(planetSrc).toContain("import { CALORIS_DIR_BODY, stepOverlay } from './planet/slowNoon';");
-    expect(planetSrc).toContain("export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = false, emitters = {}, strikes = null, overlay = false, activePhase = 'fluid', aetherClock = null, pendingPhase = null, skyOpacities = null }) {");
+    expect(planetSrc).toContain("export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = false, emitters = {}, strikes = null, overlay = false, activePhase = null, aetherClock = null, fades = null, holdLiquid = false, onFps = null }) {");
     expect(planetSrc).toContain('uOverlay: { value: 0 },');
     expect(planetSrc).toContain('uCaloris: { value: new THREE.Vector3(...CALORIS_DIR_BODY) },');
     expect(planetSrc).toContain('u.uOverlay.value = stepOverlay(u.uOverlay.value, overlay ? 1 : 0, delta, calm);');

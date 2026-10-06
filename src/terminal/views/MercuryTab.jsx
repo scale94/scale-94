@@ -48,7 +48,7 @@ export default function MercuryTab({ onNavigateTab }) {
     requestAnimationFrame(() => sealRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   }, []);
   const [params, setParams]           = useState(DEFAULT_PARAMS);
-  const [activePhase, setActivePhase] = useState('fluid');
+  const [activePhase, setActivePhase] = useState(null);
   const [fps, setFps]                 = useState(0);
   const [slowNoonOverlay, setSlowNoonOverlay] = useState(false);
   const [liveDensity, setLiveDensity] = useState(DEFAULT_PARAMS.density);
@@ -167,7 +167,7 @@ export default function MercuryTab({ onNavigateTab }) {
               className="text-[9px] font-mono text-zinc-500/50 uppercase tracking-[0.2em] mt-0.5"
               style={{ animation: 'hg-titleReveal 0.6s 0.1s cubic-bezier(0.16,1,0.3,1) both' }}
             >
-              {activePhase} :: phase active // perihelion precession // metallurgy of the present
+              {activePhase ?? 'neutral'} :: phase active // perihelion precession // metallurgy of the present
             </div>
           </div>
         </div>

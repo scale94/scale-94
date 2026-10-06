@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
-import * as THREE from 'three';
 import { ORBIT_NODES, ORBIT_RADIUS, orbitPrecessionAngle } from './orbitNodes';
 
 // Orbit ring, mercury thread and elemental handles. The planet is MercuryPlanet.
@@ -49,8 +48,7 @@ function ElementGlyph({ glyph, color, size = 26 }) {
 
 export default function MercurySphere({
   activePhase,
-  pendingPhase,
-  sphereState,
+  activeFade = 0,
   onNodeTap,
   onElementFired = null,
   isMobile = false,
@@ -60,7 +58,7 @@ export default function MercurySphere({
   // Click burst state for handle animation
   const [pressedPhase, setPressedPhase] = useState(null);
 
-  const litPhase = pendingPhase ?? activePhase;
+  const litPhase = activePhase; // null in neutral: no node lit
 
   // The planet itself is MercuryPlanet (raw shader, real Sun). This component
   // keeps the orbit ring, the mercury thread and the element handles.
@@ -83,12 +81,12 @@ export default function MercurySphere({
           <meshBasicMaterial color="#ffffff" transparent opacity={0.12} depthWrite={false} />
         </mesh>
 
-        {/* Mercury thread — only visible during elongating/flowing beats */}
-        {sphereState.threadProgress > 0 && (() => {
+        {/* Mercury thread — to the lit node, fading with its element */}
+        {litPhase && activeFade > 0 && (() => {
           const litNode = ORBIT_NODES.find(n => n.phase === litPhase);
           if (!litNode) return null;
-          const endX = Math.cos(litNode.angle) * ORBIT_RADIUS * sphereState.threadProgress;
-          const endY = Math.sin(litNode.angle) * ORBIT_RADIUS * sphereState.threadProgress;
+          const endX = Math.cos(litNode.angle) * ORBIT_RADIUS;
+          const endY = Math.sin(litNode.angle) * ORBIT_RADIUS;
           const midX = endX / 2;
           const midY = endY / 2;
           const length = Math.sqrt(endX * endX + endY * endY);
@@ -96,7 +94,7 @@ export default function MercurySphere({
           return (
             <mesh position={[midX, midY, 0]} rotation={[0, 0, angle]}>
               <cylinderGeometry args={[0.008, 0.002, length, 6]} />
-              <meshBasicMaterial color="#d0d0d0" transparent opacity={0.7} />
+              <meshBasicMaterial color="#d0d0d0" transparent opacity={0.7 * activeFade} />
             </mesh>
           );
         })()}
@@ -106,10 +104,6 @@ export default function MercurySphere({
           const x = Math.cos(angle) * ORBIT_RADIUS;
           const y = Math.sin(angle) * ORBIT_RADIUS;
           const isLit  = phase === litPhase;
-          const nodeColor = new THREE.Color(color)
-            .lerp(new THREE.Color('#c0c0c0'), sphereState.nodeChrome);
-          // Interpolate color hex for HTML elements as chromePhase changes
-          const htmlColor = '#' + nodeColor.getHexString();
 
           const isPressed = pressedPhase === phase;
           const hitSize   = isMobile ? 104 : 92;
@@ -120,7 +114,7 @@ export default function MercurySphere({
               <mesh>
                 <sphereGeometry args={[0.055, 16, 16]} />
                 <meshBasicMaterial
-                  color={nodeColor}
+                  color={color}
                   transparent
                   opacity={isLit ? 1.0 : 0.45}
                 />
@@ -144,9 +138,9 @@ export default function MercurySphere({
                       ? 'transform 0.08s cubic-bezier(0.16, 1, 0.3, 1)'
                       : 'transform 0.45s cubic-bezier(0.16, 1, 0.3, 1)',
                   }}
-                  onClick={() => onNodeTap(phase)}
                   onPointerDown={(e) => {
                     e.stopPropagation();
+                    // One tap per press: a tap on the lit node means neutral, so a second (click) tap would undo it.
                     setPressedPhase(phase);
                     onNodeTap(phase);
                     onElementFired?.(phase, e.clientX, e.clientY);
@@ -159,18 +153,18 @@ export default function MercurySphere({
                     position: 'absolute',
                     inset: 0,
                     borderRadius: '50%',
-                    border: `${isPressed ? 1.5 : 1}px solid ${htmlColor}${isLit || isPressed ? 'dd' : '44'}`,
+                    border: `${isPressed ? 1.5 : 1}px solid ${color}${isLit || isPressed ? 'dd' : '44'}`,
                     boxShadow: isPressed
-                      ? `0 0 18px ${htmlColor}99, 0 0 40px ${htmlColor}55, inset 0 0 16px ${htmlColor}33`
+                      ? `0 0 18px ${color}99, 0 0 40px ${color}55, inset 0 0 16px ${color}33`
                       : isLit
-                        ? `0 0 10px ${htmlColor}55, 0 0 22px ${htmlColor}28, inset 0 0 8px ${htmlColor}18`
+                        ? `0 0 10px ${color}55, 0 0 22px ${color}28, inset 0 0 8px ${color}18`
                         : 'none',
                     transition: 'box-shadow 0.15s ease, border-color 0.15s ease',
                     pointerEvents: 'none',
                   }} />
                   {/* Alchemical glyph */}
                   <div style={{ pointerEvents: 'none', opacity: isLit || isPressed ? 1 : 0.45, transition: 'opacity 0.4s ease' }}>
-                    <ElementGlyph glyph={glyph} color={htmlColor} size={28} />
+                    <ElementGlyph glyph={glyph} color={color} size={28} />
                   </div>
                   {/* Element name */}
                   <span style={{
@@ -178,7 +172,7 @@ export default function MercurySphere({
                     fontFamily: "'Geist Mono', ui-monospace, monospace",
                     fontWeight: 700,
                     letterSpacing: '0.14em',
-                    color: htmlColor,
+                    color: color,
                     opacity: isLit || isPressed ? 0.9 : 0.35,
                     pointerEvents: 'none',
                     userSelect: 'none',

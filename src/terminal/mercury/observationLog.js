@@ -128,8 +128,9 @@ export function generateEntry({
 
   // Build a triggerLabel that includes phase-transit detail when applicable
   let triggerLabel = TRIGGER_LABELS[category] ?? trigger;
-  if (trigger === 'phase_transit' && from && to) {
-    triggerLabel = `${PHASE_GLYPHS[from] ?? from}→${PHASE_GLYPHS[to] ?? to}  phase transit`;
+  if (trigger === 'phase_transit' && (from || to)) {
+    const glyph = (p) => PHASE_GLYPHS[p] ?? p ?? '◉'; // null = neutral
+    triggerLabel = `${glyph(from)}→${glyph(to)}  phase transit`;
   }
 
   // Data tail — most relevant 1-2 instruments for the trigger
@@ -199,7 +200,7 @@ export function buildMarkdownLog({ entries, mercury, instruments, activePhase, s
   return [
     `# MERCURY OBSERVATION LOG · ${ts}`,
     `> the fifth element · ${entries.length} entries · session ${fmtTime(sessionStart)} → ${fmtTime(now)}`,
-    `> Mercury ${mercury.heliocentricDistanceAU.toFixed(3)} AU · subsolar ${mercury.subsolarTempK.toFixed(0)} K · ${glyph} ${activePhase} phase`,
+    `> Mercury ${mercury.heliocentricDistanceAU.toFixed(3)} AU · subsolar ${mercury.subsolarTempK.toFixed(0)} K · ${glyph} ${activePhase ?? 'neutral'} phase`,
     '',
     '## CURRENT INSTRUMENTS',
     '| reading              | value           |',

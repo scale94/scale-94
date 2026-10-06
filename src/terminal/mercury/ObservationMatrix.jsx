@@ -219,7 +219,7 @@ export default function ObservationMatrix({ mercury, instruments, activePhase })
           CURRENT STATE
         </div>
         <div className="text-[9px] font-mono text-zinc-400 tabular-nums">
-          {PHASE_GLYPHS[activePhase] ?? '◉'} {activePhase} ·
+          {PHASE_GLYPHS[activePhase] ?? '◉'} {activePhase ?? 'neutral'} ·
           Mercury {mercury.heliocentricDistanceAU.toFixed(3)} AU ·
           subsolar {mercury.subsolarTempK.toFixed(0)} K ·
           next perihelion T−{mercury.daysToNextPerihelion.toFixed(0)}d
