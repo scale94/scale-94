@@ -28,6 +28,12 @@ export const FIRE_EMBER_SHARE = 0.15;  // the old fire: 85 % body, 15 % embers
 export const GAS_PX_FLOOR = 1.5;      // CSS px (× uDpr): filaments never go sub-pixel (fog keeps its old size, unfloored)
 export const GAS_Z_REF = 4.43;        // fitted desktop camera distance (look probe 1600×1000): uFilWidth is CSS px here
 export const MASK_EVOLVE = 0.03;
+// Task 7f, continuous fluid threads: a moving filament's dash is at least FIL_GAP_CLOSE x the on-screen distance to
+// its farther lane neighbour (gasSpriteGap), capped at FIL_GAP_ASPECT x width. The speed-driven part keeps its
+// aspectMax cap; only the gap minimum may run past it (the sparse lanes need ~1.6x their spacing past 16w: measured
+// 5.8 % of neighbour pairs still open at a 16w cap vs 1.0 % at 24w, chord-vs-arc p95 1.47 px).
+export const FIL_GAP_CLOSE = 1.15;
+export const FIL_GAP_ASPECT = 24;
 export const GAS_MASK_LOOP = 1.0;     // radius of the along-lane loop in mask label space (× uMaskFreq): ~8 bright stretches per lane
 export const GAS_MASK_LANE_GAP = 3.0; // lane id → mask x offset; > loop diameter + a noise feature, so lanes are independent
 export const THREAD_ALONG_JITTER = 0.8;  // stratified along-lane jitter, × the lane's mean spacing (max gap ≤ 1.8 spacings)
@@ -144,13 +150,16 @@ export function gasPaceMatch(values, counts, groups = null) {
 // lane (integer, lane-major order), along ∈ [0, 1) (stratified within its lane from a random lane start, jittered by
 // THREAD_ALONG_JITTER of the spacing) and cross (a clipped unit normal; the flow scales it by its own σ). Lane counts
 // follow uneven weights (THREAD_WEIGHT_FLOOR + Exp(1), largest remainder) with ≥ 1 per lane while nFil ≥ lanes.
-export function gasThreads(nFil, lanes, rng) {
+// gap (Task 7f): per filament, the larger of the along distances to its two lane neighbours (aPhase units), so a
+// dash at least that long (on screen) reaches both neighbours' dashes. alongJitter: THREAD_ALONG_JITTER by default.
+export function gasThreads(nFil, lanes, rng, alongJitter = THREAD_ALONG_JITTER) {
   const lane = new Float32Array(nFil);
   const along = new Float32Array(nFil);
   const cross = new Float32Array(nFil);
+  const gap = new Float32Array(nFil);
   const counts = new Int32Array(lanes);
   const starts = new Float32Array(Math.max(lanes, 0));
-  if (nFil <= 0 || lanes <= 0) return { lane, along, cross, counts, starts };
+  if (nFil <= 0 || lanes <= 0) return { lane, along, cross, gap, counts, starts };
   const used = Math.min(lanes, nFil);
   const w = new Float64Array(used);
   let sum = 0;
@@ -178,14 +187,20 @@ export function gasThreads(nFil, lanes, rng) {
   for (let k = 0; k < used; k++) {
     const n = counts[k];
     const start = starts[k];
+    const first = i;
     for (let j = 0; j < n; j++, i++) {
-      const a = start + (j + 0.5 + THREAD_ALONG_JITTER * (rng() - 0.5)) / n;
+      const a = start + (j + 0.5 + alongJitter * (rng() - 0.5)) / n;
       lane[i] = k;
       along[i] = a - Math.floor(a);
       cross[i] = clippedNormal(rng);
     }
+    // lane-major, in along order (cyclic): neighbours are j - 1 and j + 1 around the loop
+    for (let j = 0; j < n; j++) {
+      const d = (x, y) => { const v = along[first + y] - along[first + x]; return v - Math.floor(v); };
+      gap[first + j] = n < 2 ? 1 : Math.max(d((j + n - 1) % n, j), d(j, (j + 1) % n));
+    }
   }
-  return { lane, along, cross, counts, starts };
+  return { lane, along, cross, gap, counts, starts };
 }
 
 export const GAS_STREAK_VS = /* glsl */ `
@@ -211,6 +226,8 @@ const float FIRE_EMBER_GAIN = ${glf(FIRE_EMBER_GAIN)};
 const float GAS_PX_FLOOR = ${glf(GAS_PX_FLOOR)};
 const float GAS_Z_REF = ${glf(GAS_Z_REF)};
 const float MASK_EVOLVE = ${glf(MASK_EVOLVE)};
+const float FIL_GAP_CLOSE = ${glf(FIL_GAP_CLOSE)};
+const float FIL_GAP_ASPECT = ${glf(FIL_GAP_ASPECT)};
 const float GAS_MASK_LOOP = ${glf(GAS_MASK_LOOP)};
 const float GAS_MASK_LANE_GAP = ${glf(GAS_MASK_LANE_GAP)};
 
@@ -222,7 +239,15 @@ float gasFilWidth(float depth, float s01, float bite) {
   return uFilWidth * uDpr * (GAS_Z_REF / max(depth, 0.5)) * mix(0.75, 1.25, s01) * bite;
 }
 
-float gasSprite(vec4 clipNow, vec4 clipPrev, float role, float size, float aspectMax, float jit) {
+// On-screen (buffer px) distance between a particle and its gap neighbour sample (Task 7f).
+float gasGapPx(vec4 clipNow, vec4 clipGap) {
+  if (clipNow.w <= 1e-4 || clipGap.w <= 1e-4) return 0.0;
+  return length((clipNow.xy / clipNow.w - clipGap.xy / clipGap.w) * 0.5 * uViewportPx);
+}
+
+// gasSprite with a gap-closing minimum length (gapPx, buffer px; 0 = none). Moving filaments only: under calm
+// (sp = 0) the dash collapses to its round core like all gas, since there is no direction to stretch along.
+float gasSpriteGap(vec4 clipNow, vec4 clipPrev, float role, float size, float aspectMax, float jit, float gapPx) {
   vRole = role;
   if (role < 0.5) {
     vStreakDir = vec2(1.0, 0.0);
@@ -236,10 +261,15 @@ float gasSprite(vec4 clipNow, vec4 clipPrev, float role, float size, float aspec
   }
   float sp = length(v);
   float L = min(sp * uStreakGain, max(aspectMax - 1.0, 0.0) * w) * (1.0 + FIL_JITTER * (2.0 * jit - 1.0));
+  if (sp > 1e-3) L = max(L, min(FIL_GAP_CLOSE * gapPx - w, (FIL_GAP_ASPECT - 1.0) * w));
   float total = w + L;
   vStreakDir = sp > 1e-3 ? vec2(v.x, -v.y) / sp : vec2(1.0, 0.0);
   vStreakCap = vec2(0.5 * L / total, 0.5 * w / total);
   return total;
+}
+
+float gasSprite(vec4 clipNow, vec4 clipPrev, float role, float size, float aspectMax, float jit) {
+  return gasSpriteGap(clipNow, clipPrev, role, size, aspectMax, jit, 0.0);
 }
 
 float gasLane(vec3 laneCoord, float t) {

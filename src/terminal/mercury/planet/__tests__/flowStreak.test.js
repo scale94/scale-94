@@ -8,6 +8,7 @@ import airBufSrc from '../../../air/atmosphericFlowBuffers.js?raw';
 import * as fluidBuf from '../../../fluid/particleFlowBuffers';
 import * as airBuf from '../../../air/atmosphericFlowBuffers';
 import { gasRoles, THREAD_CROSS_CLIP } from '../gasStreak';
+import { PLANET_TUNE } from '../planetLook';
 
 const STREAKED = {
   fluid: {
@@ -16,7 +17,7 @@ const STREAKED = {
     core: 'vec3 knotPos(float ph, out vec3 center) {',
     fogSize: 'float fogSize = (1.5 + aRadius * 2.0) * (300.0 / -mvPosition.z) * (1.0 - uCondense * uCondenseSizeBite);',
     filW: 'float filW = gasFilWidth(-mvPosition.z, aRadius, 1.0 - uCondense * uCondenseSizeBite);',
-    sprite: 'gl_PointSize = gasSprite(gl_Position, projectionMatrix * mvPrev, aRole, size, FIL_ASPECT, gasHash(aPhase, aRadius));',
+    sprite: 'gl_PointSize = gasSpriteGap(gl_Position, projectionMatrix * mvPrev, aRole, size, FIL_ASPECT, gasHash(aPhase, aRadius), gapPx);',
   },
   air: {
     src: atmoSrc,
@@ -296,6 +297,8 @@ describe('air thread dashes follow the wavy tilted path (Task 7e fix)', () => {
   });
 
   // Documents the geometry (a pure JS replica: it passes on any GLSL); the regression gate is the `prev` string pin above.
+  // Its stand-ins keep the full-amplitude curl + shimmer (the 5f193536 worst case); since Task 7e fix 2 the filaments
+  // have no shimmer and curl x AIR_FIL_CURL, which only makes the path smoother.
   it('geometry note (JS replica): a prev through the same chain tracks the trajectory tangent; the old prev missed it by up to ~90° at the limb', () => {
     // a tilted ring + smooth stand-ins for the angle-keyed y-noise/wander and the position-keyed curl/shimmer
     const th = 0.25, az = 0.8, r = 1.0, h = 0.3;
@@ -344,7 +347,7 @@ describe('air threads as streamlines (Task 7e fix 2)', () => {
     for (const c of ['AIR_FIL_CURL', 'AIR_FIL_ASPECT']) expect(atmoSrc).toContain(`const float ${c} = \${glf(${c})};`);
     expect(atmoSrc).toContain('pos += curl * uTurbulence * 0.3 * (aRole < 0.5 ? 1.0 : AIR_FIL_CURL);');
     expect(atmoSrc).toMatch(/if \(aRole < 0\.5\) \{\s*pos\.x \+= snoise\(pos \* 5\.0 \+ vec3\(st, 0\.0, aPhase\)\) \* 0\.03;\s*pos\.z \+= snoise\(pos \* 5\.0 \+ vec3\(aPhase, 0\.0, st \* 1\.1\)\) \* 0\.03;\s*\}/);
-    expect(particleSrc).toContain('aRole, size, FIL_ASPECT, gasHash(aPhase, aRadius));');
+    expect(particleSrc).toContain('aRole, size, FIL_ASPECT, gasHash(aPhase, aRadius), gapPx);');
   });
 
   it('air pace per hemisphere: upper and lower non-ion particle-weighted aSpeed each near 0.5 (the sky drives each at AIR_ORBIT_MEAN)', () => {
@@ -355,8 +358,84 @@ describe('air threads as streamlines (Task 7e fix 2)', () => {
         const xs = spd.filter((_, i) => ion[i] === 0 && (alt[i] > 0.5) === upper);
         expect(xs.length).toBeGreaterThan(0);
         const m = xs.reduce((s, x) => s + x, 0) / xs.length;
-        expect(Math.abs(m - 0.5)).toBeLessThanOrEqual(0.05);
+        expect(Math.abs(m - 0.5)).toBeLessThanOrEqual(0.02);
       }
     }
+  });
+});
+
+// Task 7f: continuous fluid threads. A JS replica of the fluid knot chain (knotPos: Frenet frame, gravity bias, tube
+// offset) at the desktop fit (camera 4.43, vfov 42 deg, 1000 px) checks the gap-closing rule on the real lanes.
+const kFract = (x) => x - Math.floor(x);
+const kHash = (a, b) => kFract(Math.sin(a * 91.7 + b * 47.3) * 43758.5453);
+const kCenter = (t) => { const p = t * 6.283185307, cq = Math.cos(3 * p); return [(1 + 0.4 * cq) * Math.cos(2 * p), (1 + 0.4 * cq) * Math.sin(2 * p), 0.4 * Math.sin(3 * p)]; };
+const kNorm = (a) => { const l = Math.hypot(...a); return a.map((x) => x / l); };
+const kCross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+function kPos(ph, aPhase, aOffset, aRadius) {
+  const t = kFract(aPhase + ph * (0.6 + aOffset * 0.4));
+  const c = kCenter(t), c2 = kCenter(t + 0.001);
+  const tan = kNorm(c2.map((x, i) => x - c[i]));
+  const up = Math.abs(tan[1]) < 0.99 ? [0, 1, 0] : [1, 0, 0];
+  const n = kNorm(kCross(tan, up)), b = kCross(tan, n);
+  const gN = -n[1] * 0.015, gB = -b[1] * 0.015, ang = aOffset * 6.283185307, rad = aRadius * 0.32;
+  return c.map((x, i) => x + n[i] * (Math.cos(ang) * rad + gN) + b[i] * (Math.sin(ang) * rad + gB));
+}
+const kF = 500 / Math.tan((21 * Math.PI) / 180);
+const kProj = (p) => { const z = 4.43 - p[2]; return [kF * p[0] / z, kF * p[1] / z, z]; };
+
+describe('continuous fluid threads (Task 7f)', () => {
+  it('fluid VS: aGap attribute; the trailing gap neighbour runs the same knot chain + offsets; gap px feeds gasSpriteGap (filaments only)', () => {
+    expect(particleSrc).toContain('attribute float aGap;');
+    expect(particleSrc).toContain('<bufferAttribute attach="attributes-aGap" array={buffers.gaps} count={PARTICLE_COUNT} itemSize={1} />');
+    expect(particleSrc).toContain('float gapPx = 0.0;');
+    expect(particleSrc).toContain('vec3 gapPos = knotPos(uPhase - aGap / (0.6 + aOffset * 0.4), centerGap) + vec3(jx, jy, jz) + curl;');
+    expect(particleSrc).toContain('gapPos *= 1.0 - uCondense * uCondense;');
+    expect(particleSrc).toContain('gapPx = gasGapPx(gl_Position, projectionMatrix * (modelViewMatrix * vec4(gapPos, 1.0)));');
+    expect(particleSrc).toMatch(/if \(aRole > 0\.5\) \{[^}]*vec3 gapPos = knotPos/);
+  });
+
+  it('fluid buffers: aGap = the larger neighbour gap (in [(1 - J)/n, (1 + J)/n] per lane), fog 0; FLUID_ALONG_JITTER 0.3', () => {
+    expect(fluidBuf.FLUID_ALONG_JITTER).toBe(0.3);
+    const b = fluidBuf.buildBuffers(3600, 1200);
+    expect(fogOf(b, b.gaps).every((g) => g === 0)).toBe(true);
+    const J = fluidBuf.FLUID_ALONG_JITTER;
+    for (let k = 0; k < fluidBuf.FLUID_LANES; k++) {
+      const g = Array.from(b.gaps).filter((_, i) => b.lanes[i] === k);
+      const n = g.length;
+      expect(Math.min(...g)).toBeGreaterThanOrEqual((1 - J) / n - 1e-6);
+      expect(Math.max(...g)).toBeLessThanOrEqual((1 + J) / n + 1e-6);
+    }
+  });
+
+  it('JS replica: with the gap-closing rule, >= 95 % of neighbouring filament pairs on a lane overlap on screen (dash/gap >= 1 at p5)', () => {
+    const b = fluidBuf.buildBuffers(3600, 1200);
+    const RATE = 0.1, DT = 1 / 30, GAIN = PLANET_TUNE.streakGain, W0 = PLANET_TUNE.filWidth;
+    const cov = [];
+    for (let k = 0; k < fluidBuf.FLUID_LANES; k++) {
+      const idx = [];
+      b.lanes.forEach((l, i) => { if (l === k) idx.push(i); });
+      idx.sort((x, y) => b.phases[x] - b.phases[y]);
+      for (const ph of [0, 2.7]) {
+        const P = [], T = [];
+        for (const i of idx) {
+          const s = 0.6 + b.offsets[i] * 0.4;
+          const now = kProj(kPos(ph, b.phases[i], b.offsets[i], b.radii[i]));
+          const pr = kProj(kPos(ph - DT * RATE, b.phases[i], b.offsets[i], b.radii[i]));
+          const gp = kProj(kPos(ph - b.gaps[i] / s, b.phases[i], b.offsets[i], b.radii[i]));
+          const sp = Math.hypot(now[0] - pr[0], now[1] - pr[1]) / DT;
+          const w = Math.max(W0 * (4.43 / now[2]) * (0.75 + 0.5 * b.radii[i]), 1.5);
+          let L = Math.min(sp * GAIN, 15 * w) * (1 + 0.3 * (2 * kHash(b.phases[i], b.radii[i]) - 1));
+          const gapPx = Math.hypot(now[0] - gp[0], now[1] - gp[1]);
+          if (sp > 1e-3) L = Math.max(L, Math.min(1.15 * gapPx - w, (24 - 1) * w)); // = the GLSL line pinned in gasStreak.test
+          P.push(now); T.push(w + L);
+        }
+        for (let j = 0; j < P.length; j++) {
+          const jn = (j + 1) % P.length, g = Math.hypot(P[jn][0] - P[j][0], P[jn][1] - P[j][1]);
+          if (g > 0.5) cov.push((T[j] + T[jn]) / 2 / g);
+        }
+      }
+    }
+    cov.sort((x, y) => x - y);
+    expect(cov[Math.floor(cov.length * 0.05)]).toBeGreaterThanOrEqual(1);
   });
 });

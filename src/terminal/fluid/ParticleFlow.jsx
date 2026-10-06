@@ -25,6 +25,7 @@ const vertexShader = /* glsl */ `
   attribute float aOffset;
   attribute float aRole;   // 0 = fog (the old sprite), 1 = filament (mirror-sky spec §3b)
   attribute float aLane;   // filament thread id (Task 7d; -1 for fog)
+  attribute float aGap;    // filament: the larger along gap to its lane neighbours, aPhase units (Task 7f; fog 0)
   varying float vHue;
   varying float vBrightness;
 
@@ -161,7 +162,16 @@ const vertexShader = /* glsl */ `
     float filW = gasFilWidth(-mvPosition.z, aRadius, 1.0 - uCondense * uCondenseSizeBite);
     float size = aRole < 0.5 ? fogSize : filW;
     gl_Position = projectionMatrix * mvPosition;
-    gl_PointSize = gasSprite(gl_Position, projectionMatrix * mvPrev, aRole, size, FIL_ASPECT, gasHash(aPhase, aRadius));
+    // Continuous threads (Task 7f): the gap neighbour sits aGap behind on the same streamline (same aOffset, so the
+    // same knot speed): the knot chain at an earlier phase, plus this particle's shimmer + curl (pre-condense), like prev.
+    float gapPx = 0.0;
+    if (aRole > 0.5) {
+      vec3 centerGap;
+      vec3 gapPos = knotPos(uPhase - aGap / (0.6 + aOffset * 0.4), centerGap) + vec3(jx, jy, jz) + curl;
+      gapPos *= 1.0 - uCondense * uCondense;
+      gapPx = gasGapPx(gl_Position, projectionMatrix * (modelViewMatrix * vec4(gapPos, 1.0)));
+    }
+    gl_PointSize = gasSpriteGap(gl_Position, projectionMatrix * mvPrev, aRole, size, FIL_ASPECT, gasHash(aPhase, aRadius), gapPx);
     // Fog: × fogAlpha. Filaments: the mask runs along each thread (lane id + knot label), slowly evolving, × filAlpha.
     vLane = gasAlpha(aRole, gasThreadCoord(aLane, aPhase), uTime);
     planetWindowVS(mvPosition.xyz);
@@ -305,6 +315,7 @@ export default function ParticleFlow({
         <bufferAttribute attach="attributes-aOffset"   array={buffers.offsets}   count={PARTICLE_COUNT} itemSize={1} />
         <bufferAttribute attach="attributes-aRole" array={buffers.roles} count={PARTICLE_COUNT} itemSize={1} />
         <bufferAttribute attach="attributes-aLane" array={buffers.lanes} count={PARTICLE_COUNT} itemSize={1} />
+        <bufferAttribute attach="attributes-aGap" array={buffers.gaps} count={PARTICLE_COUNT} itemSize={1} />
       </bufferGeometry>
       <shaderMaterial
         ref={materialRef}

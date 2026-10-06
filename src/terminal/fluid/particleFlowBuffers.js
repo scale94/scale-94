@@ -14,6 +14,7 @@ export const FLUID_LANES = 8;   // fewer, denser threads (dashes overlap instead
 export const FLUID_SIGMA_R = 0.03;        // radial jitter, in tube-radius units (× uTubeRadius 0.32 ≈ 0.01 scene units)
 export const FLUID_LANE_R = [0.08, 0.95]; // lane-centre radius range (tube-radius units)
 export const FLUID_THREAD_SEED = 0x7d1f;
+export const FLUID_ALONG_JITTER = 0.3; // along-lane jitter (× spacing): more even gaps for the gap-closing dashes (7f)
 
 export function knotPoint(t, R = 1, r = 0.4) {
   const phi = t * Math.PI * 2;
@@ -30,6 +31,7 @@ export function buildBuffers(count, nFog, seed = FLUID_THREAD_SEED) {
   const radii     = new Float32Array(count);
   const offsets   = new Float32Array(count);
   const lanes     = new Float32Array(count).fill(-1);
+  const gaps      = new Float32Array(count); // filaments: the larger neighbour gap in aPhase units (fog 0, unused)
   const roles = gasRoles(count, nFog);
   let nFil = 0;
   for (let i = 0; i < count; i++) nFil += roles[i];
@@ -38,7 +40,7 @@ export function buildBuffers(count, nFog, seed = FLUID_THREAD_SEED) {
   const laneR = new Float32Array(FLUID_LANES);
   for (let k = 0; k < FLUID_LANES; k++) laneR[k] = FLUID_LANE_R[0] + (FLUID_LANE_R[1] - FLUID_LANE_R[0]) * rng();
   const laneO0 = gasStratified(FLUID_LANES, rng); // stratified: irregular angles
-  const th = gasThreads(nFil, FLUID_LANES, rng);
+  const th = gasThreads(nFil, FLUID_LANES, rng, FLUID_ALONG_JITTER);
   const laneO = gasPaceMatch(laneO0, th.counts); // particle-weighted knot speed ≈ FLUID_LANE_MEAN (Task 7e)
 
   for (let i = 0, f = 0; i < count; i++) {
@@ -53,6 +55,7 @@ export function buildBuffers(count, nFog, seed = FLUID_THREAD_SEED) {
       radii[i]   = Math.min(Math.max(laneR[k] + FLUID_SIGMA_R * th.cross[f], 0), 1);
       offsets[i] = laneO[k];
       lanes[i]   = k;
+      gaps[i]    = th.gap[f];
       f++;
     }
     const [x, y, z] = knotPoint(t);
@@ -61,5 +64,5 @@ export function buildBuffers(count, nFog, seed = FLUID_THREAD_SEED) {
     positions[i * 3 + 2] = z;
     phases[i] = t;
   }
-  return { positions, phases, radii, offsets, lanes, roles };
+  return { positions, phases, radii, offsets, lanes, gaps, roles };
 }

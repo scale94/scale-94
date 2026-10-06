@@ -4,7 +4,7 @@ import { describe, it, expect } from 'vitest';
 import { glf } from '../../../gl/glf';
 import {
   GAS_STREAK_VS, GAS_STREAK_FS, STREAK_DT, FIL_ASPECT, FIL_JITTER, FIRE_EMBER_STRETCH, FIRE_EMBER_GAIN, FIRE_EMBER_SHARE,
-  GAS_PX_FLOOR, GAS_Z_REF, MASK_EVOLVE, gasCounts, gasRoles, GAS_TUNE_UNIFORMS, writeGasTune,
+  GAS_PX_FLOOR, GAS_Z_REF, MASK_EVOLVE, FIL_GAP_CLOSE, FIL_GAP_ASPECT, gasCounts, gasRoles, GAS_TUNE_UNIFORMS, writeGasTune,
   gasThreads, gasStratified, gasPaceMatch, THREAD_ALONG_JITTER, THREAD_CROSS_CLIP, THREAD_WEIGHT_FLOOR, GAS_MASK_LOOP, GAS_MASK_LANE_GAP,
 } from '../gasStreak';
 import { mulberry32 } from '../prng';
@@ -283,6 +283,39 @@ describe('gasThreads: filament lane placement (Task 7d)', () => {
   });
 });
 
+describe('gap-closing filament dashes (Task 7f)', () => {
+  it('constants via glf; gasSprite delegates to gasSpriteGap with no gap; the gap minimum is moving-only and capped at FIL_GAP_ASPECT', () => {
+    expect(FIL_GAP_CLOSE).toBe(1.15);
+    expect(FIL_GAP_ASPECT).toBe(24);
+    for (const [n, v] of Object.entries({ FIL_GAP_CLOSE, FIL_GAP_ASPECT })) expect(GAS_STREAK_VS).toContain(`const float ${n} = ${glf(v)};`);
+    expect(GAS_STREAK_VS).toContain('float gasSpriteGap(vec4 clipNow, vec4 clipPrev, float role, float size, float aspectMax, float jit, float gapPx) {');
+    expect(GAS_STREAK_VS).toContain('return gasSpriteGap(clipNow, clipPrev, role, size, aspectMax, jit, 0.0);');
+    expect(GAS_STREAK_VS).toContain('if (sp > 1e-3) L = max(L, min(FIL_GAP_CLOSE * gapPx - w, (FIL_GAP_ASPECT - 1.0) * w));');
+    expect(GAS_STREAK_VS).toContain('float gasGapPx(vec4 clipNow, vec4 clipGap) {');
+    expect(GAS_STREAK_VS).toContain('return length((clipNow.xy / clipNow.w - clipGap.xy / clipGap.w) * 0.5 * uViewportPx);');
+  });
+
+  it('gasThreads gap: the larger along distance to the two lane neighbours, within [(1 - J)/n, (1 + J)/n]', () => {
+    for (const J of [0.3, THREAD_ALONG_JITTER]) {
+      const t = gasThreads(2400, 8, mulberry32(11), J);
+      expect(t.gap.length).toBe(2400);
+      for (let k = 0; k < 8; k++) {
+        const ids = [];
+        t.lane.forEach((l, i) => { if (l === k) ids.push(i); });
+        const n = ids.length;
+        const d = (a, b) => { const v = t.along[b] - t.along[a]; return v - Math.floor(v); };
+        ids.forEach((i, j) => {
+          const g = Math.max(d(ids[(j + n - 1) % n], i), d(i, ids[(j + 1) % n]));
+          expect(t.gap[i]).toBeCloseTo(g, 6);
+          expect(t.gap[i]).toBeGreaterThanOrEqual((1 - J) / n - 1e-6);
+          expect(t.gap[i]).toBeLessThanOrEqual((1 + J) / n + 1e-6);
+        });
+      }
+    }
+    expect(gasThreads(5, 12, mulberry32(1)).gap.every((g) => g === 1)).toBe(true);
+  });
+});
+
 describe('FS + varyings', () => {
   it('capsule distance equals the old round radius when the streak is 0', () => {
     expect(GAS_STREAK_FS).toContain('float gasStreakDist(vec2 pc) {');
@@ -310,7 +343,7 @@ describe('FS + varyings', () => {
 
 describe('tune knobs (spec §3g)', () => {
   it('defaults: the 54d8ef0e live-sweep set (Task 7d); the old gasSize/gasAlpha are gone', () => {
-    expect(PLANET_TUNE).toMatchObject({ filWidth: 2.2, streakGain: 0.05, filAlpha: 4, fogAlpha: 0.7, maskFreq: 2.5, maskSharp: 3, maskDepth: 0.3, airFilGain: 2 });
+    expect(PLANET_TUNE).toMatchObject({ filWidth: 2.2, streakGain: 0.05, filAlpha: 4, fogAlpha: 0.7, maskFreq: 2.5, maskSharp: 3, maskDepth: 0.3, airFilGain: 3 });
     expect(PLANET_TUNE.fogAlpha).toBeLessThan(1);
     expect('gasSize' in PLANET_TUNE).toBe(false);
     expect('gasAlpha' in PLANET_TUNE).toBe(false);

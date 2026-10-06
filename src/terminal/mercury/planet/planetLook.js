@@ -70,7 +70,7 @@ export const PLANET_TUNE = {
   maskFreq: 2.5,     // lane mask frequency in the flows' label space
   maskSharp: 3,      // lane ridge sharpness (higher = thinner filaments)
   maskDepth: 0.3,    // filaments only: 0 = no mask, 1 = everything off-ridge is carved away (threads: a light along-lane breath)
-  airFilGain: 2,     // air filaments only: extra alpha × this on top of filAlpha (air threads read faint in the fog; Task 7e)
+  airFilGain: 3,     // air filaments only: extra alpha × this on top of filAlpha (air threads read faint in the fog; Task 7e)
   rayGain: 1.5,      // fresh crater-ray brightness (scar map G channel); 1.5 tuned 2026-10-02 (Task 7: 2+ flattens rays into a blob)
   modeGain: 1,       // body-mode + spin-bulge amplitude (the bead's wobble)
   waveGain: 1,       // capillary ripple slope
