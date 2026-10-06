@@ -231,6 +231,17 @@ describe('gasThreads: filament lane placement (Task 7d)', () => {
         expect(Math.abs(wmean(m, counts) - 0.5)).toBeLessThanOrEqual(Math.abs(wmean(vals, counts) - 0.5) + 1e-12);
       }
     }
+    // mask (Task 7e fix): only the masked lanes enter the weighted mean (air: non-ion lanes)
+    for (const seed of [1, 2, 3, 9]) {
+      const r = mulberry32(seed);
+      const vals = gasStratified(8, r);
+      const { counts } = gasThreads(2400, 8, r);
+      const mask = [1, 1, 1, 0, 1, 1, 1, 1];
+      const m = gasPaceMatch(vals, counts, mask);
+      const mc = counts.map((c, k) => c * mask[k]);
+      expect(Math.abs(wmean(m, mc) - 0.5)).toBeLessThanOrEqual(0.02);
+      expect(Array.from(m).sort()).toEqual(Array.from(vals).sort());
+    }
     // deterministic, and not just sorted (irregular)
     const v = gasStratified(8, mulberry32(5)), c = gasThreads(2400, 8, mulberry32(6)).counts;
     expect(gasPaceMatch(v, c)).toEqual(gasPaceMatch(v, c));

@@ -242,7 +242,8 @@ describe('gas threads look round 2 (Task 7e)', () => {
     for (const [buf, key] of [[fluidBuf, 'offsets'], [airBuf, 'speeds']]) {
       for (const [n, f] of [[3600, 1200], [1800, 600], [2400, 1200]]) {
         const b = buf.buildBuffers(n, f);
-        const xs = filOf(b, b[key]);
+        // air: the sky's AIR_ORBIT_MEAN is the non-ion mean, so the ion lane (x2.8) is left out of the balance
+        const xs = filOf(b, b[key]).filter((_, i) => !b.ions || filOf(b, b.ions)[i] === 0);
         const m = xs.reduce((s, x) => s + x, 0) / xs.length;
         expect(Math.abs(m - 0.5)).toBeLessThanOrEqual(0.02);
       }
@@ -276,5 +277,60 @@ describe('gas threads look round 2 (Task 7e)', () => {
   it('air filaments: their own live gain knob (uAirFilGain), filaments only; fluid untouched', () => {
     expect(atmoSrc).toContain('vLane = gasAlpha(aRole, gasThreadCoord(aLane, aPhase), uTime) * (aRole < 0.5 ? 1.0 : uAirFilGain);');
     expect(particleSrc).not.toContain('uAirFilGain');
+  });
+});
+
+describe('air thread dashes follow the wavy tilted path (Task 7e fix)', () => {
+  it('filaments: prev runs the same displacement chain at the prev angle; fog keeps prev = prevCore + (pos - core)', () => {
+    expect(atmoSrc).toContain('vec3 airDisplace(vec3 core, float angle) {');
+    expect(atmoSrc).toContain('vec3 pos = airDisplace(core, angle);');
+    expect(atmoSrc).toContain('vec3 prev = aRole < 0.5 ? prevCore + (pos - core) : airDisplace(prevCore, anglePrev);');
+    // the chain itself is unchanged (fog byte-identical): y-noise, wander (filaments), curl, shimmer, in that order
+    const body = atmoSrc.slice(atmoSrc.indexOf('vec3 airDisplace(vec3 core, float angle) {'), atmoSrc.indexOf('void main(){'));
+    const order = ['pos.y += snoise(yArg) * 0.15;', 'if (aRole > 0.5) pos.y += snoise(vec3(cos(angle) * AIR_WANDER_R',
+      'vec3 curl = curlNoise(pos * 0.9 + vec3(t, t * 0.6, t * 0.8));', 'pos += curl * uTurbulence * 0.3;',
+      'pos.x += snoise(pos * 5.0 + vec3(st, 0.0, shimKey)) * 0.03;', 'pos.z += snoise(pos * 5.0 + vec3(shimKey, 0.0, st * 1.1)) * 0.03;', 'return pos;'];
+    let at = -1;
+    for (const line of order) { const j = body.indexOf(line); expect(j).toBeGreaterThan(at); at = j; }
+  });
+
+  it('JS replica: dash direction (now - prev on screen) matches the trajectory tangent within 3°; the old prev was off by far more at the limb', () => {
+    // a tilted ring + smooth stand-ins for the angle-keyed y-noise/wander and the position-keyed curl/shimmer
+    const th = 0.25, az = 0.8, r = 1.0, h = 0.3;
+    const u = [Math.cos(az), 0, Math.sin(az)];
+    const tilt = (v) => {
+      const c = Math.cos(th), s = Math.sin(th), d = u[0] * v[0] + u[1] * v[1] + u[2] * v[2];
+      const x = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+      return v.map((vi, i) => vi * c + x[i] * s + u[i] * d * (1 - c));
+    };
+    const core = (a) => { const g = tilt([Math.cos(a) * r, 0, Math.sin(a) * r]); return [g[0], g[1] + h, g[2]]; };
+    const displace = (p, a) => {
+      const q = [p[0], p[1] + 0.15 * Math.sin(1.3 * Math.cos(a) + 0.9 * Math.sin(a)) + 0.12 * Math.sin(2 * a + 1), p[2]];
+      const c = [Math.sin(0.9 * q[1] + 1.1), Math.cos(0.9 * q[2] - 0.4), Math.sin(0.9 * q[0] + 2.0)].map((x) => x * 0.15);
+      const w = q.map((x, i) => x + c[i]);
+      return [w[0] + 0.03 * Math.sin(5 * w[2]), w[1], w[2] + 0.03 * Math.cos(5 * w[0])];
+    };
+    const scr = (p) => [p[0], p[1]]; // side-on view down z
+    const ang = (v, w) => {
+      const d = Math.atan2(v[1], v[0]) - Math.atan2(w[1], w[0]);
+      return Math.abs(Math.atan2(Math.sin(d), Math.cos(d))) * 180 / Math.PI;
+    };
+    const da = 0.03; // ~ STREAK_DT x the air angular rate
+    let worstNew = 0, worstOld = 0;
+    for (let a = 0; a < 2 * Math.PI; a += 0.05) {
+      const now = displace(core(a), a);
+      const m = a - da / 2, e = 1e-4; // trajectory tangent at the dash midpoint (per radian)
+      const fd = scr(displace(core(m + e), m + e)).map((x, i) => (x - scr(displace(core(m - e), m - e))[i]) / (2 * e));
+      const pNew = displace(core(a - da), a - da);
+      const pOld = core(a - da).map((x, i) => x + now[i] - core(a)[i]);
+      const vNew = scr(now).map((x, i) => x - scr(pNew)[i]);
+      const vOld = scr(now).map((x, i) => x - scr(pOld)[i]);
+      if (Math.hypot(...fd) < 0.1) continue; // projected path nearly a point here: the dash is a dot
+      // fold: a dash is a segment, its sign is irrelevant
+      worstNew = Math.max(worstNew, Math.min(ang(vNew, fd), 180 - ang(vNew, fd)));
+      worstOld = Math.max(worstOld, Math.min(ang(vOld, fd), 180 - ang(vOld, fd)));
+    }
+    expect(worstNew).toBeLessThan(3);
+    expect(worstOld).toBeGreaterThan(30);
   });
 });

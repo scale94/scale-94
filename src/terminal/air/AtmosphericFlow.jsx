@@ -128,11 +128,8 @@ const vertexShader = /* glsl */ `
     return vec3(0.0, orbitHeight, 0.0) + ring;
   }
 
-  void main(){
-    // ── Cyclone / helical orbit (now, and STREAK_DT of clock time ago) ──
-    float angle, anglePrev;
-    vec3 core = orbitPos(uPhase, angle);
-    vec3 prevCore = orbitPos(uPhase - STREAK_DT * uPhaseRate, anglePrev);
+  // Everything the flow adds on top of the orbit core at this orbit angle. Fog: the old chain, op for op.
+  vec3 airDisplace(vec3 core, float angle) {
     vec3 pos = core;
     // Fog: the old argument. Filaments: the same frequency, periodic in the angle (aPhase 0/1 neighbours on a thread).
     vec3 yArg = aRole < 0.5
@@ -152,7 +149,19 @@ const vertexShader = /* glsl */ `
     float shimKey = aRole < 0.5 ? aPhase : aLane * 1.7; // filaments: lane-keyed, no seam at aPhase 0/1
     pos.x += snoise(pos * 5.0 + vec3(st, 0.0, shimKey)) * 0.03;
     pos.z += snoise(pos * 5.0 + vec3(shimKey, 0.0, st * 1.1)) * 0.03;
-    vec3 prev = prevCore + (pos - core); // the streak shows the current, not the eddies
+    return pos;
+  }
+
+  void main(){
+    // ── Cyclone / helical orbit (now, and STREAK_DT of clock time ago) ──
+    float angle, anglePrev;
+    vec3 core = orbitPos(uPhase, angle);
+    vec3 prevCore = orbitPos(uPhase - STREAK_DT * uPhaseRate, anglePrev);
+    vec3 pos = airDisplace(core, angle);
+    // Fog: the streak shows the current, not the eddies (the old prev). Filaments (Task 7e fix): the y-noise, wander,
+    // curl and shimmer are crossed at orbital speed, so they ARE the thread's path: prev runs the same chain at the
+    // prev angle and the dash follows the wavy tilted thread (the old prev hatched across it, up to ~90° at the limb).
+    vec3 prev = aRole < 0.5 ? prevCore + (pos - core) : airDisplace(prevCore, anglePrev);
 
     // Altitude from actual height + inherent layer
     float normY   = clamp((pos.y + 1.2) / 2.5, 0.0, 1.0);

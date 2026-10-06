@@ -83,16 +83,18 @@ export function gasStratified(L, rng) {
 // Weight-aware lane pace (Task 7e): reorder `values` (one rate label per lane) over the lanes so the count-weighted
 // mean is as close to 0.5 as possible: exhaustive (Heap's permutations) for ≤ 8 lanes, else a greedy fill (each lane,
 // heaviest first, takes the value that best pulls the running mean to 0.5). Build time only. The multiset is kept,
-// so the rates stay stratified and irregular; only which lane gets which changes.
-export function gasPaceMatch(values, counts) {
+// so the rates stay stratified and irregular; only which lane gets which changes. `mask` (optional, per lane 1/0):
+// only masked lanes enter the mean (air: the non-ion lanes, as the sky's AIR_ORBIT_MEAN); the rest take what is left.
+export function gasPaceMatch(values, counts, mask = null) {
   const L = values.length;
   const out = new Float32Array(values);
+  const wts = Array.from({ length: L }, (_, k) => counts[k] * (mask ? mask[k] : 1));
   let total = 0;
-  for (let k = 0; k < L; k++) total += counts[k];
+  for (let k = 0; k < L; k++) total += wts[k];
   if (L < 2 || total <= 0) return out;
   const err = (v) => {
     let s = 0;
-    for (let k = 0; k < L; k++) s += v[k] * counts[k];
+    for (let k = 0; k < L; k++) s += v[k] * wts[k];
     return Math.abs(s / total - 0.5);
   };
   if (L <= 8) {
@@ -115,18 +117,18 @@ export function gasPaceMatch(values, counts) {
     out.set(bestA);
     return out;
   }
-  const order = Array.from({ length: L }, (_, k) => k).sort((x, y) => counts[y] - counts[x]);
+  const order = Array.from({ length: L }, (_, k) => k).sort((x, y) => wts[y] - wts[x]);
   const pool = Array.from(values);
   let s = 0, n = 0;
   for (const k of order) {
     let bi = 0, be = Infinity;
     for (let i = 0; i < pool.length; i++) {
-      const e = Math.abs((s + pool[i] * counts[k]) / (n + counts[k]) - 0.5);
+      const e = n + wts[k] > 0 ? Math.abs((s + pool[i] * wts[k]) / (n + wts[k]) - 0.5) : 0;
       if (e < be) { be = e; bi = i; }
     }
     out[k] = pool[bi];
-    s += pool[bi] * counts[k];
-    n += counts[k];
+    s += pool[bi] * wts[k];
+    n += wts[k];
     pool.splice(bi, 1);
   }
   return out;

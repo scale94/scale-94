@@ -54,7 +54,8 @@ export function buildBuffers(count, nFog, seed = AIR_THREAD_SEED) {
     laneIon[order[k]] = 1;
   }
   const th = gasThreads(nFil, AIR_LANES, rng);
-  const laneSpeed = gasPaceMatch(laneSpeed0, th.counts); // particle-weighted orbit rate ≈ the clock mean (Task 7e)
+  // Particle-weighted orbit rate of the NON-ion lanes ≈ the clock mean (AIR_ORBIT_MEAN excludes the ionosphere).
+  const laneSpeed = gasPaceMatch(laneSpeed0, th.counts, Array.from(laneIon, (x) => 1 - x));
 
   for (let i = 0, f = 0; i < count; i++) {
     if (roles[i] < 0.5) {
