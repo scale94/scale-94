@@ -287,6 +287,7 @@ export default function AtmosphericFlow({
   blending = THREE.AdditiveBlending,
   premultiplied = false, // MercuryCanvas: one-draw premultiplied blend, fog = normal, filaments additive (Task 7c)
   aetherClock = null,
+  visible = true,
 }) {
   const PARTICLE_COUNT = density ?? (isMobile ? 4000 : 10000);
   const N_FOG = fogCount ?? PARTICLE_COUNT; // MercuryCanvas passes gasCounts().fog; standalone = all fog, the old look (spec §3e)
@@ -322,6 +323,7 @@ export default function AtmosphericFlow({
 
   useFrame((state, delta) => {
     tickAetherClock(clk, state.clock.elapsedTime, delta);
+    if (!visible) return;
     const mat = materialRef.current;
     if (mat) {
       mat.uniforms.uTime.value = clk.t;
@@ -350,7 +352,7 @@ export default function AtmosphericFlow({
   });
 
   return (
-    <points frustumCulled={false}>
+    <points frustumCulled={false} visible={visible}>
       <bufferGeometry key={`${PARTICLE_COUNT}:${N_FOG}`}>
         <bufferAttribute attach="attributes-position" array={buffers.positions} count={PARTICLE_COUNT} itemSize={3} />
         <bufferAttribute attach="attributes-aPhase"   array={buffers.phases}    count={PARTICLE_COUNT} itemSize={1} />

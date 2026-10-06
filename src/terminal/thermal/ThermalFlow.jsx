@@ -257,6 +257,7 @@ export default function ThermalFlow({
   blending = THREE.AdditiveBlending,
   premultiplied = false, // MercuryCanvas: one-draw premultiplied blend, body = normal, embers additive (Task 7c)
   aetherClock = null,
+  visible = true,
 }) {
   const PARTICLE_COUNT = density ?? (isMobile ? 4000 : 10000);
   const N_FOG = fogCount ?? PARTICLE_COUNT - Math.round(PARTICLE_COUNT * FIRE_EMBER_SHARE); // MercuryCanvas passes gasCounts(…, true).fog
@@ -290,6 +291,7 @@ export default function ThermalFlow({
 
   useFrame((state, delta) => {
     tickAetherClock(clk, state.clock.elapsedTime, delta);
+    if (!visible) return;
     const mat = materialRef.current;
     if (mat) {
       mat.uniforms.uTime.value = clk.t;
@@ -316,7 +318,7 @@ export default function ThermalFlow({
   });
 
   return (
-    <points frustumCulled={false}>
+    <points frustumCulled={false} visible={visible}>
       <bufferGeometry key={`${PARTICLE_COUNT}:${N_FOG}`}>
         <bufferAttribute attach="attributes-position" array={buffers.positions} count={PARTICLE_COUNT} itemSize={3} />
         <bufferAttribute attach="attributes-aPhase"   array={buffers.phases}    count={PARTICLE_COUNT} itemSize={1} />
