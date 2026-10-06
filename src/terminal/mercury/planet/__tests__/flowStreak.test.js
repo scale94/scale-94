@@ -42,7 +42,7 @@ describe('gas filaments: two roles in one draw', () => {
       expect(src).toContain(filW);
       expect(src).toContain('float size = aRole < 0.5 ? fogSize : filW;');
       expect(src).toContain(sprite);
-      expect(src).toContain('vLane = gasAlpha(aRole, gasThreadCoord(aLane, aPhase), uTime);'); // Task 7d: lane id + along label
+      expect(src).toContain('vLane = gasAlpha(aRole, gasThreadCoord(aLane, aPhase), uTime)'); // Task 7d: lane id + along label (air: × uAirFilGain, 7e)
       expect(src).toContain('attribute float aLane;');
       expect(src).toContain('<bufferAttribute attach="attributes-aLane" array={buffers.lanes} count={PARTICLE_COUNT} itemSize={1} />');
       expect(src).toContain('* vLane');
@@ -60,7 +60,7 @@ describe('gas filaments: two roles in one draw', () => {
       expect(src).toContain('useMemo(() => buildBuffers(PARTICLE_COUNT, N_FOG), [PARTICLE_COUNT, N_FOG])');
       expect(bufSrc).toContain('export function buildBuffers(count, nFog, seed = ');
       expect(bufSrc).toContain('const roles = gasRoles(count, nFog);');
-      expect(src).toMatch(/import \{ buildBuffers \} from '\.\/(particleFlowBuffers|atmosphericFlowBuffers)';/);
+      expect(src).toMatch(/import \{ buildBuffers[^}]*\} from '\.\/(particleFlowBuffers|atmosphericFlowBuffers)';/);
       expect(src).not.toContain('function buildBuffers(');
       expect(src).toContain('<bufferGeometry key={`${PARTICLE_COUNT}:${N_FOG}`}>');
       expect(src).toContain('<bufferAttribute attach="attributes-aRole" array={buffers.roles} count={PARTICLE_COUNT} itemSize={1} />');
@@ -136,7 +136,7 @@ describe('gas filament threads: buffers (Task 7d)', () => {
   it('fluid: filaments cluster on FLUID_LANES streamlines: one shared aOffset (angle + knot speed) per lane, radius within the clipped σ', () => {
     const b = fluidBuf.buildBuffers(3600, 1200);
     const L = fluidBuf.FLUID_LANES;
-    expect(L).toBe(6); // fix wave: denser lanes
+    expect(L).toBe(8); // Task 7e: 6 → 8
     const lanes = filOf(b, b.lanes), offs = filOf(b, b.offsets), rads = filOf(b, b.radii);
     expect(new Set(lanes).size).toBe(L);
     expect(new Set(offs).size).toBe(L);
@@ -234,5 +234,47 @@ describe('gas threads fix wave (Task 7d review + look)', () => {
   it('fluid: filaments get a per-lane hue offset; fog hue unchanged', () => {
     expect(particleSrc).toContain('float laneHue = aRole < 0.5 ? 0.0 : gasHash(aLane, 0.37);');
     expect(particleSrc).toContain('vHue = fract(aPhase + uTime * 0.05 + uChromatic * 0.33 + laneHue);');
+  });
+});
+
+describe('gas threads look round 2 (Task 7e)', () => {
+  it('weight-aware lane pace: the particle-weighted rate label mean is within 0.02 of 0.5 (fluid offsets, air speeds)', () => {
+    for (const [buf, key] of [[fluidBuf, 'offsets'], [airBuf, 'speeds']]) {
+      for (const [n, f] of [[3600, 1200], [1800, 600], [2400, 1200]]) {
+        const b = buf.buildBuffers(n, f);
+        const xs = filOf(b, b[key]);
+        const m = xs.reduce((s, x) => s + x, 0) / xs.length;
+        expect(Math.abs(m - 0.5)).toBeLessThanOrEqual(0.02);
+      }
+    }
+  });
+
+  it('air filaments: per-lane tilted orbit plane (seeded from aLane), gated on role; prev core shares it (same orbitPos)', () => {
+    expect(atmoSrc).toContain('const float AIR_TILT_MIN = ${glf(AIR_TILT_MIN)};');
+    expect(atmoSrc).toContain('const float AIR_TILT_MAX = ${glf(AIR_TILT_MAX)};');
+    expect(atmoSrc).toContain('vec3 ring = vec3(cos(angle) * radius, 0.0, sin(angle) * radius);');
+    expect(atmoSrc).toContain('if (aRole > 0.5) ring = airTilt(ring, aLane);');
+    expect(atmoSrc).toContain('return vec3(0.0, orbitHeight, 0.0) + ring;');
+    expect(atmoSrc).toContain('vec3 airTilt(vec3 v, float lane) {');
+    expect(atmoSrc).toContain('float th = mix(AIR_TILT_MIN, AIR_TILT_MAX, gasHash(lane, 0.71));');
+    expect(atmoSrc).toContain('float az = 6.283185307 * gasHash(lane, 0.13);');
+    expect(atmoSrc).toContain('return v * c + cross(u, v) * s + u * dot(u, v) * (1.0 - c);'); // Rodrigues about a horizontal axis
+    expect(atmoSrc).toContain('vec3 prevCore = orbitPos(uPhase - STREAK_DT * uPhaseRate, anglePrev);');
+    expect(airBuf.AIR_TILT_MIN).toBeGreaterThanOrEqual((8 * Math.PI) / 180 - 1e-9);
+    expect(airBuf.AIR_TILT_MAX).toBeLessThanOrEqual((20 * Math.PI) / 180 + 1e-9);
+    expect(airBuf.AIR_TILT_MAX).toBeLessThan(Math.PI / 2); // never flips the rotation sense
+  });
+
+  it('air filaments: slow per-lane vertical wander, periodic in the angle, filaments only; fog y-noise unchanged', () => {
+    expect(atmoSrc).toContain('? vec3(angle * 0.25, uTime * 0.07, aAlt * 4.0)');
+    expect(atmoSrc).toContain('if (aRole > 0.5) pos.y += snoise(vec3(cos(angle) * AIR_WANDER_R + aLane * 3.1, sin(angle) * AIR_WANDER_R, uTime * AIR_WANDER_RATE)) * AIR_WANDER;');
+    for (const c of ['AIR_WANDER', 'AIR_WANDER_R', 'AIR_WANDER_RATE']) expect(atmoSrc).toContain(`const float ${c} = \${glf(${c})};`);
+    expect(airBuf.AIR_WANDER).toBeGreaterThan(0);
+    expect(airBuf.AIR_WANDER_RATE).toBeLessThan(0.2);
+  });
+
+  it('air filaments: their own live gain knob (uAirFilGain), filaments only; fluid untouched', () => {
+    expect(atmoSrc).toContain('vLane = gasAlpha(aRole, gasThreadCoord(aLane, aPhase), uTime) * (aRole < 0.5 ? 1.0 : uAirFilGain);');
+    expect(particleSrc).not.toContain('uAirFilGain');
   });
 });

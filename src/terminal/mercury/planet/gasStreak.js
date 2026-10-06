@@ -80,6 +80,58 @@ export function gasStratified(L, rng) {
   return out;
 }
 
+// Weight-aware lane pace (Task 7e): reorder `values` (one rate label per lane) over the lanes so the count-weighted
+// mean is as close to 0.5 as possible: exhaustive (Heap's permutations) for ≤ 8 lanes, else a greedy fill (each lane,
+// heaviest first, takes the value that best pulls the running mean to 0.5). Build time only. The multiset is kept,
+// so the rates stay stratified and irregular; only which lane gets which changes.
+export function gasPaceMatch(values, counts) {
+  const L = values.length;
+  const out = new Float32Array(values);
+  let total = 0;
+  for (let k = 0; k < L; k++) total += counts[k];
+  if (L < 2 || total <= 0) return out;
+  const err = (v) => {
+    let s = 0;
+    for (let k = 0; k < L; k++) s += v[k] * counts[k];
+    return Math.abs(s / total - 0.5);
+  };
+  if (L <= 8) {
+    const a = Array.from(values);
+    const c = new Array(L).fill(0);
+    let best = err(a), bestA = a.slice();
+    for (let i = 0; i < L;) {
+      if (c[i] < i) {
+        const j = i % 2 === 0 ? 0 : c[i];
+        [a[j], a[i]] = [a[i], a[j]];
+        const e = err(a);
+        if (e < best) { best = e; bestA = a.slice(); }
+        c[i]++;
+        i = 0;
+      } else {
+        c[i] = 0;
+        i++;
+      }
+    }
+    out.set(bestA);
+    return out;
+  }
+  const order = Array.from({ length: L }, (_, k) => k).sort((x, y) => counts[y] - counts[x]);
+  const pool = Array.from(values);
+  let s = 0, n = 0;
+  for (const k of order) {
+    let bi = 0, be = Infinity;
+    for (let i = 0; i < pool.length; i++) {
+      const e = Math.abs((s + pool[i] * counts[k]) / (n + counts[k]) - 0.5);
+      if (e < be) { be = e; bi = i; }
+    }
+    out[k] = pool[bi];
+    s += pool[bi] * counts[k];
+    n += counts[k];
+    pool.splice(bi, 1);
+  }
+  return out;
+}
+
 // Filament lane placement (Task 7d), pure + deterministic for a seeded rng (prng.js mulberry32). Per filament:
 // lane (integer, lane-major order), along ∈ [0, 1) (stratified within its lane from a random lane start, jittered by
 // THREAD_ALONG_JITTER of the spacing) and cross (a clipped unit normal; the flow scales it by its own σ). Lane counts
@@ -138,6 +190,7 @@ uniform float uMaskFreq;
 uniform float uMaskSharp;
 uniform float uMaskDepth;
 uniform float uDpr;
+uniform float uAirFilGain;
 varying vec2 vStreakDir;
 varying vec2 vStreakCap;
 varying float vLane;
@@ -224,7 +277,8 @@ vec4 gasOut(vec3 color, float a, float dither) {
 `;
 
 const GAS_TUNE = [['uStreakGain', 'streakGain'], ['uFilWidth', 'filWidth'], ['uFilAlpha', 'filAlpha'],
-  ['uFogAlpha', 'fogAlpha'], ['uMaskFreq', 'maskFreq'], ['uMaskSharp', 'maskSharp'], ['uMaskDepth', 'maskDepth']];
+  ['uFogAlpha', 'fogAlpha'], ['uMaskFreq', 'maskFreq'], ['uMaskSharp', 'maskSharp'], ['uMaskDepth', 'maskDepth'],
+  ['uAirFilGain', 'airFilGain']];
 
 export function GAS_TUNE_UNIFORMS(tune) {
   return { ...Object.fromEntries(GAS_TUNE.map(([u, k]) => [u, { value: tune[k] }])), uDpr: { value: 1 } };

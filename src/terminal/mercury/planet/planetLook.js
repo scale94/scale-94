@@ -66,10 +66,11 @@ export const PLANET_TUNE = {
   streakGain: 0.05,  // filament shutter (s): length beyond the core = on-screen speed × this; fluid ~355 px/s → ~9× width (live sweep 2026-10-06)
   filWidth: 2.2,     // filament core width, CSS px at GAS_Z_REF (× the pixel ratio; ±25 % per particle, floored at GAS_PX_FLOOR)
   filAlpha: 4,       // filament alpha × this, on the element's own per-particle alpha (fire embers: × FIRE_EMBER_GAIN too)
-  fogAlpha: 0.6,     // fog role (the old sprite, the old count) alpha × this: dimmer, so the additive threads read (look 2026-10-06)
+  fogAlpha: 0.7,     // fog role (the old sprite, the old count) alpha × this: dimmer, so the additive threads read (look 2026-10-06)
   maskFreq: 2.5,     // lane mask frequency in the flows' label space
   maskSharp: 3,      // lane ridge sharpness (higher = thinner filaments)
   maskDepth: 0.3,    // filaments only: 0 = no mask, 1 = everything off-ridge is carved away (threads: a light along-lane breath)
+  airFilGain: 2,     // air filaments only: extra alpha × this on top of filAlpha (air threads read faint in the fog; Task 7e)
   rayGain: 1.5,      // fresh crater-ray brightness (scar map G channel); 1.5 tuned 2026-10-02 (Task 7: 2+ flattens rays into a blob)
   modeGain: 1,       // body-mode + spin-bulge amplitude (the bead's wobble)
   waveGain: 1,       // capillary ripple slope

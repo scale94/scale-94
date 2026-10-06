@@ -7,7 +7,8 @@ import { AETHER_LIGHT_VS, aetherLightFS } from '../mercury/planet/aetherLight';
 import { SUN_DIR_WORLD } from '../mercury/planet/planetFrame';
 import { GAS_STREAK_VS, GAS_STREAK_FS, GAS_TUNE_UNIFORMS, writeGasTune } from '../mercury/planet/gasStreak';
 import { createAetherClock, configureAetherClock, tickAetherClock } from '../mercury/planet/aetherClock';
-import { buildBuffers } from './atmosphericFlowBuffers';
+import { buildBuffers, AIR_TILT_MIN, AIR_TILT_MAX, AIR_WANDER, AIR_WANDER_R, AIR_WANDER_RATE } from './atmosphericFlowBuffers';
+import { glf } from '../gl/glf';
 
 // ── GLSL ───────────────────────────────────────────────────────────────────
 const vertexShader = /* glsl */ `
@@ -89,6 +90,24 @@ const vertexShader = /* glsl */ `
 
   ${GAS_STREAK_VS}
 
+  const float AIR_TILT_MIN = ${glf(AIR_TILT_MIN)};
+  const float AIR_TILT_MAX = ${glf(AIR_TILT_MAX)};
+  const float AIR_WANDER = ${glf(AIR_WANDER)};
+  const float AIR_WANDER_R = ${glf(AIR_WANDER_R)};
+  const float AIR_WANDER_RATE = ${glf(AIR_WANDER_RATE)};
+
+  // Filament threads (Task 7e): tilt a lane's orbit ring by a seeded 8–20° about a seeded horizontal axis
+  // (Rodrigues). A tilt < 90° keeps the rotation sense; now and prev both go through orbitPos, so the dash follows
+  // the tilted tangent.
+  vec3 airTilt(vec3 v, float lane) {
+    float th = mix(AIR_TILT_MIN, AIR_TILT_MAX, gasHash(lane, 0.71));
+    float az = 6.283185307 * gasHash(lane, 0.13);
+    vec3 u = vec3(cos(az), 0.0, sin(az));
+    float c = cos(th);
+    float s = sin(th);
+    return v * c + cross(u, v) * s + u * dot(u, v) * (1.0 - c);
+  }
+
   // The cyclone orbit alone (the big motion) at air phase ph.
   vec3 orbitPos(float ph, out float angle) {
     // Orbital radius: widest at mid-altitude (eye-wall), narrows at base and top
@@ -104,7 +123,9 @@ const vertexShader = /* glsl */ `
     float ionSpeedMult = mix(1.0, 2.8, aIon); // ionosphere is fast
     float orbitRate  = (0.4 + aSpeed * 0.7) * direction * ionSpeedMult; // × orbitalSpeed lives in uPhase (the clock)
     angle            = aPhase * 6.28318 + ph * orbitRate;
-    return vec3(cos(angle) * radius, orbitHeight, sin(angle) * radius);
+    vec3 ring = vec3(cos(angle) * radius, 0.0, sin(angle) * radius);
+    if (aRole > 0.5) ring = airTilt(ring, aLane);
+    return vec3(0.0, orbitHeight, 0.0) + ring;
   }
 
   void main(){
@@ -118,6 +139,8 @@ const vertexShader = /* glsl */ `
       ? vec3(angle * 0.25, uTime * 0.07, aAlt * 4.0)
       : vec3(cos(angle) * 0.25, sin(angle) * 0.25 + uTime * 0.07, aAlt * 4.0);
     pos.y += snoise(yArg) * 0.15;
+    // Filaments: slow per-lane vertical wander, periodic in the angle (no seam), lanes decorrelated by aLane.
+    if (aRole > 0.5) pos.y += snoise(vec3(cos(angle) * AIR_WANDER_R + aLane * 3.1, sin(angle) * AIR_WANDER_R, uTime * AIR_WANDER_RATE)) * AIR_WANDER;
 
     // ── Atmospheric eddies (slow curl turbulence) ────────────────────────
     float t = uTime * 0.08;
@@ -153,7 +176,7 @@ const vertexShader = /* glsl */ `
     gl_Position  = projectionMatrix * mvPos;
     gl_PointSize = gasSprite(gl_Position, projectionMatrix * mvPrev, aRole, size, FIL_ASPECT, gasHash(aPhase, aSeed));
     // Fog: × fogAlpha. Filaments: the mask runs along each thread (lane id + orbit label), slowly evolving, × filAlpha.
-    vLane = gasAlpha(aRole, gasThreadCoord(aLane, aPhase), uTime);
+    vLane = gasAlpha(aRole, gasThreadCoord(aLane, aPhase), uTime) * (aRole < 0.5 ? 1.0 : uAirFilGain);
     planetWindowVS(mvPos.xyz);
     aetherLightVS(mvPos.xyz, size);
   }

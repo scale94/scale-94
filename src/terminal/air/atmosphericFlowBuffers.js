@@ -8,7 +8,7 @@
 // aAlt 0.5 direction flip, so no thread splits into counter-rotating halves (lanes either side DO counter-rotate).
 // aLane: the lane id (mask), -1 for fog.
 
-import { gasRoles, gasThreads, gasStratified, THREAD_CROSS_CLIP } from '../mercury/planet/gasStreak';
+import { gasRoles, gasThreads, gasStratified, gasPaceMatch, THREAD_CROSS_CLIP } from '../mercury/planet/gasStreak';
 import { mulberry32 } from '../mercury/planet/prng';
 
 export const AIR_LANES = 8;     // fix wave: fewer, denser threads
@@ -16,6 +16,12 @@ export const AIR_SIGMA_ALT = 0.006;   // aAlt jitter: × 2.5 orbit height ≈ 0.
 export const AIR_ION_SHARE = 0.08;    // the old ionosphere fraction, now per lane
 export const AIR_FLIP_GAP = THREAD_CROSS_CLIP * AIR_SIGMA_ALT + 0.005; // lane centre ↔ the aAlt 0.5 flip
 export const AIR_THREAD_SEED = 0xa17d;
+// Task 7e: filament orbits are tilted per lane (no flat rungs side-on) and wander vertically, periodic in the angle.
+export const AIR_TILT_MIN = (8 * Math.PI) / 180;   // rad; tilt axis azimuth is random per lane (gasHash(aLane, .))
+export const AIR_TILT_MAX = (20 * Math.PI) / 180;
+export const AIR_WANDER = 0.12;      // scene units of vertical wander amplitude (filaments)
+export const AIR_WANDER_R = 0.6;     // noise loop radius per orbit: ~2 slow undulations around it
+export const AIR_WANDER_RATE = 0.05; // noise time rate: slow
 
 export function buildBuffers(count, nFog, seed = AIR_THREAD_SEED) {
   const positions = new Float32Array(count * 3);
@@ -38,7 +44,7 @@ export function buildBuffers(count, nFog, seed = AIR_THREAD_SEED) {
     if (Math.abs(a - 0.5) < AIR_FLIP_GAP) a = a > 0.5 ? 0.5 + AIR_FLIP_GAP : 0.5 - AIR_FLIP_GAP;
     laneAlt[k] = a;
   }
-  const laneSpeed = gasStratified(AIR_LANES, rng);
+  const laneSpeed0 = gasStratified(AIR_LANES, rng);
   const laneIon = new Float32Array(AIR_LANES);
   const nIon = Math.max(1, Math.round(AIR_ION_SHARE * AIR_LANES));
   const order = Array.from({ length: AIR_LANES }, (_, k) => k);
@@ -48,6 +54,7 @@ export function buildBuffers(count, nFog, seed = AIR_THREAD_SEED) {
     laneIon[order[k]] = 1;
   }
   const th = gasThreads(nFil, AIR_LANES, rng);
+  const laneSpeed = gasPaceMatch(laneSpeed0, th.counts); // particle-weighted orbit rate ≈ the clock mean (Task 7e)
 
   for (let i = 0, f = 0; i < count; i++) {
     if (roles[i] < 0.5) {

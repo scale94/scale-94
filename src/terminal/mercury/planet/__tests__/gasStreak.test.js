@@ -5,7 +5,7 @@ import { glf } from '../../../gl/glf';
 import {
   GAS_STREAK_VS, GAS_STREAK_FS, STREAK_DT, FIL_ASPECT, FIL_JITTER, FIRE_EMBER_STRETCH, FIRE_EMBER_GAIN, FIRE_EMBER_SHARE,
   GAS_PX_FLOOR, GAS_Z_REF, MASK_EVOLVE, gasCounts, gasRoles, GAS_TUNE_UNIFORMS, writeGasTune,
-  gasThreads, gasStratified, THREAD_ALONG_JITTER, THREAD_CROSS_CLIP, THREAD_WEIGHT_FLOOR, GAS_MASK_LOOP, GAS_MASK_LANE_GAP,
+  gasThreads, gasStratified, gasPaceMatch, THREAD_ALONG_JITTER, THREAD_CROSS_CLIP, THREAD_WEIGHT_FLOOR, GAS_MASK_LOOP, GAS_MASK_LANE_GAP,
 } from '../gasStreak';
 import { mulberry32 } from '../prng';
 import { PLANET_TUNE } from '../planetLook';
@@ -34,7 +34,7 @@ describe('gasStreak constants', () => {
       expect(GAS_STREAK_VS).toContain(`const float ${n} = ${glf(v)};`);
     }
     expect(GAS_STREAK_VS).not.toContain('STRETCH_MAX');
-    for (const u of ['uPhaseRate', 'uStreakGain', 'uFilWidth', 'uFilAlpha', 'uFogAlpha', 'uMaskFreq', 'uMaskSharp', 'uMaskDepth', 'uDpr']) {
+    for (const u of ['uAirFilGain', 'uPhaseRate', 'uStreakGain', 'uFilWidth', 'uFilAlpha', 'uFogAlpha', 'uMaskFreq', 'uMaskSharp', 'uMaskDepth', 'uDpr']) {
       expect(GAS_STREAK_VS).toContain(`uniform float ${u};`);
     }
     expect(GAS_STREAK_VS).not.toMatch(/uGasSize|uGasAlpha/);
@@ -195,7 +195,7 @@ describe('gasThreads: filament lane placement (Task 7d)', () => {
     expect(worst).toBeGreaterThan(3);
   });
 
-  it('per-lane grid offsets (fix wave, the air ladder): every lane starts its stratified grid elsewhere, ≥ 0.5/L apart', () => {
+  it('per-lane grid offsets (construction): every lane starts its stratified grid elsewhere, ≥ 0.5/L apart', () => {
     for (const seed of [1, 7, 42]) {
       for (const L of [6, 8, 12]) {
         const t = gasThreads(1200, L, mulberry32(seed));
@@ -216,6 +216,24 @@ describe('gasThreads: filament lane placement (Task 7d)', () => {
         }
       }
     }
+  });
+
+  it('gasPaceMatch (Task 7e): reorders the values so the count-weighted mean is as close to 0.5 as any permutation; same multiset', () => {
+    const wmean = (v, c) => v.reduce((s, x, k) => s + x * c[k], 0) / c.reduce((s, x) => s + x, 0);
+    for (const seed of [1, 2, 3, 7, 42]) {
+      for (const L of [6, 8]) {
+        const r = mulberry32(seed);
+        const vals = gasStratified(L, r);
+        const { counts } = gasThreads(2400, L, r);
+        const m = gasPaceMatch(vals, counts);
+        expect(Array.from(m).sort()).toEqual(Array.from(vals).sort());
+        expect(Math.abs(wmean(m, counts) - 0.5)).toBeLessThanOrEqual(0.02);
+        expect(Math.abs(wmean(m, counts) - 0.5)).toBeLessThanOrEqual(Math.abs(wmean(vals, counts) - 0.5) + 1e-12);
+      }
+    }
+    // deterministic, and not just sorted (irregular)
+    const v = gasStratified(8, mulberry32(5)), c = gasThreads(2400, 8, mulberry32(6)).counts;
+    expect(gasPaceMatch(v, c)).toEqual(gasPaceMatch(v, c));
   });
 
   it('gasStratified: one value per stratum (a permutation), irregular inside it, mean within 0.5/L of 0.5', () => {
@@ -278,7 +296,7 @@ describe('FS + varyings', () => {
 
 describe('tune knobs (spec §3g)', () => {
   it('defaults: the 54d8ef0e live-sweep set (Task 7d); the old gasSize/gasAlpha are gone', () => {
-    expect(PLANET_TUNE).toMatchObject({ filWidth: 2.2, streakGain: 0.05, filAlpha: 4, fogAlpha: 0.6, maskFreq: 2.5, maskSharp: 3, maskDepth: 0.3 });
+    expect(PLANET_TUNE).toMatchObject({ filWidth: 2.2, streakGain: 0.05, filAlpha: 4, fogAlpha: 0.7, maskFreq: 2.5, maskSharp: 3, maskDepth: 0.3, airFilGain: 2 });
     expect(PLANET_TUNE.fogAlpha).toBeLessThan(1);
     expect('gasSize' in PLANET_TUNE).toBe(false);
     expect('gasAlpha' in PLANET_TUNE).toBe(false);
@@ -286,7 +304,7 @@ describe('tune knobs (spec §3g)', () => {
 
   it('copied per frame without allocation, with the renderer pixel ratio', () => {
     const u = GAS_TUNE_UNIFORMS(PLANET_TUNE);
-    expect(Object.keys(u).sort()).toEqual(['uDpr', 'uFilAlpha', 'uFilWidth', 'uFogAlpha', 'uMaskDepth', 'uMaskFreq', 'uMaskSharp', 'uStreakGain']);
+    expect(Object.keys(u).sort()).toEqual(['uAirFilGain', 'uDpr', 'uFilAlpha', 'uFilWidth', 'uFogAlpha', 'uMaskDepth', 'uMaskFreq', 'uMaskSharp', 'uStreakGain']);
     expect(u.uFilWidth.value).toBe(PLANET_TUNE.filWidth);
     expect(u.uDpr.value).toBe(1);
     const objs = Object.values(u);
