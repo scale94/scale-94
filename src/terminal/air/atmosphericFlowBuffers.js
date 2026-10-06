@@ -8,10 +8,10 @@
 // aAlt 0.5 direction flip, so no thread splits into counter-rotating halves (lanes either side DO counter-rotate).
 // aLane: the lane id (mask), -1 for fog.
 
-import { gasRoles, gasThreads, THREAD_CROSS_CLIP } from '../mercury/planet/gasStreak';
+import { gasRoles, gasThreads, gasStratified, THREAD_CROSS_CLIP } from '../mercury/planet/gasStreak';
 import { mulberry32 } from '../mercury/planet/prng';
 
-export const AIR_LANES = 14;
+export const AIR_LANES = 8;     // fix wave: fewer, denser threads
 export const AIR_SIGMA_ALT = 0.006;   // aAlt jitter: × 2.5 orbit height ≈ 0.015 scene units
 export const AIR_ION_SHARE = 0.08;    // the old ionosphere fraction, now per lane
 export const AIR_FLIP_GAP = THREAD_CROSS_CLIP * AIR_SIGMA_ALT + 0.005; // lane centre ↔ the aAlt 0.5 flip
@@ -31,15 +31,15 @@ export function buildBuffers(count, nFog, seed = AIR_THREAD_SEED) {
   for (let i = 0; i < count; i++) nFil += roles[i];
 
   const rng = mulberry32(seed);
-  const laneAlt = new Float32Array(AIR_LANES);
-  const laneSpeed = new Float32Array(AIR_LANES);
-  const laneIon = new Float32Array(AIR_LANES);
+  // Altitudes and rates both stratified (irregular, but both directions present and the mean rate ≈ AIR_ORBIT_MEAN).
+  const laneAlt = gasStratified(AIR_LANES, rng);
   for (let k = 0; k < AIR_LANES; k++) {
-    let a = 0.03 + 0.94 * rng();
+    let a = 0.03 + 0.94 * laneAlt[k];
     if (Math.abs(a - 0.5) < AIR_FLIP_GAP) a = a > 0.5 ? 0.5 + AIR_FLIP_GAP : 0.5 - AIR_FLIP_GAP;
     laneAlt[k] = a;
-    laneSpeed[k] = rng();
   }
+  const laneSpeed = gasStratified(AIR_LANES, rng);
+  const laneIon = new Float32Array(AIR_LANES);
   const nIon = Math.max(1, Math.round(AIR_ION_SHARE * AIR_LANES));
   const order = Array.from({ length: AIR_LANES }, (_, k) => k);
   for (let k = 0; k < nIon; k++) {

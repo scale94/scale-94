@@ -7,10 +7,10 @@
 // would shear a thread's even spacing apart along the knot within a minute. The thread's width comes from the
 // radial jitter (FLUID_SIGMA_R) plus the shader's per-particle shimmer. aLane: the lane id (mask), -1 for fog.
 
-import { gasRoles, gasThreads } from '../mercury/planet/gasStreak';
+import { gasRoles, gasThreads, gasStratified } from '../mercury/planet/gasStreak';
 import { mulberry32 } from '../mercury/planet/prng';
 
-export const FLUID_LANES = 12;
+export const FLUID_LANES = 6;   // fix wave: fewer, denser threads (dashes overlap instead of a dashed rhythm)
 export const FLUID_SIGMA_R = 0.03;        // radial jitter, in tube-radius units (× uTubeRadius 0.32 ≈ 0.01 scene units)
 export const FLUID_LANE_R = [0.08, 0.95]; // lane-centre radius range (tube-radius units)
 export const FLUID_THREAD_SEED = 0x7d1f;
@@ -36,11 +36,8 @@ export function buildBuffers(count, nFog, seed = FLUID_THREAD_SEED) {
 
   const rng = mulberry32(seed);
   const laneR = new Float32Array(FLUID_LANES);
-  const laneO = new Float32Array(FLUID_LANES);
-  for (let k = 0; k < FLUID_LANES; k++) {
-    laneR[k] = FLUID_LANE_R[0] + (FLUID_LANE_R[1] - FLUID_LANE_R[0]) * rng();
-    laneO[k] = rng();
-  }
+  for (let k = 0; k < FLUID_LANES; k++) laneR[k] = FLUID_LANE_R[0] + (FLUID_LANE_R[1] - FLUID_LANE_R[0]) * rng();
+  const laneO = gasStratified(FLUID_LANES, rng); // stratified: irregular angles, mean knot speed ≈ FLUID_LANE_MEAN
   const th = gasThreads(nFil, FLUID_LANES, rng);
 
   for (let i = 0, f = 0; i < count; i++) {

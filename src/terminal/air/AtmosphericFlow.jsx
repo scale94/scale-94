@@ -113,7 +113,11 @@ const vertexShader = /* glsl */ `
     vec3 core = orbitPos(uPhase, angle);
     vec3 prevCore = orbitPos(uPhase - STREAK_DT * uPhaseRate, anglePrev);
     vec3 pos = core;
-    pos.y += snoise(vec3(angle * 0.25, uTime * 0.07, aAlt * 4.0)) * 0.15;
+    // Fog: the old argument. Filaments: the same frequency, periodic in the angle (aPhase 0/1 neighbours on a thread).
+    vec3 yArg = aRole < 0.5
+      ? vec3(angle * 0.25, uTime * 0.07, aAlt * 4.0)
+      : vec3(cos(angle) * 0.25, sin(angle) * 0.25 + uTime * 0.07, aAlt * 4.0);
+    pos.y += snoise(yArg) * 0.15;
 
     // ── Atmospheric eddies (slow curl turbulence) ────────────────────────
     float t = uTime * 0.08;
@@ -122,8 +126,9 @@ const vertexShader = /* glsl */ `
 
     // Fine molecular shimmer
     float st = uTime * 0.6;
-    pos.x += snoise(pos * 5.0 + vec3(st, 0.0, aPhase)) * 0.03;
-    pos.z += snoise(pos * 5.0 + vec3(aPhase, 0.0, st * 1.1)) * 0.03;
+    float shimKey = aRole < 0.5 ? aPhase : aLane * 1.7; // filaments: lane-keyed, no seam at aPhase 0/1
+    pos.x += snoise(pos * 5.0 + vec3(st, 0.0, shimKey)) * 0.03;
+    pos.z += snoise(pos * 5.0 + vec3(shimKey, 0.0, st * 1.1)) * 0.03;
     vec3 prev = prevCore + (pos - core); // the streak shows the current, not the eddies
 
     // Altitude from actual height + inherent layer

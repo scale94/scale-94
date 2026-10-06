@@ -136,8 +136,7 @@ describe('gas filament threads: buffers (Task 7d)', () => {
   it('fluid: filaments cluster on FLUID_LANES streamlines: one shared aOffset (angle + knot speed) per lane, radius within the clipped σ', () => {
     const b = fluidBuf.buildBuffers(3600, 1200);
     const L = fluidBuf.FLUID_LANES;
-    expect(L).toBeGreaterThanOrEqual(8);
-    expect(L).toBeLessThanOrEqual(16);
+    expect(L).toBe(6); // fix wave: denser lanes
     const lanes = filOf(b, b.lanes), offs = filOf(b, b.offsets), rads = filOf(b, b.radii);
     expect(new Set(lanes).size).toBe(L);
     expect(new Set(offs).size).toBe(L);
@@ -146,7 +145,9 @@ describe('gas filament threads: buffers (Task 7d)', () => {
       expect(new Set(o).size).toBe(1);
       const mid = (Math.max(...r) + Math.min(...r)) / 2;
       expect(Math.max(...r) - Math.min(...r)).toBeLessThanOrEqual(2 * THREAD_CROSS_CLIP * fluidBuf.FLUID_SIGMA_R + 1e-6);
-      expect(mid).toBeGreaterThanOrEqual(0);
+      const slack = THREAD_CROSS_CLIP * fluidBuf.FLUID_SIGMA_R;
+      expect(mid).toBeGreaterThanOrEqual(fluidBuf.FLUID_LANE_R[0] - slack);
+      expect(mid).toBeLessThanOrEqual(fluidBuf.FLUID_LANE_R[1] + slack);
     }
     expect(rads.every((r) => r >= 0 && r <= 1)).toBe(true);
     // deterministic filaments (seeded), the fog keeps Math.random
@@ -179,8 +180,7 @@ describe('gas filament threads: buffers (Task 7d)', () => {
   it('air: filaments cluster on AIR_LANES orbits: shared aSpeed + aIon per lane, aAlt within the clipped σ and never across the 0.5 flip', () => {
     const b = airBuf.buildBuffers(3600, 1200);
     const L = airBuf.AIR_LANES;
-    expect(L).toBeGreaterThanOrEqual(8);
-    expect(L).toBeLessThanOrEqual(18);
+    expect(L).toBe(8); // fix wave: denser lanes
     const lanes = filOf(b, b.lanes), spd = filOf(b, b.speeds), alt = filOf(b, b.alts), ion = filOf(b, b.ions);
     expect(new Set(lanes).size).toBe(L);
     expect(new Set(spd).size).toBe(L);
@@ -195,6 +195,44 @@ describe('gas filament threads: buffers (Task 7d)', () => {
       expect(a.every((x) => x > 0.5) || a.every((x) => x <= 0.5)).toBe(true); // one rotation direction per lane
     }
     expect(ionLanes.size).toBe(Math.max(1, Math.round(airBuf.AIR_ION_SHARE * L)));
+    // both rotation directions are represented, every lane centre clear of the flip
+    const centre = (k) => { const a = alt.filter((_, i) => lanes[i] === k); return (Math.max(...a) + Math.min(...a)) / 2; };
+    const cs = Array.from({ length: L }, (_, k) => centre(k));
+    expect(cs.some((c) => c > 0.5)).toBe(true);
+    expect(cs.some((c) => c <= 0.5)).toBe(true);
     expect(alt.every((x) => x >= 0 && x <= 1)).toBe(true);
+  });
+});
+
+describe('gas threads fix wave (Task 7d review + look)', () => {
+  const laneMean = (b, a) => {
+    const per = new Map();
+    b.lanes.forEach((k, i) => { if (k >= 0) per.set(k, a[i]); });
+    return [[...per.values()].reduce((s, x) => s + x, 0) / per.size, per.size];
+  };
+
+  it('lane rates are stratified: the per-lane rate label mean is within 1/L of 0.5 (mirror-sky pace)', () => {
+    for (const [buf, key] of [[fluidBuf, 'offsets'], [airBuf, 'speeds']]) {
+      const b = buf.buildBuffers(3600, 1200);
+      const [m, L] = laneMean(b, b[key]);
+      expect(Math.abs(m - 0.5)).toBeLessThanOrEqual(1 / L);
+    }
+  });
+
+  it('air: the filament y-noise is periodic in the orbit angle (no seam at aPhase 0/1); the fog path is byte-identical', () => {
+    expect(atmoSrc).toContain('? vec3(angle * 0.25, uTime * 0.07, aAlt * 4.0)');               // fog: the old argument
+    expect(atmoSrc).toContain(': vec3(cos(angle) * 0.25, sin(angle) * 0.25 + uTime * 0.07, aAlt * 4.0);');
+    expect(atmoSrc).toContain('vec3 yArg = aRole < 0.5');
+    expect(atmoSrc).toContain('pos.y += snoise(yArg) * 0.15;');
+    expect(atmoSrc).not.toContain('pos.y += snoise(vec3(angle * 0.25');
+    // the shimmer was keyed on aPhase too: filaments key it on the lane (no seam), fog unchanged
+    expect(atmoSrc).toContain('float shimKey = aRole < 0.5 ? aPhase : aLane * 1.7;');
+    expect(atmoSrc).toContain('pos.x += snoise(pos * 5.0 + vec3(st, 0.0, shimKey)) * 0.03;');
+    expect(atmoSrc).toContain('pos.z += snoise(pos * 5.0 + vec3(shimKey, 0.0, st * 1.1)) * 0.03;');
+  });
+
+  it('fluid: filaments get a per-lane hue offset; fog hue unchanged', () => {
+    expect(particleSrc).toContain('float laneHue = aRole < 0.5 ? 0.0 : gasHash(aLane, 0.37);');
+    expect(particleSrc).toContain('vHue = fract(aPhase + uTime * 0.05 + uChromatic * 0.33 + laneHue);');
   });
 });

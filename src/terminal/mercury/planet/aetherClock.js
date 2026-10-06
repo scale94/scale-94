@@ -8,8 +8,10 @@
 
 export const CLOCK_PHASES = Object.freeze(['fluid', 'thermal', 'earth', 'air']);
 
-// Means of each flow's per-particle rate terms. Every attribute involved is Math.random() in its buildBuffers,
-// i.e. U[0, 1). aetherClock.test pins the derivations; flowClock.test pins the flow literals they come from.
+// Means of each flow's per-particle rate terms, U[0, 1) labels. Fog draws them with Math.random(); fluid + air
+// filaments (Task 7d threads) share one rate per lane, stratified (gasStratified), so the per-lane mean is within
+// 0.5/L of 0.5. Residual: the lanes' uneven particle weights shift the particle-weighted mean a little.
+// aetherClock.test pins the derivations; flowClock.test pins the flow literals they come from.
 export const FLUID_LANE_MEAN = 0.8;    // ParticleFlow: (0.6 + aOffset * 0.4)
 export const AIR_ORBIT_MEAN = 0.75;    // AtmosphericFlow: (0.4 + aSpeed * 0.7), upper layer (ionosphere excluded)
 export const AIR_LOWER_DIR = -0.85;    // AtmosphericFlow: aAlt > 0.5 ? 1.0 : -0.85

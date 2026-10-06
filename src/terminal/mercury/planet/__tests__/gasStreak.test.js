@@ -5,7 +5,7 @@ import { glf } from '../../../gl/glf';
 import {
   GAS_STREAK_VS, GAS_STREAK_FS, STREAK_DT, FIL_ASPECT, FIL_JITTER, FIRE_EMBER_STRETCH, FIRE_EMBER_GAIN, FIRE_EMBER_SHARE,
   GAS_PX_FLOOR, GAS_Z_REF, MASK_EVOLVE, gasCounts, gasRoles, GAS_TUNE_UNIFORMS, writeGasTune,
-  gasThreads, THREAD_ALONG_JITTER, THREAD_CROSS_CLIP, THREAD_WEIGHT_FLOOR, GAS_MASK_LOOP, GAS_MASK_LANE_GAP,
+  gasThreads, gasStratified, THREAD_ALONG_JITTER, THREAD_CROSS_CLIP, THREAD_WEIGHT_FLOOR, GAS_MASK_LOOP, GAS_MASK_LANE_GAP,
 } from '../gasStreak';
 import { mulberry32 } from '../prng';
 import { PLANET_TUNE } from '../planetLook';
@@ -195,6 +195,42 @@ describe('gasThreads: filament lane placement (Task 7d)', () => {
     expect(worst).toBeGreaterThan(3);
   });
 
+  it('per-lane grid offsets (fix wave, the air ladder): every lane starts its stratified grid elsewhere, ≥ 0.5/L apart', () => {
+    for (const seed of [1, 7, 42]) {
+      for (const L of [6, 8, 12]) {
+        const t = gasThreads(1200, L, mulberry32(seed));
+        expect(t.starts.length).toBe(L);
+        for (let a = 0; a < L; a++) {
+          for (let b = a + 1; b < L; b++) {
+            const d = Math.abs(t.starts[a] - t.starts[b]);
+            expect(Math.min(d, 1 - d)).toBeGreaterThanOrEqual(0.5 / L - 1e-6);
+          }
+        }
+        // each lane's first slot sits at its own start (the grid is anchored there)
+        for (let k = 0; k < L; k++) {
+          const xs = Array.from(t.along).filter((_, i) => t.lane[i] === k);
+          const n = xs.length;
+          const first = xs[0];
+          const d = Math.abs(first - ((t.starts[k] + 0.5 / n) % 1));
+          expect(Math.min(d, 1 - d)).toBeLessThanOrEqual(0.5 * THREAD_ALONG_JITTER / n + 1e-6);
+        }
+      }
+    }
+  });
+
+  it('gasStratified: one value per stratum (a permutation), irregular inside it, mean within 0.5/L of 0.5', () => {
+    for (const seed of [1, 2, 3]) {
+      for (const L of [6, 8, 12]) {
+        const s = gasStratified(L, mulberry32(seed));
+        expect(s.length).toBe(L);
+        expect(new Set(Array.from(s, (x) => Math.floor(x * L))).size).toBe(L);
+        const m = s.reduce((a, x) => a + x, 0) / L;
+        expect(Math.abs(m - 0.5)).toBeLessThanOrEqual(0.5 / L);
+      }
+    }
+    expect(Array.from(gasStratified(8, mulberry32(1)))).not.toEqual([...Array(8).keys()].map((k) => (k + 0.5) / 8));
+  });
+
   it('cross-lane jitter: a clipped unit normal (|z| ≤ THREAD_CROSS_CLIP, sd ~1), so a thread is a few px wide', () => {
     const { cross } = build(4000, 12, 3);
     expect(Math.max(...cross.map(Math.abs))).toBeLessThanOrEqual(THREAD_CROSS_CLIP);
@@ -242,7 +278,7 @@ describe('FS + varyings', () => {
 
 describe('tune knobs (spec §3g)', () => {
   it('defaults: the 54d8ef0e live-sweep set (Task 7d); the old gasSize/gasAlpha are gone', () => {
-    expect(PLANET_TUNE).toMatchObject({ filWidth: 2.2, streakGain: 0.05, filAlpha: 3, fogAlpha: 0.7, maskFreq: 2.5, maskSharp: 3, maskDepth: 0.7 });
+    expect(PLANET_TUNE).toMatchObject({ filWidth: 2.2, streakGain: 0.05, filAlpha: 4, fogAlpha: 0.6, maskFreq: 2.5, maskSharp: 3, maskDepth: 0.3 });
     expect(PLANET_TUNE.fogAlpha).toBeLessThan(1);
     expect('gasSize' in PLANET_TUNE).toBe(false);
     expect('gasAlpha' in PLANET_TUNE).toBe(false);

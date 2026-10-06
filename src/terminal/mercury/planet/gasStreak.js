@@ -61,6 +61,25 @@ function clippedNormal(rng) {
   }
 }
 
+// A random permutation of 0..L-1 (Fisher-Yates) from a [0, 1) rng.
+function permutation(L, rng) {
+  const p = Array.from({ length: L }, (_, k) => k);
+  for (let k = L - 1; k > 0; k--) {
+    const j = Math.floor(rng() * (k + 1));
+    [p[k], p[j]] = [p[j], p[k]];
+  }
+  return p;
+}
+
+// L stratified values in [0, 1): one per stratum [m/L, (m+1)/L), strata in random order, uniform inside. Irregular,
+// but the mean stays within 0.5/L of 0.5 (lane rates: the mirror sky's pace; air altitudes: both directions).
+export function gasStratified(L, rng) {
+  const p = permutation(L, rng);
+  const out = new Float32Array(L);
+  for (let k = 0; k < L; k++) out[k] = (p[k] + rng()) / L;
+  return out;
+}
+
 // Filament lane placement (Task 7d), pure + deterministic for a seeded rng (prng.js mulberry32). Per filament:
 // lane (integer, lane-major order), along ∈ [0, 1) (stratified within its lane from a random lane start, jittered by
 // THREAD_ALONG_JITTER of the spacing) and cross (a clipped unit normal; the flow scales it by its own σ). Lane counts
@@ -70,7 +89,8 @@ export function gasThreads(nFil, lanes, rng) {
   const along = new Float32Array(nFil);
   const cross = new Float32Array(nFil);
   const counts = new Int32Array(lanes);
-  if (nFil <= 0 || lanes <= 0) return { lane, along, cross, counts };
+  const starts = new Float32Array(Math.max(lanes, 0));
+  if (nFil <= 0 || lanes <= 0) return { lane, along, cross, counts, starts };
   const used = Math.min(lanes, nFil);
   const w = new Float64Array(used);
   let sum = 0;
@@ -90,10 +110,14 @@ export function gasThreads(nFil, lanes, rng) {
     counts[best]++;
     rem[best] = -1;
   }
+  // Per-lane grid offsets (fix wave: lanes on a shared grid phase stack into a ladder): a permuted stratum each,
+  // jittered inside its middle half, so any two lanes' grids start ≥ 0.5/lanes apart.
+  const perm = permutation(lanes, rng);
+  for (let k = 0; k < lanes; k++) starts[k] = (perm[k] + 0.25 + 0.5 * rng()) / lanes;
   let i = 0;
   for (let k = 0; k < used; k++) {
     const n = counts[k];
-    const start = rng();
+    const start = starts[k];
     for (let j = 0; j < n; j++, i++) {
       const a = start + (j + 0.5 + THREAD_ALONG_JITTER * (rng() - 0.5)) / n;
       lane[i] = k;
@@ -101,7 +125,7 @@ export function gasThreads(nFil, lanes, rng) {
       cross[i] = clippedNormal(rng);
     }
   }
-  return { lane, along, cross, counts };
+  return { lane, along, cross, counts, starts };
 }
 
 export const GAS_STREAK_VS = /* glsl */ `

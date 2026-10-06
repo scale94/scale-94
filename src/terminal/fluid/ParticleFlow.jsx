@@ -144,7 +144,8 @@ const vertexShader = /* glsl */ `
     vec3 prev = prevCore + (pos - basePos); // the streak shows the current, not the shimmer
 
     // ── Harmonic color cycling ──
-    vHue = fract(aPhase + uTime * 0.05 + uChromatic * 0.33);
+    float laneHue = aRole < 0.5 ? 0.0 : gasHash(aLane, 0.37); // filaments: each thread its own place on the palette
+    vHue = fract(aPhase + uTime * 0.05 + uChromatic * 0.33 + laneHue);
     vBrightness = 0.8 + 0.2 * sin(aPhase * 6.283185307 + uTime * 0.3);
 
     // Nebula condensation: contract the post-sim field into the drop.
