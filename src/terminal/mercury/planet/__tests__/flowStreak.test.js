@@ -2,6 +2,8 @@
 import { describe, it, expect } from 'vitest';
 import particleSrc from '../../../fluid/ParticleFlow.jsx?raw';
 import atmoSrc from '../../../air/AtmosphericFlow.jsx?raw';
+import thermalSrc from '../../../thermal/ThermalFlow.jsx?raw';
+import sedimentSrc from '../../../earth/SedimentFlow.jsx?raw';
 import canvasSrc from '../../MercuryCanvas.jsx?raw';
 import fluidBufSrc from '../../../fluid/particleFlowBuffers.js?raw';
 import airBufSrc from '../../../air/atmosphericFlowBuffers.js?raw';
@@ -81,7 +83,7 @@ describe('gas filaments: two roles in one draw', () => {
 });
 
 describe('gas filaments glow over the fog: premultiplied one-draw blend (Task 7c)', () => {
-  for (const [el, src] of [['fluid', particleSrc], ['air', atmoSrc]]) {
+  for (const [el, src] of [['fluid', particleSrc], ['air', atmoSrc], ['thermal', thermalSrc], ['earth', sedimentSrc]]) {
     it(`${el}: FS ends in gasOut(); no raw gl_FragColor vec4(color/col, ...) left; opt-in premultiplied prop`, () => {
       expect(src).toMatch(/gl_FragColor = gasOut\(/);
       expect(src).not.toMatch(/gl_FragColor = vec4\(/);
@@ -96,11 +98,10 @@ describe('gas filaments glow over the fog: premultiplied one-draw blend (Task 7c
     });
   }
 
-  it('canvas: fluid + air premultiplied (CustomBlending path); fire + earth still NormalBlending, not premultiplied', () => {
+  it('canvas: all four flows premultiplied (CustomBlending path; Task 8 adds fire + earth), NormalBlending fallback prop kept', () => {
     const tag = (name) => canvasSrc.slice(canvasSrc.indexOf(`<${name}`), canvasSrc.indexOf('/>', canvasSrc.indexOf(`<${name}`)));
-    for (const n of ['ParticleFlow', 'AtmosphericFlow']) expect(tag(n)).toContain('premultiplied');
-    for (const n of ['ThermalFlow', 'SedimentFlow']) {
-      expect(tag(n)).not.toContain('premultiplied');
+    for (const n of ['ParticleFlow', 'AtmosphericFlow', 'ThermalFlow', 'SedimentFlow']) {
+      expect(tag(n)).toContain('premultiplied');
       expect(tag(n)).toContain('blending={THREE.NormalBlending}');
     }
   });
@@ -512,5 +513,90 @@ describe('fluid calm threads are lines, not a staircase (Task 7g)', () => {
     expect(vs).toMatch(/gasSpriteThread\(clipNow, clipPrev, clipNow, clipNow,/); // tl = 0: dirA = dirB = dir
     expect(fs).toMatch(/clamp\(dot\(q, vStreakDir\), 0\.0, vStreakCap\.x\)/);
     expect(fs).toMatch(/clamp\(-dot\(q, vStreakDir2\), 0\.0, vStreakCap\.x\)/);
+  });
+});
+
+// Task 8: fire + earth on the two-role gas. No threads (amendment A3): gasSprite, the old straight capsule.
+describe('earth (spec §3f): dust fog + settling streaks', () => {
+  it('core sampled twice; fog = the old dust sprite, filament = thin tapered capsule; live knobs', () => {
+    expect(sedimentSrc).toContain('${GAS_STREAK_VS}');
+    expect(sedimentSrc).toContain('${GAS_STREAK_FS}');
+    expect(sedimentSrc.indexOf('${GAS_STREAK_VS}')).toBeGreaterThan(sedimentSrc.indexOf('float snoise('));
+    expect(sedimentSrc).toContain('vec3 sedimentPos(float ph, out float age, out float sinkOffset) {');
+    expect(sedimentSrc).toContain('uPhase - STREAK_DT * uPhaseRate');
+    expect(sedimentSrc).toContain('vec3 prev = prevCore + (pos - core);');
+    expect(sedimentSrc).toContain('prev *= 1.0 - uCondense * uCondense;');
+    expect(sedimentSrc).toContain('attribute float aRole;');
+    expect(sedimentSrc).toContain('float fogSize = baseSize * ageFactor * (280.0 / -mvPos.z) * bite;');
+    expect(sedimentSrc).toContain('float filW = gasFilWidth(-mvPos.z, aSize, bite);');
+    expect(sedimentSrc).toContain('float size = aRole < 0.5 ? fogSize : filW;');
+    expect(sedimentSrc).toContain('gl_PointSize = gasSprite(gl_Position, projectionMatrix * mvPrev, aRole, size, sedStretch, gasHash(aPhase, aSeed));');
+    expect(sedimentSrc).toContain('aetherLightVS(mvPos.xyz, size);');
+    expect(sedimentSrc).toMatch(/float d = gasStreakDist\(gl_PointCoord\);/);
+    expect(sedimentSrc).toContain('float alpha = smoothstep(1.0, 0.15, d) * gasTaper(gl_PointCoord);');
+    expect(sedimentSrc).toContain('gl_FragColor = gasOut(col, (alpha * vAlpha * (0.5 + (1.0 - vStrata) * 0.4) * uOpacity * vLane) * planetWindow(), dither);');
+    expect(sedimentSrc).toContain('mat.uniforms.uPhaseRate.value = clk.rate.earth;');
+    expect(sedimentSrc).toContain('...GAS_TUNE_UNIFORMS(PLANET_TUNE),');
+    expect(sedimentSrc).toContain('writeGasTune(mat.uniforms, PLANET_TUNE, state.gl.getPixelRatio(), gasPointMax(state.gl));');
+    expect(sedimentSrc).toContain('uPhaseRate: { value: 0 },');
+    expect(sedimentSrc).not.toContain('gasSpriteThread(');
+    expect(sedimentSrc).not.toContain('aLane');
+  });
+
+  it('no streak across a sink or life respawn; lanes by spawn direction and mass', () => {
+    expect(sedimentSrc).toContain('float sedStretch = (agePrev > age || sinkPrev > sinkOffset) ? 1.0 : FIL_ASPECT;');
+    expect(sedimentSrc).toContain('vLane = gasAlpha(aRole, vec3(sin(theta) * cos(phi) * 2.0, cos(theta) * 2.0, aMass * 2.0), uTime);');
+  });
+
+  it('buffers carry the deterministic role split; the geometry remounts when the split changes', () => {
+    expect(sedimentSrc).toContain('fogCount = null,');
+    expect(sedimentSrc).toContain('const N_FOG = fogCount ?? PARTICLE_COUNT;');
+    expect(sedimentSrc).toContain('function buildBuffers(count, nFog) {');
+    expect(sedimentSrc).toContain('roles: gasRoles(count, nFog)');
+    expect(sedimentSrc).toContain('useMemo(() => buildBuffers(PARTICLE_COUNT, N_FOG), [PARTICLE_COUNT, N_FOG])');
+    expect(sedimentSrc).toContain('<bufferGeometry key={`${PARTICLE_COUNT}:${N_FOG}`}>');
+    expect(sedimentSrc).toContain('<bufferAttribute attach="attributes-aRole" array={buffers.roles} count={PARTICLE_COUNT} itemSize={1} />');
+  });
+});
+
+describe('fire (spec §3f): fog = the flame body, filament = embers only', () => {
+  it('core sampled twice; the role IS aEmber, built by gasRoles (no random ember draw)', () => {
+    expect(thermalSrc).toContain('${GAS_STREAK_VS}');
+    expect(thermalSrc).toContain('${GAS_STREAK_FS}');
+    expect(thermalSrc.indexOf('${GAS_STREAK_VS}')).toBeGreaterThan(thermalSrc.indexOf('float snoise('));
+    expect(thermalSrc).toContain('vec3 flamePos(float ph, out float age) {');
+    expect(thermalSrc).toContain('uPhase - STREAK_DT * uPhaseRate');
+    expect(thermalSrc).toContain('vec3 prev = prevCore + (pos - core);');
+    expect(thermalSrc).toContain('prev *= 1.0 - uCondense * uCondense;');
+    expect(thermalSrc).toContain('function buildBuffers(count, nFog) {');
+    expect(thermalSrc).toContain('const embers    = gasRoles(count, nFog);');
+    for (const gone of ['emberCutoff', 'emberShrink', 'attribute float aRole;', 'uGasSize', 'STRETCH_MAX']) expect(thermalSrc).not.toContain(gone);
+  });
+
+  it('body: the old flame sprite; embers: small round dots ≤ 1.5x, never across a respawn, unmasked, boosted, no taper', () => {
+    expect(thermalSrc).toContain('float fogSize = min(baseSize * sizeFactor * (80.0 / depth), uPointSizeMax) * bite;');
+    expect(thermalSrc).toContain('float filW = gasFilWidth(depth, aSize, bite * sizeFactor);');
+    expect(thermalSrc).toContain('float size = aEmber < 0.5 ? fogSize : filW;');
+    expect(thermalSrc).toContain('float emberStretch = agePrev > age ? 1.0 : FIRE_EMBER_STRETCH;');
+    expect(thermalSrc).toContain('gl_PointSize = gasSprite(gl_Position, projectionMatrix * mvPrev, aEmber, size, emberStretch, 0.5);');
+    expect(thermalSrc).toContain('vLane = gasRoleAlpha(aEmber) * mix(1.0, FIRE_EMBER_GAIN, aEmber);');
+    expect(thermalSrc).not.toContain('gasLane(');
+    expect(thermalSrc).not.toContain('gasAlpha(');
+    expect(thermalSrc).not.toContain('gasTaper(');
+    expect(thermalSrc).not.toContain('gasSpriteThread(');
+    expect(thermalSrc).toMatch(/float d\s*= gasStreakDist\(pc\);/);
+    expect(thermalSrc).toContain('gl_FragColor = gasOut(col, (finalAlpha * uOpacity * vLane) * planetWindow(), dither);');
+  });
+
+  it('fire: live knobs, fog count, remount key', () => {
+    expect(thermalSrc).toContain('mat.uniforms.uPhaseRate.value = clk.rate.thermal;');
+    expect(thermalSrc).toContain('...GAS_TUNE_UNIFORMS(PLANET_TUNE),');
+    expect(thermalSrc).toContain('writeGasTune(mat.uniforms, PLANET_TUNE, state.gl.getPixelRatio(), gasPointMax(state.gl));');
+    expect(thermalSrc).toContain('uPhaseRate: { value: 0 },');
+    expect(thermalSrc).toContain('fogCount = null,');
+    expect(thermalSrc).toContain('const N_FOG = fogCount ?? PARTICLE_COUNT - Math.round(PARTICLE_COUNT * FIRE_EMBER_SHARE);');
+    expect(thermalSrc).toContain('useMemo(() => buildBuffers(PARTICLE_COUNT, N_FOG), [PARTICLE_COUNT, N_FOG])');
+    expect(thermalSrc).toContain('<bufferGeometry key={`${PARTICLE_COUNT}:${N_FOG}`}>');
+    expect(thermalSrc).toContain('<bufferAttribute attach="attributes-aEmber"   array={buffers.embers}    count={PARTICLE_COUNT} itemSize={1} />');
   });
 });

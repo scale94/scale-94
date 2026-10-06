@@ -30,9 +30,9 @@ describe('flows on the shared clock', () => {
     expect(atmoSrc).toContain('aAlt > 0.5 ? 1.0 : -0.85');
     expect(thermalSrc).toContain('float lifeMult = 0.4 + aSpeed * 0.6;');
     expect(thermalSrc).toContain('mix(2.4, 3.5, aTemp)');
-    expect(thermalSrc).toContain('fract(aPhase + uPhase * lifeMult)');
+    expect(thermalSrc).toContain('fract(aPhase + ph * lifeMult)');
     expect(sedimentSrc).toContain('float sinkRate   = aMass * 2.2;');
-    expect(sedimentSrc).toContain('fract(aPhase + uPhase * sinkRate * 0.4)');
+    expect(sedimentSrc).toContain('fract(aPhase + ph * sinkRate * 0.4)');
     expect(sedimentSrc).toContain('sinkOffset * 2.4');
     expect(sedimentSrc).toContain('masses[i]  = Math.random() < 0.2 ? Math.random() * 0.3 : 0.4 + Math.random() * 0.6;');
   });

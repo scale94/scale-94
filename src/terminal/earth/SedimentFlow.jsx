@@ -5,6 +5,7 @@ import { PLANET_WINDOW_VS, PLANET_WINDOW_FS } from '../mercury/planet/planetWind
 import { R_SCENE, PLANET_TUNE } from '../mercury/planet/planetLook';
 import { AETHER_LIGHT_VS, aetherLightFS } from '../mercury/planet/aetherLight';
 import { SUN_DIR_WORLD } from '../mercury/planet/planetFrame';
+import { GAS_STREAK_VS, GAS_STREAK_FS, GAS_TUNE_UNIFORMS, writeGasTune, gasPointMax, gasRoles } from '../mercury/planet/gasStreak';
 import { createAetherClock, configureAetherClock, tickAetherClock } from '../mercury/planet/aetherClock';
 
 // ── GLSL ───────────────────────────────────────────────────────────────────
@@ -24,6 +25,7 @@ const vertexShader = /* glsl */ `
   attribute float aSize;     // base screen size [0,1] → 0–5 px
   attribute float aMass;     // geological mass [0,1] (heavy=sinks=dark, light=floats=pale)
   attribute float aErupt;    // 0=sediment, 1=eruption particle
+  attribute float aRole;    // 0 = fog (the old dust sprite), 1 = settling streak (mirror-sky spec §3f)
 
   varying float vStrata;     // 0=chalk surface, 1=obsidian deep
   varying float vAlpha;
@@ -82,35 +84,38 @@ const vertexShader = /* glsl */ `
     return vec3((ny1-ny2)-(nz1-nz2),(nz1-nz2)-(nx1-nx2),(nx1-nx2)-(ny1-ny2))/(2.0*e);
   }
 
-  void main(){
+  ${GAS_STREAK_VS}
+
+  // The sediment's own motion alone (sink, eruption arc) at phase ph; age and sinkOffset out (respawn guard).
+  vec3 sedimentPos(float ph, out float age, out float sinkOffset) {
     // Per-particle lifecycle
     float lifeMult = 0.5 + aSpeed * 0.5;
-    float age = fract(aPhase + uPhase * lifeMult);
-
+    age = fract(aPhase + ph * lifeMult);
     // Spawn on sphere surface (uniform distribution via spherical coords)
     float theta  = fract(aSeed * 3.9301) * 3.14159;
     float phi    = fract(aSeed * 7.1731) * 6.28318;
-    float spawnX = sin(theta) * cos(phi) * 1.1;
-    float spawnY = cos(theta) * 1.1;
-    float spawnZ = sin(theta) * sin(phi) * 1.1;
-    vec3 spawnPos = vec3(spawnX, spawnY, spawnZ);
-
+    vec3 spawnPos = vec3(sin(theta) * cos(phi) * 1.1, cos(theta) * 1.1, sin(theta) * sin(phi) * 1.1);
     // ── Sediment particles: drift toward base under mass ─────────────────
     // Heavy particles sink faster; light ones stay higher
     float sinkRate   = aMass * 2.2;
-    float sinkOffset = fract(aPhase + uPhase * sinkRate * 0.4);
+    sinkOffset = fract(aPhase + ph * sinkRate * 0.4);
     // Y oscillates from spawn height downward, then resets
-    float settledY   = spawnY - sinkOffset * 2.4;
-
-    vec3 pos = vec3(spawnX, settledY, spawnZ);
-
+    vec3 pos = vec3(spawnPos.x, spawnPos.y - sinkOffset * 2.4, spawnPos.z);
     // ── Eruption particles: shoot upward then arc back ───────────────────
     float eruptY   = -1.2 + sin(age * 3.14159) * 2.5 * uEruptStrength;
     float eruptR   = fract(aSeed * 5.713) * 0.5;
     float eruptAng = fract(aSeed * 2.391) * 6.28318;
     vec3 eruptPos  = vec3(cos(eruptAng)*eruptR, eruptY, sin(eruptAng)*eruptR);
+    return mix(pos, eruptPos, aErupt);
+  }
 
-    pos = mix(pos, eruptPos, aErupt);
+  void main(){
+    float age, agePrev, sinkOffset, sinkPrev;
+    vec3 core = sedimentPos(uPhase, age, sinkOffset);
+    vec3 prevCore = sedimentPos(uPhase - STREAK_DT * uPhaseRate, agePrev, sinkPrev);
+    vec3 pos = core;
+    float theta = fract(aSeed * 3.9301) * 3.14159;
+    float phi   = fract(aSeed * 7.1731) * 6.28318;
 
     // ── Slow geological turbulence ────────────────────────────────────────
     float t = uTime * 0.06; // very slow
@@ -121,6 +126,7 @@ const vertexShader = /* glsl */ `
     float st = uTime * 0.5;
     pos.x += snoise(pos*6.0 + vec3(st, 0.0, 0.0)) * 0.025;
     pos.z += snoise(pos*6.0 + vec3(0.0, 0.0, st)) * 0.025;
+    vec3 prev = prevCore + (pos - core);
 
     // Normalize height to [0,1] for stratum mapping
     float normY    = clamp((pos.y + 1.5) / 3.0, 0.0, 1.0);
@@ -141,25 +147,36 @@ const vertexShader = /* glsl */ `
 
     // Nebula condensation — see ParticleFlow.jsx for the physics note.
     pos *= 1.0 - uCondense * uCondense;
+    prev *= 1.0 - uCondense * uCondense;
 
     vec4 mvPos = modelViewMatrix * vec4(pos, 1.0);
-    gl_PointSize = baseSize * ageFactor * (280.0 / -mvPos.z) * (1.0 - uCondense * uCondenseSizeBite);
+    vec4 mvPrev = modelViewMatrix * vec4(prev, 1.0);
+    float bite = 1.0 - uCondense * uCondenseSizeBite;
+    // Fog = the old dust sprite, untouched; filament = a fine settling streak (mirror-sky spec §3f).
+    float fogSize = baseSize * ageFactor * (280.0 / -mvPos.z) * bite;
+    float filW = gasFilWidth(-mvPos.z, aSize, bite);
+    float size = aRole < 0.5 ? fogSize : filW;
     gl_Position  = projectionMatrix * mvPos;
+    float sedStretch = (agePrev > age || sinkPrev > sinkOffset) ? 1.0 : FIL_ASPECT;
+    gl_PointSize = gasSprite(gl_Position, projectionMatrix * mvPrev, aRole, size, sedStretch, gasHash(aPhase, aSeed));
+    // Fog: × fogAlpha. Filaments: lanes by spawn direction and mass (strata of dust), × filAlpha.
+    vLane = gasAlpha(aRole, vec3(sin(theta) * cos(phi) * 2.0, cos(theta) * 2.0, aMass * 2.0), uTime);
     planetWindowVS(mvPos.xyz);
-    aetherLightVS(mvPos.xyz, gl_PointSize);
+    aetherLightVS(mvPos.xyz, size);
   }
 `;
 
 const fragmentShader = /* glsl */ `
   ${PLANET_WINDOW_FS}
   ${aetherLightFS('earth')}
+  ${GAS_STREAK_FS}
   uniform float uOpacity;
   varying float vStrata;
   varying float vAlpha;
 
   void main(){
-    float d = length(gl_PointCoord - 0.5) * 2.0;
-    float alpha = smoothstep(1.0, 0.15, d);
+    float d = gasStreakDist(gl_PointCoord);
+    float alpha = smoothstep(1.0, 0.15, d) * gasTaper(gl_PointCoord); // streak ends fade (fog: × 1)
     if (alpha < 0.004) discard;
 
     // ── 8-stop geological spectrum ────────────────────────────────────────
@@ -196,12 +213,12 @@ const fragmentShader = /* glsl */ `
     // Banding dither — see ParticleFlow.jsx for the physics note.
     float dither = (fract(sin(dot(gl_FragCoord.xy + gl_PointCoord * 61.803, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;
     col *= aetherLight();
-    gl_FragColor = vec4(col, (alpha * vAlpha * (0.5 + (1.0 - vStrata) * 0.4) * uOpacity) * planetWindow() + dither);
+    gl_FragColor = gasOut(col, (alpha * vAlpha * (0.5 + (1.0 - vStrata) * 0.4) * uOpacity * vLane) * planetWindow(), dither);
   }
 `;
 
 // ── Buffer init ────────────────────────────────────────────────────────────
-function buildBuffers(count) {
+function buildBuffers(count, nFog) {
   const eruption = 0.10; // 10% eruption particles
 
   const positions = new Float32Array(count * 3);
@@ -225,7 +242,7 @@ function buildBuffers(count) {
     masses[i]  = Math.random() < 0.2 ? Math.random() * 0.3 : 0.4 + Math.random() * 0.6;
     erupts[i]  = Math.random() < eruption ? 1.0 : 0.0;
   }
-  return { positions, phases, speeds, seeds, sizes, masses, erupts };
+  return { positions, phases, speeds, seeds, sizes, masses, erupts, roles: gasRoles(count, nFog) };
 }
 
 // ── Component ──────────────────────────────────────────────────────────────
@@ -235,25 +252,30 @@ export default function SedimentFlow({
   turbulence        = 0.25,
   eruptStrength     = 0.8,
   density           = null,
+  fogCount = null,
   onFps             = null,
   opacityMultiplier = 1,
   condense = 0,
   condenseSizeBite = 0.6,
   planetWindow = 0,
   blending = THREE.AdditiveBlending,
+  premultiplied = false, // MercuryCanvas: one-draw premultiplied blend, fog = normal, filaments additive (Task 7c)
   aetherClock = null,
 }) {
   const PARTICLE_COUNT = density ?? (isMobile ? 4000 : 10000);
+  const N_FOG = fogCount ?? PARTICLE_COUNT; // MercuryCanvas passes gasCounts().fog; standalone = all fog, the old look (spec §3e)
   const materialRef = useRef();
   const fpsFrames   = useRef(0);
   const fpsTime     = useRef(0);
 
-  const buffers = useMemo(() => buildBuffers(PARTICLE_COUNT), [PARTICLE_COUNT]);
+  const buffers = useMemo(() => buildBuffers(PARTICLE_COUNT, N_FOG), [PARTICLE_COUNT, N_FOG]);
 
   // Created ONCE — see ParticleFlow.jsx for the stale-upload-bond note.
   const [uniforms] = useState(() => ({
     uTime: { value: 0 },
     uPhase: { value: 0 },
+    uPhaseRate: { value: 0 },
+    ...GAS_TUNE_UNIFORMS(PLANET_TUNE),
     uTurbulence:    { value: turbulence },
     uEruptStrength: { value: eruptStrength },
     uOpacity:       { value: opacityMultiplier },
@@ -262,6 +284,7 @@ export default function SedimentFlow({
     uPlanetWindow: { value: planetWindow },
     uViewportPx: { value: new THREE.Vector2(1, 1) },
     uPlanetRadius: { value: R_SCENE },
+    uPremult: { value: premultiplied ? 1 : 0 },
     uSunDirW: { value: new THREE.Vector3(...SUN_DIR_WORLD) },
     uLitFloor: { value: PLANET_TUNE.aetherFloor },
     uLitPen: { value: Math.max(PLANET_TUNE.aetherPenumbra, 1e-3) },
@@ -277,6 +300,8 @@ export default function SedimentFlow({
     if (mat) {
       mat.uniforms.uTime.value = clk.t;
       mat.uniforms.uPhase.value = clk.phase.earth;
+      mat.uniforms.uPhaseRate.value = clk.rate.earth;
+      writeGasTune(mat.uniforms, PLANET_TUNE, state.gl.getPixelRatio(), gasPointMax(state.gl));
       mat.uniforms.uTurbulence.value     = turbulence;
       mat.uniforms.uEruptStrength.value  = eruptStrength;
       mat.uniforms.uOpacity.value        = opacityMultiplier;
@@ -300,7 +325,7 @@ export default function SedimentFlow({
 
   return (
     <points frustumCulled={false}>
-      <bufferGeometry key={PARTICLE_COUNT}>
+      <bufferGeometry key={`${PARTICLE_COUNT}:${N_FOG}`}>
         <bufferAttribute attach="attributes-position" array={buffers.positions} count={PARTICLE_COUNT} itemSize={3} />
         <bufferAttribute attach="attributes-aPhase"   array={buffers.phases}    count={PARTICLE_COUNT} itemSize={1} />
         <bufferAttribute attach="attributes-aSpeed"   array={buffers.speeds}    count={PARTICLE_COUNT} itemSize={1} />
@@ -308,6 +333,7 @@ export default function SedimentFlow({
         <bufferAttribute attach="attributes-aSize"    array={buffers.sizes}     count={PARTICLE_COUNT} itemSize={1} />
         <bufferAttribute attach="attributes-aMass"    array={buffers.masses}    count={PARTICLE_COUNT} itemSize={1} />
         <bufferAttribute attach="attributes-aErupt"   array={buffers.erupts}    count={PARTICLE_COUNT} itemSize={1} />
+        <bufferAttribute attach="attributes-aRole" array={buffers.roles} count={PARTICLE_COUNT} itemSize={1} />
       </bufferGeometry>
       <shaderMaterial
         ref={materialRef}
@@ -315,7 +341,13 @@ export default function SedimentFlow({
         fragmentShader={fragmentShader}
         uniforms={uniforms}
         transparent
-        blending={blending}
+        blending={premultiplied ? THREE.CustomBlending : blending}
+        blendEquation={THREE.AddEquation}
+        blendSrc={THREE.OneFactor}
+        blendDst={THREE.OneMinusSrcAlphaFactor}
+        blendEquationAlpha={THREE.AddEquation}
+        blendSrcAlpha={THREE.OneFactor}
+        blendDstAlpha={THREE.OneMinusSrcAlphaFactor}
         depthWrite={false}
       />
     </points>

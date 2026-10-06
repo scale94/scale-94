@@ -2,7 +2,8 @@ import { useRef, useMemo, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { PLANET_WINDOW_VS, PLANET_WINDOW_FS } from '../mercury/planet/planetWindow';
-import { R_SCENE } from '../mercury/planet/planetLook';
+import { R_SCENE, PLANET_TUNE } from '../mercury/planet/planetLook';
+import { GAS_STREAK_VS, GAS_STREAK_FS, GAS_TUNE_UNIFORMS, writeGasTune, gasPointMax, gasRoles, FIRE_EMBER_SHARE } from '../mercury/planet/gasStreak';
 import { createAetherClock, configureAetherClock, tickAetherClock } from '../mercury/planet/aetherClock';
 
 // ── GLSL ───────────────────────────────────────────────────────────────────
@@ -21,7 +22,7 @@ const vertexShader = /* glsl */ `
   attribute float aSeed;      // spawn position seed [0,1]
   attribute float aSize;      // base screen size [0,1] → 0–5 px
   attribute float aTemp;      // inherent temperature bias [0,1]
-  attribute float aEmber;     // 0 = flame, 1 = ember (flies sideways)
+  attribute float aEmber;     // role: 0 = flame body (fog), 1 = ember (filament) — mirror-sky spec §3f
 
   varying float vAge;
   varying float vTemp;
@@ -86,35 +87,35 @@ const vertexShader = /* glsl */ `
     ) / (2.0*e);
   }
 
-  void main(){
+  ${GAS_STREAK_VS}
+
+  // The flame's own motion alone (rise, taper, ember escape) at life phase ph; age out (respawn guard).
+  vec3 flamePos(float ph, out float age) {
     // Per-particle lifecycle: age 0 = newborn at base, 1 = ash at tip
     float lifeMult = 0.4 + aSpeed * 0.6;
-    float age = fract(aPhase + uPhase * lifeMult);
-    vAge = age;
-
+    age = fract(aPhase + ph * lifeMult);
     // ── Spawn: uniform disk via sqrt for even area distribution ─────────
     float spawnR     = sqrt(aSeed) * uFlameWidth;
     float spawnAngle = fract(aSeed * 6.3791 + 0.17) * 6.28318;
     float sx = spawnR * cos(spawnAngle);
     float sz = spawnR * sin(spawnAngle);
-
-    // ── Flame particles: rise with tapering cone shape ───────────────────
-    // Embers: drift sideways and upward, escaping the cone
+    // ── Flame particles: rise with tapering cone shape; embers drift sideways, escaping the cone ──
     float riseSpeed  = mix(2.4, 3.5, aTemp);   // hot particles rise faster
     float riseY      = age * riseSpeed;
     float taper      = max(0.0, 1.0 - age * 1.35);  // cone narrows to a tip
     float emberDrift = aEmber * age * 1.8;
-
     // Ember lateral escape direction encoded in aSeed
     float escapeAngle = fract(aSeed * 9.137 + 0.43) * 6.28318;
-    float ex = cos(escapeAngle) * emberDrift;
-    float ez = sin(escapeAngle) * emberDrift;
+    return vec3(sx * taper + cos(escapeAngle) * emberDrift, -1.1 + riseY, sz * taper + sin(escapeAngle) * emberDrift);
+  }
 
-    vec3 pos = vec3(
-      sx * taper + ex,
-      -1.1 + riseY,
-      sz * taper + ez
-    );
+  void main(){
+    float age, agePrev;
+    vec3 core = flamePos(uPhase, age);
+    vec3 prevCore = flamePos(uPhase - STREAK_DT * uPhaseRate, agePrev);
+    vAge = age;
+    float spawnR = sqrt(aSeed) * uFlameWidth;   // the temperature block's coreProx reads it
+    vec3 pos = core;
 
     // ── Multi-octave turbulence (bell-shaped — peaks at mid-flame) ───────
     float turbEnvelope = sin(age * 3.14159) * uTurbulence;  // zero at birth/death
@@ -128,6 +129,7 @@ const vertexShader = /* glsl */ `
     pos.x += snoise(pos * 5.5 + vec3(st,   0.0,  0.0)) * 0.035;
     pos.z += snoise(pos * 5.5 + vec3(0.0,  0.0,  st*1.1)) * 0.035;
     pos.y += snoise(pos * 4.0 + vec3(0.0,  st*0.7, 0.0)) * 0.02;
+    vec3 prev = prevCore + (pos - core); // the streak shows the current, not the turbulence
 
     // ── Temperature: hottest at base center, cools as it rises ──────────
     float coreProx = max(0.0, 1.0 - (spawnR / uFlameWidth));
@@ -143,22 +145,32 @@ const vertexShader = /* glsl */ `
     // aSize [0,1] maps to 0–5 base units; shrinks as particle ages
     float baseSize   = aSize * 5.0;
     float sizeFactor = max(0.1, 1.0 - age * 0.7);
-    // Embers stay small; flame particles can be large near base
-    float emberShrink = mix(1.0, 0.5, aEmber);
 
     // Nebula condensation — see ParticleFlow.jsx for the physics note.
     pos *= 1.0 - uCondense * uCondense;
+    prev *= 1.0 - uCondense * uCondense;
 
     vec4 mvPos = modelViewMatrix * vec4(pos, 1.0);
+    vec4 mvPrev = modelViewMatrix * vec4(prev, 1.0);
     float depth  = max(-mvPos.z, 0.5);
-    gl_PointSize = min(baseSize * sizeFactor * emberShrink * (80.0 / depth), uPointSizeMax) * (1.0 - uCondense * uCondenseSizeBite);
+    float bite = 1.0 - uCondense * uCondenseSizeBite;
+    // Fog = the old flame-body sprite; embers = small round dots that shrink with age (mirror-sky spec §3f).
+    float fogSize = min(baseSize * sizeFactor * (80.0 / depth), uPointSizeMax) * bite;
+    float filW = gasFilWidth(depth, aSize, bite * sizeFactor);
+    float size = aEmber < 0.5 ? fogSize : filW;
     gl_Position  = projectionMatrix * mvPos;
+    // Embers stretch ≤ 1.5x (jitter pinned at 0.5 so the cap is exact), never across a respawn.
+    float emberStretch = agePrev > age ? 1.0 : FIRE_EMBER_STRETCH;
+    gl_PointSize = gasSprite(gl_Position, projectionMatrix * mvPrev, aEmber, size, emberStretch, 0.5);
+    // No lane mask on fire: body × fogAlpha; embers × filAlpha × FIRE_EMBER_GAIN (the old alpha was sized for big discs).
+    vLane = gasRoleAlpha(aEmber) * mix(1.0, FIRE_EMBER_GAIN, aEmber);
     planetWindowVS(mvPos.xyz);
   }
 `;
 
 const fragmentShader = /* glsl */ `
   ${PLANET_WINDOW_FS}
+  ${GAS_STREAK_FS}
   uniform float uOpacity;
   varying float vAge;
   varying float vTemp;
@@ -167,7 +179,7 @@ const fragmentShader = /* glsl */ `
   void main(){
     // Circular soft sprite — clamp PointCoord for mobile driver safety
     vec2  pc    = clamp(gl_PointCoord, vec2(0.0), vec2(1.0));
-    float d     = length(pc - 0.5) * 2.0;
+    float d     = gasStreakDist(pc);
     float alpha = 1.0 - smoothstep(0.1, 1.0, d);
     if (alpha < 0.004) discard;
 
@@ -199,25 +211,22 @@ const fragmentShader = /* glsl */ `
     float finalAlpha = alpha * vAlpha * (0.006 + vTemp * 0.012);
     // Banding dither — see ParticleFlow.jsx for the physics note.
     float dither = (fract(sin(dot(gl_FragCoord.xy + gl_PointCoord * 61.803, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;
-    gl_FragColor = vec4(col, (finalAlpha * uOpacity) * planetWindow() + dither);
+    // Embers: no gasTaper (a round dot ≤ 1.5x; the taper would dim its rim). Task 7c premultiplied output.
+    gl_FragColor = gasOut(col, (finalAlpha * uOpacity * vLane) * planetWindow(), dither);
   }
 `;
 
 // ── Buffer init ────────────────────────────────────────────────────────────
-function buildBuffers(count) {
-  // Reserve 15% for ember-type particles
-  const emberCutoff = 0.85;
-
+function buildBuffers(count, nFog) {
   const positions = new Float32Array(count * 3);
   const phases    = new Float32Array(count);
   const speeds    = new Float32Array(count);
   const seeds     = new Float32Array(count);
   const sizes     = new Float32Array(count);
   const temps     = new Float32Array(count);
-  const embers    = new Float32Array(count);
+  const embers    = gasRoles(count, nFog);   // the filament role IS the ember (mirror-sky spec §3f; was a random 15 %)
 
   for (let i = 0; i < count; i++) {
-    const r = Math.random();
     positions[i * 3]     = (Math.random() * 2 - 1) * 0.9;
     positions[i * 3 + 1] = (Math.random() * 2 - 1) * 1.5;
     positions[i * 3 + 2] = (Math.random() * 2 - 1) * 0.9;
@@ -227,7 +236,6 @@ function buildBuffers(count) {
     // Skew sizes: many tiny (0–2px), fewer large (2–5px)
     sizes[i]   = Math.pow(Math.random(), 1.4);
     temps[i]   = Math.random();
-    embers[i]  = r > emberCutoff ? 1.0 : 0.0;
   }
   return { positions, phases, speeds, seeds, sizes, temps, embers };
 }
@@ -239,25 +247,30 @@ export default function ThermalFlow({
   turbulence        = 0.40,
   flameWidth        = 0.85,
   density           = null,
+  fogCount = null,
   onFps             = null,
   opacityMultiplier = 1,
   condense = 0,
   condenseSizeBite = 0.6,
   planetWindow = 0,
   blending = THREE.AdditiveBlending,
+  premultiplied = false, // MercuryCanvas: one-draw premultiplied blend, body = normal, embers additive (Task 7c)
   aetherClock = null,
 }) {
   const PARTICLE_COUNT = density ?? (isMobile ? 4000 : 10000);
+  const N_FOG = fogCount ?? PARTICLE_COUNT - Math.round(PARTICLE_COUNT * FIRE_EMBER_SHARE); // MercuryCanvas passes gasCounts(…, true).fog
   const materialRef = useRef();
   const fpsFrames   = useRef(0);
   const fpsTime     = useRef(0);
 
-  const buffers = useMemo(() => buildBuffers(PARTICLE_COUNT), [PARTICLE_COUNT]);
+  const buffers = useMemo(() => buildBuffers(PARTICLE_COUNT, N_FOG), [PARTICLE_COUNT, N_FOG]);
 
   // Created ONCE — see ParticleFlow.jsx for the stale-upload-bond note.
   const [uniforms] = useState(() => ({
     uTime: { value: 0 },
     uPhase: { value: 0 },
+    uPhaseRate: { value: 0 },
+    ...GAS_TUNE_UNIFORMS(PLANET_TUNE),
     uTurbulence:   { value: turbulence },
     uFlameWidth:   { value: flameWidth },
     uPointSizeMax: { value: isMobile ? 32.0 : 64.0 },
@@ -267,6 +280,7 @@ export default function ThermalFlow({
     uPlanetWindow: { value: planetWindow },
     uViewportPx: { value: new THREE.Vector2(1, 1) },
     uPlanetRadius: { value: R_SCENE },
+    uPremult: { value: premultiplied ? 1 : 0 },
   }));
 
   // The shared aether clock (MercuryCanvas); standalone use runs its own from the props.
@@ -279,6 +293,8 @@ export default function ThermalFlow({
     if (mat) {
       mat.uniforms.uTime.value = clk.t;
       mat.uniforms.uPhase.value = clk.phase.thermal;
+      mat.uniforms.uPhaseRate.value = clk.rate.thermal;
+      writeGasTune(mat.uniforms, PLANET_TUNE, state.gl.getPixelRatio(), gasPointMax(state.gl));
       mat.uniforms.uTurbulence.value  = turbulence;
       mat.uniforms.uFlameWidth.value  = flameWidth;
       mat.uniforms.uOpacity.value     = opacityMultiplier;
@@ -300,7 +316,7 @@ export default function ThermalFlow({
 
   return (
     <points frustumCulled={false}>
-      <bufferGeometry key={PARTICLE_COUNT}>
+      <bufferGeometry key={`${PARTICLE_COUNT}:${N_FOG}`}>
         <bufferAttribute attach="attributes-position" array={buffers.positions} count={PARTICLE_COUNT} itemSize={3} />
         <bufferAttribute attach="attributes-aPhase"   array={buffers.phases}    count={PARTICLE_COUNT} itemSize={1} />
         <bufferAttribute attach="attributes-aSpeed"   array={buffers.speeds}    count={PARTICLE_COUNT} itemSize={1} />
@@ -315,7 +331,13 @@ export default function ThermalFlow({
         fragmentShader={fragmentShader}
         uniforms={uniforms}
         transparent
-        blending={blending}
+        blending={premultiplied ? THREE.CustomBlending : blending}
+        blendEquation={THREE.AddEquation}
+        blendSrc={THREE.OneFactor}
+        blendDst={THREE.OneMinusSrcAlphaFactor}
+        blendEquationAlpha={THREE.AddEquation}
+        blendSrcAlpha={THREE.OneFactor}
+        blendDstAlpha={THREE.OneMinusSrcAlphaFactor}
         depthWrite={false}
       />
     </points>
