@@ -14,6 +14,7 @@ import MercuryPerfHud from './MercuryPerfHud';
 import { TIERS, pickTier, perfHudOn } from './planet/planetQuality';
 import { CAMERA_DIST, CAMERA_FOV_DEG } from './planet/planetLook';
 import { gasCounts } from './planet/gasStreak';
+import { precompileHidden } from './planet/precompileHidden';
 import usePhaseTransition from './usePhaseTransition';
 import useCalm from './useCalm';
 import { createAetherClock, configureAetherClock } from './planet/aetherClock';
@@ -36,6 +37,19 @@ function StageCameraFit({ isMobile }) {
     camera.updateProjectionMatrix();
     invalidate();
   }, [camera, dist, invalidate]);
+  return null;
+}
+
+// Builds the four gas programs at boot while their flows are hidden, so the first tap of an element never compiles mid-switch.
+function PrecompileGasFlows() {
+  const gl = useThree((s) => s.gl);
+  const scene = useThree((s) => s.scene);
+  const camera = useThree((s) => s.camera);
+  useEffect(() => {
+    const flows = [];
+    scene.traverse((o) => { if (o.isPoints && o.material?.uniforms?.uOpacity) flows.push(o); });
+    try { precompileHidden(gl, scene, camera, flows)?.catch(() => {}); } catch { /* the old first-tap compile */ }
+  }, [gl, scene, camera]);
   return null;
 }
 
@@ -160,6 +174,8 @@ export default function MercuryCanvas({
           condenseSizeBite={TUNE.condenseSizeBite}
           planetWindow={1}
         />
+
+        <PrecompileGasFlows />
 
         <MercuryPlanet
           isMobile={isMobile}

@@ -19,6 +19,11 @@ describe('MercuryCanvas — neutral state wiring', () => {
     expect(canvasSrc.match(/condense=\{0\}/g)?.length).toBe(4);
     expect(canvasSrc).not.toMatch(/condenseFor|phaseCondense|sphereState|pendingPhase/);
   });
+  it('precompiles the hidden flows at mount', () => {
+    expect(canvasSrc).toContain("import { precompileHidden } from './planet/precompileHidden';");
+    expect(canvasSrc).toContain('precompileHidden(gl, scene, camera, flows)');
+    expect(canvasSrc).toContain('<PrecompileGasFlows />');
+  });
   it('reports the phase from the machine, not from the tap', () => {
     expect(canvasSrc).toMatch(/useEffect\(\(\) => \{\s*onPhaseChange\?\.\(activePhase\);\s*\}, \[activePhase, onPhaseChange\]\);/);
     expect(canvasSrc).toMatch(/const handleNodeTap = useCallback\(\(phase\) => \{\s*triggerTransition\(phase\);\s*\}, \[triggerTransition\]\);/);
