@@ -19,7 +19,7 @@ const STREAKED = {
     core: 'vec3 knotPos(float ph, out vec3 center) {',
     fogSize: 'float fogSize = (1.5 + aRadius * 2.0) * (300.0 / -mvPosition.z) * (1.0 - uCondense * uCondenseSizeBite);',
     filW: 'float filW = gasFilWidth(-mvPosition.z, aRadius, 1.0 - uCondense * uCondenseSizeBite);',
-    sprite: 'gl_PointSize = gasSpriteThread(gl_Position, projectionMatrix * mvPrev, clipBack, clipAhead, aRole, size, FIL_ASPECT, gasHash(aPhase, aRadius));',
+    sprite: 'gl_PointSize = gasSpriteThread(gl_Position, projectionMatrix * mvPrev, clipBack, clipAhead, aRole, size, FIL_ASPECT, gasHash(aPhase, aRadius), fray);',
   },
   air: {
     src: atmoSrc,
@@ -27,7 +27,7 @@ const STREAKED = {
     core: 'vec3 orbitPos(float ph, out float angle) {',
     fogSize: 'float fogSize = baseSize * (260.0 / -mvPos.z) * (1.0 - uCondense * uCondenseSizeBite);',
     filW: 'float filW = gasFilWidth(-mvPos.z, aSize, 1.0 - uCondense * uCondenseSizeBite);',
-    sprite: 'gl_PointSize = gasSpriteThread(gl_Position, projectionMatrix * mvPrev, clipBack, clipAhead, aRole, size, AIR_FIL_ASPECT, gasHash(aPhase, aSeed));',
+    sprite: 'gl_PointSize = gasSpriteThread(gl_Position, projectionMatrix * mvPrev, clipBack, clipAhead, aRole, size, AIR_FIL_ASPECT, gasHash(aPhase, aSeed), fray);',
   },
 };
 
@@ -279,7 +279,7 @@ describe('gas threads look round 2 (Task 7e)', () => {
   });
 
   it('air filaments: their own live gain knob (uAirFilGain), filaments only; fluid untouched', () => {
-    expect(atmoSrc).toContain('vLane = gasAlpha(aRole, gasThreadCoord(aLane, aPhase), uTime) * (aRole < 0.5 ? 1.0 : uAirFilGain);');
+    expect(atmoSrc).toContain('vLane = gasAlpha(aRole, gasThreadCoord(aLane, aPhase), uTime) * (aRole < 0.5 ? 1.0 : uAirFilGain) / fray;');
     expect(particleSrc).not.toContain('uAirFilGain');
   });
 });
@@ -349,7 +349,7 @@ describe('air threads as streamlines (Task 7e fix 2)', () => {
     for (const c of ['AIR_FIL_CURL', 'AIR_FIL_ASPECT']) expect(atmoSrc).toContain(`const float ${c} = \${glf(${c})};`);
     expect(atmoSrc).toContain('pos += curl * uTurbulence * 0.3 * (aRole < 0.5 ? 1.0 : AIR_FIL_CURL);');
     expect(atmoSrc).toMatch(/if \(aRole < 0\.5\) \{\s*pos\.x \+= snoise\(pos \* 5\.0 \+ vec3\(st, 0\.0, aPhase\)\) \* 0\.03;\s*pos\.z \+= snoise\(pos \* 5\.0 \+ vec3\(aPhase, 0\.0, st \* 1\.1\)\) \* 0\.03;\s*\}/);
-    expect(particleSrc).toContain('clipBack, clipAhead, aRole, size, FIL_ASPECT, gasHash(aPhase, aRadius));');
+    expect(particleSrc).toContain('clipBack, clipAhead, aRole, size, FIL_ASPECT, gasHash(aPhase, aRadius), fray);');
   });
 
   it('air pace per hemisphere: upper and lower non-ion particle-weighted aSpeed each near 0.5 (the sky drives each at AIR_ORBIT_MEAN)', () => {
@@ -610,5 +610,15 @@ describe('fire (spec §3f): fog = the flame body, filament = embers only', () =>
     expect(thermalSrc).toContain('useMemo(() => buildBuffers(PARTICLE_COUNT, N_FOG), [PARTICLE_COUNT, N_FOG])');
     expect(thermalSrc).toContain('<bufferGeometry key={`${PARTICLE_COUNT}:${N_FOG}`}>');
     expect(thermalSrc).toContain('<bufferAttribute attach="attributes-aEmber"   array={buffers.embers}    count={PARTICLE_COUNT} itemSize={1} />');
+  });
+});
+
+describe('soft threads §2: flows opt in', () => {
+  it('fluid + air: the fray widens the drawn filament and divides its alpha (light conserved); fog wk = 1', () => {
+    for (const src of [particleSrc, atmoSrc]) {
+      expect(src).toContain('float fray = aRole < 0.5 ? 1.0 : gasFray(gasThreadCoord(aLane, aPhase), uTime);');
+      expect(src).toMatch(/gasHash\(aPhase, a(Radius|Seed)\), fray\);/);
+      expect(src).toMatch(/\/ fray;/);
+    }
   });
 });

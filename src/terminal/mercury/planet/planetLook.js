@@ -75,6 +75,8 @@ export const PLANET_TUNE = {
   filHalo: 2.5,      // soft threads §1: filament quad width × this (the Gaussian tail; length caps stay on the core width)
   filEdgeDesat: 0.45, // §4: filament edges fall toward their own luminance by this
   filCoreLift: 0.15,  // §4: filament core lifts toward white by this
+  filWidthVar: 0.35, // §2: a pinched stretch draws at (1 - this) × the core width (alpha ÷ the factor: light conserved)
+  filFray: 2,        // §2: a frayed stretch draws at (1 + this) × the core width
   emberSize: 1.75,   // fire embers only: width × this (the body untouched; stretch cap FIRE_EMBER_STRETCH kept; Task 8b)
   emberGain: 1.75,   // fire embers only: alpha × this on top of filAlpha × FIRE_EMBER_GAIN (Task 8b)
   earthStreakGain: 5, // earth filaments only: shutter × this; settling dust ~32 px/s p50 → aspect p50 ~4.8 (was 1.75); cap FIL_ASPECT; Task 8b

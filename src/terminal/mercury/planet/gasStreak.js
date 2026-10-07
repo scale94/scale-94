@@ -48,6 +48,7 @@ export const THREAD_CROSS_CLIP = 2.5;    // cross-lane jitter = a unit normal cl
 export const FIL_PROFILE_K = 1;
 export const FIL_OLD_CROSS = 1.3;
 export const FIL_PROFILE_PEAK = FIL_OLD_CROSS / Math.sqrt(Math.PI / FIL_PROFILE_K);
+export const GAS_FRAY_Z = 11; // fray noise z offset: the same seamless lane label as the mask, decorrelated from it
 export const THREAD_WEIGHT_FLOOR = 0.35; // lane weight = floor + Exp(1): uneven (dense + faint threads), none vanishing
 
 // Particle counts for one flow (spec §3e): `base` = its old count (params.density), `mult` = the
@@ -229,6 +230,8 @@ uniform float uEmberGain;
 uniform float uEarthStreakGain;
 uniform float uPointMax;
 uniform float uFilHalo;
+uniform float uFilWidthVar;
+uniform float uFilFray;
 varying vec2 vStreakDir;
 varying vec2 vStreakDir2;
 varying vec3 vStreakCap;
@@ -246,6 +249,7 @@ const float FIL_GAP_CLOSE = ${glf(FIL_GAP_CLOSE)};
 const float FIL_GAP_ASPECT = ${glf(FIL_GAP_ASPECT)};
 const float GAS_MASK_LOOP = ${glf(GAS_MASK_LOOP)};
 const float GAS_MASK_LANE_GAP = ${glf(GAS_MASK_LANE_GAP)};
+const float GAS_FRAY_Z = ${glf(GAS_FRAY_Z)};
 
 float gasHash(float a, float b) {
   return fract(sin(a * 91.7 + b * 47.3) * 43758.5453);
@@ -269,7 +273,7 @@ vec2 gasScreenPx(vec4 clip) {
 // dash stepped sideways from its neighbours on the knot's bends). No thread: vStreakDir2 = vStreakDir, one straight dash.
 // gain: the shutter (s) for the speed part; gasSpriteThread / gasSprite pass uStreakGain, earth passes
 // uStreakGain x uEarthStreakGain (gasSpriteGain, Task 8b).
-float gasSpriteCore(vec4 clipNow, vec4 clipPrev, vec4 clipBack, vec4 clipAhead, float role, float size, float aspectMax, float jit, float gain, float halo) {
+float gasSpriteCore(vec4 clipNow, vec4 clipPrev, vec4 clipBack, vec4 clipAhead, float role, float size, float aspectMax, float jit, float gain, float halo, float wk) {
   vRole = role;
   if (role < 0.5) {
     vStreakDir = vec2(1.0, 0.0);
@@ -292,7 +296,7 @@ float gasSpriteCore(vec4 clipNow, vec4 clipPrev, vec4 clipBack, vec4 clipAhead, 
   vec2 dir = tl > 1e-3 ? tng / tl : (sp > 1e-3 ? v / sp : vec2(1.0, 0.0));
   float L = min(sp * gain, max(aspectMax - 1.0, 0.0) * w) * (1.0 + FIL_JITTER * (2.0 * jit - 1.0));
   L = max(L, min(FIL_GAP_CLOSE * gapPx - w, (FIL_GAP_ASPECT - 1.0) * w));
-  float wq = w * halo; // the drawn quad: room for the Gaussian tail (caps and length stay on the core w)
+  float wq = w * halo * wk; // drawn quad: Gaussian tail × the fray (caps and length stay on the core w)
   L = min(L, max(uPointMax - wq, 0.0));
   float total = wq + L;
   vec2 dA = pAhead - pNow;
@@ -301,22 +305,22 @@ float gasSpriteCore(vec4 clipNow, vec4 clipPrev, vec4 clipBack, vec4 clipAhead, 
   vec2 dirB = tl > 1e-3 && length(dB) > 1e-3 ? normalize(dB) : dir;
   vStreakDir = vec2(dirA.x, -dirA.y); // point coords: y down
   vStreakDir2 = vec2(dirB.x, -dirB.y);
-  vStreakCap = vec3(0.5 * L / total, 0.5 * w / total, 0.5 * (L + w) / total); // z: the capsule end (the taper's 0.5)
+  vStreakCap = vec3(0.5 * L / total, 0.5 * w * wk / total, 0.5 * (L + w) / total); // y: the drawn (frayed) half-width; z: the capsule end (the taper's 0.5)
   return total;
 }
 
-float gasSpriteThread(vec4 clipNow, vec4 clipPrev, vec4 clipBack, vec4 clipAhead, float role, float size, float aspectMax, float jit) {
-  return gasSpriteCore(clipNow, clipPrev, clipBack, clipAhead, role, size, aspectMax, jit, uStreakGain, max(uFilHalo, 1.0));
+float gasSpriteThread(vec4 clipNow, vec4 clipPrev, vec4 clipBack, vec4 clipAhead, float role, float size, float aspectMax, float jit, float wk) {
+  return gasSpriteCore(clipNow, clipPrev, clipBack, clipAhead, role, size, aspectMax, jit, uStreakGain, max(uFilHalo, 1.0), wk);
 }
 
 float gasSprite(vec4 clipNow, vec4 clipPrev, float role, float size, float aspectMax, float jit) {
-  return gasSpriteCore(clipNow, clipPrev, clipNow, clipNow, role, size, aspectMax, jit, uStreakGain, 1.0);
+  return gasSpriteCore(clipNow, clipPrev, clipNow, clipNow, role, size, aspectMax, jit, uStreakGain, 1.0, 1.0);
 }
 
 // No thread, own shutter (earth, Task 8b): the dash lies along the time secant (the settling direction), length =
 // on-screen speed x gain, the cap (aspectMax) and the uPointMax guard unchanged.
 float gasSpriteGain(vec4 clipNow, vec4 clipPrev, float role, float size, float aspectMax, float jit, float gain) {
-  return gasSpriteCore(clipNow, clipPrev, clipNow, clipNow, role, size, aspectMax, jit, gain, 1.0);
+  return gasSpriteCore(clipNow, clipPrev, clipNow, clipNow, role, size, aspectMax, jit, gain, 1.0, 1.0);
 }
 
 float gasLane(vec3 laneCoord, float t) {
@@ -328,6 +332,14 @@ float gasLane(vec3 laneCoord, float t) {
 vec3 gasThreadCoord(float lane, float along) {
   float a = along * 6.283185307;
   return vec3(cos(a) * GAS_MASK_LOOP + lane * GAS_MASK_LANE_GAP, sin(a) * GAS_MASK_LOOP, 0.0);
+}
+
+// Rendered fray (soft threads §2): the drawn width factor along a thread, on the same seamless lane label as the mask
+// (z-offset: decorrelated), slowly evolving. Wide = a diffuse ribbon, narrow = a bright core; the caller divides the
+// alpha by it, so the light across the thread is conserved. Never moves a particle (the staircase lesson, 7f/7g).
+float gasFray(vec3 laneCoord, float t) {
+  float f = clamp(0.5 + 0.5 * snoise(laneCoord * uMaskFreq + vec3(0.0, 0.0, GAS_FRAY_Z + t * MASK_EVOLVE)), 0.0, 1.0);
+  return mix(1.0 - uFilWidthVar, 1.0 + uFilFray, f);
 }
 
 float gasAlpha(float role, vec3 laneCoord, float t) {
@@ -395,7 +407,8 @@ vec4 gasOut(vec3 color, float a, float dither) {
 const GAS_TUNE = [['uStreakGain', 'streakGain'], ['uFilWidth', 'filWidth'], ['uFilAlpha', 'filAlpha'],
   ['uFogAlpha', 'fogAlpha'], ['uMaskFreq', 'maskFreq'], ['uMaskSharp', 'maskSharp'], ['uMaskDepth', 'maskDepth'],
   ['uAirFilGain', 'airFilGain'], ['uEmberSize', 'emberSize'], ['uEmberGain', 'emberGain'],
-  ['uEarthStreakGain', 'earthStreakGain'], ['uFilHalo', 'filHalo'], ['uFilEdgeDesat', 'filEdgeDesat'], ['uFilCoreLift', 'filCoreLift']];
+  ['uEarthStreakGain', 'earthStreakGain'], ['uFilHalo', 'filHalo'], ['uFilEdgeDesat', 'filEdgeDesat'], ['uFilCoreLift', 'filCoreLift'],
+  ['uFilWidthVar', 'filWidthVar'], ['uFilFray', 'filFray']];
 
 export const GAS_POINT_MAX_UNKNOWN = 1e4; // no clamp when the limit can't be read (non-WebGL contexts, tests)
 

@@ -204,9 +204,10 @@ const vertexShader = /* glsl */ `
       clipBack = projectionMatrix * (modelViewMatrix * vec4(airDisplace(orbitAt(angle - dA), angle - dA) * squash, 1.0));
       clipAhead = projectionMatrix * (modelViewMatrix * vec4(airDisplace(orbitAt(angle + dA), angle + dA) * squash, 1.0));
     }
-    gl_PointSize = gasSpriteThread(gl_Position, projectionMatrix * mvPrev, clipBack, clipAhead, aRole, size, AIR_FIL_ASPECT, gasHash(aPhase, aSeed));
-    // Fog: × fogAlpha. Filaments: the mask runs along each thread (lane id + orbit label), slowly evolving, × filAlpha.
-    vLane = gasAlpha(aRole, gasThreadCoord(aLane, aPhase), uTime) * (aRole < 0.5 ? 1.0 : uAirFilGain);
+    float fray = aRole < 0.5 ? 1.0 : gasFray(gasThreadCoord(aLane, aPhase), uTime);
+    gl_PointSize = gasSpriteThread(gl_Position, projectionMatrix * mvPrev, clipBack, clipAhead, aRole, size, AIR_FIL_ASPECT, gasHash(aPhase, aSeed), fray);
+    // Fog: × fogAlpha. Filaments: the mask runs along each thread (lane id + orbit label), slowly evolving, × filAlpha, ÷ the fray.
+    vLane = gasAlpha(aRole, gasThreadCoord(aLane, aPhase), uTime) * (aRole < 0.5 ? 1.0 : uAirFilGain) / fray;
     planetWindowVS(mvPos.xyz);
     aetherLightVS(mvPos.xyz, size);
   }

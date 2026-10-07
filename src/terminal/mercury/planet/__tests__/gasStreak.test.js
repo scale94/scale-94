@@ -5,7 +5,7 @@ import { glf } from '../../../gl/glf';
 import {
   GAS_STREAK_VS, GAS_STREAK_FS, STREAK_DT, FIL_ASPECT, FIL_JITTER, FIRE_EMBER_STRETCH, FIRE_EMBER_GAIN, FIRE_EMBER_SHARE,
   GAS_PX_FLOOR, GAS_Z_REF, MASK_EVOLVE, FIL_GAP_CLOSE, FIL_GAP_ASPECT, FIL_TAPER, gasCounts, gasPointMax, GAS_POINT_MAX_UNKNOWN, gasRoles, GAS_TUNE_UNIFORMS, writeGasTune,
-  gasThreads, FIL_PROFILE_K, FIL_OLD_CROSS, FIL_PROFILE_PEAK, gasStratified, gasPaceMatch, THREAD_ALONG_JITTER, THREAD_CROSS_CLIP, THREAD_WEIGHT_FLOOR, GAS_MASK_LOOP, GAS_MASK_LANE_GAP,
+  gasThreads, FIL_PROFILE_K, FIL_OLD_CROSS, FIL_PROFILE_PEAK, gasStratified, gasPaceMatch, THREAD_ALONG_JITTER, THREAD_CROSS_CLIP, THREAD_WEIGHT_FLOOR, GAS_MASK_LOOP, GAS_MASK_LANE_GAP, GAS_FRAY_Z,
 } from '../gasStreak';
 import { mulberry32 } from '../prng';
 import { PLANET_TUNE } from '../planetLook';
@@ -92,7 +92,7 @@ describe('gasSprite (spec §3c)', () => {
     expect(GAS_STREAK_VS).toContain('vStreakDir = vec2(dirA.x, -dirA.y); // point coords: y down');
     expect(GAS_STREAK_VS).toContain('vec2 dirA = tl > 1e-3 && length(dA) > 1e-3 ? normalize(dA) : dir;');
     expect(GAS_STREAK_VS).toContain('vec2 dirB = tl > 1e-3 && length(dB) > 1e-3 ? normalize(dB) : dir;');
-    expect(GAS_STREAK_VS).toContain('vStreakCap = vec3(0.5 * L / total, 0.5 * w / total, 0.5 * (L + w) / total);');
+    expect(GAS_STREAK_VS).toContain('vStreakCap = vec3(0.5 * L / total, 0.5 * w * wk / total, 0.5 * (L + w) / total);');
     expect(sprite(1, 0.5, 0).total).toBe(GAS_PX_FLOOR);                 // calm or sub-pixel → a 1.5 px round dot
     const f = sprite(1, 2.2, 355);                                      // spec §3g: fluid mean speed, 2.2 px core; shutter 0.05 → ~9x
     expect(f.total / f.w).toBeGreaterThan(8);
@@ -291,8 +291,8 @@ describe('gap-closing filament dashes (Task 7f)', () => {
     expect(FIL_GAP_CLOSE).toBe(1.3);
     expect(FIL_GAP_ASPECT).toBe(24);
     for (const [n, v] of Object.entries({ FIL_GAP_CLOSE, FIL_GAP_ASPECT })) expect(GAS_STREAK_VS).toContain(`const float ${n} = ${glf(v)};`);
-    expect(GAS_STREAK_VS).toContain('float gasSpriteThread(vec4 clipNow, vec4 clipPrev, vec4 clipBack, vec4 clipAhead, float role, float size, float aspectMax, float jit) {');
-    expect(GAS_STREAK_VS).toContain('return gasSpriteCore(clipNow, clipPrev, clipNow, clipNow, role, size, aspectMax, jit, uStreakGain, 1.0);'); // Task 8b: via the core
+    expect(GAS_STREAK_VS).toContain('float gasSpriteThread(vec4 clipNow, vec4 clipPrev, vec4 clipBack, vec4 clipAhead, float role, float size, float aspectMax, float jit, float wk) {');
+    expect(GAS_STREAK_VS).toContain('return gasSpriteCore(clipNow, clipPrev, clipNow, clipNow, role, size, aspectMax, jit, uStreakGain, 1.0, 1.0);'); // Task 8b: via the core
     expect(GAS_STREAK_VS).toContain('vec2 tng = pAhead - pBack;');
     expect(GAS_STREAK_VS).toContain('float gapPx = max(length(pNow - pBack), length(pAhead - pNow));');
     expect(GAS_STREAK_VS).toContain('L = max(L, min(FIL_GAP_CLOSE * gapPx - w, (FIL_GAP_ASPECT - 1.0) * w));');
@@ -388,7 +388,7 @@ describe('tune knobs (spec §3g)', () => {
 
   it('copied per frame without allocation, with the renderer pixel ratio', () => {
     const u = GAS_TUNE_UNIFORMS(PLANET_TUNE);
-    expect(Object.keys(u).sort()).toEqual(['uAirFilGain', 'uDpr', 'uEarthStreakGain', 'uEmberGain', 'uEmberSize', 'uFilAlpha', 'uFilCoreLift', 'uFilEdgeDesat', 'uFilHalo', 'uFilWidth', 'uFogAlpha', 'uMaskDepth', 'uMaskFreq', 'uMaskSharp', 'uPointMax', 'uStreakGain']);
+    expect(Object.keys(u).sort()).toEqual(['uAirFilGain', 'uDpr', 'uEarthStreakGain', 'uEmberGain', 'uEmberSize', 'uFilAlpha', 'uFilCoreLift', 'uFilEdgeDesat', 'uFilFray', 'uFilHalo', 'uFilWidth', 'uFilWidthVar', 'uFogAlpha', 'uMaskDepth', 'uMaskFreq', 'uMaskSharp', 'uPointMax', 'uStreakGain']);
     expect(u.uFilWidth.value).toBe(PLANET_TUNE.filWidth);
     expect(u.uDpr.value).toBe(1);
     const objs = Object.values(u);
@@ -426,11 +426,11 @@ describe('fire ember + earth streak knobs (Task 8b)', () => {
   });
 
   it('one sprite core with the shutter as a parameter: thread/plain sprites pass uStreakGain, gasSpriteGain its own', () => {
-    expect(GAS_STREAK_VS).toContain('float gasSpriteCore(vec4 clipNow, vec4 clipPrev, vec4 clipBack, vec4 clipAhead, float role, float size, float aspectMax, float jit, float gain, float halo) {');
-    expect(GAS_STREAK_VS).toContain('return gasSpriteCore(clipNow, clipPrev, clipBack, clipAhead, role, size, aspectMax, jit, uStreakGain, max(uFilHalo, 1.0));');
-    expect(GAS_STREAK_VS).toContain('return gasSpriteCore(clipNow, clipPrev, clipNow, clipNow, role, size, aspectMax, jit, uStreakGain, 1.0);');
+    expect(GAS_STREAK_VS).toContain('float gasSpriteCore(vec4 clipNow, vec4 clipPrev, vec4 clipBack, vec4 clipAhead, float role, float size, float aspectMax, float jit, float gain, float halo, float wk) {');
+    expect(GAS_STREAK_VS).toContain('return gasSpriteCore(clipNow, clipPrev, clipBack, clipAhead, role, size, aspectMax, jit, uStreakGain, max(uFilHalo, 1.0), wk);');
+    expect(GAS_STREAK_VS).toContain('return gasSpriteCore(clipNow, clipPrev, clipNow, clipNow, role, size, aspectMax, jit, uStreakGain, 1.0, 1.0);');
     expect(GAS_STREAK_VS).toContain('float gasSpriteGain(vec4 clipNow, vec4 clipPrev, float role, float size, float aspectMax, float jit, float gain) {');
-    expect(GAS_STREAK_VS).toContain('return gasSpriteCore(clipNow, clipPrev, clipNow, clipNow, role, size, aspectMax, jit, gain, 1.0);');
+    expect(GAS_STREAK_VS).toContain('return gasSpriteCore(clipNow, clipPrev, clipNow, clipNow, role, size, aspectMax, jit, gain, 1.0, 1.0);');
     expect(GAS_STREAK_VS).not.toContain('sp * uStreakGain');
   });
 
@@ -495,17 +495,17 @@ describe('soft threads §1/§4: Gaussian cross-section, halo quad, fog-core tint
 
   it('halo quad: wq = w x max(filHalo, 1); total = wq + L; caps and the length stay on the core w', () => {
     expect(GAS_STREAK_VS).toContain('uniform float uFilHalo;');
-    expect(GAS_STREAK_VS).toContain('float wq = w * halo;');
+    expect(GAS_STREAK_VS).toContain('float wq = w * halo * wk;');
     expect(GAS_STREAK_VS).toContain('L = min(L, max(uPointMax - wq, 0.0));');
     expect(GAS_STREAK_VS).toContain('float total = wq + L;');
-    expect(GAS_STREAK_VS).toContain('vStreakCap = vec3(0.5 * L / total, 0.5 * w / total, 0.5 * (L + w) / total);');
+    expect(GAS_STREAK_VS).toContain('vStreakCap = vec3(0.5 * L / total, 0.5 * w * wk / total, 0.5 * (L + w) / total);');
     expect(GAS_STREAK_VS).toContain('L = max(L, min(FIL_GAP_CLOSE * gapPx - w, (FIL_GAP_ASPECT - 1.0) * w));');
   });
 
   it('halo only on the thread sprite (fluid + air); gasSprite (thermal) and gasSpriteGain (earth) pass halo 1.0', () => {
-    expect(GAS_STREAK_VS).toContain('return gasSpriteCore(clipNow, clipPrev, clipBack, clipAhead, role, size, aspectMax, jit, uStreakGain, max(uFilHalo, 1.0));');
-    expect(GAS_STREAK_VS).toContain('return gasSpriteCore(clipNow, clipPrev, clipNow, clipNow, role, size, aspectMax, jit, uStreakGain, 1.0);');
-    expect(GAS_STREAK_VS).toContain('return gasSpriteCore(clipNow, clipPrev, clipNow, clipNow, role, size, aspectMax, jit, gain, 1.0);');
+    expect(GAS_STREAK_VS).toContain('return gasSpriteCore(clipNow, clipPrev, clipBack, clipAhead, role, size, aspectMax, jit, uStreakGain, max(uFilHalo, 1.0), wk);');
+    expect(GAS_STREAK_VS).toContain('return gasSpriteCore(clipNow, clipPrev, clipNow, clipNow, role, size, aspectMax, jit, uStreakGain, 1.0, 1.0);');
+    expect(GAS_STREAK_VS).toContain('return gasSpriteCore(clipNow, clipPrev, clipNow, clipNow, role, size, aspectMax, jit, gain, 1.0, 1.0);');
   });
 
   it('taper keyed to the capsule end (vStreakCap.z), so the halo never lengthens the overlap', () => {
@@ -518,5 +518,38 @@ describe('soft threads §1/§4: Gaussian cross-section, halo quad, fog-core tint
     expect(u.uFilHalo.value).toBe(2.5);
     expect(u.uFilEdgeDesat.value).toBe(0.45);
     expect(u.uFilCoreLift.value).toBe(0.15);
+  });
+});
+
+describe('soft threads §2: rendered fray', () => {
+  it('a wider drawn profile divided by its width factor carries the same light (alpha / wk)', () => {
+    const prof = (d) => FIL_PROFILE_PEAK * Math.exp(-FIL_PROFILE_K * d * d);
+    const integ = (f, a, b, n = 20000) => { let s = 0; const h = (b - a) / n; for (let i = 0; i < n; i++) s += f(a + (i + 0.5) * h); return s * h; };
+    const ref = integ(prof, -8, 8);
+    for (const wk of [1 - PLANET_TUNE.filWidthVar, 1, 1 + PLANET_TUNE.filFray]) {
+      expect(integ((x) => prof(x / wk) / wk, -8 * wk, 8 * wk) / ref).toBeCloseTo(1, 4);
+    }
+  });
+
+  it('gasFray: seamless lane label, decorrelated from the mask (z offset), slow (MASK_EVOLVE), range [1 - var, 1 + fray]', () => {
+    expect(GAS_FRAY_Z).toBe(11);
+    expect(GAS_STREAK_VS).toContain(`const float GAS_FRAY_Z = ${glf(GAS_FRAY_Z)};`);
+    expect(GAS_STREAK_VS).toContain('float f = clamp(0.5 + 0.5 * snoise(laneCoord * uMaskFreq + vec3(0.0, 0.0, GAS_FRAY_Z + t * MASK_EVOLVE)), 0.0, 1.0);');
+    expect(GAS_STREAK_VS).toContain('return mix(1.0 - uFilWidthVar, 1.0 + uFilFray, f);');
+  });
+
+  it('wk widens the drawn quad and the profile scale only; L and every cap stay on the core w', () => {
+    expect(GAS_STREAK_VS).toContain('float gasSpriteThread(vec4 clipNow, vec4 clipPrev, vec4 clipBack, vec4 clipAhead, float role, float size, float aspectMax, float jit, float wk) {');
+    expect(GAS_STREAK_VS).toContain('float wq = w * halo * wk;');
+    expect(GAS_STREAK_VS).toContain('vStreakCap = vec3(0.5 * L / total, 0.5 * w * wk / total, 0.5 * (L + w) / total);');
+    expect(GAS_STREAK_VS).toContain('return gasSpriteCore(clipNow, clipPrev, clipNow, clipNow, role, size, aspectMax, jit, uStreakGain, 1.0, 1.0);');
+    expect(GAS_STREAK_VS).toContain('L = max(L, min(FIL_GAP_CLOSE * gapPx - w, (FIL_GAP_ASPECT - 1.0) * w));');
+  });
+
+  it('knobs', () => {
+    expect(PLANET_TUNE).toMatchObject({ filWidthVar: 0.35, filFray: 2 });
+    const u = GAS_TUNE_UNIFORMS(PLANET_TUNE);
+    expect(u.uFilWidthVar.value).toBe(0.35);
+    expect(u.uFilFray.value).toBe(2);
   });
 });
