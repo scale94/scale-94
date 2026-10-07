@@ -292,7 +292,7 @@ describe('gap-closing filament dashes (Task 7f)', () => {
     expect(FIL_GAP_ASPECT).toBe(24);
     for (const [n, v] of Object.entries({ FIL_GAP_CLOSE, FIL_GAP_ASPECT })) expect(GAS_STREAK_VS).toContain(`const float ${n} = ${glf(v)};`);
     expect(GAS_STREAK_VS).toContain('float gasSpriteThread(vec4 clipNow, vec4 clipPrev, vec4 clipBack, vec4 clipAhead, float role, float size, float aspectMax, float jit) {');
-    expect(GAS_STREAK_VS).toContain('return gasSpriteCore(clipNow, clipPrev, clipNow, clipNow, role, size, aspectMax, jit, uStreakGain);'); // Task 8b: via the core
+    expect(GAS_STREAK_VS).toContain('return gasSpriteCore(clipNow, clipPrev, clipNow, clipNow, role, size, aspectMax, jit, uStreakGain, 1.0);'); // Task 8b: via the core
     expect(GAS_STREAK_VS).toContain('vec2 tng = pAhead - pBack;');
     expect(GAS_STREAK_VS).toContain('float gapPx = max(length(pNow - pBack), length(pAhead - pNow));');
     expect(GAS_STREAK_VS).toContain('L = max(L, min(FIL_GAP_CLOSE * gapPx - w, (FIL_GAP_ASPECT - 1.0) * w));');
@@ -426,11 +426,11 @@ describe('fire ember + earth streak knobs (Task 8b)', () => {
   });
 
   it('one sprite core with the shutter as a parameter: thread/plain sprites pass uStreakGain, gasSpriteGain its own', () => {
-    expect(GAS_STREAK_VS).toContain('float gasSpriteCore(vec4 clipNow, vec4 clipPrev, vec4 clipBack, vec4 clipAhead, float role, float size, float aspectMax, float jit, float gain) {');
-    expect(GAS_STREAK_VS).toContain('return gasSpriteCore(clipNow, clipPrev, clipBack, clipAhead, role, size, aspectMax, jit, uStreakGain);');
-    expect(GAS_STREAK_VS).toContain('return gasSpriteCore(clipNow, clipPrev, clipNow, clipNow, role, size, aspectMax, jit, uStreakGain);');
+    expect(GAS_STREAK_VS).toContain('float gasSpriteCore(vec4 clipNow, vec4 clipPrev, vec4 clipBack, vec4 clipAhead, float role, float size, float aspectMax, float jit, float gain, float halo) {');
+    expect(GAS_STREAK_VS).toContain('return gasSpriteCore(clipNow, clipPrev, clipBack, clipAhead, role, size, aspectMax, jit, uStreakGain, max(uFilHalo, 1.0));');
+    expect(GAS_STREAK_VS).toContain('return gasSpriteCore(clipNow, clipPrev, clipNow, clipNow, role, size, aspectMax, jit, uStreakGain, 1.0);');
     expect(GAS_STREAK_VS).toContain('float gasSpriteGain(vec4 clipNow, vec4 clipPrev, float role, float size, float aspectMax, float jit, float gain) {');
-    expect(GAS_STREAK_VS).toContain('return gasSpriteCore(clipNow, clipPrev, clipNow, clipNow, role, size, aspectMax, jit, gain);');
+    expect(GAS_STREAK_VS).toContain('return gasSpriteCore(clipNow, clipPrev, clipNow, clipNow, role, size, aspectMax, jit, gain, 1.0);');
     expect(GAS_STREAK_VS).not.toContain('sp * uStreakGain');
   });
 
@@ -495,11 +495,17 @@ describe('soft threads §1/§4: Gaussian cross-section, halo quad, fog-core tint
 
   it('halo quad: wq = w x max(filHalo, 1); total = wq + L; caps and the length stay on the core w', () => {
     expect(GAS_STREAK_VS).toContain('uniform float uFilHalo;');
-    expect(GAS_STREAK_VS).toContain('float wq = w * max(uFilHalo, 1.0);');
+    expect(GAS_STREAK_VS).toContain('float wq = w * halo;');
     expect(GAS_STREAK_VS).toContain('L = min(L, max(uPointMax - wq, 0.0));');
     expect(GAS_STREAK_VS).toContain('float total = wq + L;');
     expect(GAS_STREAK_VS).toContain('vStreakCap = vec3(0.5 * L / total, 0.5 * w / total, 0.5 * (L + w) / total);');
     expect(GAS_STREAK_VS).toContain('L = max(L, min(FIL_GAP_CLOSE * gapPx - w, (FIL_GAP_ASPECT - 1.0) * w));');
+  });
+
+  it('halo only on the thread sprite (fluid + air); gasSprite (thermal) and gasSpriteGain (earth) pass halo 1.0', () => {
+    expect(GAS_STREAK_VS).toContain('return gasSpriteCore(clipNow, clipPrev, clipBack, clipAhead, role, size, aspectMax, jit, uStreakGain, max(uFilHalo, 1.0));');
+    expect(GAS_STREAK_VS).toContain('return gasSpriteCore(clipNow, clipPrev, clipNow, clipNow, role, size, aspectMax, jit, uStreakGain, 1.0);');
+    expect(GAS_STREAK_VS).toContain('return gasSpriteCore(clipNow, clipPrev, clipNow, clipNow, role, size, aspectMax, jit, gain, 1.0);');
   });
 
   it('taper keyed to the capsule end (vStreakCap.z), so the halo never lengthens the overlap', () => {

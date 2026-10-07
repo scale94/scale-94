@@ -269,7 +269,7 @@ vec2 gasScreenPx(vec4 clip) {
 // dash stepped sideways from its neighbours on the knot's bends). No thread: vStreakDir2 = vStreakDir, one straight dash.
 // gain: the shutter (s) for the speed part; gasSpriteThread / gasSprite pass uStreakGain, earth passes
 // uStreakGain x uEarthStreakGain (gasSpriteGain, Task 8b).
-float gasSpriteCore(vec4 clipNow, vec4 clipPrev, vec4 clipBack, vec4 clipAhead, float role, float size, float aspectMax, float jit, float gain) {
+float gasSpriteCore(vec4 clipNow, vec4 clipPrev, vec4 clipBack, vec4 clipAhead, float role, float size, float aspectMax, float jit, float gain, float halo) {
   vRole = role;
   if (role < 0.5) {
     vStreakDir = vec2(1.0, 0.0);
@@ -292,7 +292,7 @@ float gasSpriteCore(vec4 clipNow, vec4 clipPrev, vec4 clipBack, vec4 clipAhead, 
   vec2 dir = tl > 1e-3 ? tng / tl : (sp > 1e-3 ? v / sp : vec2(1.0, 0.0));
   float L = min(sp * gain, max(aspectMax - 1.0, 0.0) * w) * (1.0 + FIL_JITTER * (2.0 * jit - 1.0));
   L = max(L, min(FIL_GAP_CLOSE * gapPx - w, (FIL_GAP_ASPECT - 1.0) * w));
-  float wq = w * max(uFilHalo, 1.0); // the drawn quad: room for the Gaussian tail (caps and length stay on the core w)
+  float wq = w * halo; // the drawn quad: room for the Gaussian tail (caps and length stay on the core w)
   L = min(L, max(uPointMax - wq, 0.0));
   float total = wq + L;
   vec2 dA = pAhead - pNow;
@@ -306,17 +306,17 @@ float gasSpriteCore(vec4 clipNow, vec4 clipPrev, vec4 clipBack, vec4 clipAhead, 
 }
 
 float gasSpriteThread(vec4 clipNow, vec4 clipPrev, vec4 clipBack, vec4 clipAhead, float role, float size, float aspectMax, float jit) {
-  return gasSpriteCore(clipNow, clipPrev, clipBack, clipAhead, role, size, aspectMax, jit, uStreakGain);
+  return gasSpriteCore(clipNow, clipPrev, clipBack, clipAhead, role, size, aspectMax, jit, uStreakGain, max(uFilHalo, 1.0));
 }
 
 float gasSprite(vec4 clipNow, vec4 clipPrev, float role, float size, float aspectMax, float jit) {
-  return gasSpriteCore(clipNow, clipPrev, clipNow, clipNow, role, size, aspectMax, jit, uStreakGain);
+  return gasSpriteCore(clipNow, clipPrev, clipNow, clipNow, role, size, aspectMax, jit, uStreakGain, 1.0);
 }
 
 // No thread, own shutter (earth, Task 8b): the dash lies along the time secant (the settling direction), length =
 // on-screen speed x gain, the cap (aspectMax) and the uPointMax guard unchanged.
 float gasSpriteGain(vec4 clipNow, vec4 clipPrev, float role, float size, float aspectMax, float jit, float gain) {
-  return gasSpriteCore(clipNow, clipPrev, clipNow, clipNow, role, size, aspectMax, jit, gain);
+  return gasSpriteCore(clipNow, clipPrev, clipNow, clipNow, role, size, aspectMax, jit, gain, 1.0);
 }
 
 float gasLane(vec3 laneCoord, float t) {
