@@ -224,7 +224,7 @@ const fragmentShader = /* glsl */ `
   void main(){
     float d = gasStreakDist(gl_PointCoord);
     // Very soft — air has no hard edges
-    float alpha = smoothstep(1.0, 0.0, d) * gasTaper(gl_PointCoord);
+    float alpha = (vRole < 0.5 ? smoothstep(1.0, 0.0, d) : gasFilProfile(d)) * gasTaper(gl_PointCoord);
     if (alpha < 0.003) discard;
 
     // ── 8-stop atmospheric spectrum ───────────────────────────────────────
@@ -253,6 +253,7 @@ const fragmentShader = /* glsl */ `
     // Ionospheric override: electric blue-white glow
     vec3 ionColor = mix(vec3(0.33, 0.53, 1.00), vec3(0.67, 0.80, 1.00), vSpeed);
     col = mix(col, ionColor, vIon);
+    col = gasFilTint(col, d);
 
     // Brightness: scaled down so 10k additive particles don't stack to white
     float glow = 0.35 + vAltitude * 0.45 + vIon * 0.55;

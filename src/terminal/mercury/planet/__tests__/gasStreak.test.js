@@ -5,7 +5,7 @@ import { glf } from '../../../gl/glf';
 import {
   GAS_STREAK_VS, GAS_STREAK_FS, STREAK_DT, FIL_ASPECT, FIL_JITTER, FIRE_EMBER_STRETCH, FIRE_EMBER_GAIN, FIRE_EMBER_SHARE,
   GAS_PX_FLOOR, GAS_Z_REF, MASK_EVOLVE, FIL_GAP_CLOSE, FIL_GAP_ASPECT, FIL_TAPER, gasCounts, gasPointMax, GAS_POINT_MAX_UNKNOWN, gasRoles, GAS_TUNE_UNIFORMS, writeGasTune,
-  gasThreads, gasStratified, gasPaceMatch, THREAD_ALONG_JITTER, THREAD_CROSS_CLIP, THREAD_WEIGHT_FLOOR, GAS_MASK_LOOP, GAS_MASK_LANE_GAP,
+  gasThreads, FIL_PROFILE_K, FIL_OLD_CROSS, FIL_PROFILE_PEAK, gasStratified, gasPaceMatch, THREAD_ALONG_JITTER, THREAD_CROSS_CLIP, THREAD_WEIGHT_FLOOR, GAS_MASK_LOOP, GAS_MASK_LANE_GAP,
 } from '../gasStreak';
 import { mulberry32 } from '../prng';
 import { PLANET_TUNE } from '../planetLook';
@@ -79,7 +79,7 @@ describe('gas roles (spec §3b, §3e)', () => {
 describe('gasSprite (spec §3c)', () => {
   it('fog passes the old size straight through: round, no floor, no stretch', () => {
     expect(GAS_STREAK_VS).toContain('float gasSprite(vec4 clipNow, vec4 clipPrev, float role, float size, float aspectMax, float jit) {');
-    expect(GAS_STREAK_VS).toMatch(/if \(role < 0\.5\) \{\s*vStreakDir = vec2\(1\.0, 0\.0\);\s*vStreakDir2 = vStreakDir;\s*vStreakCap = vec2\(0\.0, 0\.5\);\s*return size;\s*\}/);
+    expect(GAS_STREAK_VS).toMatch(/if \(role < 0\.5\) \{\s*vStreakDir = vec2\(1\.0, 0\.0\);\s*vStreakDir2 = vStreakDir;\s*vStreakCap = vec3\(0\.0, 0\.5, 0\.5\);\s*return size;\s*\}/);
     expect(sprite(0, 0.4, 999).total).toBe(0.4);
     expect(sprite(0, 237, 999).total).toBe(237);
   });
@@ -92,7 +92,7 @@ describe('gasSprite (spec §3c)', () => {
     expect(GAS_STREAK_VS).toContain('vStreakDir = vec2(dirA.x, -dirA.y); // point coords: y down');
     expect(GAS_STREAK_VS).toContain('vec2 dirA = tl > 1e-3 && length(dA) > 1e-3 ? normalize(dA) : dir;');
     expect(GAS_STREAK_VS).toContain('vec2 dirB = tl > 1e-3 && length(dB) > 1e-3 ? normalize(dB) : dir;');
-    expect(GAS_STREAK_VS).toContain('vStreakCap = vec2(0.5 * L / total, 0.5 * w / total);');
+    expect(GAS_STREAK_VS).toContain('vStreakCap = vec3(0.5 * L / total, 0.5 * w / total, 0.5 * (L + w) / total);');
     expect(sprite(1, 0.5, 0).total).toBe(GAS_PX_FLOOR);                 // calm or sub-pixel → a 1.5 px round dot
     const f = sprite(1, 2.2, 355);                                      // spec §3g: fluid mean speed, 2.2 px core; shutter 0.05 → ~9x
     expect(f.total / f.w).toBeGreaterThan(8);
@@ -296,7 +296,7 @@ describe('gap-closing filament dashes (Task 7f)', () => {
     expect(GAS_STREAK_VS).toContain('vec2 tng = pAhead - pBack;');
     expect(GAS_STREAK_VS).toContain('float gapPx = max(length(pNow - pBack), length(pAhead - pNow));');
     expect(GAS_STREAK_VS).toContain('L = max(L, min(FIL_GAP_CLOSE * gapPx - w, (FIL_GAP_ASPECT - 1.0) * w));');
-    expect(GAS_STREAK_VS).toContain('L = min(L, max(uPointMax - w, 0.0));');
+    expect(GAS_STREAK_VS).toContain('L = min(L, max(uPointMax - wq, 0.0));');
     expect(GAS_STREAK_VS).toContain('uniform float uPointMax;');
     expect(GAS_STREAK_VS).toContain('return clip.w > 1e-4 ? clip.xy / clip.w * 0.5 * uViewportPx : vec2(0.0);');
     expect(GAS_STREAK_VS).not.toMatch(/if \(sp > 1e-3\) L = /); // no abrupt speed switch
@@ -307,7 +307,7 @@ describe('gap-closing filament dashes (Task 7f)', () => {
     expect(FIL_TAPER).toBeCloseTo(1 - 1 / 1.3, 12);
     expect(GAS_STREAK_FS).toContain(`const float FIL_TAPER = ${glf(FIL_TAPER)};`);
     expect(GAS_STREAK_FS).toMatch(/float gasTaper\(vec2 pc\) \{\s*if \(vRole < 0\.5\) return 1\.0;/);
-    expect(GAS_STREAK_FS).toMatch(/float s = abs\(da <= db \? sa : sb\);\s*return 1\.0 - smoothstep\(0\.5 - FIL_TAPER, 0\.5, s\);\s*\}/);
+    expect(GAS_STREAK_FS).toMatch(/float s = abs\(da <= db \? sa : sb\);\s*return 1\.0 - smoothstep\(0\.5 - FIL_TAPER, 0\.5, 0\.5 \* s \/ vStreakCap\.z\);\s*\}/);
     // two gap-closed dashes (length D = FIL_GAP_CLOSE x spacing) overlap by exactly their taper: the sum is flat
     const ss = (a, b, x) => { const t = Math.min(Math.max((x - a) / (b - a), 0), 1); return t * t * (3 - 2 * t); };
     const taper = (s) => 1 - ss(0.5 - FIL_TAPER, 0.5, Math.abs(s));
@@ -371,7 +371,7 @@ describe('FS + varyings', () => {
   });
 
   it('every varying is declared on both sides', () => {
-    for (const v of ['varying vec2 vStreakDir;', 'varying vec2 vStreakDir2;', 'varying vec2 vStreakCap;', 'varying float vLane;']) {
+    for (const v of ['varying vec2 vStreakDir;', 'varying vec2 vStreakDir2;', 'varying vec3 vStreakCap;', 'varying float vLane;']) {
       expect(GAS_STREAK_VS).toContain(v);
       expect(GAS_STREAK_FS).toContain(v);
     }
@@ -388,7 +388,7 @@ describe('tune knobs (spec §3g)', () => {
 
   it('copied per frame without allocation, with the renderer pixel ratio', () => {
     const u = GAS_TUNE_UNIFORMS(PLANET_TUNE);
-    expect(Object.keys(u).sort()).toEqual(['uAirFilGain', 'uDpr', 'uEarthStreakGain', 'uEmberGain', 'uEmberSize', 'uFilAlpha', 'uFilWidth', 'uFogAlpha', 'uMaskDepth', 'uMaskFreq', 'uMaskSharp', 'uPointMax', 'uStreakGain']);
+    expect(Object.keys(u).sort()).toEqual(['uAirFilGain', 'uDpr', 'uEarthStreakGain', 'uEmberGain', 'uEmberSize', 'uFilAlpha', 'uFilCoreLift', 'uFilEdgeDesat', 'uFilHalo', 'uFilWidth', 'uFogAlpha', 'uMaskDepth', 'uMaskFreq', 'uMaskSharp', 'uPointMax', 'uStreakGain']);
     expect(u.uFilWidth.value).toBe(PLANET_TUNE.filWidth);
     expect(u.uDpr.value).toBe(1);
     const objs = Object.values(u);
@@ -468,5 +468,49 @@ describe('point-size guard (Task 7f fix)', () => {
     expect(gasPointMax(null)).toBe(GAS_POINT_MAX_UNKNOWN);
     expect(gasPointMax({ getContext: () => ({ getParameter: () => null }) })).toBe(GAS_POINT_MAX_UNKNOWN);
     expect(GAS_TUNE_UNIFORMS(PLANET_TUNE).uPointMax.value).toBe(GAS_POINT_MAX_UNKNOWN);
+  });
+});
+
+describe('soft threads §1/§4: Gaussian cross-section, halo quad, fog-core tint', () => {
+  const prof = (d) => FIL_PROFILE_PEAK * Math.exp(-FIL_PROFILE_K * d * d);
+  const integ = (f, a, b, n = 20000) => { let s = 0; const h = (b - a) / n; for (let i = 0; i < n; i++) s += f(a + (i + 0.5) * h); return s * h; };
+  const ss = (e0, e1, x) => { const t = Math.min(Math.max((x - e0) / (e1 - e0), 0), 1); return t * t * (3 - 2 * t); };
+
+  it('carries the old fluid capsule light across the thread (within 0.5 %), negligible at the halo edge', () => {
+    const old = integ((x) => ss(1, 0.3, Math.abs(x)), -1, 1);
+    expect(old).toBeCloseTo(FIL_OLD_CROSS, 3);
+    expect(integ(prof, -PLANET_TUNE.filHalo, PLANET_TUNE.filHalo) / old).toBeGreaterThan(0.995);
+    expect(integ(prof, -PLANET_TUNE.filHalo, PLANET_TUNE.filHalo) / old).toBeLessThan(1.005);
+    expect(prof(PLANET_TUNE.filHalo)).toBeLessThan(0.003);
+  });
+
+  it('GLSL: profile + tint in the FS, constants via glf; fog untouched by the tint', () => {
+    for (const [n, v] of Object.entries({ FIL_PROFILE_K, FIL_PROFILE_PEAK })) expect(GAS_STREAK_FS).toContain(`const float ${n} = ${glf(v)};`);
+    expect(GAS_STREAK_FS).toContain('float gasFilProfile(float d) { return FIL_PROFILE_PEAK * exp(-FIL_PROFILE_K * d * d); }');
+    expect(GAS_STREAK_FS).toMatch(/vec3 gasFilTint\(vec3 color, float d\) \{\s*if \(vRole < 0\.5\) return color;/);
+    expect(GAS_STREAK_FS).toContain('vec3 c = mix(color, vec3(l), uFilEdgeDesat * smoothstep(0.5, 2.0, d));');
+    expect(GAS_STREAK_FS).toContain('uniform float uFilEdgeDesat;');
+    expect(GAS_STREAK_FS).toContain('uniform float uFilCoreLift;');
+  });
+
+  it('halo quad: wq = w x max(filHalo, 1); total = wq + L; caps and the length stay on the core w', () => {
+    expect(GAS_STREAK_VS).toContain('uniform float uFilHalo;');
+    expect(GAS_STREAK_VS).toContain('float wq = w * max(uFilHalo, 1.0);');
+    expect(GAS_STREAK_VS).toContain('L = min(L, max(uPointMax - wq, 0.0));');
+    expect(GAS_STREAK_VS).toContain('float total = wq + L;');
+    expect(GAS_STREAK_VS).toContain('vStreakCap = vec3(0.5 * L / total, 0.5 * w / total, 0.5 * (L + w) / total);');
+    expect(GAS_STREAK_VS).toContain('L = max(L, min(FIL_GAP_CLOSE * gapPx - w, (FIL_GAP_ASPECT - 1.0) * w));');
+  });
+
+  it('taper keyed to the capsule end (vStreakCap.z), so the halo never lengthens the overlap', () => {
+    expect(GAS_STREAK_FS).toContain('return 1.0 - smoothstep(0.5 - FIL_TAPER, 0.5, 0.5 * s / vStreakCap.z);');
+  });
+
+  it('knobs live in PLANET_TUNE and ride GAS_TUNE', () => {
+    expect(PLANET_TUNE).toMatchObject({ filHalo: 2.5, filEdgeDesat: 0.45, filCoreLift: 0.15 });
+    const u = GAS_TUNE_UNIFORMS(PLANET_TUNE);
+    expect(u.uFilHalo.value).toBe(2.5);
+    expect(u.uFilEdgeDesat.value).toBe(0.45);
+    expect(u.uFilCoreLift.value).toBe(0.15);
   });
 });

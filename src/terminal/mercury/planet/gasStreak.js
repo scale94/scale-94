@@ -42,6 +42,12 @@ export const GAS_MASK_LOOP = 1.0;     // radius of the along-lane loop in mask l
 export const GAS_MASK_LANE_GAP = 3.0; // lane id → mask x offset; > loop diameter + a noise feature, so lanes are independent
 export const THREAD_ALONG_JITTER = 0.8;  // stratified along-lane jitter, × the lane's mean spacing (max gap ≤ 1.8 spacings)
 export const THREAD_CROSS_CLIP = 2.5;    // cross-lane jitter = a unit normal clipped at ±this (flows scale it by their σ)
+// Soft threads §1 (2026-10-07): the filament cross-section is a Gaussian exp(-K d²), d in core half-widths, drawn on a
+// quad widened by filHalo so the tail is not clipped. The old fluid capsule smoothstep(1, 0.3, |d|) carried
+// 2 × (0.3 + 0.7 / 2) = 1.3 core half-widths of light across the thread; the peak keeps exactly that.
+export const FIL_PROFILE_K = 1;
+export const FIL_OLD_CROSS = 1.3;
+export const FIL_PROFILE_PEAK = FIL_OLD_CROSS / Math.sqrt(Math.PI / FIL_PROFILE_K);
 export const THREAD_WEIGHT_FLOOR = 0.35; // lane weight = floor + Exp(1): uneven (dense + faint threads), none vanishing
 
 // Particle counts for one flow (spec §3e): `base` = its old count (params.density), `mult` = the
@@ -222,9 +228,10 @@ uniform float uEmberSize;
 uniform float uEmberGain;
 uniform float uEarthStreakGain;
 uniform float uPointMax;
+uniform float uFilHalo;
 varying vec2 vStreakDir;
 varying vec2 vStreakDir2;
-varying vec2 vStreakCap;
+varying vec3 vStreakCap;
 varying float vLane;
 varying float vRole;
 const float STREAK_DT = ${glf(STREAK_DT)};
@@ -267,7 +274,7 @@ float gasSpriteCore(vec4 clipNow, vec4 clipPrev, vec4 clipBack, vec4 clipAhead, 
   if (role < 0.5) {
     vStreakDir = vec2(1.0, 0.0);
     vStreakDir2 = vStreakDir;
-    vStreakCap = vec2(0.0, 0.5);
+    vStreakCap = vec3(0.0, 0.5, 0.5);
     return size;
   }
   float w = max(size, GAS_PX_FLOOR * uDpr);
@@ -285,15 +292,16 @@ float gasSpriteCore(vec4 clipNow, vec4 clipPrev, vec4 clipBack, vec4 clipAhead, 
   vec2 dir = tl > 1e-3 ? tng / tl : (sp > 1e-3 ? v / sp : vec2(1.0, 0.0));
   float L = min(sp * gain, max(aspectMax - 1.0, 0.0) * w) * (1.0 + FIL_JITTER * (2.0 * jit - 1.0));
   L = max(L, min(FIL_GAP_CLOSE * gapPx - w, (FIL_GAP_ASPECT - 1.0) * w));
-  L = min(L, max(uPointMax - w, 0.0));
-  float total = w + L;
+  float wq = w * max(uFilHalo, 1.0); // the drawn quad: room for the Gaussian tail (caps and length stay on the core w)
+  L = min(L, max(uPointMax - wq, 0.0));
+  float total = wq + L;
   vec2 dA = pAhead - pNow;
   vec2 dB = pNow - pBack;
   vec2 dirA = tl > 1e-3 && length(dA) > 1e-3 ? normalize(dA) : dir;
   vec2 dirB = tl > 1e-3 && length(dB) > 1e-3 ? normalize(dB) : dir;
   vStreakDir = vec2(dirA.x, -dirA.y); // point coords: y down
   vStreakDir2 = vec2(dirB.x, -dirB.y);
-  vStreakCap = vec2(0.5 * L / total, 0.5 * w / total);
+  vStreakCap = vec3(0.5 * L / total, 0.5 * w / total, 0.5 * (L + w) / total); // z: the capsule end (the taper's 0.5)
   return total;
 }
 
@@ -335,11 +343,25 @@ float gasRoleAlpha(float role) {
 export const GAS_STREAK_FS = /* glsl */ `
 varying vec2 vStreakDir;
 varying vec2 vStreakDir2;
-varying vec2 vStreakCap;
+varying vec3 vStreakCap;
 varying float vLane;
 varying float vRole;
 uniform float uPremult;
 const float FIL_TAPER = ${glf(FIL_TAPER)};
+uniform float uFilEdgeDesat;
+uniform float uFilCoreLift;
+const float FIL_PROFILE_K = ${glf(FIL_PROFILE_K)};
+const float FIL_PROFILE_PEAK = ${glf(FIL_PROFILE_PEAK)};
+// Filament cross-section (soft threads §1): a Gaussian in core half-widths carrying the old capsule's light.
+float gasFilProfile(float d) { return FIL_PROFILE_PEAK * exp(-FIL_PROFILE_K * d * d); }
+// Filament colour across the thread (§4): the edges fall toward their own luminance (the fog's body, not neon), the
+// core lifts toward white at its own brightness. Fog: unchanged.
+vec3 gasFilTint(vec3 color, float d) {
+  if (vRole < 0.5) return color;
+  float l = dot(color, vec3(0.2126, 0.7152, 0.0722));
+  vec3 c = mix(color, vec3(l), uFilEdgeDesat * smoothstep(0.5, 2.0, d));
+  return mix(c, vec3(max(color.r, max(color.g, color.b))), uFilCoreLift * (1.0 - smoothstep(0.0, 0.5, d)));
+}
 // Capsule distance (/ half-width) to the bent dash: the ahead half along vStreakDir, the back half along -vStreakDir2
 // (equal for a straight dash = the old one segment ± vStreakCap.x).
 float gasStreakDist(vec2 pc) {
@@ -358,7 +380,7 @@ float gasTaper(vec2 pc) {
   float da = length(q - vStreakDir * clamp(sa, 0.0, vStreakCap.x));
   float db = length(q + vStreakDir2 * clamp(sb, 0.0, vStreakCap.x));
   float s = abs(da <= db ? sa : sb);
-  return 1.0 - smoothstep(0.5 - FIL_TAPER, 0.5, s);
+  return 1.0 - smoothstep(0.5 - FIL_TAPER, 0.5, 0.5 * s / vStreakCap.z);
 }
 // Output for a flow drawn with premultiplied blending (One / OneMinusSrcAlpha), Task 7c. a = the alpha without dither.
 // uPremult 0 (standalone pages, additive/normal blending): the old output. Premultiplied: fog = color * A, A (= normal
@@ -373,7 +395,7 @@ vec4 gasOut(vec3 color, float a, float dither) {
 const GAS_TUNE = [['uStreakGain', 'streakGain'], ['uFilWidth', 'filWidth'], ['uFilAlpha', 'filAlpha'],
   ['uFogAlpha', 'fogAlpha'], ['uMaskFreq', 'maskFreq'], ['uMaskSharp', 'maskSharp'], ['uMaskDepth', 'maskDepth'],
   ['uAirFilGain', 'airFilGain'], ['uEmberSize', 'emberSize'], ['uEmberGain', 'emberGain'],
-  ['uEarthStreakGain', 'earthStreakGain']];
+  ['uEarthStreakGain', 'earthStreakGain'], ['uFilHalo', 'filHalo'], ['uFilEdgeDesat', 'filEdgeDesat'], ['uFilCoreLift', 'filCoreLift']];
 
 export const GAS_POINT_MAX_UNKNOWN = 1e4; // no clamp when the limit can't be read (non-WebGL contexts, tests)
 

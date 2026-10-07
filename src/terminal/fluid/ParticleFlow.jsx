@@ -7,7 +7,7 @@ import { AETHER_LIGHT_VS, aetherLightFS } from '../mercury/planet/aetherLight';
 import { SUN_DIR_WORLD } from '../mercury/planet/planetFrame';
 import { GAS_STREAK_VS, GAS_STREAK_FS, GAS_TUNE_UNIFORMS, writeGasTune, gasPointMax } from '../mercury/planet/gasStreak';
 import { createAetherClock, configureAetherClock, tickAetherClock } from '../mercury/planet/aetherClock';
-import { buildBuffers, FLUID_FIL_SHIMMER } from './particleFlowBuffers';
+import { buildBuffers, FLUID_FIL_SHIMMER, FLUID_LANE_HUE_SPREAD } from './particleFlowBuffers';
 import { glf } from '../gl/glf';
 
 // ── GLSL Shaders ───────────────────────────────────────────────────────────
@@ -129,6 +129,7 @@ const vertexShader = /* glsl */ `
   }
 
   const float FLUID_FIL_SHIMMER = ${glf(FLUID_FIL_SHIMMER)};
+  const float FLUID_LANE_HUE_SPREAD = ${glf(FLUID_LANE_HUE_SPREAD)};
 
   // A filament's full position at knot phase ph (Task 7f fix: its lane neighbours' samples for the path secant):
   // the knot + damped shimmer + curl drift, as in main.
@@ -160,7 +161,7 @@ const vertexShader = /* glsl */ `
     vec3 prev = prevCore + (pos - basePos); // the streak shows the current, not the shimmer
 
     // ── Harmonic color cycling ──
-    float laneHue = aRole < 0.5 ? 0.0 : gasHash(aLane, 0.37); // filaments: each thread its own place on the palette
+    float laneHue = aRole < 0.5 ? 0.0 : gasHash(aLane, 0.37) * FLUID_LANE_HUE_SPREAD; // filaments: near the fog hue
     vHue = fract(aPhase + uTime * 0.05 + uChromatic * 0.33 + laneHue);
     vBrightness = 0.8 + 0.2 * sin(aPhase * 6.283185307 + uTime * 0.3);
 
@@ -206,7 +207,7 @@ const fragmentShader = /* glsl */ `
   void main() {
     // Sharp sprite — bright core with tight halo
     float d = gasStreakDist(gl_PointCoord);
-    float alpha = smoothstep(1.0, 0.3, d) * gasTaper(gl_PointCoord);
+    float alpha = (vRole < 0.5 ? smoothstep(1.0, 0.3, d) : gasFilProfile(d)) * gasTaper(gl_PointCoord);
     if (alpha < 0.01) discard;
 
     // Bioluminescent palette: magenta → violet → cyan → magenta
@@ -222,6 +223,7 @@ const fragmentShader = /* glsl */ `
         : mix(cyan, magenta, (h - 0.666) * 3.0);
 
     color *= vBrightness;
+    color = gasFilTint(color, d);
 
     // 8-bit backbuffer dither: the additive falloff quantizes to 1/255 steps
     // (terracing an OLED renders faithfully). ±0.5/255 on the alpha side so it

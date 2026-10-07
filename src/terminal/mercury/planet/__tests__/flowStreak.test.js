@@ -85,6 +85,7 @@ describe('gas filaments glow over the fog: premultiplied one-draw blend (Task 7c
   for (const [el, src] of [['fluid', particleSrc], ['air', atmoSrc], ['thermal', thermalSrc], ['earth', sedimentSrc]]) {
     it(`${el}: FS ends in gasOut(); no raw gl_FragColor vec4(color/col, ...) left; opt-in premultiplied prop`, () => {
       expect(src).toMatch(/gl_FragColor = gasOut\(/);
+      if (el === 'fluid' || el === 'air') expect(src).toMatch(/col(or)? = gasFilTint\(col(or)?, d\);/);
       expect(src).not.toMatch(/gl_FragColor = vec4\(/);
       expect(src).toContain('premultiplied = false,');
       expect(src).toContain('uPremult: { value: premultiplied ? 1 : 0 },');
@@ -233,7 +234,8 @@ describe('gas threads fix wave (Task 7d review + look)', () => {
   });
 
   it('fluid: filaments get a per-lane hue offset; fog hue unchanged', () => {
-    expect(particleSrc).toContain('float laneHue = aRole < 0.5 ? 0.0 : gasHash(aLane, 0.37);');
+    expect(particleSrc).toContain('float laneHue = aRole < 0.5 ? 0.0 : gasHash(aLane, 0.37) * FLUID_LANE_HUE_SPREAD;');
+    expect(fluidBuf.FLUID_LANE_HUE_SPREAD).toBe(0.25);
     expect(particleSrc).toContain('vHue = fract(aPhase + uTime * 0.05 + uChromatic * 0.33 + laneHue);');
   });
 });
@@ -381,7 +383,7 @@ describe('threads hold their shape (Task 7f fix)', () => {
     expect(particleSrc).toContain('float dph = aGap / (0.6 + aOffset * 0.4);');
     expect(particleSrc).toContain('clipBack = projectionMatrix * (modelViewMatrix * vec4(fluidFilAt(uPhase - dph) * squash, 1.0));');
     expect(particleSrc).toContain('clipAhead = projectionMatrix * (modelViewMatrix * vec4(fluidFilAt(uPhase + dph) * squash, 1.0));');
-    expect(particleSrc).toContain('float alpha = smoothstep(1.0, 0.3, d) * gasTaper(gl_PointCoord);');
+    expect(particleSrc).toContain('float alpha = (vRole < 0.5 ? smoothstep(1.0, 0.3, d) : gasFilProfile(d)) * gasTaper(gl_PointCoord);');
   });
 
   it('air VS: aGap; neighbours through orbitAt + airDisplace at angle ± aGap·2π; taper; the orbit split keeps the fog ops', () => {
@@ -391,7 +393,7 @@ describe('threads hold their shape (Task 7f fix)', () => {
     expect(atmoSrc).toContain('return orbitAt(angle);');
     expect(atmoSrc).toContain('clipBack = projectionMatrix * (modelViewMatrix * vec4(airDisplace(orbitAt(angle - dA), angle - dA) * squash, 1.0));');
     expect(atmoSrc).toContain('clipAhead = projectionMatrix * (modelViewMatrix * vec4(airDisplace(orbitAt(angle + dA), angle + dA) * squash, 1.0));');
-    expect(atmoSrc).toContain('float alpha = smoothstep(1.0, 0.0, d) * gasTaper(gl_PointCoord);');
+    expect(atmoSrc).toContain('float alpha = (vRole < 0.5 ? smoothstep(1.0, 0.0, d) : gasFilProfile(d)) * gasTaper(gl_PointCoord);');
     const b = airBuf.buildBuffers(3600, 1200);
     expect(fogOf(b, b.gaps).every((g) => g === 0)).toBe(true);
     expect(filOf(b, b.gaps).every((g) => g > 0 && g < 0.05)).toBe(true);
