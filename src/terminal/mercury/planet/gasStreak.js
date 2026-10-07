@@ -48,6 +48,10 @@ export const THREAD_CROSS_CLIP = 2.5;    // cross-lane jitter = a unit normal cl
 export const FIL_PROFILE_K = 1;
 export const FIL_OLD_CROSS = 1.3;
 export const FIL_PROFILE_PEAK = FIL_OLD_CROSS / Math.sqrt(Math.PI / FIL_PROFILE_K);
+// Soft threads §3: path domain warp. Features ~1/FREQ ~ 0.9 scene units, far above the lane-neighbour spacing, so the
+// gap-closing dashes still follow the path (the pick-up-sticks lesson, look i); RATE on the flow's calm-gated uTime.
+export const FIL_WARP_FREQ = 1.1;
+export const FIL_WARP_RATE = 0.04;
 export const GAS_FRAY_Z = 11; // fray noise z offset: the same seamless lane label as the mask, decorrelated from it
 export const THREAD_WEIGHT_FLOOR = 0.35; // lane weight = floor + Exp(1): uneven (dense + faint threads), none vanishing
 
@@ -232,6 +236,7 @@ uniform float uPointMax;
 uniform float uFilHalo;
 uniform float uFilWidthVar;
 uniform float uFilFray;
+uniform float uFilWarp;
 varying vec2 vStreakDir;
 varying vec2 vStreakDir2;
 varying vec3 vStreakCap;
@@ -250,6 +255,8 @@ const float FIL_GAP_ASPECT = ${glf(FIL_GAP_ASPECT)};
 const float GAS_MASK_LOOP = ${glf(GAS_MASK_LOOP)};
 const float GAS_MASK_LANE_GAP = ${glf(GAS_MASK_LANE_GAP)};
 const float GAS_FRAY_Z = ${glf(GAS_FRAY_Z)};
+const float FIL_WARP_FREQ = ${glf(FIL_WARP_FREQ)};
+const float FIL_WARP_RATE = ${glf(FIL_WARP_RATE)};
 
 float gasHash(float a, float b) {
   return fract(sin(a * 91.7 + b * 47.3) * 43758.5453);
@@ -342,6 +349,14 @@ float gasFray(vec3 laneCoord, float t) {
   return mix(1.0 - uFilWidthVar, 1.0 + uFilFray, f);
 }
 
+// Path domain warp (soft threads §3): a slow, low-frequency displacement field the threads pass through, so the stacked
+// loops separate, bend and drift. Evaluate it INSIDE the chain the lane neighbours share (fluidFilAt / airDisplace),
+// or the path secant and the gap-closing break.
+vec3 gasWarp(vec3 p, float t, float amp) {
+  vec3 q = p * FIL_WARP_FREQ + vec3(0.0, 0.0, t * FIL_WARP_RATE);
+  return amp * uFilWarp * vec3(snoise(q), snoise(q + vec3(31.4, 0.0, 0.0)), snoise(q + vec3(0.0, 47.2, 0.0)));
+}
+
 float gasAlpha(float role, vec3 laneCoord, float t) {
   if (role < 0.5) return uFogAlpha;
   return gasLane(laneCoord, t) * uFilAlpha;
@@ -408,7 +423,7 @@ const GAS_TUNE = [['uStreakGain', 'streakGain'], ['uFilWidth', 'filWidth'], ['uF
   ['uFogAlpha', 'fogAlpha'], ['uMaskFreq', 'maskFreq'], ['uMaskSharp', 'maskSharp'], ['uMaskDepth', 'maskDepth'],
   ['uAirFilGain', 'airFilGain'], ['uEmberSize', 'emberSize'], ['uEmberGain', 'emberGain'],
   ['uEarthStreakGain', 'earthStreakGain'], ['uFilHalo', 'filHalo'], ['uFilEdgeDesat', 'filEdgeDesat'], ['uFilCoreLift', 'filCoreLift'],
-  ['uFilWidthVar', 'filWidthVar'], ['uFilFray', 'filFray']];
+  ['uFilWidthVar', 'filWidthVar'], ['uFilFray', 'filFray'], ['uFilWarp', 'filWarp']];
 
 export const GAS_POINT_MAX_UNKNOWN = 1e4; // no clamp when the limit can't be read (non-WebGL contexts, tests)
 

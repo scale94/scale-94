@@ -4,10 +4,10 @@
 // (max distance of the true path from the dash, px) and step (Task 7g: the sideways jump where two dashes meet, px).
 // The dash is bent like the GLSL (ahead half along dirA, back half along dirB); straight: true = the 7f straight dash.
 import { snoise, curlFluid, curlAir } from './glslNoise';
-import { FIL_ASPECT, FIL_JITTER, FIL_GAP_CLOSE, FIL_GAP_ASPECT, GAS_PX_FLOOR, GAS_Z_REF } from '../gasStreak';
+import { FIL_ASPECT, FIL_JITTER, FIL_GAP_CLOSE, FIL_GAP_ASPECT, GAS_PX_FLOOR, GAS_Z_REF, FIL_WARP_FREQ, FIL_WARP_RATE } from '../gasStreak';
 import { PLANET_TUNE } from '../planetLook';
-import { FLUID_FIL_SHIMMER } from '../../../fluid/particleFlowBuffers';
-import { AIR_TILT_MIN, AIR_TILT_MAX, AIR_WANDER, AIR_WANDER_R, AIR_WANDER_RATE, AIR_FIL_CURL, AIR_FIL_ASPECT } from '../../../air/atmosphericFlowBuffers';
+import { FLUID_FIL_SHIMMER, FLUID_FIL_WARP } from '../../../fluid/particleFlowBuffers';
+import { AIR_TILT_MIN, AIR_TILT_MAX, AIR_WANDER, AIR_WANDER_R, AIR_WANDER_RATE, AIR_FIL_CURL, AIR_FIL_ASPECT, AIR_FIL_WARP } from '../../../air/atmosphericFlowBuffers';
 
 const fract = (x) => x - Math.floor(x);
 export const gasHash = (a, b) => fract(Math.sin(a * 91.7 + b * 47.3) * 43758.5453);
@@ -23,6 +23,13 @@ export const proj = (p) => { const z = CAM_Z - p[2]; return [(F * p[0]) / z, (F 
 export const T = 37.0;
 export const DT = 1 / 30;
 
+// gasWarp (soft threads �3), JS mirror: a slow low-frequency displacement field the filament paths pass through.
+export function gasWarpJS(p, t, amp, warpK = PLANET_TUNE.filWarp) {
+  const q = [p[0] * FIL_WARP_FREQ, p[1] * FIL_WARP_FREQ, p[2] * FIL_WARP_FREQ + t * FIL_WARP_RATE];
+  const k = amp * warpK;
+  return [snoise(q) * k, snoise([q[0] + 31.4, q[1], q[2]]) * k, snoise([q[0], q[1] + 47.2, q[2]]) * k];
+}
+
 // ── fluid ─────────────────────────────────────────────────────────────────────
 const knotCenter = (t) => {
   const p = t * 6.283185307, cq = Math.cos(3 * p);
@@ -37,12 +44,13 @@ function knotPos(ph, aPhase, aOffset, aRadius) {
   return { base: center.map((x, i) => x + n[i] * (Math.cos(ang) * rad + gN) + b[i] * (Math.sin(ang) * rad + gB)), center };
 }
 // The filament's full position at knot phase ph (fluid VS: base + shimmer x FLUID_FIL_SHIMMER + curl drift).
-export function fluidFil(ph, p, shimK = FLUID_FIL_SHIMMER) {
+export function fluidFil(ph, p, shimK = FLUID_FIL_SHIMMER, warpK = PLANET_TUNE.filWarp) {
   const { base, center } = knotPos(ph, p.phase, p.offset, p.radius);
   const q = base.map((x) => x * 8);
   const j = [snoise([q[0] + T, q[1], q[2]]), snoise([q[0], q[1] + T, q[2]]), snoise([q[0], q[1], q[2] + T])].map((x) => x * 0.012 * shimK);
   const c = curlFluid(center.map((x) => x * 2 + T * 0.1)).map((x) => x * 0.02);
-  return { pos: [base[0] + j[0] + c[0], base[1] + j[1] + c[1], base[2] + j[2] + c[2]], base };
+  const w = gasWarpJS(base, T, FLUID_FIL_WARP, warpK);
+  return { pos: [base[0] + j[0] + c[0] + w[0], base[1] + j[1] + c[1] + w[1], base[2] + j[2] + c[2] + w[2]], base };
 }
 
 // ── air ───────────────────────────────────────────────────────────────────────
@@ -58,10 +66,12 @@ function airRing(angle, p) {
 }
 export function airRate(p) { return (0.4 + p.speed * 0.7) * (p.alt > 0.5 ? 1 : -0.85) * (p.ion ? 2.8 : 1); }
 // Filament position at orbit angle (airDisplace for aRole 1: periodic y-noise, wander, damped curl, no shimmer).
-export function airFilAt(angle, p, curlK = AIR_FIL_CURL) {
+export function airFilAt(angle, p, curlK = AIR_FIL_CURL, warpK = PLANET_TUNE.filWarp) {
   const pos = airRing(angle, p);
   pos[1] += snoise([Math.cos(angle) * 0.25, Math.sin(angle) * 0.25 + T * 0.07, p.alt * 4]) * 0.15;
   pos[1] += snoise([Math.cos(angle) * AIR_WANDER_R + p.lane * 3.1, Math.sin(angle) * AIR_WANDER_R, T * AIR_WANDER_RATE]) * AIR_WANDER;
+  const wv = gasWarpJS(pos, T, AIR_FIL_WARP, warpK);
+  for (let k = 0; k < 3; k++) pos[k] += wv[k];
   const t = T * 0.08;
   const cu = curlAir([pos[0] * 0.9 + t, pos[1] * 0.9 + t * 0.6, pos[2] * 0.9 + t * 0.8]);
   return pos.map((x, k) => x + cu[k] * 0.18 * 0.3 * curlK);
@@ -92,7 +102,7 @@ const q = (a, f) => a[Math.min(a.length - 1, Math.floor(a.length * f))];
 // One snapshot of a flow's filaments. flow = 'fluid' | 'air'; b = buildBuffers(); rate = the flow's phase rate;
 // ph = clock phase. Returns { cov, dev } arrays plus their quantiles.
 // legacy: true = the 828e26a0 rule (time-secant direction, gap minimum only while moving).
-export function measureThreads(flow, b, { ph = 0, rate, shimK, curlK, aspect, gapClose = true, legacy = false, straight = false, gapAspect, closeK, lanes: laneIds = null, onSprite = null, step = 1, devSteps = 24 } = {}) {
+export function measureThreads(flow, b, { ph = 0, rate, shimK, curlK, warpK, aspect, gapClose = true, legacy = false, straight = false, gapAspect, closeK, lanes: laneIds = null, onSprite = null, step = 1, devSteps = 24 } = {}) {
   const cov = [], dev = [], covAlong = [], lat = [], latW = [], gapVis = [], stepPx = [];
   const lanes = new Map();
   b.lanes.forEach((k, i) => {
@@ -109,8 +119,8 @@ export function measureThreads(flow, b, { ph = 0, rate, shimK, curlK, aspect, ga
       if (flow === 'fluid') {
         const p = { phase: b.phases[i], offset: b.offsets[i], radius: b.radii[i] };
         const s = 0.6 + p.offset * 0.4;
-        at = (d) => proj(fluidFil(ph + d / s, p, shimK).pos); // d: along offset in aPhase units
-        const nowF = fluidFil(ph, p, shimK);
+        at = (d) => proj(fluidFil(ph + d / s, p, shimK, warpK).pos); // d: along offset in aPhase units
+        const nowF = fluidFil(ph, p, shimK, warpK);
         const prevBase = knotPos(ph - DT * rate, p.phase, p.offset, p.radius).base;
         const prevPos = prevBase.map((x, k) => x + nowF.pos[k] - nowF.base[k]);
         at.prev = proj(prevPos);
@@ -120,8 +130,8 @@ export function measureThreads(flow, b, { ph = 0, rate, shimK, curlK, aspect, ga
       } else {
         const p = { alt: b.alts[i], ion: b.ions[i], speed: b.speeds[i], lane: b.lanes[i] };
         const ang0 = b.phases[i] * 6.28318 + ph * airRate(p);
-        at = (d) => proj(airFilAt(ang0 + d * 6.28318, p, curlK));
-        at.prev = proj(airFilAt(ang0 - DT * rate * airRate(p), p, curlK));
+        at = (d) => proj(airFilAt(ang0 + d * 6.28318, p, curlK, warpK));
+        at.prev = proj(airFilAt(ang0 - DT * rate * airRate(p), p, curlK, warpK));
         aspectMax = aspect ?? AIR_FIL_ASPECT;
         w = Math.max(PLANET_TUNE.filWidth * (GAS_Z_REF / at(0)[2]) * (0.75 + 0.5 * b.sizes[i]), GAS_PX_FLOOR);
         jit = gasHash(b.phases[i], b.seeds[i]);

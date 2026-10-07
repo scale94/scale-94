@@ -5,7 +5,7 @@ import { glf } from '../../../gl/glf';
 import {
   GAS_STREAK_VS, GAS_STREAK_FS, STREAK_DT, FIL_ASPECT, FIL_JITTER, FIRE_EMBER_STRETCH, FIRE_EMBER_GAIN, FIRE_EMBER_SHARE,
   GAS_PX_FLOOR, GAS_Z_REF, MASK_EVOLVE, FIL_GAP_CLOSE, FIL_GAP_ASPECT, FIL_TAPER, gasCounts, gasPointMax, GAS_POINT_MAX_UNKNOWN, gasRoles, GAS_TUNE_UNIFORMS, writeGasTune,
-  gasThreads, FIL_PROFILE_K, FIL_OLD_CROSS, FIL_PROFILE_PEAK, gasStratified, gasPaceMatch, THREAD_ALONG_JITTER, THREAD_CROSS_CLIP, THREAD_WEIGHT_FLOOR, GAS_MASK_LOOP, GAS_MASK_LANE_GAP, GAS_FRAY_Z,
+  gasThreads, FIL_PROFILE_K, FIL_OLD_CROSS, FIL_PROFILE_PEAK, gasStratified, gasPaceMatch, THREAD_ALONG_JITTER, THREAD_CROSS_CLIP, THREAD_WEIGHT_FLOOR, GAS_MASK_LOOP, GAS_MASK_LANE_GAP, GAS_FRAY_Z, FIL_WARP_FREQ, FIL_WARP_RATE,
 } from '../gasStreak';
 import { mulberry32 } from '../prng';
 import { PLANET_TUNE } from '../planetLook';
@@ -388,7 +388,7 @@ describe('tune knobs (spec §3g)', () => {
 
   it('copied per frame without allocation, with the renderer pixel ratio', () => {
     const u = GAS_TUNE_UNIFORMS(PLANET_TUNE);
-    expect(Object.keys(u).sort()).toEqual(['uAirFilGain', 'uDpr', 'uEarthStreakGain', 'uEmberGain', 'uEmberSize', 'uFilAlpha', 'uFilCoreLift', 'uFilEdgeDesat', 'uFilFray', 'uFilHalo', 'uFilWidth', 'uFilWidthVar', 'uFogAlpha', 'uMaskDepth', 'uMaskFreq', 'uMaskSharp', 'uPointMax', 'uStreakGain']);
+    expect(Object.keys(u).sort()).toEqual(['uAirFilGain', 'uDpr', 'uEarthStreakGain', 'uEmberGain', 'uEmberSize', 'uFilAlpha', 'uFilCoreLift', 'uFilEdgeDesat', 'uFilFray', 'uFilHalo', 'uFilWarp', 'uFilWidth', 'uFilWidthVar', 'uFogAlpha', 'uMaskDepth', 'uMaskFreq', 'uMaskSharp', 'uPointMax', 'uStreakGain']);
     expect(u.uFilWidth.value).toBe(PLANET_TUNE.filWidth);
     expect(u.uDpr.value).toBe(1);
     const objs = Object.values(u);
@@ -551,5 +551,18 @@ describe('soft threads §2: rendered fray', () => {
     const u = GAS_TUNE_UNIFORMS(PLANET_TUNE);
     expect(u.uFilWidthVar.value).toBe(0.35);
     expect(u.uFilFray.value).toBe(2);
+  });
+});
+
+describe('soft threads �3: gasWarp', () => {
+  it('low frequency, slow, scaled by the live knob; snoise-built (needs the flow snoise only)', () => {
+    expect(FIL_WARP_FREQ).toBe(1.1);
+    expect(FIL_WARP_RATE).toBe(0.04);
+    for (const [n, v] of Object.entries({ FIL_WARP_FREQ, FIL_WARP_RATE })) expect(GAS_STREAK_VS).toContain(`const float ${n} = ${glf(v)};`);
+    expect(GAS_STREAK_VS).toContain('vec3 gasWarp(vec3 p, float t, float amp) {');
+    expect(GAS_STREAK_VS).toContain('vec3 q = p * FIL_WARP_FREQ + vec3(0.0, 0.0, t * FIL_WARP_RATE);');
+    expect(GAS_STREAK_VS).toContain('return amp * uFilWarp * vec3(snoise(q), snoise(q + vec3(31.4, 0.0, 0.0)), snoise(q + vec3(0.0, 47.2, 0.0)));');
+    expect(PLANET_TUNE.filWarp).toBe(1);
+    expect(GAS_TUNE_UNIFORMS(PLANET_TUNE).uFilWarp.value).toBe(1);
   });
 });

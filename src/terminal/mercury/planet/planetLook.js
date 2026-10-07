@@ -76,6 +76,7 @@ export const PLANET_TUNE = {
   filEdgeDesat: 0.45, // §4: filament edges fall toward their own luminance by this
   filCoreLift: 0.15,  // §4: filament core lifts toward white by this
   filWidthVar: 0.35, // §2: a pinched stretch draws at (1 - this) × the core width (alpha ÷ the factor: light conserved)
+  filWarp: 1,        // �3: path domain-warp amplitude � this (per-flow amplitude FLUID_FIL_WARP / AIR_FIL_WARP)
   filFray: 2,        // §2: a frayed stretch draws at (1 + this) × the core width
   emberSize: 1.75,   // fire embers only: width × this (the body untouched; stretch cap FIRE_EMBER_STRETCH kept; Task 8b)
   emberGain: 1.75,   // fire embers only: alpha × this on top of filAlpha × FIRE_EMBER_GAIN (Task 8b)

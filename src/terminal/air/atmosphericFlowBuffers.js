@@ -27,6 +27,7 @@ export const AIR_WANDER_RATE = 0.05; // noise time rate: slow
 // of a smooth arc: JS replica of the air chain (desktop camera, 1000 px, real dash lengths) → chord-vs-arc deviation
 // p95 4.4 / p99 10.7 px at curl x1 + shimmer + 16x; p95 0.45 / p99 1.6 px at curl x0.25, no shimmer, 6x.
 export const AIR_FIL_CURL = 0.25;    // filament curl × this (fog × 1)
+export const AIR_FIL_WARP = 0.08; // soft threads �3: filament path warp amplitude, scene units
 export const AIR_FIL_ASPECT = 6;     // air filament dash cap (× width); fluid keeps FIL_ASPECT 16
 
 export function buildBuffers(count, nFog, seed = AIR_THREAD_SEED) {

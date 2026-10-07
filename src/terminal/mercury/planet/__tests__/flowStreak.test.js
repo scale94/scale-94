@@ -291,7 +291,7 @@ describe('air thread dashes follow the wavy tilted path (Task 7e fix)', () => {
     expect(atmoSrc).toContain('vec3 prev = aRole < 0.5 ? prevCore + (pos - core) : airDisplace(prevCore, anglePrev);');
     // the chain itself is unchanged (fog byte-identical): y-noise, wander (filaments), curl, shimmer, in that order
     const body = atmoSrc.slice(atmoSrc.indexOf('vec3 airDisplace(vec3 core, float angle) {'), atmoSrc.indexOf('void main(){'));
-    const order = ['pos.y += snoise(yArg) * 0.15;', 'if (aRole > 0.5) pos.y += snoise(vec3(cos(angle) * AIR_WANDER_R',
+    const order = ['pos.y += snoise(yArg) * 0.15;', 'if (aRole > 0.5) pos.y += snoise(vec3(cos(angle) * AIR_WANDER_R', 'if (aRole > 0.5) pos += gasWarp(pos, uTime, AIR_FIL_WARP);',
       'vec3 curl = curlNoise(pos * 0.9 + vec3(t, t * 0.6, t * 0.8));', 'pos += curl * uTurbulence * 0.3 * (aRole < 0.5 ? 1.0 : AIR_FIL_CURL);',
       'if (aRole < 0.5) {', 'pos.x += snoise(pos * 5.0 + vec3(st, 0.0, aPhase)) * 0.03;', 'pos.z += snoise(pos * 5.0 + vec3(aPhase, 0.0, st * 1.1)) * 0.03;', 'return pos;'];
     let at = -1;
@@ -379,7 +379,7 @@ describe('threads hold their shape (Task 7f fix)', () => {
     expect(particleSrc).toContain('float jy = snoise(basePos * 8.0 + vec3(0.0, uTime, 0.0)) * 0.012 * shimK;');
     expect(particleSrc).toContain('float jz = snoise(basePos * 8.0 + vec3(0.0, 0.0, uTime)) * 0.012 * shimK;');
     expect(particleSrc).toContain('vec3 fluidFilAt(float ph) {');
-    expect(particleSrc).toContain('return b + j + curlNoise(c * 2.0 + uTime * 0.1) * uCurlAmp;');
+    expect(particleSrc).toContain('return b + j + curlNoise(c * 2.0 + uTime * 0.1) * uCurlAmp + gasWarp(b, uTime, FLUID_FIL_WARP);');
     expect(particleSrc).toContain('float dph = aGap / (0.6 + aOffset * 0.4);');
     expect(particleSrc).toContain('clipBack = projectionMatrix * (modelViewMatrix * vec4(fluidFilAt(uPhase - dph) * squash, 1.0));');
     expect(particleSrc).toContain('clipAhead = projectionMatrix * (modelViewMatrix * vec4(fluidFilAt(uPhase + dph) * squash, 1.0));');
@@ -398,6 +398,38 @@ describe('threads hold their shape (Task 7f fix)', () => {
     expect(fogOf(b, b.gaps).every((g) => g === 0)).toBe(true);
     expect(filOf(b, b.gaps).every((g) => g > 0 && g < 0.05)).toBe(true);
     expect(airBuf.AIR_SIGMA_ALT).toBe(0.0015);
+  });
+
+  it('warp headroom (soft threads �3): fluid at 2x filWarp still closes its gaps and keeps the dash on the path', () => {
+    const m = measureThreads('fluid', fluidBuf.buildBuffers(3600, 1200), { rate: 0.1, step: 3, devSteps: 12, warpK: 2 });
+    expect(m.openVis).toBeLessThanOrEqual(0.01);
+    expect(m.devP95).toBeLessThanOrEqual(1.5);
+  });
+
+  it('warp headroom: air at 2x filWarp, same bars', () => {
+    const m = measureThreads('air', airBuf.buildBuffers(3600, 1200), { rate: 1.2, step: 6, devSteps: 10, lanes: [0, 1, 2, 3, 4], warpK: 2 });
+    expect(m.openVis).toBeLessThanOrEqual(0.01);
+    expect(m.devP95).toBeLessThanOrEqual(1.5);
+  });
+
+  it('the warp actually moves the threads (not vacuous): the mean displacement at default is >= 0.02 scene units', () => {
+    const b = fluidBuf.buildBuffers(3600, 1200);
+    let s = 0, n = 0;
+    b.lanes.forEach((k, i) => {
+      if (k < 0 || n >= 400) return;
+      const p = { phase: b.phases[i], offset: b.offsets[i], radius: b.radii[i] };
+      const a = fluidFil(0, p, undefined, 1).pos, z = fluidFil(0, p, undefined, 0).pos;
+      s += Math.hypot(a[0] - z[0], a[1] - z[1], a[2] - z[2]); n++;
+    });
+    expect(s / n).toBeGreaterThanOrEqual(0.02);
+  });
+
+  it('warp lives in the shared chains (neighbours see it), filaments only, on the calm-gated uTime', () => {
+    expect(particleSrc).toContain('return b + j + curlNoise(c * 2.0 + uTime * 0.1) * uCurlAmp + gasWarp(b, uTime, FLUID_FIL_WARP);');
+    expect(particleSrc).toContain('if (aRole > 0.5) pos += gasWarp(basePos, uTime, FLUID_FIL_WARP);');
+    expect(atmoSrc).toContain('if (aRole > 0.5) pos += gasWarp(pos, uTime, AIR_FIL_WARP);');
+    expect(particleSrc).toContain('const float FLUID_FIL_WARP = ${glf(FLUID_FIL_WARP)};');
+    expect(atmoSrc).toContain('const float AIR_FIL_WARP = ${glf(AIR_FIL_WARP)};');
   });
 
   it('fluid replica (shimmer included): moving, visible gaps ≤ 1 % and dash-off-path p95 ≤ 1.5 px', () => {

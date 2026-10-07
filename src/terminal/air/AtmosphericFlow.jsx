@@ -8,7 +8,7 @@ import { SUN_DIR_WORLD } from '../mercury/planet/planetFrame';
 import { GAS_STREAK_VS, GAS_STREAK_FS, GAS_TUNE_UNIFORMS, writeGasTune, gasPointMax } from '../mercury/planet/gasStreak';
 import { createAetherClock, configureAetherClock, tickAetherClock } from '../mercury/planet/aetherClock';
 import {
-  buildBuffers, AIR_TILT_MIN, AIR_TILT_MAX, AIR_WANDER, AIR_WANDER_R, AIR_WANDER_RATE, AIR_FIL_CURL, AIR_FIL_ASPECT,
+  buildBuffers, AIR_TILT_MIN, AIR_TILT_MAX, AIR_WANDER, AIR_WANDER_R, AIR_WANDER_RATE, AIR_FIL_CURL, AIR_FIL_ASPECT, AIR_FIL_WARP,
 } from './atmosphericFlowBuffers';
 import { glf } from '../gl/glf';
 
@@ -100,6 +100,7 @@ const vertexShader = /* glsl */ `
   const float AIR_WANDER_RATE = ${glf(AIR_WANDER_RATE)};
   const float AIR_FIL_CURL = ${glf(AIR_FIL_CURL)};
   const float AIR_FIL_ASPECT = ${glf(AIR_FIL_ASPECT)};
+  const float AIR_FIL_WARP = ${glf(AIR_FIL_WARP)};
 
   // Filament threads (Task 7e): tilt a lane's orbit ring by a seeded 8–20° about a seeded horizontal axis
   // (Rodrigues). A tilt < 90° keeps the rotation sense; now and prev both go through orbitPos, so the dash follows
@@ -148,6 +149,7 @@ const vertexShader = /* glsl */ `
     pos.y += snoise(yArg) * 0.15;
     // Filaments: slow per-lane vertical wander, periodic in the angle (no seam), lanes decorrelated by aLane.
     if (aRole > 0.5) pos.y += snoise(vec3(cos(angle) * AIR_WANDER_R + aLane * 3.1, sin(angle) * AIR_WANDER_R, uTime * AIR_WANDER_RATE)) * AIR_WANDER;
+    if (aRole > 0.5) pos += gasWarp(pos, uTime, AIR_FIL_WARP); // soft threads �3: in the shared chain (prev + neighbours)
 
     // ── Atmospheric eddies (slow curl turbulence) ────────────────────────
     float t = uTime * 0.08;

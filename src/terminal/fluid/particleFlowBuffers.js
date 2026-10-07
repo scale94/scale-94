@@ -15,6 +15,7 @@ export const FLUID_SIGMA_R = 0.0075;      // radial jitter, tube-radius units (T
 export const FLUID_LANE_R = [0.08, 0.95]; // lane-centre radius range (tube-radius units)
 export const FLUID_THREAD_SEED = 0x7d1f;
 export const FLUID_FIL_SHIMMER = 0.15; // filament shimmer x this (fog x 1): it is crossed at knot speed, bending the path
+export const FLUID_FIL_WARP = 0.07; // soft threads �3: filament path warp amplitude, scene units (knot radius 1, tube 0.32)
 export const FLUID_LANE_HUE_SPREAD = 0.25; // soft threads §4: a thread's hue sits near the fog's (was a full-palette offset)
 export const FLUID_ALONG_JITTER = 0.3; // along-lane jitter (× spacing): more even gaps for the gap-closing dashes (7f)
 

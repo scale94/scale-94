@@ -7,7 +7,7 @@ import { AETHER_LIGHT_VS, aetherLightFS } from '../mercury/planet/aetherLight';
 import { SUN_DIR_WORLD } from '../mercury/planet/planetFrame';
 import { GAS_STREAK_VS, GAS_STREAK_FS, GAS_TUNE_UNIFORMS, writeGasTune, gasPointMax } from '../mercury/planet/gasStreak';
 import { createAetherClock, configureAetherClock, tickAetherClock } from '../mercury/planet/aetherClock';
-import { buildBuffers, FLUID_FIL_SHIMMER, FLUID_LANE_HUE_SPREAD } from './particleFlowBuffers';
+import { buildBuffers, FLUID_FIL_SHIMMER, FLUID_LANE_HUE_SPREAD, FLUID_FIL_WARP } from './particleFlowBuffers';
 import { glf } from '../gl/glf';
 
 // ── GLSL Shaders ───────────────────────────────────────────────────────────
@@ -129,6 +129,7 @@ const vertexShader = /* glsl */ `
   }
 
   const float FLUID_FIL_SHIMMER = ${glf(FLUID_FIL_SHIMMER)};
+  const float FLUID_FIL_WARP = ${glf(FLUID_FIL_WARP)};
   const float FLUID_LANE_HUE_SPREAD = ${glf(FLUID_LANE_HUE_SPREAD)};
 
   // A filament's full position at knot phase ph (Task 7f fix: its lane neighbours' samples for the path secant):
@@ -138,7 +139,7 @@ const vertexShader = /* glsl */ `
     vec3 b = knotPos(ph, c);
     vec3 j = vec3(snoise(b * 8.0 + vec3(uTime, 0.0, 0.0)), snoise(b * 8.0 + vec3(0.0, uTime, 0.0)),
       snoise(b * 8.0 + vec3(0.0, 0.0, uTime))) * (0.012 * FLUID_FIL_SHIMMER);
-    return b + j + curlNoise(c * 2.0 + uTime * 0.1) * uCurlAmp;
+    return b + j + curlNoise(c * 2.0 + uTime * 0.1) * uCurlAmp + gasWarp(b, uTime, FLUID_FIL_WARP);
   }
 
   void main() {
@@ -158,6 +159,7 @@ const vertexShader = /* glsl */ `
     vec3 curl = curlNoise(center * 2.0 + uTime * 0.1) * uCurlAmp;
 
     vec3 pos = basePos + vec3(jx, jy, jz) + curl;
+    if (aRole > 0.5) pos += gasWarp(basePos, uTime, FLUID_FIL_WARP); // = fluidFilAt's chain; prev keeps it (pos - basePos)
     vec3 prev = prevCore + (pos - basePos); // the streak shows the current, not the shimmer
 
     // ── Harmonic color cycling ──
