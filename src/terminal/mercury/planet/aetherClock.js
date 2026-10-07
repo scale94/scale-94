@@ -64,8 +64,8 @@ export function tickAetherClock(clock, stamp, delta) {
   return clock;
 }
 
-// Mirror weights in CLOCK_PHASES order: each element by its fade (transitionMachine). Neutral → all 0, the quiet dark
-// sky (Sun glint + base mirror). Normalised if a cross-fade ever sums above 1.
+// Mirror weights in CLOCK_PHASES order: each element by its fade (transitionMachine). Neutral → all 0; the neutralSky term
+// (skyNeutral, gain PLANET_TUNE.neutralSky) takes the weight. Normalised if a cross-fade ever sums above 1.
 export function skyWeights(fades, out = [0, 0, 0, 0]) {
   let sum = 0;
   for (let i = 0; i < CLOCK_PHASES.length; i++) {

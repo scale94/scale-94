@@ -15,7 +15,7 @@ import { ELEMENTS, NEUTRAL_NIGHT } from './elements';
 import { PLANET_TUNE } from './planet/planetLook';
 
 export const TUNE = {
-  // Nebula condensation (the breath): pos *= 1 - c^2 in the flow shaders.
+  // Nebula condensation (the breath is gone; condense is pinned at 0, props kept for a later cleanup): pos *= 1 - c^2 in the flow shaders.
   condenseBite:     1.0,  // max contraction; 0 disables live from the rig
   condenseSizeBite: 0.6,  // sprite slimming en route into the drop
 };

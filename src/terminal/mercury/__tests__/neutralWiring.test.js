@@ -63,3 +63,10 @@ describe('MercuryTab — boots neutral', () => {
     expect(tabSrc).toContain("{activePhase ?? 'neutral'} :: phase active");
   });
 });
+
+describe('MercurySphere — handle activation', () => {
+  it('keeps assistive-tech clicks (detail 0) without double-firing pointer taps', () => {
+    expect(sphereSrc).toContain('onClick={(e) => { if (e.detail === 0) onNodeTap(phase); }}');
+    expect(sphereSrc).toContain('release ${phase}, return to neutral');
+  });
+});

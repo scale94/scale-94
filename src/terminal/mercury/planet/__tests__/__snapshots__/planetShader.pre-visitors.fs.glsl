@@ -436,7 +436,7 @@ vec3 skyNeutral(vec3 R, float nOct) {
   return vec3(L);
 }
 
-// The active element's sky (two during a switch), in a mirror of roughness rough; the neutral sky fills
+// The active element's sky (at most one is up: switches pass through neutral), in a mirror of roughness rough; the neutral sky fills
 // whatever weight the element skies leave (full in neutral, zero once an element's sky is at full weight).
 vec3 aetherSky(vec3 R, float rough) {
   float k = smoothstep(SKY_ROUGH_SHARP, SKY_ROUGH_FLAT, rough);

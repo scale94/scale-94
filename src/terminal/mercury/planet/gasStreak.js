@@ -44,8 +44,8 @@ export const THREAD_ALONG_JITTER = 0.8;  // stratified along-lane jitter, × the
 export const THREAD_CROSS_CLIP = 2.5;    // cross-lane jitter = a unit normal clipped at ±this (flows scale it by their σ)
 export const THREAD_WEIGHT_FLOOR = 0.35; // lane weight = floor + Exp(1): uneven (dense + faint threads), none vanishing
 
-// Particle counts for one flow (spec §3e): `base` = its old count (params.density or GHOST_DENSITY), `mult` = the
-// tier's gasDensity (1 for ghosts). Fog = the old count; the multiplier feeds the filaments. Fire: body = the old
+// Particle counts for one flow (spec §3e): `base` = its old count (params.density), `mult` = the
+// tier's gasDensity (every flow gets the tier counts). Fog = the old count; the multiplier feeds the filaments. Fire: body = the old
 // body count, embers = the old ember count × mult (written so that n = base exactly at ×1).
 export function gasCounts(base, mult, fire = false) {
   if (fire) {

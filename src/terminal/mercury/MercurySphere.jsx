@@ -159,7 +159,8 @@ export default function MercurySphere({
                     onElementFired?.(phase, e.clientX, e.clientY);
                     setTimeout(() => setPressedPhase(null), 380);
                   }}
-                  aria-label={`${element} — switch to ${phase} phase`}
+                  onClick={(e) => { if (e.detail === 0) onNodeTap(phase); }} // detail 0 = assistive-tech/keyboard click; a real pointer click (detail >= 1) already tapped on pointerdown
+                  aria-label={isLit ? `${element} — release ${phase}, return to neutral` : `${element} — switch to ${phase} phase`}
                 >
                   {/* Circular ring — bursts on press */}
                   <div style={{
