@@ -61,6 +61,7 @@ export const PLANET_TUNE = {
   emitGain: 1.5,     // liquid mirror: element-emitter reflection gain
   aetherGain: 1.4,   // liquid mirror + frozen ambient: aether sky gain (re-tuned in the mirror-sky look round)
   aetherSilver: 0,   // desaturation toward silver (0: the mirror shows the gas at its own hue, 2026-10-03)
+  neutralSky: 1,     // resting-mirror silver sky gain (0 = the quiet black mirror); author ruling 2026-10-07: on by default
   aetherFloor: 0.2,     // lit element flows never fall below this × their colour (umbra, worst phase) — aetherLight.js
   aetherPenumbra: 0.08, // half-width of the planet shadow cylinder's soft edge, scene units (planet radius 0.75)
   streakGain: 0.05,  // filament shutter (s): length beyond the core = on-screen speed × this; fluid ~355 px/s → ~9× width (live sweep 2026-10-06)

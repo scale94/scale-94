@@ -31,6 +31,7 @@ uniform vec4 uSkyPhase;
 uniform vec4 uSkyW;
 uniform float uAetherGain;
 uniform float uAetherSilver;
+uniform float uNeutralSky;
 uniform sampler2D uScar;
 uniform float uRayGain;
 uniform float uSurfOn;
@@ -327,6 +328,10 @@ const vec3 SKY_MEAN_FLUID = vec3(0.0170200000, 0.0198900000, 0.0373600000);
 const vec3 SKY_MEAN_THERMAL = vec3(0.0291700000, 0.00929700000, 0.00109200000);
 const vec3 SKY_MEAN_EARTH = vec3(0.00852600000, 0.00528400000, 0.00242000000);
 const vec3 SKY_MEAN_AIR = vec3(0.00591900000, 0.00817900000, 0.0105500000);
+const float NEUTRAL_SKY_LUM = 0.0300000000;
+const float NEUTRAL_SKY_FLOOR = 0.350000000;
+const float NEUTRAL_SKY_DRIFT = 0.0200000000;
+const vec3 SKY_MEAN_NEUTRAL = vec3(0.0256125000, 0.0256125000, 0.0256125000);
 
 float skyHash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
 float skyNoise(vec3 x) {
@@ -348,6 +353,7 @@ float skyFbm(vec3 p, float nOct) {
   return s;
 }
 vec3 skyRotZ(vec3 v, float a) { float c = cos(a), s = sin(a); return vec3(c * v.x - s * v.y, s * v.x + c * v.y, v.z); }
+vec3 skyRotY(vec3 v, float a) { float c = cos(a), s = sin(a); return vec3(c * v.x + s * v.z, v.y, -s * v.x + c * v.z); }
 
 // Water: curling filaments and folding sheets, forward-scattering (brighter toward the Sun). The knot's axis is +Z.
 vec3 skyFluid(vec3 R, float nOct) {
@@ -426,10 +432,22 @@ vec3 skyAir(vec3 R, float nOct) {
   return c;
 }
 
-// The active element's sky (two during a switch), in a mirror of roughness rough.
+// Neutral (resting mirror): colourless graphite/silver, a soft horizon-bright studio band so the limb reads
+// metallic, large soft cloud drifting very slowly on the calm-gated sky clock; at most 3 octaves.
+vec3 skyNeutral(vec3 R, float nOct) {
+  float band = 0.55 + 0.45 * (1.0 - abs(R.y));
+  float cloud = skyFbm(skyRotY(R, NEUTRAL_SKY_DRIFT * uSkyT) * 1.3 + vec3(0.0, uSkyT * NEUTRAL_SKY_DRIFT * 0.5, 0.0), min(nOct, 3.0)) * 2.0;
+  float L = NEUTRAL_SKY_LUM * (NEUTRAL_SKY_FLOOR + (1.0 - NEUTRAL_SKY_FLOOR) * band * cloud);
+  return vec3(L);
+}
+
+// The active element's sky (two during a switch), in a mirror of roughness rough; the neutral sky fills
+// whatever weight the element skies leave (full in neutral, zero once an element's sky is at full weight).
 vec3 aetherSky(vec3 R, float rough) {
   float k = smoothstep(SKY_ROUGH_SHARP, SKY_ROUGH_FLAT, rough);
+  float wN = uNeutralSky * clamp(1.0 - (uSkyW.x + uSkyW.y + uSkyW.z + uSkyW.w), 0.0, 1.0);
   vec3 mean = uSkyW.x * SKY_MEAN_FLUID + uSkyW.y * SKY_MEAN_THERMAL + uSkyW.z * SKY_MEAN_EARTH + uSkyW.w * SKY_MEAN_AIR;
+  mean += wN * SKY_MEAN_NEUTRAL;
   if (k >= 1.0) return mean;
   float nOct = mix(float(SKY_OCTAVES), 1.0, k);
   vec3 s = vec3(0.0);
@@ -437,6 +455,7 @@ vec3 aetherSky(vec3 R, float rough) {
   if (uSkyW.y > SKY_W_MIN) s += uSkyW.y * skyThermal(R, nOct);
   if (uSkyW.z > SKY_W_MIN) s += uSkyW.z * skyEarth(R, nOct, k);
   if (uSkyW.w > SKY_W_MIN) s += uSkyW.w * skyAir(R, nOct);
+  if (wN > SKY_W_MIN) s += wN * skyNeutral(R, nOct);
   return mix(s, mean, k);
 }
 
