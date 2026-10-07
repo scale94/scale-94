@@ -3,7 +3,8 @@ import { describe, it, expect } from 'vitest';
 import { glf, v3 } from '../../../gl/glf';
 import {
   AETHER_SKY_GLSL, SKY_OCTAVES, SKY_ROUGH_SHARP, SKY_ROUGH_FLAT, SKY_W_MIN, SKY_PING_EXP, SKY_PING_GAIN, SKY_MEAN, AIR_SHEAR_BAND,
-  NEUTRAL_SKY_LUM, NEUTRAL_SKY_FLOOR, NEUTRAL_SKY_DRIFT,
+  NEUTRAL_SKY_FLOOR, NEUTRAL_HORIZON_LUM, NEUTRAL_HORIZON_W, NEUTRAL_STRIP_LUM, NEUTRAL_STRIP_AZ, NEUTRAL_STRIP_HW,
+  NEUTRAL_STRIP_SOFT, NEUTRAL_STRIP_Y0, NEUTRAL_STRIP_Y1, NEUTRAL_STRIP_YSOFT, NEUTRAL_SKY_DRIFT,
 } from '../aetherSky';
 import { HG_MIRROR_UNIFORMS } from '../hgMirrorGlsl';
 import { PLANET_UNIFORMS } from '../mercuryPlanetShader';
@@ -80,21 +81,50 @@ describe('aetherSky', () => {
     expect(AETHER_SKY_GLSL).not.toMatch(/uAeth|uTime/);
   });
 
-  describe('neutralSky (Task 7): the resting mirror sees a quiet silver sky', () => {
-    it('constants as ruled, interpolated into the GLSL', () => {
-      expect(NEUTRAL_SKY_LUM).toBe(0.03);
-      expect(NEUTRAL_SKY_FLOOR).toBe(0.35);
+  describe('neutralSky (Task 7, option B): the resting mirror sees a studio', () => {
+    const SCALARS = { NEUTRAL_SKY_FLOOR, NEUTRAL_HORIZON_LUM, NEUTRAL_HORIZON_W, NEUTRAL_STRIP_LUM, NEUTRAL_STRIP_HW,
+      NEUTRAL_STRIP_SOFT, NEUTRAL_STRIP_Y0, NEUTRAL_STRIP_Y1, NEUTRAL_STRIP_YSOFT, NEUTRAL_SKY_DRIFT };
+
+    it('constants interpolated into the GLSL', () => {
+      for (const [n, v] of Object.entries(SCALARS)) expect(AETHER_SKY_GLSL).toContain(`const float ${n} = ${glf(v)};`);
+      expect(AETHER_SKY_GLSL).toContain(`const vec3 NEUTRAL_STRIP_AZ = ${v3(NEUTRAL_STRIP_AZ)};`);
       expect(NEUTRAL_SKY_DRIFT).toBe(0.02);
-      for (const [n, v] of Object.entries({ NEUTRAL_SKY_LUM, NEUTRAL_SKY_FLOOR, NEUTRAL_SKY_DRIFT })) {
-        expect(AETHER_SKY_GLSL).toContain(`const float ${n} = ${glf(v)};`);
-      }
     });
 
-    it('SKY_MEAN.neutral is the analytic mean, colourless', () => {
-      const BAND_MEAN = 0.55 + 0.45 * (1 - 0.5);
-      const m = NEUTRAL_SKY_LUM * (NEUTRAL_SKY_FLOOR + (1 - NEUTRAL_SKY_FLOOR) * BAND_MEAN);
+    it('high contrast: near-black floor, horizon and strips far above it', () => {
+      expect(NEUTRAL_SKY_FLOOR).toBeLessThan(0.01);
+      expect(NEUTRAL_HORIZON_LUM / NEUTRAL_SKY_FLOOR).toBeGreaterThan(50);
+      expect(NEUTRAL_STRIP_LUM / NEUTRAL_SKY_FLOOR).toBeGreaterThan(50);
+      expect(NEUTRAL_HORIZON_W).toBeLessThan(0.05);
+    });
+
+    it('strips never overlap (the analytic mean assumes it): gaps exceed the soft edges', () => {
+      const az = [...NEUTRAL_STRIP_AZ].sort((x, y) => x - y);
+      const gaps = az.map((c, i) => (i + 1 < az.length ? az[i + 1] - c : az[0] + 2 * Math.PI - c));
+      for (const g of gaps) expect(g).toBeGreaterThan(2 * (NEUTRAL_STRIP_HW + NEUTRAL_STRIP_SOFT));
+      expect(NEUTRAL_STRIP_Y1 - NEUTRAL_STRIP_Y0).toBeGreaterThan(2 * NEUTRAL_STRIP_YSOFT);
+    });
+
+    it('SKY_MEAN.neutral is the analytic mean, colourless, and matches a numeric integral', () => {
+      const ss = (e0, e1, x) => { const t = Math.min(Math.max((x - e0) / (e1 - e0), 0), 1); return t * t * (3 - 2 * t); };
+      const N = 2000, M = 2000; let sum = 0;
+      for (let i = 0; i < N; i++) {
+        const y = -1 + (2 * (i + 0.5)) / N;
+        const hz = y / NEUTRAL_HORIZON_W;
+        const span = ss(NEUTRAL_STRIP_Y0 - NEUTRAL_STRIP_YSOFT, NEUTRAL_STRIP_Y0 + NEUTRAL_STRIP_YSOFT, y)
+          * ss(NEUTRAL_STRIP_Y1 + NEUTRAL_STRIP_YSOFT, NEUTRAL_STRIP_Y1 - NEUTRAL_STRIP_YSOFT, y);
+        let strips = 0;
+        for (let j = 0; j < M; j++) {
+          const az = -Math.PI + (2 * Math.PI * (j + 0.5)) / M;
+          for (const c of NEUTRAL_STRIP_AZ) {
+            const d = Math.abs((((az - c + Math.PI) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI) - Math.PI);
+            strips += ss(NEUTRAL_STRIP_HW + NEUTRAL_STRIP_SOFT, NEUTRAL_STRIP_HW - NEUTRAL_STRIP_SOFT, d);
+          }
+        }
+        sum += NEUTRAL_SKY_FLOOR + NEUTRAL_HORIZON_LUM * Math.exp(-hz * hz) + NEUTRAL_STRIP_LUM * span * strips / M;
+      }
       expect(SKY_MEAN.neutral).toHaveLength(3);
-      for (const c of SKY_MEAN.neutral) expect(c).toBeCloseTo(m, 12);
+      for (const c of SKY_MEAN.neutral) expect(c).toBeCloseTo(sum / N, 5);
       expect(SKY_MEAN.neutral[0]).toBe(SKY_MEAN.neutral[1]);
       expect(SKY_MEAN.neutral[1]).toBe(SKY_MEAN.neutral[2]);
     });
@@ -106,11 +136,11 @@ describe('aetherSky', () => {
       expect(AETHER_SKY_GLSL).toContain('if (wN > SKY_W_MIN) s += wN * skyNeutral(R, nOct);');
     });
 
-    it('colourless, horizon-bright band, slow drift on the calm-gated sky clock, at most 3 octaves', () => {
-      expect(AETHER_SKY_GLSL).toContain('float band = 0.55 + 0.45 * (1.0 - abs(R.y));');
-      expect(AETHER_SKY_GLSL).toContain('skyFbm(skyRotY(R, NEUTRAL_SKY_DRIFT * uSkyT) * 1.3 + vec3(0.0, uSkyT * NEUTRAL_SKY_DRIFT * 0.5, 0.0), min(nOct, 3.0)) * 2.0');
-      expect(AETHER_SKY_GLSL).toContain('NEUTRAL_SKY_LUM * (NEUTRAL_SKY_FLOOR + (1.0 - NEUTRAL_SKY_FLOOR) * band * cloud)');
-      expect(AETHER_SKY_GLSL).toContain('vec3 skyRotY(vec3 v, float a)');
+    it('no noise, rigid drift on the calm-gated sky clock', () => {
+      const body = AETHER_SKY_GLSL.slice(AETHER_SKY_GLSL.indexOf('float skyNeutralStrip('), AETHER_SKY_GLSL.indexOf('// The active element'));
+      expect(body).not.toMatch(/skyFbm|skyNoise|skyHash/);
+      expect(body).toContain('float az = atan(R.z, R.x) - NEUTRAL_SKY_DRIFT * uSkyT;');
+      expect(body).toContain('NEUTRAL_HORIZON_LUM * exp(-hz * hz)');
     });
 
     it('uNeutralSky is a mirror uniform, fed to the planet too', () => {

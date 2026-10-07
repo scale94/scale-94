@@ -21,14 +21,26 @@ export const SKY_W_MIN = 0.004;      // a weight below this is not evaluated
 export const SKY_PING_EXP = 250;     // earth ping lobe sharpness (approved cadence: 1–2 concurrent pings)
 export const SKY_PING_GAIN = 10;
 export const AIR_SHEAR_BAND = 0.12;   // R.y half-width of the equatorial cross-fade between the two rigid air layers
-// Neutral sky (neutral-state Task 7): what the resting mirror sees when no element's sky is up. Colourless,
-// dim graphite (same order as the element skies' means), a soft horizon-bright band, large slow cloud.
-export const NEUTRAL_SKY_LUM = 0.03;
-export const NEUTRAL_SKY_FLOOR = 0.35;
-export const NEUTRAL_SKY_DRIFT = 0.02; // rad per sky-clock second (uSkyT is calm-gated: calm freezes it)
-// Analytic mean: cloud mean ≈ 1 (skyFbm mean 0.5, ×2); band mean 0.55 + 0.45 × (mean of 1-|y| over the sphere = 0.5).
-const NEUTRAL_BAND_MEAN = 0.55 + 0.45 * (1 - 0.5);
-const NEUTRAL_MEAN = NEUTRAL_SKY_LUM * (NEUTRAL_SKY_FLOOR + (1 - NEUTRAL_SKY_FLOOR) * NEUTRAL_BAND_MEAN);
+// Neutral sky (neutral-state Task 7, rebuilt 2026-10-07 as option B): what the resting mirror sees when no element's
+// sky is up. A low-contrast cloud made the 0.14-rough liquid read as a matte grey ball (a mirror of a flat sky looks
+// diffuse), so this is a studio: deep-space black, a thin bright horizon line, three soft-edged light strips turning
+// slowly together on the calm-gated sky clock. Colourless.
+export const NEUTRAL_SKY_FLOOR = 0.004;    // deep-space baseline
+export const NEUTRAL_HORIZON_LUM = 0.35;   // horizon line peak
+export const NEUTRAL_HORIZON_W = 0.025;    // horizon Gaussian width in R.y
+export const NEUTRAL_STRIP_LUM = 0.3;      // strip plateau
+export const NEUTRAL_STRIP_AZ = Object.freeze([0, 2.25, 4.05]); // strip centres (rad); uneven so the rig never looks tiled
+export const NEUTRAL_STRIP_HW = 0.14;      // strip half-width in azimuth (rad)
+export const NEUTRAL_STRIP_SOFT = 0.06;    // azimuth edge softness (rad)
+export const NEUTRAL_STRIP_Y0 = -0.15;     // strip lower end (R.y)
+export const NEUTRAL_STRIP_Y1 = 0.6;       // strip upper end (R.y)
+export const NEUTRAL_STRIP_YSOFT = 0.12;   // end softness (R.y)
+export const NEUTRAL_SKY_DRIFT = 0.02;     // rad per sky-clock second (uSkyT is calm-gated: calm freezes it)
+// Analytic mean over the sphere (uniform in R.y): a symmetric smoothstep window integrates to its nominal width, and
+// the strips never overlap (rigid rig, gaps > 2 × soft), so: floor + horizon (w√π/2; erf(1/w) = 1) + 3 strips.
+const NEUTRAL_MEAN = NEUTRAL_SKY_FLOOR
+  + NEUTRAL_HORIZON_LUM * NEUTRAL_HORIZON_W * Math.sqrt(Math.PI) / 2
+  + NEUTRAL_STRIP_AZ.length * NEUTRAL_STRIP_LUM * (2 * NEUTRAL_STRIP_HW / (2 * Math.PI)) * ((NEUTRAL_STRIP_Y1 - NEUTRAL_STRIP_Y0) / 2);
 // Mean radiance of each sky over all directions (linear), the value a fully rough mirror sees. Measured 2026-10-05
 // (plan Task 5, .superpowers/sdd/tools/ms-mean.mjs): 128x64 equirect RGBA32F, cos-latitude weighted, rough 0,
 // 5 clock samples (t 0/7/19/31/53 s at speed 0.1, orbitalSpeed 1.2). Re-measure if a sky function changes.
@@ -57,8 +69,16 @@ const vec3 SKY_MEAN_FLUID = ${v3(SKY_MEAN.fluid)};
 const vec3 SKY_MEAN_THERMAL = ${v3(SKY_MEAN.thermal)};
 const vec3 SKY_MEAN_EARTH = ${v3(SKY_MEAN.earth)};
 const vec3 SKY_MEAN_AIR = ${v3(SKY_MEAN.air)};
-const float NEUTRAL_SKY_LUM = ${glf(NEUTRAL_SKY_LUM)};
 const float NEUTRAL_SKY_FLOOR = ${glf(NEUTRAL_SKY_FLOOR)};
+const float NEUTRAL_HORIZON_LUM = ${glf(NEUTRAL_HORIZON_LUM)};
+const float NEUTRAL_HORIZON_W = ${glf(NEUTRAL_HORIZON_W)};
+const float NEUTRAL_STRIP_LUM = ${glf(NEUTRAL_STRIP_LUM)};
+const vec3 NEUTRAL_STRIP_AZ = ${v3(NEUTRAL_STRIP_AZ)};
+const float NEUTRAL_STRIP_HW = ${glf(NEUTRAL_STRIP_HW)};
+const float NEUTRAL_STRIP_SOFT = ${glf(NEUTRAL_STRIP_SOFT)};
+const float NEUTRAL_STRIP_Y0 = ${glf(NEUTRAL_STRIP_Y0)};
+const float NEUTRAL_STRIP_Y1 = ${glf(NEUTRAL_STRIP_Y1)};
+const float NEUTRAL_STRIP_YSOFT = ${glf(NEUTRAL_STRIP_YSOFT)};
 const float NEUTRAL_SKY_DRIFT = ${glf(NEUTRAL_SKY_DRIFT)};
 const vec3 SKY_MEAN_NEUTRAL = ${v3(SKY_MEAN.neutral)};
 
@@ -82,7 +102,6 @@ float skyFbm(vec3 p, float nOct) {
   return s;
 }
 vec3 skyRotZ(vec3 v, float a) { float c = cos(a), s = sin(a); return vec3(c * v.x - s * v.y, s * v.x + c * v.y, v.z); }
-vec3 skyRotY(vec3 v, float a) { float c = cos(a), s = sin(a); return vec3(c * v.x + s * v.z, v.y, -s * v.x + c * v.z); }
 
 // Water: curling filaments and folding sheets, forward-scattering (brighter toward the Sun). The knot's axis is +Z.
 vec3 skyFluid(vec3 R, float nOct) {
@@ -161,12 +180,21 @@ vec3 skyAir(vec3 R, float nOct) {
   return c;
 }
 
-// Neutral (resting mirror): colourless graphite/silver, a soft horizon-bright studio band so the limb reads
-// metallic, large soft cloud drifting very slowly on the calm-gated sky clock; at most 3 octaves.
+// Neutral (resting mirror): a studio. Deep-space black, a thin horizon line, three soft-edged strips turning
+// rigidly with the calm-gated sky clock. No noise: the edges are what make the liquid read as a mirror. nOct is unused
+// (the rougher mirrors fade to SKY_MEAN_NEUTRAL through k in aetherSky).
+float skyNeutralStrip(float az, float c) {
+  float d = abs(mod(az - c + 3.14159265, 6.28318531) - 3.14159265);
+  return smoothstep(NEUTRAL_STRIP_HW + NEUTRAL_STRIP_SOFT, NEUTRAL_STRIP_HW - NEUTRAL_STRIP_SOFT, d);
+}
 vec3 skyNeutral(vec3 R, float nOct) {
-  float band = 0.55 + 0.45 * (1.0 - abs(R.y));
-  float cloud = skyFbm(skyRotY(R, NEUTRAL_SKY_DRIFT * uSkyT) * 1.3 + vec3(0.0, uSkyT * NEUTRAL_SKY_DRIFT * 0.5, 0.0), min(nOct, 3.0)) * 2.0;
-  float L = NEUTRAL_SKY_LUM * (NEUTRAL_SKY_FLOOR + (1.0 - NEUTRAL_SKY_FLOOR) * band * cloud);
+  float hz = R.y / NEUTRAL_HORIZON_W;
+  float L = NEUTRAL_SKY_FLOOR + NEUTRAL_HORIZON_LUM * exp(-hz * hz);
+  float az = atan(R.z, R.x) - NEUTRAL_SKY_DRIFT * uSkyT;
+  float span = smoothstep(NEUTRAL_STRIP_Y0 - NEUTRAL_STRIP_YSOFT, NEUTRAL_STRIP_Y0 + NEUTRAL_STRIP_YSOFT, R.y)
+             * smoothstep(NEUTRAL_STRIP_Y1 + NEUTRAL_STRIP_YSOFT, NEUTRAL_STRIP_Y1 - NEUTRAL_STRIP_YSOFT, R.y);
+  float strips = skyNeutralStrip(az, NEUTRAL_STRIP_AZ.x) + skyNeutralStrip(az, NEUTRAL_STRIP_AZ.y) + skyNeutralStrip(az, NEUTRAL_STRIP_AZ.z);
+  L += NEUTRAL_STRIP_LUM * span * strips;
   return vec3(L);
 }
 
