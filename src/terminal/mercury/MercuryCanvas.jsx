@@ -59,7 +59,7 @@ export default function MercuryCanvas({
   onFps = null,
   overlay = false,
 }) {
-  const { activePhase, fades, holdLiquid, triggerTransition } = usePhaseTransition();
+  const { activePhase, targetPhase, fades, transitionState, holdLiquid, triggerTransition } = usePhaseTransition();
 
   const calm = useCalm();
   // One time base for the gas and the mirror sky (mirror-sky spec §1). Configured every render, ticked per frame.
@@ -72,8 +72,8 @@ export default function MercuryCanvas({
     triggerTransition(phase);
   }, [triggerTransition]);
   useEffect(() => {
-    onPhaseChange?.(activePhase);
-  }, [activePhase, onPhaseChange]);
+    onPhaseChange?.(targetPhase);
+  }, [targetPhase, onPhaseChange]);
 
   // Element strikes for the planet (MercuryPlanet drains this every frame and launches a visitor per strike).
   // The press and onNodeTap both fire once per pointerdown.
@@ -198,6 +198,7 @@ export default function MercuryCanvas({
         <MercurySphere
           activePhase={activePhase}
           activeFade={activePhase ? fades[activePhase] : 0}
+          transitionState={transitionState}
           onNodeTap={handleNodeTap}
           onElementFired={handleElementFired}
           isMobile={isMobile}

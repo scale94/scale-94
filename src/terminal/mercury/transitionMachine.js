@@ -22,6 +22,11 @@ export function activeElement(m) {
   return null;
 }
 
+// The element the page UI follows: the tapped target through a whole switch, null once neutral is the target.
+export function targetElement(m) {
+  return m.target === 'neutral' ? null : m.target;
+}
+
 export function holdLiquid(m) {
   return m.state === 'neutral' || m.beat === 'neutral';
 }

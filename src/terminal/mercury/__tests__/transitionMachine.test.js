@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   ELEMENTS, FADE_OUT_MS, NEUTRAL_MS, SPIN_UP_MS,
-  createMachine, request, advance, holdLiquid, activeElement, isSteady,
+  createMachine, request, advance, holdLiquid, activeElement, isSteady, targetElement,
 } from '../transitionMachine';
 
 const nonZero = (m) => ELEMENTS.filter((e) => m.fade[e] > 0);
@@ -194,5 +194,29 @@ describe('transitionMachine â€” holdLiquid', () => {
     expect(holdLiquid(m)).toBe(true);                  // neutral beat
     advance(m, NEUTRAL_MS);
     expect(holdLiquid(m)).toBe(false);                 // spinUp air
+  });
+});
+
+describe('transitionMachine — targetElement', () => {
+  it('is null at boot', () => { expect(targetElement(createMachine())).toBe(null); });
+  it('is B from the tap through fadeOut, neutral beat and spinUp of A -> B', () => {
+    const m = on('fluid');
+    request(m, 'air');
+    expect(targetElement(m)).toBe('air');
+    advance(m, FADE_OUT_MS / 2); expect(m.beat).toBe('fadeOut'); expect(targetElement(m)).toBe('air');
+    advance(m, FADE_OUT_MS); expect(m.beat).toBe('neutral'); expect(targetElement(m)).toBe('air');
+    advance(m, NEUTRAL_MS); expect(m.beat).toBe('spinUp'); expect(targetElement(m)).toBe('air');
+    advance(m, SPIN_UP_MS); expect(targetElement(m)).toBe('air');
+  });
+  it('is null at once after tapping the lit node, and after a retarget back to neutral', () => {
+    const m = on('earth');
+    request(m, 'earth');
+    expect(targetElement(m)).toBe(null);
+    const k = on('earth');
+    request(k, 'air'); advance(k, FADE_OUT_MS + 10);
+    expect(k.beat).toBe('neutral');
+    request(k, 'air'); // tap the target again during the beat? target stays unless lit
+    request(k, 'neutral');
+    expect(targetElement(k)).toBe(null);
   });
 });

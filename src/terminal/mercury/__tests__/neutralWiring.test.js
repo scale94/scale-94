@@ -25,7 +25,7 @@ describe('MercuryCanvas — neutral state wiring', () => {
     expect(canvasSrc).toContain('<PrecompileGasFlows />');
   });
   it('reports the phase from the machine, not from the tap', () => {
-    expect(canvasSrc).toMatch(/useEffect\(\(\) => \{\s*onPhaseChange\?\.\(activePhase\);\s*\}, \[activePhase, onPhaseChange\]\);/);
+    expect(canvasSrc).toMatch(/useEffect\(\(\) => \{\s*onPhaseChange\?\.\(targetPhase\);\s*\}, \[targetPhase, onPhaseChange\]\);/);
     expect(canvasSrc).toMatch(/const handleNodeTap = useCallback\(\(phase\) => \{\s*triggerTransition\(phase\);\s*\}, \[triggerTransition\]\);/);
   });
   it('hands the planet the fades, the hold and the neutral FPS', () => {
@@ -47,7 +47,10 @@ describe('MercuryPlanet — neutral state wiring', () => {
 describe('MercurySphere — lit node and thread follow the active element', () => {
   it('lights the active element only and fades the thread with it', () => {
     expect(sphereSrc).toContain('const litPhase = activePhase;');
-    expect(sphereSrc).toContain('opacity={0.7 * activeFade}');
+    expect(sphereSrc).toContain('export const THREAD_REST = 0.35;');
+    expect(sphereSrc).toContain('export const THREAD_PEAK = 0.7;');
+    expect(sphereSrc).toContain("activeFade * THREAD_PEAK * (transitionState === 'spinUp' ? 1 : THREAD_REST)");
+    expect(sphereSrc).toContain('mat.opacity += (target - mat.opacity) * (1 - Math.exp(-delta / 0.25));');
     expect(sphereSrc).not.toMatch(/sphereState|pendingPhase|nodeChrome/);
   });
 });

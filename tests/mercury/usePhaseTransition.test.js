@@ -86,3 +86,20 @@ describe('usePhaseTransition â€” driving the machine', () => {
     expect(cancelAnimationFrame).toHaveBeenCalled();
   });
 });
+
+describe('usePhaseTransition — targetPhase', () => {
+  it('is B during the neutral beat of A -> B, and null right after a lit-node tap', () => {
+    const { result } = renderHook(() => usePhaseTransition());
+    act(() => { result.current.triggerTransition('earth'); });
+    act(() => { flush(SPIN_UP_MS); });
+    act(() => { result.current.triggerTransition('air'); });
+    act(() => { flush(FADE_OUT_MS + 50); });
+    expect(result.current.transitionState).toBe('neutral');
+    expect(result.current.activePhase).toBe(null);
+    expect(result.current.targetPhase).toBe('air');
+    act(() => { flush(NEUTRAL_MS + SPIN_UP_MS + 50); });
+    expect(result.current.activePhase).toBe('air');
+    act(() => { result.current.triggerTransition('air'); });
+    expect(result.current.targetPhase).toBe(null);
+  });
+});

@@ -46,14 +46,19 @@ function ElementGlyph({ glyph, color, size = 26 }) {
   );
 }
 
+export const THREAD_PEAK = 0.7;
+export const THREAD_REST = 0.35;
+
 export default function MercurySphere({
   activePhase,
   activeFade = 0,
+  transitionState = 'idle',
   onNodeTap,
   onElementFired = null,
   isMobile = false,
 }) {
   const ringRef = useRef();
+  const threadMatRef = useRef();
 
   // Click burst state for handle animation
   const [pressedPhase, setPressedPhase] = useState(null);
@@ -62,9 +67,16 @@ export default function MercurySphere({
 
   // The planet itself is MercuryPlanet (raw shader, real Sun). This component
   // keeps the orbit ring, the mercury thread and the element handles.
-  useFrame(({ clock }) => {
+  // The thread rests at 35 % and is full strength only while its element spins up; it eases there so nothing pops.
+  const threadTarget = activeFade * THREAD_PEAK * (transitionState === 'spinUp' ? 1 : THREAD_REST);
+  useFrame(({ clock }, delta) => {
     if (ringRef.current) {
       ringRef.current.rotation.z = orbitPrecessionAngle(clock.elapsedTime);
+    }
+    const mat = threadMatRef.current;
+    if (mat) {
+      const target = threadTarget;
+      mat.opacity += (target - mat.opacity) * (1 - Math.exp(-delta / 0.25));
     }
   });
 
@@ -82,7 +94,7 @@ export default function MercurySphere({
         </mesh>
 
         {/* Mercury thread — to the lit node, fading with its element */}
-        {litPhase && activeFade > 0 && (() => {
+        {litPhase && (() => {
           const litNode = ORBIT_NODES.find(n => n.phase === litPhase);
           if (!litNode) return null;
           const endX = Math.cos(litNode.angle) * ORBIT_RADIUS;
@@ -94,7 +106,7 @@ export default function MercurySphere({
           return (
             <mesh position={[midX, midY, 0]} rotation={[0, 0, angle]}>
               <cylinderGeometry args={[0.008, 0.002, length, 6]} />
-              <meshBasicMaterial color="#d0d0d0" transparent opacity={0.7 * activeFade} />
+              <meshBasicMaterial ref={threadMatRef} color="#d0d0d0" transparent opacity={0} />
             </mesh>
           );
         })()}
