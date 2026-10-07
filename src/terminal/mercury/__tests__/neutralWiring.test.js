@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import canvasSrc from '../MercuryCanvas.jsx?raw';
 import planetSrc from '../MercuryPlanet.jsx?raw';
 import sphereSrc from '../MercurySphere.jsx?raw';
+import threadSrc from '../threadMath.js?raw';
 import tabSrc from '../../views/MercuryTab.jsx?raw';
 
 describe('MercuryCanvas — neutral state wiring', () => {
@@ -47,10 +48,11 @@ describe('MercuryPlanet — neutral state wiring', () => {
 describe('MercurySphere — lit node and thread follow the active element', () => {
   it('lights the active element only and fades the thread with it', () => {
     expect(sphereSrc).toContain('const litPhase = activePhase;');
-    expect(sphereSrc).toContain('export const THREAD_REST = 0.35;');
-    expect(sphereSrc).toContain('export const THREAD_PEAK = 0.7;');
-    expect(sphereSrc).toContain("activeFade * THREAD_PEAK * (transitionState === 'spinUp' ? 1 : THREAD_REST)");
-    expect(sphereSrc).toContain('mat.opacity += (target - mat.opacity) * (1 - Math.exp(-delta / 0.25));');
+    expect(threadSrc).toContain('export const THREAD_REST = 0.35;');
+    expect(threadSrc).toContain('export const THREAD_PEAK = 0.7;');
+    expect(threadSrc).toContain("activeFade * THREAD_PEAK * (transitionState === 'spinUp' ? 1 : THREAD_REST)");
+    expect(threadSrc).toContain('return o + (target - o) * (1 - Math.exp(-delta / 0.25));');
+    expect(sphereSrc).toContain('mat.opacity = easeThread(mat.opacity, threadTarget, delta);');
     expect(sphereSrc).not.toMatch(/sphereState|pendingPhase|nodeChrome/);
   });
 });

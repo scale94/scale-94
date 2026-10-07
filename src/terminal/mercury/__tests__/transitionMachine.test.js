@@ -197,7 +197,7 @@ describe('transitionMachine â€” holdLiquid', () => {
   });
 });
 
-describe('transitionMachine — targetElement', () => {
+describe('transitionMachine â€” targetElement', () => {
   it('is null at boot', () => { expect(targetElement(createMachine())).toBe(null); });
   it('is B from the tap through fadeOut, neutral beat and spinUp of A -> B', () => {
     const m = on('fluid');
@@ -208,14 +208,15 @@ describe('transitionMachine — targetElement', () => {
     advance(m, NEUTRAL_MS); expect(m.beat).toBe('spinUp'); expect(targetElement(m)).toBe('air');
     advance(m, SPIN_UP_MS); expect(targetElement(m)).toBe('air');
   });
-  it('is null at once after tapping the lit node, and after a retarget back to neutral', () => {
+  it('is null at once after tapping the lit node', () => {
     const m = on('earth');
     request(m, 'earth');
     expect(targetElement(m)).toBe(null);
+  });
+  it('is null again after a retarget back to neutral during the neutral beat', () => {
     const k = on('earth');
     request(k, 'air'); advance(k, FADE_OUT_MS + 10);
     expect(k.beat).toBe('neutral');
-    request(k, 'air'); // tap the target again during the beat? target stays unless lit
     request(k, 'neutral');
     expect(targetElement(k)).toBe(null);
   });

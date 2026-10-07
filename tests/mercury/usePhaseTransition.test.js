@@ -87,7 +87,7 @@ describe('usePhaseTransition — driving the machine', () => {
   });
 });
 
-describe('usePhaseTransition � targetPhase', () => {
+describe('usePhaseTransition — targetPhase', () => {
   it('is B during the neutral beat of A -> B, and null right after a lit-node tap', () => {
     const { result } = renderHook(() => usePhaseTransition());
     act(() => { result.current.triggerTransition('earth'); });

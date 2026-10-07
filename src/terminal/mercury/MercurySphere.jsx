@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
+import { THREAD_VISIBLE_MIN, threadTargetOpacity, easeThread, threadPhase } from './threadMath';
 import { Html } from '@react-three/drei';
 import { ORBIT_NODES, ORBIT_RADIUS, orbitPrecessionAngle } from './orbitNodes';
 
@@ -46,9 +47,6 @@ function ElementGlyph({ glyph, color, size = 26 }) {
   );
 }
 
-export const THREAD_PEAK = 0.7;
-export const THREAD_REST = 0.35;
-
 export default function MercurySphere({
   activePhase,
   activeFade = 0,
@@ -59,24 +57,27 @@ export default function MercurySphere({
 }) {
   const ringRef = useRef();
   const threadMatRef = useRef();
+  const threadMeshRef = useRef();
+  const lastLitRef = useRef(null);
 
   // Click burst state for handle animation
   const [pressedPhase, setPressedPhase] = useState(null);
 
   const litPhase = activePhase; // null in neutral: no node lit
+  if (litPhase) lastLitRef.current = litPhase;
 
   // The planet itself is MercuryPlanet (raw shader, real Sun). This component
   // keeps the orbit ring, the mercury thread and the element handles.
   // The thread rests at 35 % and is full strength only while its element spins up; it eases there so nothing pops.
-  const threadTarget = activeFade * THREAD_PEAK * (transitionState === 'spinUp' ? 1 : THREAD_REST);
+  const threadTarget = threadTargetOpacity(activeFade, transitionState);
   useFrame(({ clock }, delta) => {
     if (ringRef.current) {
       ringRef.current.rotation.z = orbitPrecessionAngle(clock.elapsedTime);
     }
     const mat = threadMatRef.current;
     if (mat) {
-      const target = threadTarget;
-      mat.opacity += (target - mat.opacity) * (1 - Math.exp(-delta / 0.25));
+      mat.opacity = easeThread(mat.opacity, threadTarget, delta);
+      if (threadMeshRef.current) threadMeshRef.current.visible = mat.opacity > THREAD_VISIBLE_MIN;
     }
   });
 
@@ -94,8 +95,8 @@ export default function MercurySphere({
         </mesh>
 
         {/* Mercury thread — to the lit node, fading with its element */}
-        {litPhase && (() => {
-          const litNode = ORBIT_NODES.find(n => n.phase === litPhase);
+        {threadPhase(litPhase, lastLitRef.current) && (() => {
+          const litNode = ORBIT_NODES.find(n => n.phase === threadPhase(litPhase, lastLitRef.current));
           if (!litNode) return null;
           const endX = Math.cos(litNode.angle) * ORBIT_RADIUS;
           const endY = Math.sin(litNode.angle) * ORBIT_RADIUS;
@@ -104,7 +105,7 @@ export default function MercurySphere({
           const length = Math.sqrt(endX * endX + endY * endY);
           const angle  = Math.atan2(endY, endX);
           return (
-            <mesh position={[midX, midY, 0]} rotation={[0, 0, angle]}>
+            <mesh ref={threadMeshRef} visible={false} position={[midX, midY, 0]} rotation={[0, 0, angle]}>
               <cylinderGeometry args={[0.008, 0.002, length, 6]} />
               <meshBasicMaterial ref={threadMatRef} color="#d0d0d0" transparent opacity={0} />
             </mesh>
