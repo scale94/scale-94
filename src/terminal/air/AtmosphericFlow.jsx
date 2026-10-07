@@ -225,7 +225,7 @@ const fragmentShader = /* glsl */ `
   varying float vIon;
 
   void main(){
-    float d = gasStreakDist(gl_PointCoord);
+    float d = vRole < 0.5 ? gasStreakDist(gl_PointCoord) : gasThreadDist(gl_PointCoord);
     // Very soft — air has no hard edges
     float alpha = (vRole < 0.5 ? smoothstep(1.0, 0.0, d) : gasFilProfile(d)) * gasTaper(gl_PointCoord);
     if (alpha < 0.003) discard;

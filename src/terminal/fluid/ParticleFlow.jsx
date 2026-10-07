@@ -210,7 +210,7 @@ const fragmentShader = /* glsl */ `
 
   void main() {
     // Sharp sprite — bright core with tight halo
-    float d = gasStreakDist(gl_PointCoord);
+    float d = vRole < 0.5 ? gasStreakDist(gl_PointCoord) : gasThreadDist(gl_PointCoord);
     float alpha = (vRole < 0.5 ? smoothstep(1.0, 0.3, d) : gasFilProfile(d)) * gasTaper(gl_PointCoord);
     if (alpha < 0.01) discard;
 

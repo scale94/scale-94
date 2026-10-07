@@ -318,6 +318,46 @@ describe('gap-closing filament dashes (Task 7f)', () => {
     }
   });
 
+  it('soft threads 5a: two gap-closed frayed dashes sum flat across the junction at every offset (straight-sided thread distance)', () => {
+    // Replica of a straight dash in buffer px along its axis (x) and across it (y), as gasSpriteCore lays it out:
+    // L = FIL_GAP_CLOSE x gap - w, total = w x halo x wk + L, vStreakCap = (L/2, w wk/2, (L + w)/2) / total.
+    // end = the clamp end of the distance: cap.x (the round-capped gasStreakDist) or cap.z (gasThreadDist).
+    const ss = (a, b, x) => { const t = Math.min(Math.max((x - a) / (b - a), 0), 1); return t * t * (3 - 2 * t); };
+    const prof = (d) => FIL_PROFILE_PEAK * Math.exp(-FIL_PROFILE_K * d * d);
+    const dash = (x, y, w, gap, wk, thread) => {
+      const L = FIL_GAP_CLOSE * gap - w, total = w * Math.max(PLANET_TUNE.filHalo, 1) * wk + L;
+      if (Math.abs(x) > total / 2 || Math.abs(y) > total / 2) return 0; // outside the point sprite
+      const capX = L / 2, capY = (w * wk) / 2, capZ = (L + w) / 2;
+      const a = Math.min(Math.abs(x), thread ? capZ : capX);
+      const d = Math.hypot(Math.abs(x) - a, y) / capY;
+      return (1 - ss(0.5 - FIL_TAPER, 0.5, (0.5 * Math.abs(x)) / capZ)) * prof(d) / wk; // gasTaper x gasFilProfile / wk
+    };
+    const flat = (w, gap, wk, k, thread) => {
+      let mx = -Infinity, mn = Infinity;
+      for (let i = 0; i <= 800; i++) {
+        const x = (gap * i) / 800, y = (k * w) / 2;
+        const s = dash(x, y, w, gap, wk, thread) + dash(x - gap, y, w, gap, wk, thread);
+        mx = Math.max(mx, s); mn = Math.min(mn, s);
+      }
+      return (mx - mn) / mx;
+    };
+    const w = PLANET_TUNE.filWidth;
+    let roundWorst = 0;
+    for (const gap of [4, 8, 10]) for (const wk of [0.65, 1, 3]) for (const k of [0, 0.5, 1, 1.5]) {
+      expect(flat(w, gap, wk, k, true)).toBeLessThanOrEqual(0.03);
+      roundWorst = Math.max(roundWorst, flat(w, gap, wk, k, false));
+    }
+    expect(roundWorst).toBeGreaterThan(0.3); // the defect: the round cap dips at every dash junction (beads)
+  });
+
+  it('gasThreadDist: gasStreakDist with both clamps to the capsule end (vStreakCap.z); gasStreakDist byte-identical', () => {
+    expect(GAS_STREAK_FS).toContain('float gasThreadDist(vec2 pc) {');
+    expect(GAS_STREAK_FS).toContain('float a = clamp(dot(q, vStreakDir), 0.0, vStreakCap.z);');
+    expect(GAS_STREAK_FS).toContain('float b = clamp(-dot(q, vStreakDir2), 0.0, vStreakCap.z);');
+    expect(GAS_STREAK_FS).toMatch(/float gasStreakDist\(vec2 pc\) \{\s*vec2 q = pc - 0\.5;\s*float a = clamp\(dot\(q, vStreakDir\), 0\.0, vStreakCap\.x\);\s*float b = clamp\(-dot\(q, vStreakDir2\), 0\.0, vStreakCap\.x\);\s*return min\(length\(q - vStreakDir \* a\), length\(q \+ vStreakDir2 \* b\)\) \/ vStreakCap\.y;\s*\}/);
+    expect(GAS_STREAK_FS).toMatch(/float gasThreadDist\(vec2 pc\) \{\s*vec2 q = pc - 0\.5;\s*float a = clamp\(dot\(q, vStreakDir\), 0\.0, vStreakCap\.z\);\s*float b = clamp\(-dot\(q, vStreakDir2\), 0\.0, vStreakCap\.z\);\s*return min\(length\(q - vStreakDir \* a\), length\(q \+ vStreakDir2 \* b\)\) \/ vStreakCap\.y;\s*\}/);
+  });
+
   it('gasThreads gap: the larger along distance to the two lane neighbours, within [(1 - J)/n, (1 + J)/n]', () => {
     for (const J of [0.3, THREAD_ALONG_JITTER]) {
       const t = gasThreads(2400, 8, mulberry32(11), J);

@@ -49,7 +49,8 @@ describe('gas filaments: two roles in one draw', () => {
       expect(src).toContain('attribute float aLane;');
       expect(src).toContain('<bufferAttribute attach="attributes-aLane" array={buffers.lanes} count={PARTICLE_COUNT} itemSize={1} />');
       expect(src).toContain('* vLane');
-      expect(src).toMatch(/float d = gasStreakDist\(gl_PointCoord\);/);
+      // soft threads 5a: filaments take the straight-sided thread distance (taper alone shapes the ends), fog the capsule
+      expect(src).toContain('float d = vRole < 0.5 ? gasStreakDist(gl_PointCoord) : gasThreadDist(gl_PointCoord);');
       expect(src).toContain(`mat.uniforms.uPhaseRate.value = clk.rate.${el};`);
       expect(src).toContain('...GAS_TUNE_UNIFORMS(PLANET_TUNE),');
       expect(src).toContain('writeGasTune(mat.uniforms, PLANET_TUNE, state.gl.getPixelRatio(), gasPointMax(state.gl));');

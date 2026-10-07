@@ -397,6 +397,15 @@ float gasStreakDist(vec2 pc) {
   float b = clamp(-dot(q, vStreakDir2), 0.0, vStreakCap.x);
   return min(length(q - vStreakDir * a), length(q + vStreakDir2 * b)) / vStreakCap.y;
 }
+// Thread distance (soft threads 5a): perpendicular to the dash all the way to the capsule end (vStreakCap.z); the taper alone
+// shapes the ends, so overlapping dashes sum flat at every offset and fray width (round caps beaded the thread). Bent dash:
+// each half extends along its own direction. Fluid + air filaments only (fog, thermal, earth keep gasStreakDist).
+float gasThreadDist(vec2 pc) {
+  vec2 q = pc - 0.5;
+  float a = clamp(dot(q, vStreakDir), 0.0, vStreakCap.z);
+  float b = clamp(-dot(q, vStreakDir2), 0.0, vStreakCap.z);
+  return min(length(q - vStreakDir * a), length(q + vStreakDir2 * b)) / vStreakCap.y;
+}
 // Filament dash ends fade over FIL_TAPER of the length (along the streak axis), so overlapping gap-closed dashes sum
 // to ~constant brightness. Fog: 1.
 float gasTaper(vec2 pc) {
