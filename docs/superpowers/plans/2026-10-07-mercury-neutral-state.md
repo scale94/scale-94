@@ -841,3 +841,57 @@ Run by the controller against the dev server on CDP :5175 (repo's existing live-
 - [ ] Calm still freezes motion (`?calm` / calm toggle) in neutral and with an element.
 - [ ] Hide the tab mid-switch (`Page.setWebLifecycleState frozen` or background tab), return: steady target state, no burst.
 - [ ] Shots: neutral, mid-fadeOut, neutral beat, mid-spinUp — view them before the author look. If the neutral mirror reads as dead black, add tune `neutralSky` (faint, colourless, slow aether term; 0 allowed) as a follow-up fix task and pick its default in the look check.
+
+---
+
+## Addendum (author look calls, 2026-10-07)
+
+Rulings: (1) neutral reads as dead black → build `neutralSky`, a colourless low-saturation sheen with a very slow drift, **default ON** at a conservative level that reads silver/graphite; (2) an element → element switch keeps the UI on the **target** element (header, sliders, log); the UI drops to neutral only when the lit node is tapped to disengage; (3) the thread line stays tied to the element's fade, but **damps to ~35 % at rest** and is full strength only while the element spins up.
+
+### Task 7: `neutralSky` — the resting mirror sees a quiet silver sky
+
+**Files:**
+- Modify: `src/terminal/mercury/planet/aetherSky.js` (new constants, `skyNeutral`, `aetherSky` combiner)
+- Modify: `src/terminal/mercury/planet/hgMirrorGlsl.js` (`HG_MIRROR_UNIFORMS` + the uniform decl line), `src/terminal/mercury/planet/mercuryPlanetShader.js` (its uniform list, line ~63), `src/terminal/mercury/planet/planetLook.js` (`PLANET_TUNE.neutralSky`), `src/terminal/mercury/MercuryPlanet.jsx` (uniform creation ~line 345 and per-frame write ~line 491, beside `uAetherSilver`), and every other place the mirror uniforms are fed (droplets: find with `grep -rn "uAetherSilver" src`)
+- Snapshots: `src/terminal/mercury/planet/__tests__/__snapshots__/planetShader.full.fs.glsl` re-pinned, then the same diff patched into both `planetShader.pre-*.fs.glsl` files (see "Snapshot discipline" below)
+- Test: `src/terminal/mercury/planet/__tests__/aetherSky.test.js` (append)
+
+**Design:**
+- Neutral weight in GLSL: `float wN = uNeutralSky * clamp(1.0 - (uSkyW.x + uSkyW.y + uSkyW.z + uSkyW.w), 0.0, 1.0);` — full in neutral, zero once any element's sky is at full weight, cross-fading with the fades (the sky weights are the fades).
+- `vec3 skyNeutral(vec3 R, float nOct)`: colourless (`vec3(L)`), `L = NEUTRAL_SKY_LUM * (NEUTRAL_SKY_FLOOR + (1.0 - NEUTRAL_SKY_FLOOR) * band * cloud)` where `band = 0.55 + 0.45 * (1.0 - abs(R.y))` (a soft horizon-bright studio band, so the limb reads metallic) and `cloud = skyFbm(skyRotY(R, NEUTRAL_SKY_DRIFT * uSkyT) * 1.3 + vec3(0.0, uSkyT * NEUTRAL_SKY_DRIFT * 0.5, 0.0), min(nOct, 3.0)) * 2.0` (large, soft, slowly drifting cloud; at most 3 octaves; `skyFbm` mean is 0.5, so `cloud` mean ≈ 1). Add `skyRotY` beside `skyRotZ`. It is sky-prefixed like every helper in this chunk.
+- Constants (exported JS + interpolated GLSL like the others): `NEUTRAL_SKY_LUM = 0.03` (same order as the element skies' means, ~0.01–0.03 linear: dim, graphite), `NEUTRAL_SKY_FLOOR = 0.35`, `NEUTRAL_SKY_DRIFT = 0.02` (rad per clock second — very slow; uSkyT is calm-gated so calm freezes it).
+- `SKY_MEAN_NEUTRAL`: the analytic mean `NEUTRAL_SKY_LUM * (NEUTRAL_SKY_FLOOR + (1 - NEUTRAL_SKY_FLOOR) * BAND_MEAN)` with `BAND_MEAN = 0.55 + 0.45 * (1 - 0.5) = 0.775` (mean of `1-|y|` over the sphere is 0.5), as a grey `vec3`. Export it as `SKY_MEAN.neutral`.
+- Combiner: `mean += wN * SKY_MEAN_NEUTRAL;` and `if (wN > SKY_W_MIN) s += wN * skyNeutral(R, nOct);`.
+- Tune: `PLANET_TUNE.neutralSky = 1` with comment `// resting-mirror silver sky gain (0 = the quiet black mirror); author ruling 2026-10-07: on by default`. The uniform `uNeutralSky` is created from it and written every frame like `uAetherSilver`.
+- It passes through `aetherHue`/`aetherShoulder`/`aetherTint` like the element skies: night side dims toward indigo (existing behaviour of every sky — keep).
+
+**Tests (append to aetherSky.test.js, repo idiom = string pins on the GLSL + JS math):**
+- `SKY_MEAN.neutral` equals the analytic mean, all three channels equal (colourless).
+- The GLSL contains the `wN` line verbatim, `skyNeutral`, `mean += wN * SKY_MEAN_NEUTRAL;`, and evaluates `skyNeutral` only above `SKY_W_MIN`.
+- `HG_MIRROR_UNIFORMS` contains `uNeutralSky`, and the planet shader's uniform list does too (the existing "every decl line is also a PLANET_FS line" test must keep passing).
+- `PLANET_TUNE.neutralSky === 1`.
+
+**Snapshot discipline (from the mirror-sky handover — follow exactly):** run the snapshot test with `-u` to re-pin `planetShader.full.fs.glsl`; `git diff` that file into a patch written under `$TEMP` (never `../`); `patch` both `planetShader.pre-*.fs.glsl` files with it. A reject means STOP and report BLOCKED. Delete any `.orig` files. Read the re-pinned diff and confirm it only adds the neutral-sky lines.
+
+**Live (controller after the task):** a compile check (errors `[]`), then a `neutralSky` sweep sheet (0 / 0.5 / 1 / 2 / 4) on the resting planet with its look call; if 1 is not the right default, the controller sets the ruled one.
+
+Commit: `feat(mercury): neutralSky — the resting mirror sees a quiet, colourless, slowly drifting silver sky instead of black`
+
+### Task 8: the UI follows the target; the thread damps at rest
+
+**Files:**
+- Modify: `src/terminal/mercury/transitionMachine.js` (export `targetElement(m)`), `src/terminal/mercury/usePhaseTransition.js` (expose `targetPhase`), `src/terminal/mercury/MercuryCanvas.jsx` (`onPhaseChange` from `targetPhase`; sphere gets `threadLevel`), `src/terminal/mercury/MercurySphere.jsx` (thread opacity)
+- Tests: `src/terminal/mercury/__tests__/transitionMachine.test.js`, `tests/mercury/usePhaseTransition.test.js`, `src/terminal/mercury/__tests__/neutralWiring.test.js`
+
+**Design:**
+- `targetElement(m)` returns `m.target === 'neutral' ? null : m.target`. During an A → B switch it is B from the tap on (through A's fadeOut and the neutral beat); a tap on the lit node makes it `null` at once.
+- Hook returns `targetPhase: targetElement(m)` alongside `activePhase`.
+- MercuryCanvas: `useEffect(() => { onPhaseChange?.(targetPhase); }, [targetPhase, onPhaseChange]);` replaces the `activePhase` effect. Lit node, FPS routing, gas counts and planet bead flow stay on `activePhase` (the canvas follows what is on screen; only the page UI follows the target).
+- Thread: `export const THREAD_PEAK = 0.7; export const THREAD_REST = 0.35;` in MercurySphere. Target opacity = `activeFade * THREAD_PEAK * (transitionState === 'spinUp' ? 1 : THREAD_REST)`. The material's opacity eases toward that target in a `useFrame` (`o += (target - o) * (1 - Math.exp(-delta / 0.25))`, on a material ref) so neither the spinUp → rest drop nor the fade pops. The thread mesh stays mounted while `litPhase` is set; when `activeFade` is 0 and opacity has eased below 0.005 it may be skipped. Canvas passes `transitionState` (from the hook) to the sphere.
+
+**Tests:**
+- Machine: `targetElement` is null at boot; B from the tap through fadeOut, neutral beat and spinUp of an A → B switch; null immediately after tapping the lit node; null again after a retarget back to neutral.
+- Hook: `targetPhase` is B during the neutral beat of A → B; null right after a lit-node tap.
+- Wiring pins: the `targetPhase` effect line verbatim; `THREAD_REST = 0.35`; the sphere's thread opacity is driven by a ref in `useFrame` (pin the easing line).
+
+Commit: `feat(mercury): the page follows the tapped element through a switch; the thread line rests at 35 %`
