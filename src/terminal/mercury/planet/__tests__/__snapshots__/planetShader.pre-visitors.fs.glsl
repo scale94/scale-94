@@ -32,8 +32,6 @@ uniform vec4 uSkyW;
 uniform float uAetherGain;
 uniform float uAetherSilver;
 uniform float uNeutralSky;
-uniform float uAirSkyLat;
-uniform float uAirSkyWarp;
 uniform sampler2D uScar;
 uniform float uRayGain;
 uniform float uSurfOn;
@@ -317,6 +315,8 @@ const float AIR_SHEAR_BAND = 0.250000000;
 const float AIR_SKY_LINE_POW = 10.0000000;
 const float AIR_SKY_ENV_POW = 1.50000000;
 const float AIR_SKY_WARP_Y = 0.150000000;
+const float AIR_SKY_LAT = 3.50000000;
+const float AIR_SKY_WARP = 0.600000000;
 const float FIRE_SKY_RISE = 1.47500000;
 const float EARTH_SKY_SINK = 0.890057143;
 const float SKY_ROUGH_SHARP = 0.150000000;
@@ -417,14 +417,14 @@ vec3 skyEarth(vec3 R, float nOct, float k) {
 }
 
 // Air: streamlines along the orbit, the upper layer one way, the lower AIR_LOWER_DIR the other; Rayleigh-weighted.
-// Soft threads §5: a gentler latitude stretch (uAirSkyLat, was 8), a warp in the layer's own frame (ph: periodic,
+// Soft threads §5: a gentler latitude stretch (AIR_SKY_LAT, was 8), a warp in the layer's own frame (ph: periodic,
 // rigid with its layer, on the calm-gated sky clock), softer ridges, a smooth (1 - y²)^k envelope.
 vec3 skyAirLayer(vec3 R, float ph, float s, float nOct) {
   float wOct = min(nOct, 3.0);
   vec3 wq = vec3(cos(ph), sin(ph), R.y * 1.5) * 1.2 + vec3(0.0, 0.0, uSkyT * 0.03);
-  float phw = ph + uAirSkyWarp * (skyFbm(wq, wOct) - 0.5);
+  float phw = ph + AIR_SKY_WARP * (skyFbm(wq, wOct) - 0.5);
   float yw = R.y + AIR_SKY_WARP_Y * (skyFbm(wq + 7.3, wOct) - 0.5);
-  vec3 q = vec3(cos(phw) * 1.2, sin(phw) * 1.2, yw * uAirSkyLat);
+  vec3 q = vec3(cos(phw) * 1.2, sin(phw) * 1.2, yw * AIR_SKY_LAT);
   float n = skyFbm(q + vec3(0.0, 0.0, skyFbm(q * 0.5, nOct) * 2.0), nOct);
   float lines = pow(1.0 - abs(n * 2.0 - 1.0), AIR_SKY_LINE_POW);
   float gust = smoothstep(0.45, 0.8, skyFbm(vec3(cos(phw + 0.6 * s) * 0.9, sin(phw + 0.6 * s) * 0.9, yw * 2.0) + 4.0, nOct));

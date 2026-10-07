@@ -61,7 +61,6 @@ export const PLANET_UNIFORMS = [
   'uDemTexel', 'uTime', 'uExposure', 'uRelief', 'uNightFloor',
   'uTau', 'uHeatK', 'uSubsolarT', 'uEmitPos', 'uEmitCol', 'uSunGlint', 'uEmitGain',
   'uSkyT', 'uSkyPhase', 'uSkyW', 'uAetherGain', 'uAetherSilver', 'uNeutralSky',
-  'uAirSkyLat', 'uAirSkyWarp',
   'uScar', 'uRayGain',
   'uSurfOn', 'uImpDir', 'uImpMode', 'uImpWave', 'uBulge', 'uRoilGain', 'uPopZoom',
   'uRoughLiquid', 'uMeniscus', 'uMeniscusW', 'uCoreR',
@@ -132,8 +131,6 @@ uniform vec4 uSkyW;
 uniform float uAetherGain;
 uniform float uAetherSilver;
 uniform float uNeutralSky;
-uniform float uAirSkyLat;
-uniform float uAirSkyWarp;
 uniform sampler2D uScar;
 uniform float uRayGain;
 uniform float uSurfOn;

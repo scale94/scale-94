@@ -9,7 +9,7 @@
 // Roughness drops octaves (dropped octaves contribute their mean) and, from SKY_ROUGH_FLAT, the sky is just its
 // element's mean radiance: the frost and evaporite ambient lookups (rough 1) and the polycrystalline crust cost
 // ~nothing. Every helper is sky-prefixed: this chunk lands in four shaders that define their own noise.
-// Needs (declared by HG_MIRROR_DECLS_GLSL): uSkyT, uSkyPhase, uSkyW, uNeutralSky, uAirSkyLat, uAirSkyWarp, uSunDir.
+// Needs (declared by HG_MIRROR_DECLS_GLSL): uSkyT, uSkyPhase, uSkyW, uNeutralSky, uSunDir.
 
 import { glf, v3 } from '../../gl/glf';
 import { FLUID_SKY_RAD, AIR_SKY_RAD, AIR_LOWER_DIR, FIRE_SKY_RISE, EARTH_SKY_SINK } from './aetherClock';
@@ -23,7 +23,9 @@ export const SKY_PING_GAIN = 10;
 export const AIR_SHEAR_BAND = 0.25;   // R.y half-width of the equatorial cross-fade between the two rigid air layers (soft threads §5: was 0.12)
 export const AIR_SKY_LINE_POW = 10;   // air streak ridge power (was 18: hard ruled lines)
 export const AIR_SKY_ENV_POW = 1.5;   // air envelope (1 - y²)^k: smooth to the poles, no plateau
-export const AIR_SKY_WARP_Y = 0.15;   // air latitude warp (the angle warp is the live knob uAirSkyWarp)
+export const AIR_SKY_WARP_Y = 0.15;   // air latitude warp
+export const AIR_SKY_LAT = 3.5;       // air latitude stretch (soft threads §5, ruled 2026-10-07; was a hard 8)
+export const AIR_SKY_WARP = 0.6;      // air angle warp, rad scale, in each layer's own rigid frame (soft threads §5, ruled 2026-10-07)
 // Neutral sky (neutral-state Task 7, rebuilt 2026-10-07 as option B): what the resting mirror sees when no element's
 // sky is up. A low-contrast cloud made the 0.14-rough liquid read as a matte grey ball (a mirror of a flat sky looks
 // diffuse), so this is a studio: deep-space black, a thin bright horizon line, three soft-edged light strips turning
@@ -64,6 +66,8 @@ const float AIR_SHEAR_BAND = ${glf(AIR_SHEAR_BAND)};
 const float AIR_SKY_LINE_POW = ${glf(AIR_SKY_LINE_POW)};
 const float AIR_SKY_ENV_POW = ${glf(AIR_SKY_ENV_POW)};
 const float AIR_SKY_WARP_Y = ${glf(AIR_SKY_WARP_Y)};
+const float AIR_SKY_LAT = ${glf(AIR_SKY_LAT)};
+const float AIR_SKY_WARP = ${glf(AIR_SKY_WARP)};
 const float FIRE_SKY_RISE = ${glf(FIRE_SKY_RISE)};
 const float EARTH_SKY_SINK = ${glf(EARTH_SKY_SINK)};
 const float SKY_ROUGH_SHARP = ${glf(SKY_ROUGH_SHARP)};
@@ -164,14 +168,14 @@ vec3 skyEarth(vec3 R, float nOct, float k) {
 }
 
 // Air: streamlines along the orbit, the upper layer one way, the lower AIR_LOWER_DIR the other; Rayleigh-weighted.
-// Soft threads §5: a gentler latitude stretch (uAirSkyLat, was 8), a warp in the layer's own frame (ph: periodic,
+// Soft threads §5: a gentler latitude stretch (AIR_SKY_LAT, was 8), a warp in the layer's own frame (ph: periodic,
 // rigid with its layer, on the calm-gated sky clock), softer ridges, a smooth (1 - y²)^k envelope.
 vec3 skyAirLayer(vec3 R, float ph, float s, float nOct) {
   float wOct = min(nOct, 3.0);
   vec3 wq = vec3(cos(ph), sin(ph), R.y * 1.5) * 1.2 + vec3(0.0, 0.0, uSkyT * 0.03);
-  float phw = ph + uAirSkyWarp * (skyFbm(wq, wOct) - 0.5);
+  float phw = ph + AIR_SKY_WARP * (skyFbm(wq, wOct) - 0.5);
   float yw = R.y + AIR_SKY_WARP_Y * (skyFbm(wq + 7.3, wOct) - 0.5);
-  vec3 q = vec3(cos(phw) * 1.2, sin(phw) * 1.2, yw * uAirSkyLat);
+  vec3 q = vec3(cos(phw) * 1.2, sin(phw) * 1.2, yw * AIR_SKY_LAT);
   float n = skyFbm(q + vec3(0.0, 0.0, skyFbm(q * 0.5, nOct) * 2.0), nOct);
   float lines = pow(1.0 - abs(n * 2.0 - 1.0), AIR_SKY_LINE_POW);
   float gust = smoothstep(0.45, 0.8, skyFbm(vec3(cos(phw + 0.6 * s) * 0.9, sin(phw + 0.6 * s) * 0.9, yw * 2.0) + 4.0, nOct));
