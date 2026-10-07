@@ -44,8 +44,8 @@ aetherSky.js  skyNeutral(R, k) = mix(skyStudio(R), skyNebula(R, k), uNeutralNebu
               skyNebula(R, k) = textureLod(uNebulaMap, uNebulaRot * R, k * NEBULA_MAX_LOD).rgb
               SKY_MEAN_NEUTRAL → mix(studio mean, NEBULA_MEAN, uNeutralNebula)
 hgMirrorGlsl.js  HG_MIRROR_UNIFORMS += 'uNeutralNebula', 'uNebulaRot', 'uNebulaMap' (+ decls)
-MercuryPlanet.jsx  bake at mount; upload uNeutralNebula from PLANET_TUNE; uNebulaRot = rotY(NEBULA_DRIFT · uSkyT) ·
-                   NEBULA_TILT (fixed tilt so the drift axis is not the view axis)
+MercuryPlanet.jsx  bake at mount; upload uNeutralNebula from PLANET_TUNE; uNebulaRot = nebulaRotation(uSkyT): a rigid turn about +Y at the
+                   studio's NEUTRAL_SKY_DRIFT (no tilt: the view axis is +Z already)
 ```
 
 The four shaders that use the mirror chunk (planet, droplets, beads, visitors) share the planet's uniform objects by
@@ -80,7 +80,7 @@ between modes; if the look round wants a different mean, re-measure and say so.
 
 ## 4. Motion
 
-Rigid rotation only: `uNebulaRot = rotY(NEBULA_DRIFT · uSkyT) · NEBULA_TILT`, `NEBULA_DRIFT` = 0.02 rad/s (the studio's
+Rigid rotation only: `uNebulaRot = nebulaRotation(uSkyT)` at `NEUTRAL_SKY_DRIFT` = 0.02 rad/s (the studio's
 rate), on the calm-gated sky clock (calm freezes it, as today). A mat3 per frame on the CPU; no trig in the fragment.
 
 ## 5. Verification
