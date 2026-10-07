@@ -79,7 +79,7 @@ export const PLANET_TUNE = {
   filCoreLift: 0.15,  // §4: filament core lifts toward white by this
   filWidthVar: 0.35, // §2: a pinched stretch draws at (1 - this) × the core width (alpha ÷ the factor: light conserved)
   filWarp: 1,        // §3: path domain-warp amplitude × this (per-flow amplitude FLUID_FIL_WARP / AIR_FIL_WARP)
-  filFray: 2,        // §2: a frayed stretch draws at (1 + this) × the core width
+  filFray: 0.5,      // §2: a frayed stretch draws at (1 + this) × the core width (author 2026-10-07: 2 beaded the threads; the fog carries the body)
   emberSize: 1.75,   // fire embers only: width × this (the body untouched; stretch cap FIRE_EMBER_STRETCH kept; Task 8b)
   emberGain: 1.75,   // fire embers only: alpha × this on top of filAlpha × FIRE_EMBER_GAIN (Task 8b)
   earthStreakGain: 5, // earth filaments only: shutter × this; settling dust ~32 px/s p50 → aspect p50 ~4.8 (was 1.75); cap FIL_ASPECT; Task 8b

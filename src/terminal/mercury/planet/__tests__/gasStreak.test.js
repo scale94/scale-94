@@ -587,10 +587,10 @@ describe('soft threads §2: rendered fray', () => {
   });
 
   it('knobs', () => {
-    expect(PLANET_TUNE).toMatchObject({ filWidthVar: 0.35, filFray: 2 });
+    expect(PLANET_TUNE).toMatchObject({ filWidthVar: 0.35, filFray: 0.5 });
     const u = GAS_TUNE_UNIFORMS(PLANET_TUNE);
     expect(u.uFilWidthVar.value).toBe(0.35);
-    expect(u.uFilFray.value).toBe(2);
+    expect(u.uFilFray.value).toBe(0.5);
   });
 });
 
