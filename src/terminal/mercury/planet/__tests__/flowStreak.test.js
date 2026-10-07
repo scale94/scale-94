@@ -400,7 +400,7 @@ describe('threads hold their shape (Task 7f fix)', () => {
     expect(airBuf.AIR_SIGMA_ALT).toBe(0.0015);
   });
 
-  it('warp headroom (soft threads ง3): fluid at 2x filWarp still closes its gaps and keeps the dash on the path', () => {
+  it('warp headroom (soft threads ยง3): fluid at 2x filWarp still closes its gaps and keeps the dash on the path', () => {
     const m = measureThreads('fluid', fluidBuf.buildBuffers(3600, 1200), { rate: 0.1, step: 3, devSteps: 12, warpK: 2 });
     expect(m.openVis).toBeLessThanOrEqual(0.01);
     expect(m.devP95).toBeLessThanOrEqual(1.5);

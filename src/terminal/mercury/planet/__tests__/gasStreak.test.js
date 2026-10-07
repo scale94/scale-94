@@ -554,7 +554,7 @@ describe('soft threads §2: rendered fray', () => {
   });
 });
 
-describe('soft threads �3: gasWarp', () => {
+describe('soft threads §3: gasWarp', () => {
   it('low frequency, slow, scaled by the live knob; snoise-built (needs the flow snoise only)', () => {
     expect(FIL_WARP_FREQ).toBe(1.1);
     expect(FIL_WARP_RATE).toBe(0.04);

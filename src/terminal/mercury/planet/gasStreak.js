@@ -48,7 +48,7 @@ export const THREAD_CROSS_CLIP = 2.5;    // cross-lane jitter = a unit normal cl
 export const FIL_PROFILE_K = 1;
 export const FIL_OLD_CROSS = 1.3;
 export const FIL_PROFILE_PEAK = FIL_OLD_CROSS / Math.sqrt(Math.PI / FIL_PROFILE_K);
-// Soft threads ง3: path domain warp. Features ~1/FREQ ~ 0.9 scene units, far above the lane-neighbour spacing, so the
+// Soft threads ยง3: path domain warp. Features ~1/FREQ ~ 0.9 scene units, far above the lane-neighbour spacing, so the
 // gap-closing dashes still follow the path (the pick-up-sticks lesson, look i); RATE on the flow's calm-gated uTime.
 export const FIL_WARP_FREQ = 1.1;
 export const FIL_WARP_RATE = 0.04;
@@ -349,7 +349,7 @@ float gasFray(vec3 laneCoord, float t) {
   return mix(1.0 - uFilWidthVar, 1.0 + uFilFray, f);
 }
 
-// Path domain warp (soft threads ง3): a slow, low-frequency displacement field the threads pass through, so the stacked
+// Path domain warp (soft threads ยง3): a slow, low-frequency displacement field the threads pass through, so the stacked
 // loops separate, bend and drift. Evaluate it INSIDE the chain the lane neighbours share (fluidFilAt / airDisplace),
 // or the path secant and the gap-closing break.
 vec3 gasWarp(vec3 p, float t, float amp) {

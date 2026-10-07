@@ -23,7 +23,7 @@ export const proj = (p) => { const z = CAM_Z - p[2]; return [(F * p[0]) / z, (F 
 export const T = 37.0;
 export const DT = 1 / 30;
 
-// gasWarp (soft threads ง3), JS mirror: a slow low-frequency displacement field the filament paths pass through.
+// gasWarp (soft threads ยง3), JS mirror: a slow low-frequency displacement field the filament paths pass through.
 export function gasWarpJS(p, t, amp, warpK = PLANET_TUNE.filWarp) {
   const q = [p[0] * FIL_WARP_FREQ, p[1] * FIL_WARP_FREQ, p[2] * FIL_WARP_FREQ + t * FIL_WARP_RATE];
   const k = amp * warpK;

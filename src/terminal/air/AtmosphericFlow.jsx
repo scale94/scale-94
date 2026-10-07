@@ -149,7 +149,7 @@ const vertexShader = /* glsl */ `
     pos.y += snoise(yArg) * 0.15;
     // Filaments: slow per-lane vertical wander, periodic in the angle (no seam), lanes decorrelated by aLane.
     if (aRole > 0.5) pos.y += snoise(vec3(cos(angle) * AIR_WANDER_R + aLane * 3.1, sin(angle) * AIR_WANDER_R, uTime * AIR_WANDER_RATE)) * AIR_WANDER;
-    if (aRole > 0.5) pos += gasWarp(pos, uTime, AIR_FIL_WARP); // soft threads �3: in the shared chain (prev + neighbours)
+    if (aRole > 0.5) pos += gasWarp(pos, uTime, AIR_FIL_WARP); // soft threads §3: in the shared chain (prev + neighbours)
 
     // ── Atmospheric eddies (slow curl turbulence) ────────────────────────
     float t = uTime * 0.08;
