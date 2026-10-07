@@ -46,8 +46,9 @@ Author scope ruling 2026-10-07: option A, both layers.
 - Taper (`gasTaper`) and the bent dash (`vStreakDir`/`vStreakDir2`) are unchanged.
 - The length caps (`aspectMax`, `FIL_GAP_ASPECT`, `GAS_PX_FLOOR`) stay keyed to the **core** width; only the quad
   grows. Otherwise a halo would also lengthen every dash.
-- Air's old profile (`smoothstep(1, 0, d)`) carried ~25 % more light than fluid's. With the shared profile, air's total
-  shifts by that much. `airFilGain` is re-checked in the look round, not silently re-scaled.
+- Air's old profile (`smoothstep(1, 0, d)`) carried 1.0 core half-width of light, fluid's 1.3 (corrected 2026-10-07, final
+  review: the earlier text had the direction backwards). With the shared profile air's total light rises ~30 % and its peak
+  drops 1.0 → 0.73. `airFilGain` is re-checked in the look round, not silently re-scaled.
 - Cost: filament fill area scales ~linearly with `filHalo` (dash length ≫ width). It goes on the phone-gate list. The
   `uPointMax` guard still applies to `w + L`, with `w` now the haloed width.
 
