@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { glf, v3 } from '../../../gl/glf';
 import {
   AETHER_SKY_GLSL, SKY_OCTAVES, SKY_ROUGH_SHARP, SKY_ROUGH_FLAT, SKY_W_MIN, SKY_PING_EXP, SKY_PING_GAIN, SKY_MEAN, AIR_SHEAR_BAND,
+  AIR_SKY_LINE_POW, AIR_SKY_ENV_POW, AIR_SKY_WARP_Y,
   NEUTRAL_SKY_FLOOR, NEUTRAL_HORIZON_LUM, NEUTRAL_HORIZON_W, NEUTRAL_STRIP_LUM, NEUTRAL_STRIP_AZ, NEUTRAL_STRIP_HW,
   NEUTRAL_STRIP_SOFT, NEUTRAL_STRIP_Y0, NEUTRAL_STRIP_Y1, NEUTRAL_STRIP_YSOFT, NEUTRAL_SKY_DRIFT,
 } from '../aetherSky';
@@ -150,6 +151,49 @@ describe('aetherSky', () => {
 
     it('PLANET_TUNE.neutralSky is on by default', () => {
       expect(PLANET_TUNE.neutralSky).toBe(1);
+    });
+  });
+
+  describe('soft threads §5: the air mirror sky', () => {
+    it('constants as specced, interpolated', () => {
+      expect(AIR_SHEAR_BAND).toBe(0.25);
+      expect(AIR_SKY_LINE_POW).toBe(10);
+      expect(AIR_SKY_ENV_POW).toBe(1.5);
+      expect(AIR_SKY_WARP_Y).toBe(0.15);
+      for (const [n, v] of Object.entries({ AIR_SKY_LINE_POW, AIR_SKY_ENV_POW, AIR_SKY_WARP_Y })) {
+        expect(AETHER_SKY_GLSL).toContain(`const float ${n} = ${glf(v)};`);
+      }
+    });
+
+    it('stretch + warp are live knobs; the warp is in the layer frame (ph), periodic (cos/sin ph), on the sky clock, <= 3 octaves', () => {
+      expect(AETHER_SKY_GLSL).not.toContain('R.y * 8.0');
+      expect(AETHER_SKY_GLSL).toContain('vec3 wq = vec3(cos(ph), sin(ph), R.y * 1.5) * 1.2 + vec3(0.0, 0.0, uSkyT * 0.03);');
+      expect(AETHER_SKY_GLSL).toContain('float phw = ph + uAirSkyWarp * (skyFbm(wq, wOct) - 0.5);');
+      expect(AETHER_SKY_GLSL).toContain('float yw = R.y + AIR_SKY_WARP_Y * (skyFbm(wq + 7.3, wOct) - 0.5);');
+      expect(AETHER_SKY_GLSL).toContain('vec3 q = vec3(cos(phw) * 1.2, sin(phw) * 1.2, yw * uAirSkyLat);');
+      expect(AETHER_SKY_GLSL).toContain('float wOct = min(nOct, 3.0);');
+    });
+
+    it('softer lines; a smooth spherical envelope instead of the plateau + shoulder', () => {
+      expect(AETHER_SKY_GLSL).toContain('float lines = pow(1.0 - abs(n * 2.0 - 1.0), AIR_SKY_LINE_POW);');
+      expect(AETHER_SKY_GLSL).toContain('float band = pow(max(1.0 - R.y * R.y, 0.0), AIR_SKY_ENV_POW);');
+      expect(AETHER_SKY_GLSL).not.toContain('smoothstep(0.95, 0.2, abs(R.y))');
+      const env = (y) => Math.max(1 - y * y, 0) ** AIR_SKY_ENV_POW;
+      for (let y = 0.01; y < 1; y += 0.01) expect(env(y)).toBeLessThan(env(y - 0.01));
+      expect(env(0.2)).toBeLessThan(0.95);
+    });
+
+    it('both layers stay rigid: the warp reads ph (az - spin of its own layer), never az alone', () => {
+      expect(AETHER_SKY_GLSL).toContain('c += wUp * skyAirLayer(R, az - spin, 1.0, nOct);');
+      expect(AETHER_SKY_GLSL).toContain('c += (1.0 - wUp) * skyAirLayer(R, az - spin * AIR_LOWER_DIR, -1.0, nOct);');
+    });
+
+    it('uAirSkyLat / uAirSkyWarp: mirror + planet uniforms, live knobs', () => {
+      for (const u of ['uAirSkyLat', 'uAirSkyWarp']) {
+        expect(HG_MIRROR_UNIFORMS).toContain(u);
+        expect(PLANET_UNIFORMS).toContain(u);
+      }
+      expect(PLANET_TUNE).toMatchObject({ airSkyLat: 3.5, airSkyWarp: 0.6 });
     });
   });
 });

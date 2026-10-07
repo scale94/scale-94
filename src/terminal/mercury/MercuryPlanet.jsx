@@ -344,6 +344,8 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
       uAetherGain: { value: PLANET_TUNE.aetherGain },
       uAetherSilver: { value: PLANET_TUNE.aetherSilver },
       uNeutralSky: { value: PLANET_TUNE.neutralSky },
+      uAirSkyLat: { value: PLANET_TUNE.airSkyLat },
+      uAirSkyWarp: { value: PLANET_TUNE.airSkyWarp },
       uScar: { value: scarTex },
       uRayGain: { value: PLANET_TUNE.rayGain },
       uRoilGain: { value: PLANET_TUNE.roilGain },
@@ -491,6 +493,8 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     u.uAetherGain.value = PLANET_TUNE.aetherGain;
     u.uAetherSilver.value = PLANET_TUNE.aetherSilver;
     u.uNeutralSky.value = PLANET_TUNE.neutralSky;
+    u.uAirSkyLat.value = PLANET_TUNE.airSkyLat;
+    u.uAirSkyWarp.value = PLANET_TUNE.airSkyWarp;
     u.uRayGain.value = PLANET_TUNE.rayGain;
     u.uRoilGain.value = PLANET_TUNE.roilGain;
     u.uRoughLiquid.value = PLANET_TUNE.roughLiquid;
