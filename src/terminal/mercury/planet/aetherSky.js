@@ -9,11 +9,10 @@
 // Roughness drops octaves (dropped octaves contribute their mean) and, from SKY_ROUGH_FLAT, the sky is just its
 // element's mean radiance: the frost and evaporite ambient lookups (rough 1) and the polycrystalline crust cost
 // ~nothing. Every helper is sky-prefixed: this chunk lands in four shaders that define their own noise.
-// Needs (declared by HG_MIRROR_DECLS_GLSL): uSkyT, uSkyPhase, uSkyW, uNeutralSky, uStudioDome, uStudioLook, uStudioMean, uStudioWarm, uNeutralNebula, uNebulaRot,
+// Needs (declared by HG_MIRROR_DECLS_GLSL): uSkyT, uSkyPhase, uSkyW, uNeutralSky, uStudioDome, uStudioLook, uStudioMean, uNeutralNebula, uNebulaRot,
 // uNebulaMap, uSunDir.
 
 import { glf, v3 } from '../../gl/glf';
-import { NA_COL } from './mercuryExosphere';
 import { FLUID_SKY_RAD, AIR_SKY_RAD, AIR_LOWER_DIR, FIRE_SKY_RISE, EARTH_SKY_SINK } from './aetherClock';
 
 export const SKY_OCTAVES = 5;
@@ -57,9 +56,8 @@ export const TENT_STRIP_Y1 = 0.88;         // strip upper end (R.y)
 export const TENT_STRIP_YSOFT = 0.15;      // strip end softness at crisp 0
 export const TENT_STRIP_FEATHER = 0.14;    // strip end softness at crisp 1: the ends feather toward the poles (the sides stay crisp)
 export const TENT_STRIP_LUM = 0.3;         // strip radiance per unit key
-export const TENT_STRIP_GAIN = Object.freeze([1, 0.7]); // left key, right fill
-// The right fill is tinted toward the terminal's amber gas glow (the Na tail colour NA_COL) by uStudioWarm (author 2026-10-08:
-// a Blender instinct): fill colour = mix(white, NA_COL, warm). The mean uses the tint's luminance (Rec. 709).
+export const TENT_STRIP_GAIN = Object.freeze([1, 0.7]); // left key, right fill (white: an amber-tinted fill was tried
+                                                         // 2026-10-08 and was indistinguishable up to 0.5; removed)
 export const TENT_GAP = 0.14;              // dark horizon gap above the floor (R.y): the dark equatorial band
 export const TENT_FLOOR_SOFT = 0.05;       // floor edge half-width at crisp 0
 export const TENT_FLOOR_FRONT = 0.12;      // floor brightness toward the camera (+z) × the back: the ball's bottom RIM (which sees the
@@ -67,14 +65,12 @@ export const TENT_FLOOR_FRONT = 0.12;      // floor brightness toward the camera
 export const NEUTRAL_DOME_NADIR = 0.05;    // dome straight down, × uStudioDome (the zenith value)
 export const NEUTRAL_DOME_POW = 1.5;       // dome rise: NADIR + (1 − NADIR)·((1 + R.y)/2)^POW
 export const NEUTRAL_SKY_DRIFT = 0.02;     // rad per sky-clock second: the nebula's drift (the tent is camera-fixed)
-export const STUDIO_DEFAULTS = Object.freeze({ crisp: 1, key: 4, canopy: 2, floor: 0, dome: 0, warm: 0.25 }); // = PLANET_TUNE (tested); floor ruled 0
-export const fillTint = (warm) => NA_COL.map((c) => 1 + (c - 1) * warm);
-const lum709 = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+export const STUDIO_DEFAULTS = Object.freeze({ crisp: 1, key: 4, canopy: 2, floor: 0, dome: 0 }); // = PLANET_TUNE (tested); floor ruled 0
 
 const ss = (e0, e1, x) => { const t = Math.min(Math.max((x - e0) / (e1 - e0), 0), 1); return t * t * (3 - 2 * t); };
 const lerp = (a, b, t) => a + (b - a) * t;
 // JS replica of skyStudio, line for line (same constants, same order).
-export function studioRadiance(x, y, z, { crisp, key, canopy, floor, dome, warm = 0 }) {
+export function studioRadiance(x, y, z, { crisp, key, canopy, floor, dome }) {
   let L = NEUTRAL_SKY_FLOOR;
   if (y > 0.02) {
     const px = x / y, pz = z / y;
@@ -90,7 +86,7 @@ export function studioRadiance(x, y, z, { crisp, key, canopy, floor, dome, warm 
   const span = ss(TENT_STRIP_Y0 - ys, TENT_STRIP_Y0 + ys, y) * ss(TENT_STRIP_Y1 + ys, TENT_STRIP_Y1 - ys, y);
   const sL = ss(TENT_STRIP_HW + se, TENT_STRIP_HW - se, Math.abs(az + TENT_STRIP_AZ[0]));
   const sR = ss(TENT_STRIP_HW + se, TENT_STRIP_HW - se, Math.abs(az - TENT_STRIP_AZ[1]));
-  L += TENT_STRIP_LUM * key * span * (TENT_STRIP_GAIN[0] * sL + TENT_STRIP_GAIN[1] * sR * lum709(fillTint(warm)));
+  L += TENT_STRIP_LUM * key * span * (TENT_STRIP_GAIN[0] * sL + TENT_STRIP_GAIN[1] * sR);
   const fe = lerp(TENT_FLOOR_SOFT, TENT_EDGE_CRISP, crisp);
   L += floor * ss(-TENT_GAP + fe, -TENT_GAP - fe, y) * (0.5 + 0.5 * ss(-0.9, -0.15, y)) * lerp(TENT_FLOOR_FRONT, 1, ss(0, -0.8, z));
   L += dome * (NEUTRAL_DOME_NADIR + (1 - NEUTRAL_DOME_NADIR) * ((0.5 + 0.5 * y) ** NEUTRAL_DOME_POW));
@@ -106,11 +102,11 @@ export function studioMean(k, N = 96, M = 192) {
   }
   return sum / (N * M);
 }
-const _meanKey = [NaN, NaN, NaN, NaN, NaN, NaN]; let _meanVal = 0;
-export function studioMeanCached(crisp, key, canopy, floor, dome, warm) {
-  if (_meanKey[0] !== crisp || _meanKey[1] !== key || _meanKey[2] !== canopy || _meanKey[3] !== floor || _meanKey[4] !== dome || _meanKey[5] !== warm) {
-    _meanKey[0] = crisp; _meanKey[1] = key; _meanKey[2] = canopy; _meanKey[3] = floor; _meanKey[4] = dome; _meanKey[5] = warm;
-    _meanVal = studioMean({ crisp, key, canopy, floor, dome, warm });
+const _meanKey = [NaN, NaN, NaN, NaN, NaN]; let _meanVal = 0;
+export function studioMeanCached(crisp, key, canopy, floor, dome) {
+  if (_meanKey[0] !== crisp || _meanKey[1] !== key || _meanKey[2] !== canopy || _meanKey[3] !== floor || _meanKey[4] !== dome) {
+    _meanKey[0] = crisp; _meanKey[1] = key; _meanKey[2] = canopy; _meanKey[3] = floor; _meanKey[4] = dome;
+    _meanVal = studioMean({ crisp, key, canopy, floor, dome });
   }
   return _meanVal;
 }
@@ -194,7 +190,6 @@ const float TENT_STRIP_Y0 = ${glf(TENT_STRIP_Y0)};
 const float TENT_STRIP_Y1 = ${glf(TENT_STRIP_Y1)};
 const float TENT_STRIP_YSOFT = ${glf(TENT_STRIP_YSOFT)};
 const float TENT_STRIP_FEATHER = ${glf(TENT_STRIP_FEATHER)};
-const vec3 TENT_FILL_AMBER = ${v3(NA_COL)};
 const float TENT_STRIP_LUM = ${glf(TENT_STRIP_LUM)};
 const vec2 TENT_STRIP_GAIN = vec2(${glf(TENT_STRIP_GAIN[0])}, ${glf(TENT_STRIP_GAIN[1])});
 const float TENT_GAP = ${glf(TENT_GAP)};
@@ -313,13 +308,12 @@ vec3 skyStudio(vec3 R) {
   float span = smoothstep(TENT_STRIP_Y0 - ys, TENT_STRIP_Y0 + ys, R.y) * smoothstep(TENT_STRIP_Y1 + ys, TENT_STRIP_Y1 - ys, R.y);
   float sL = smoothstep(TENT_STRIP_HW + se, TENT_STRIP_HW - se, abs(az + TENT_STRIP_AZ.x));
   float sR = smoothstep(TENT_STRIP_HW + se, TENT_STRIP_HW - se, abs(az - TENT_STRIP_AZ.y));
-  L += TENT_STRIP_LUM * uStudioLook.y * span * TENT_STRIP_GAIN.x * sL;
-  vec3 fill = (TENT_STRIP_LUM * uStudioLook.y * span * TENT_STRIP_GAIN.y * sR) * mix(vec3(1.0), TENT_FILL_AMBER, uStudioWarm); // amber hint
+  L += TENT_STRIP_LUM * uStudioLook.y * span * (TENT_STRIP_GAIN.x * sL + TENT_STRIP_GAIN.y * sR);
   float fe = mix(TENT_FLOOR_SOFT, TENT_EDGE_CRISP, c);
   L += uStudioLook.w * smoothstep(-TENT_GAP + fe, -TENT_GAP - fe, R.y) * (0.5 + 0.5 * smoothstep(-0.9, -0.15, R.y))
      * mix(TENT_FLOOR_FRONT, 1.0, smoothstep(0.0, -0.8, R.z)); // floor sweep, lit behind: a lower rim
   L += uStudioDome * (NEUTRAL_DOME_NADIR + (1.0 - NEUTRAL_DOME_NADIR) * pow(0.5 + 0.5 * R.y, NEUTRAL_DOME_POW));
-  return vec3(L) + fill;
+  return vec3(L);
 }
 
 // The baked nebula (one textureLod, rotated on the sky clock). Its mip chain IS its roughness blur, so it is never also

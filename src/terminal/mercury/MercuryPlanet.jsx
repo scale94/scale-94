@@ -350,7 +350,6 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
       uStudioDome: { value: PLANET_TUNE.studioDome },
       uStudioLook: { value: new THREE.Vector4(PLANET_TUNE.studioCrisp, PLANET_TUNE.studioKey, PLANET_TUNE.studioSoftbox, PLANET_TUNE.studioFloor) },
       uStudioMean: { value: 0 },
-      uStudioWarm: { value: PLANET_TUNE.studioFillWarm },
       uNeutralNebula: { value: 0 },
       uNebulaRot: { value: new THREE.Matrix3() },
       uNebulaMap: { value: null },
@@ -511,8 +510,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     u.uNeutralSky.value = PLANET_TUNE.neutralSky;
     u.uStudioDome.value = PLANET_TUNE.studioDome;
     u.uStudioLook.value.set(PLANET_TUNE.studioCrisp, PLANET_TUNE.studioKey, PLANET_TUNE.studioSoftbox, PLANET_TUNE.studioFloor);
-    u.uStudioWarm.value = PLANET_TUNE.studioFillWarm;
-    u.uStudioMean.value = studioMeanCached(PLANET_TUNE.studioCrisp, PLANET_TUNE.studioKey, PLANET_TUNE.studioSoftbox, PLANET_TUNE.studioFloor, PLANET_TUNE.studioDome, PLANET_TUNE.studioFillWarm);
+    u.uStudioMean.value = studioMeanCached(PLANET_TUNE.studioCrisp, PLANET_TUNE.studioKey, PLANET_TUNE.studioSoftbox, PLANET_TUNE.studioFloor, PLANET_TUNE.studioDome);
     const want = Math.min(Math.max(PLANET_TUNE.neutralNebula, 0), 1);
     const neb = nebula.current;
     if (want > 0 && !neb.map && !neb.failed) {

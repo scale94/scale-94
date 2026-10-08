@@ -7,7 +7,7 @@ import {
   NEUTRAL_SKY_FLOOR, NEUTRAL_SKY_DRIFT, NEUTRAL_DOME_NADIR, NEUTRAL_DOME_POW,
   TENT_EDGE_CRISP, TENT_CANOPY_HX, TENT_CANOPY_Z0, TENT_CANOPY_Z1, TENT_CANOPY_FADE, TENT_CANOPY_FRONT_SOFT, TENT_CANOPY_BACK,
   TENT_CANOPY_SIDE, TENT_STRIP_AZ, TENT_STRIP_HW, TENT_STRIP_SOFT, TENT_STRIP_Y0, TENT_STRIP_Y1, TENT_STRIP_YSOFT, TENT_STRIP_LUM,
-  TENT_STRIP_GAIN, TENT_GAP, TENT_FLOOR_SOFT, TENT_FLOOR_FRONT, TENT_STRIP_FEATHER, fillTint, STUDIO_DEFAULTS, studioMean, studioMeanCached, studioRadiance,
+  TENT_STRIP_GAIN, TENT_GAP, TENT_FLOOR_SOFT, TENT_FLOOR_FRONT, TENT_STRIP_FEATHER, STUDIO_DEFAULTS, studioMean, studioMeanCached, studioRadiance,
 } from '../aetherSky';
 import { HG_MIRROR_UNIFORMS } from '../hgMirrorGlsl';
 import { PLANET_UNIFORMS } from '../mercuryPlanetShader';
@@ -100,13 +100,13 @@ describe('aetherSky', () => {
     });
 
     it('defaults: over-unity key and canopy, a subtle floor, no dome; PLANET_TUNE matches', () => {
-      expect([PLANET_TUNE.studioCrisp, PLANET_TUNE.studioKey, PLANET_TUNE.studioSoftbox, PLANET_TUNE.studioFloor, PLANET_TUNE.studioDome,
-        PLANET_TUNE.studioFillWarm]).toEqual([K.crisp, K.key, K.canopy, K.floor, K.dome, K.warm]);
+      expect([PLANET_TUNE.studioCrisp, PLANET_TUNE.studioKey, PLANET_TUNE.studioSoftbox, PLANET_TUNE.studioFloor, PLANET_TUNE.studioDome])
+        .toEqual([K.crisp, K.key, K.canopy, K.floor, K.dome]);
       expect(K.dome).toBe(0);
       expect(K.floor).toBe(0); // author 2026-10-08 locked the floor bounce off
       expect(K.key * TENT_STRIP_LUM * 1.4).toBeGreaterThan(1); // past the shoulder knee (aetherGain 1.4)
       expect(K.canopy * 1.4).toBeGreaterThan(2);
-      for (const u of ['uStudioDome', 'uStudioLook', 'uStudioMean', 'uStudioWarm']) { expect(HG_MIRROR_UNIFORMS).toContain(u); expect(PLANET_UNIFORMS).toContain(u); }
+      for (const u of ['uStudioDome', 'uStudioLook', 'uStudioMean']) { expect(HG_MIRROR_UNIFORMS).toContain(u); expect(PLANET_UNIFORMS).toContain(u); }
     });
 
     it('layout: canopy overhead, flanking strips, dark trenches between, dark horizon gap, floor lit behind (replica)', () => {
@@ -137,8 +137,7 @@ describe('aetherSky', () => {
       expect(body).toContain('abs(az + TENT_STRIP_AZ.x)');
       expect(body).toContain('abs(az - TENT_STRIP_AZ.y)');
       expect(body).toContain('* mix(TENT_FLOOR_FRONT, 1.0, smoothstep(0.0, -0.8, R.z)); // floor sweep, lit behind: a lower rim');
-      expect(body).toContain('* mix(vec3(1.0), TENT_FILL_AMBER, uStudioWarm); // amber hint');
-      expect(body).toContain('return vec3(L) + fill;');
+      expect(body).not.toMatch(/uStudioWarm|AMBER/); // the amber fill was indistinguishable (author 2026-10-08): removed
       expect(body).not.toMatch(/skyFbm|skyNoise|skyHash|uSkyT/);
       expect(AETHER_SKY_GLSL).toContain('mean += wStudio * uStudioMean; // studioMeanCached (JS) at the live knobs');
     });
@@ -148,14 +147,9 @@ describe('aetherSky', () => {
         expect(studioMean(k)).toBeCloseTo(studioMean(k, 384, 768), 2);
       }
       expect(SKY_MEAN.neutral).toEqual([studioMean(K), studioMean(K), studioMean(K)]);
-      const a = studioMeanCached(1, 4, 2, 0.35, 0, 0.25);
-      expect(studioMeanCached(1, 4, 2, 0.35, 0, 0.25)).toBe(a);
-      expect(studioMeanCached(1, 4, 2, 0, 0, 0.25)).toBeLessThan(a);
-      // amber fill: warm, never brighter than white; the mean follows its luminance
-      const t = fillTint(1);
-      expect(t[0]).toBeGreaterThan(t[1]); expect(t[1]).toBeGreaterThan(t[2]);
-      expect(fillTint(0)).toEqual([1, 1, 1]);
-      expect(studioMeanCached(1, 4, 2, 0, 0, 1)).toBeLessThan(studioMeanCached(1, 4, 2, 0, 0, 0));
+      const a = studioMeanCached(1, 4, 2, 0.35, 0);
+      expect(studioMeanCached(1, 4, 2, 0.35, 0)).toBe(a);
+      expect(studioMeanCached(1, 4, 2, 0, 0)).toBeLessThan(a);
     }, 60000);
 
     it('neutral weight fills what the element skies leave; evaluated only above SKY_W_MIN', () => {

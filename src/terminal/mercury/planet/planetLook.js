@@ -66,7 +66,6 @@ export const PLANET_TUNE = {
   studioKey: 4,       // flanking strip softboxes: × 0.3 × aetherGain 1.4 ≈ 1.7, over the shoulder knee
   studioSoftbox: 2,   // overhead canopy scrim (× aetherGain 1.4 ≈ 2.8 HDR at its front)
   studioFloor: 0,     // white sweep floor bounce: OFF (author 2026-10-08 locked 0; 0.35 = the lit lower rim)
-  studioFillWarm: 0.25, // right fill strip tinted toward the amber gas glow (NA_COL): 0 white, 1 full amber
   studioDome: 0,      // smooth ambient dome: OFF (author 2026-10-08: it read as grey clay in motion)
   neutralNebula: 0,  // resting mirror: 0 = studio (option B, ruled 2026-10-07), 1 = baked neutral nebula, between = mix (spec 2026-10-08)
   aetherFloor: 0.2,     // lit element flows never fall below this × their colour (umbra, worst phase) — aetherLight.js

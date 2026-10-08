@@ -36,7 +36,6 @@ uniform float uNeutralSky;
 uniform float uStudioDome;
 uniform vec4 uStudioLook;
 uniform float uStudioMean;
-uniform float uStudioWarm;
 uniform float uNeutralNebula;
 uniform mat3 uNebulaRot;
 uniform samplerCube uNebulaMap;
@@ -357,7 +356,6 @@ const float TENT_STRIP_Y0 = -0.450000000;
 const float TENT_STRIP_Y1 = 0.880000000;
 const float TENT_STRIP_YSOFT = 0.150000000;
 const float TENT_STRIP_FEATHER = 0.140000000;
-const vec3 TENT_FILL_AMBER = vec3(1.00000000, 0.550000000, 0.120000000);
 const float TENT_STRIP_LUM = 0.300000000;
 const vec2 TENT_STRIP_GAIN = vec2(1.00000000, 0.700000000);
 const float TENT_GAP = 0.140000000;
@@ -366,7 +364,7 @@ const float TENT_FLOOR_FRONT = 0.120000000;
 const float NEUTRAL_DOME_NADIR = 0.0500000000;
 const float NEUTRAL_DOME_POW = 1.50000000;
 const float NEUTRAL_SKY_DRIFT = 0.0200000000;
-const vec3 SKY_MEAN_NEUTRAL = vec3(0.206735783, 0.206735783, 0.206735783); // documents the default studio; the mirror uses uStudioMean (live)
+const vec3 SKY_MEAN_NEUTRAL = vec3(0.208443441, 0.208443441, 0.208443441); // documents the default studio; the mirror uses uStudioMean (live)
 const vec3 SKY_MEAN_NEBULA = vec3(0.0179200000, 0.0179200000, 0.0179200000);
 const float NEBULA_MAX_LOD = 6.00000000;
 const float NEBULA_TEXEL_RAD = 0.00613592315;
@@ -494,13 +492,12 @@ vec3 skyStudio(vec3 R) {
   float span = smoothstep(TENT_STRIP_Y0 - ys, TENT_STRIP_Y0 + ys, R.y) * smoothstep(TENT_STRIP_Y1 + ys, TENT_STRIP_Y1 - ys, R.y);
   float sL = smoothstep(TENT_STRIP_HW + se, TENT_STRIP_HW - se, abs(az + TENT_STRIP_AZ.x));
   float sR = smoothstep(TENT_STRIP_HW + se, TENT_STRIP_HW - se, abs(az - TENT_STRIP_AZ.y));
-  L += TENT_STRIP_LUM * uStudioLook.y * span * TENT_STRIP_GAIN.x * sL;
-  vec3 fill = (TENT_STRIP_LUM * uStudioLook.y * span * TENT_STRIP_GAIN.y * sR) * mix(vec3(1.0), TENT_FILL_AMBER, uStudioWarm); // amber hint
+  L += TENT_STRIP_LUM * uStudioLook.y * span * (TENT_STRIP_GAIN.x * sL + TENT_STRIP_GAIN.y * sR);
   float fe = mix(TENT_FLOOR_SOFT, TENT_EDGE_CRISP, c);
   L += uStudioLook.w * smoothstep(-TENT_GAP + fe, -TENT_GAP - fe, R.y) * (0.5 + 0.5 * smoothstep(-0.9, -0.15, R.y))
      * mix(TENT_FLOOR_FRONT, 1.0, smoothstep(0.0, -0.8, R.z)); // floor sweep, lit behind: a lower rim
   L += uStudioDome * (NEUTRAL_DOME_NADIR + (1.0 - NEUTRAL_DOME_NADIR) * pow(0.5 + 0.5 * R.y, NEUTRAL_DOME_POW));
-  return vec3(L) + fill;
+  return vec3(L);
 }
 
 // The baked nebula (one textureLod, rotated on the sky clock). Its mip chain IS its roughness blur, so it is never also
