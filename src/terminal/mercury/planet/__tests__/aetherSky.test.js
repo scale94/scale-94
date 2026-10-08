@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { glf, v3 } from '../../../gl/glf';
 import {
-  AETHER_SKY_GLSL, SKY_NOISE_GLSL, SKY_OCTAVES, SKY_ROUGH_SHARP, SKY_ROUGH_FLAT, SKY_W_MIN, SKY_PING_EXP, SKY_PING_GAIN, SKY_MEAN, AIR_SHEAR_BAND,
+  AETHER_SKY_GLSL, SKY_NOISE_GLSL, NEBULA_MAX_LOD, SKY_OCTAVES, SKY_ROUGH_SHARP, SKY_ROUGH_FLAT, SKY_W_MIN, SKY_PING_EXP, SKY_PING_GAIN, SKY_MEAN, AIR_SHEAR_BAND,
   AIR_SKY_LINE_POW, AIR_SKY_ENV_POW, AIR_SKY_WARP_Y, AIR_SKY_LAT, AIR_SKY_WARP,
   NEUTRAL_SKY_FLOOR, NEUTRAL_HORIZON_LUM, NEUTRAL_HORIZON_W, NEUTRAL_STRIP_LUM, NEUTRAL_STRIP_AZ, NEUTRAL_STRIP_HW,
   NEUTRAL_STRIP_SOFT, NEUTRAL_STRIP_Y0, NEUTRAL_STRIP_Y1, NEUTRAL_STRIP_YSOFT, NEUTRAL_SKY_DRIFT,
@@ -132,13 +132,31 @@ describe('aetherSky', () => {
 
     it('neutral weight fills what the element skies leave; evaluated only above SKY_W_MIN', () => {
       expect(AETHER_SKY_GLSL).toContain('float wN = uNeutralSky * clamp(1.0 - (uSkyW.x + uSkyW.y + uSkyW.z + uSkyW.w), 0.0, 1.0);');
-      expect(AETHER_SKY_GLSL).toContain('vec3 skyNeutral(vec3 R, float nOct) {');
-      expect(AETHER_SKY_GLSL).toContain('mean += wN * SKY_MEAN_NEUTRAL;');
-      expect(AETHER_SKY_GLSL).toContain('if (wN > SKY_W_MIN) s += wN * skyNeutral(R, nOct);');
+      expect(AETHER_SKY_GLSL).toContain('vec3 skyStudio(vec3 R) {');
+      expect(AETHER_SKY_GLSL).toContain('vec3 skyNeutral(vec3 R, float k) {');
+      expect(AETHER_SKY_GLSL).toContain('mean += wN * mix(SKY_MEAN_NEUTRAL, SKY_MEAN_NEBULA, uNeutralNebula);');
+      expect(AETHER_SKY_GLSL).toContain('if (wN > SKY_W_MIN) s += wN * skyNeutral(R, k);');
     });
 
+    it('studio / nebula switch: each side evaluated only when it has weight; nebula = one rotated textureLod', () => {
+      expect(AETHER_SKY_GLSL).toContain('if (uNeutralNebula < 1.0) c += (1.0 - uNeutralNebula) * skyStudio(R);');
+      expect(AETHER_SKY_GLSL).toContain('if (uNeutralNebula > 0.0) c += uNeutralNebula * textureLod(uNebulaMap, uNebulaRot * R, k * NEBULA_MAX_LOD).rgb;');
+      expect(AETHER_SKY_GLSL).toContain(`const float NEBULA_MAX_LOD = ${glf(NEBULA_MAX_LOD)};`);
+      expect(AETHER_SKY_GLSL.match(/textureLod\(/g)).toHaveLength(1);
+      expect(SKY_MEAN.nebula).toHaveLength(3);
+      expect(SKY_MEAN.nebula[0]).toBe(SKY_MEAN.nebula[1]);
+      expect(SKY_MEAN.nebula[1]).toBe(SKY_MEAN.nebula[2]);
+    });
+
+    it('the nebula switch is a mirror uniform, studio by default (author rules after the look sheet)', () => {
+      for (const u of ['uNeutralNebula', 'uNebulaRot', 'uNebulaMap']) {
+        expect(HG_MIRROR_UNIFORMS).toContain(u);
+        expect(PLANET_UNIFORMS).toContain(u);
+      }
+      expect(PLANET_TUNE.neutralNebula).toBe(0);
+    });
     it('no noise, rigid drift on the calm-gated sky clock', () => {
-      const body = AETHER_SKY_GLSL.slice(AETHER_SKY_GLSL.indexOf('float skyNeutralStrip('), AETHER_SKY_GLSL.indexOf('// The active element'));
+      const body = AETHER_SKY_GLSL.slice(AETHER_SKY_GLSL.indexOf('float skyNeutralStrip('), AETHER_SKY_GLSL.indexOf('vec3 skyNeutral(vec3 R, float k)'));
       expect(body).not.toMatch(/skyFbm|skyNoise|skyHash/);
       expect(body).toContain('float az = atan(R.z, R.x) - NEUTRAL_SKY_DRIFT * uSkyT;');
       expect(body).toContain('NEUTRAL_HORIZON_LUM * exp(-hz * hz)');

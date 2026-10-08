@@ -32,6 +32,9 @@ uniform vec4 uSkyW;
 uniform float uAetherGain;
 uniform float uAetherSilver;
 uniform float uNeutralSky;
+uniform float uNeutralNebula;
+uniform mat3 uNebulaRot;
+uniform samplerCube uNebulaMap;
 uniform sampler2D uScar;
 uniform float uRayGain;
 uniform float uSurfOn;
@@ -345,6 +348,8 @@ const float NEUTRAL_STRIP_Y1 = 0.600000000;
 const float NEUTRAL_STRIP_YSOFT = 0.120000000;
 const float NEUTRAL_SKY_DRIFT = 0.0200000000;
 const vec3 SKY_MEAN_NEUTRAL = vec3(0.0267946277, 0.0267946277, 0.0267946277);
+const vec3 SKY_MEAN_NEBULA = vec3(0.0267946277, 0.0267946277, 0.0267946277);
+const float NEBULA_MAX_LOD = 6.00000000;
 
 float skyHash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
 float skyNoise(vec3 x) {
@@ -449,14 +454,13 @@ vec3 skyAir(vec3 R, float nOct) {
   return c;
 }
 
-// Neutral (resting mirror): a studio. Deep-space black, a thin horizon line, three soft-edged strips turning
-// rigidly with the calm-gated sky clock. No noise: the edges are what make the liquid read as a mirror. nOct is unused
-// (the rougher mirrors fade to SKY_MEAN_NEUTRAL through k in aetherSky).
+// Neutral studio (option B): deep-space black, a thin horizon line, three soft-edged strips turning
+// rigidly with the calm-gated sky clock. No noise: the edges are what make the liquid read as a mirror.
 float skyNeutralStrip(float az, float c) {
   float d = abs(mod(az - c + 3.14159265, 6.28318531) - 3.14159265);
   return smoothstep(NEUTRAL_STRIP_HW + NEUTRAL_STRIP_SOFT, NEUTRAL_STRIP_HW - NEUTRAL_STRIP_SOFT, d);
 }
-vec3 skyNeutral(vec3 R, float nOct) {
+vec3 skyStudio(vec3 R) {
   float hz = R.y / NEUTRAL_HORIZON_W;
   float L = NEUTRAL_SKY_FLOOR + NEUTRAL_HORIZON_LUM * exp(-hz * hz);
   float az = atan(R.z, R.x) - NEUTRAL_SKY_DRIFT * uSkyT;
@@ -467,13 +471,22 @@ vec3 skyNeutral(vec3 R, float nOct) {
   return vec3(L);
 }
 
+// The resting mirror's sky: the studio, the baked nebula (one textureLod, rotated on the sky clock, mip by roughness
+// weight k), or a mix by uNeutralNebula. Each side is evaluated only when it has weight (uniform branch: coherent).
+vec3 skyNeutral(vec3 R, float k) {
+  vec3 c = vec3(0.0);
+  if (uNeutralNebula < 1.0) c += (1.0 - uNeutralNebula) * skyStudio(R);
+  if (uNeutralNebula > 0.0) c += uNeutralNebula * textureLod(uNebulaMap, uNebulaRot * R, k * NEBULA_MAX_LOD).rgb;
+  return c;
+}
+
 // The active element's sky (at most one is up: switches pass through neutral), in a mirror of roughness rough; the neutral sky fills
 // whatever weight the element skies leave (full in neutral, zero once an element's sky is at full weight).
 vec3 aetherSky(vec3 R, float rough) {
   float k = smoothstep(SKY_ROUGH_SHARP, SKY_ROUGH_FLAT, rough);
   float wN = uNeutralSky * clamp(1.0 - (uSkyW.x + uSkyW.y + uSkyW.z + uSkyW.w), 0.0, 1.0);
   vec3 mean = uSkyW.x * SKY_MEAN_FLUID + uSkyW.y * SKY_MEAN_THERMAL + uSkyW.z * SKY_MEAN_EARTH + uSkyW.w * SKY_MEAN_AIR;
-  mean += wN * SKY_MEAN_NEUTRAL;
+  mean += wN * mix(SKY_MEAN_NEUTRAL, SKY_MEAN_NEBULA, uNeutralNebula);
   if (k >= 1.0) return mean;
   float nOct = mix(float(SKY_OCTAVES), 1.0, k);
   vec3 s = vec3(0.0);
@@ -481,7 +494,7 @@ vec3 aetherSky(vec3 R, float rough) {
   if (uSkyW.y > SKY_W_MIN) s += uSkyW.y * skyThermal(R, nOct);
   if (uSkyW.z > SKY_W_MIN) s += uSkyW.z * skyEarth(R, nOct, k);
   if (uSkyW.w > SKY_W_MIN) s += uSkyW.w * skyAir(R, nOct);
-  if (wN > SKY_W_MIN) s += wN * skyNeutral(R, nOct);
+  if (wN > SKY_W_MIN) s += wN * skyNeutral(R, k);
   return mix(s, mean, k);
 }
 

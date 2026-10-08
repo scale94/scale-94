@@ -54,6 +54,8 @@ import useVisitorField from './useVisitorField';
 import useHgBeads from './useHgBeads';
 import { spawnFling, spawnSplash, stepBeads, FLING_N, SPLASH_N } from './planet/hgBeads';
 import { CALORIS_DIR_BODY, stepOverlay } from './planet/slowNoon';
+import { nebulaRotation } from './planet/nebulaSky';
+import { canBakeNebula, bakeNebula } from './nebulaBake';
 
 const EPHEMERIS_REFRESH_S = 1;
 const MAX_FRAME_DT_S = 0.1; // a backgrounded tab must not fling the body
@@ -344,6 +346,9 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
       uAetherGain: { value: PLANET_TUNE.aetherGain },
       uAetherSilver: { value: PLANET_TUNE.aetherSilver },
       uNeutralSky: { value: PLANET_TUNE.neutralSky },
+      uNeutralNebula: { value: 0 },
+      uNebulaRot: { value: new THREE.Matrix3() },
+      uNebulaMap: { value: null },
       uScar: { value: scarTex },
       uRayGain: { value: PLANET_TUNE.rayGain },
       uRoilGain: { value: PLANET_TUNE.roilGain },
@@ -369,6 +374,21 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
 
   useEffect(() => () => geometry.dispose(), [geometry]);
   useEffect(() => () => material.dispose(), [material]);
+
+  // Neutral nebula (spec 2026-10-08): bake once per renderer + material; without a half-float target the switch stays
+  // on the studio. The droplets / beads / visitors share these uniform objects, so they see the same map.
+  const nebulaOk = useRef(false);
+  useLayoutEffect(() => {
+    if (!canBakeNebula(gl)) {
+      console.warn('[mercury] no half-float render target: neutral nebula off, studio only');
+      nebulaOk.current = false;
+      return undefined;
+    }
+    const neb = bakeNebula(gl);
+    material.uniforms.uNebulaMap.value = neb.texture;
+    nebulaOk.current = true;
+    return () => { nebulaOk.current = false; material.uniforms.uNebulaMap.value = null; neb.dispose(); };
+  }, [gl, material]);
 
   // Dev-only console tuning rig (window.__mercuryTune). Zero prod footprint.
   useEffect(() => {
@@ -491,6 +511,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     u.uAetherGain.value = PLANET_TUNE.aetherGain;
     u.uAetherSilver.value = PLANET_TUNE.aetherSilver;
     u.uNeutralSky.value = PLANET_TUNE.neutralSky;
+    u.uNeutralNebula.value = nebulaOk.current ? Math.min(Math.max(PLANET_TUNE.neutralNebula, 0), 1) : 0;
     u.uRayGain.value = PLANET_TUNE.rayGain;
     u.uRoilGain.value = PLANET_TUNE.roilGain;
     u.uRoughLiquid.value = PLANET_TUNE.roughLiquid;
@@ -693,6 +714,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     if (aetherClock) {
       tickAetherClock(aetherClock, t, delta);
       u.uSkyT.value = aetherClock.t;
+      u.uNebulaRot.value.set(...nebulaRotation(aetherClock.t));
       u.uSkyPhase.value.set(aetherClock.phase.fluid, aetherClock.phase.thermal, aetherClock.phase.earth, aetherClock.phase.air);
     }
     skyWeights(fades, skyW);
