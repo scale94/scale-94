@@ -57,6 +57,28 @@ export const SKY_MEAN = Object.freeze({
   neutral: [NEUTRAL_MEAN, NEUTRAL_MEAN, NEUTRAL_MEAN], // analytic, not measured (see NEUTRAL_MEAN)
 });
 
+// Value noise + fBm on an octave budget, shared by the mirror sky and the neutral-nebula bake (nebulaSky.js).
+// Needs `const int SKY_OCTAVES` declared before it.
+export const SKY_NOISE_GLSL = /* glsl */ `float skyHash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+float skyNoise(vec3 x) {
+  vec3 i = floor(x), f = fract(x);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(skyHash(i), skyHash(i + vec3(1, 0, 0)), f.x), mix(skyHash(i + vec3(0, 1, 0)), skyHash(i + vec3(1, 1, 0)), f.x), f.y),
+             mix(mix(skyHash(i + vec3(0, 0, 1)), skyHash(i + vec3(1, 0, 1)), f.x), mix(skyHash(i + vec3(0, 1, 1)), skyHash(i + vec3(1, 1, 1)), f.x), f.y), f.z);
+}
+// fBm on an octave budget nOct (float): octaves past it contribute their mean, so a rougher mirror keeps the
+// same brightness with less detail.
+float skyFbm(vec3 p, float nOct) {
+  float a = 0.5, s = 0.0;
+  for (int i = 0; i < SKY_OCTAVES; i++) {
+    float w = clamp(nOct - float(i), 0.0, 1.0);
+    s += a * (w > 0.0 ? mix(0.5, skyNoise(p), w) : 0.5);
+    p = p * 2.03 + vec3(1.7, 9.2, 3.1);
+    a *= 0.5;
+  }
+  return s;
+}`;
+
 export const AETHER_SKY_GLSL = /* glsl */ `// ── aether sky (aetherSky.js) ──
 const int SKY_OCTAVES = ${SKY_OCTAVES};
 const float FLUID_SKY_RAD = ${glf(FLUID_SKY_RAD)};
@@ -92,25 +114,7 @@ const float NEUTRAL_STRIP_YSOFT = ${glf(NEUTRAL_STRIP_YSOFT)};
 const float NEUTRAL_SKY_DRIFT = ${glf(NEUTRAL_SKY_DRIFT)};
 const vec3 SKY_MEAN_NEUTRAL = ${v3(SKY_MEAN.neutral)};
 
-float skyHash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
-float skyNoise(vec3 x) {
-  vec3 i = floor(x), f = fract(x);
-  f = f * f * (3.0 - 2.0 * f);
-  return mix(mix(mix(skyHash(i), skyHash(i + vec3(1, 0, 0)), f.x), mix(skyHash(i + vec3(0, 1, 0)), skyHash(i + vec3(1, 1, 0)), f.x), f.y),
-             mix(mix(skyHash(i + vec3(0, 0, 1)), skyHash(i + vec3(1, 0, 1)), f.x), mix(skyHash(i + vec3(0, 1, 1)), skyHash(i + vec3(1, 1, 1)), f.x), f.y), f.z);
-}
-// fBm on an octave budget nOct (float): octaves past it contribute their mean, so a rougher mirror keeps the
-// same brightness with less detail.
-float skyFbm(vec3 p, float nOct) {
-  float a = 0.5, s = 0.0;
-  for (int i = 0; i < SKY_OCTAVES; i++) {
-    float w = clamp(nOct - float(i), 0.0, 1.0);
-    s += a * (w > 0.0 ? mix(0.5, skyNoise(p), w) : 0.5);
-    p = p * 2.03 + vec3(1.7, 9.2, 3.1);
-    a *= 0.5;
-  }
-  return s;
-}
+${SKY_NOISE_GLSL}
 vec3 skyRotZ(vec3 v, float a) { float c = cos(a), s = sin(a); return vec3(c * v.x - s * v.y, s * v.x + c * v.y, v.z); }
 
 // Water: curling filaments and folding sheets, forward-scattering (brighter toward the Sun). The knot's axis is +Z.

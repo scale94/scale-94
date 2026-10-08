@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { glf, v3 } from '../../../gl/glf';
 import {
-  AETHER_SKY_GLSL, SKY_OCTAVES, SKY_ROUGH_SHARP, SKY_ROUGH_FLAT, SKY_W_MIN, SKY_PING_EXP, SKY_PING_GAIN, SKY_MEAN, AIR_SHEAR_BAND,
+  AETHER_SKY_GLSL, SKY_NOISE_GLSL, SKY_OCTAVES, SKY_ROUGH_SHARP, SKY_ROUGH_FLAT, SKY_W_MIN, SKY_PING_EXP, SKY_PING_GAIN, SKY_MEAN, AIR_SHEAR_BAND,
   AIR_SKY_LINE_POW, AIR_SKY_ENV_POW, AIR_SKY_WARP_Y, AIR_SKY_LAT, AIR_SKY_WARP,
   NEUTRAL_SKY_FLOOR, NEUTRAL_HORIZON_LUM, NEUTRAL_HORIZON_W, NEUTRAL_STRIP_LUM, NEUTRAL_STRIP_AZ, NEUTRAL_STRIP_HW,
   NEUTRAL_STRIP_SOFT, NEUTRAL_STRIP_Y0, NEUTRAL_STRIP_Y1, NEUTRAL_STRIP_YSOFT, NEUTRAL_SKY_DRIFT,
@@ -152,6 +152,14 @@ describe('aetherSky', () => {
     it('PLANET_TUNE.neutralSky is on by default', () => {
       expect(PLANET_TUNE.neutralSky).toBe(1);
     });
+  });
+
+  it('the sky noise is one shared chunk (the nebula bake reuses it verbatim)', () => {
+    expect(SKY_NOISE_GLSL).toContain('float skyHash(vec3 p) {');
+    expect(SKY_NOISE_GLSL).toContain('float skyNoise(vec3 x) {');
+    expect(SKY_NOISE_GLSL).toContain('float skyFbm(vec3 p, float nOct) {');
+    expect(AETHER_SKY_GLSL).toContain(SKY_NOISE_GLSL);
+    expect(AETHER_SKY_GLSL.split('float skyHash(').length).toBe(2); // defined once
   });
 
   describe('soft threads §5: the air mirror sky', () => {
