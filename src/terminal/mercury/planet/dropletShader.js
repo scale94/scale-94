@@ -66,6 +66,7 @@ export function buildDropletShader({ tier = 'full' } = {}) {
   if (!q) throw new Error(`buildDropletShader: unknown tier "${tier}"`);
   const d = q.drop;
   const fs = /* glsl */ `precision highp float;
+precision highp samplerCube;
 
 in vec3 vFar;
 layout(location = 0) out vec4 fragColor;

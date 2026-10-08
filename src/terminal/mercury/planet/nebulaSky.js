@@ -114,8 +114,9 @@ void main() {
 
 // The lookup rotation for the frame loop (row-major, for THREE.Matrix3.set): a rigid turn about world +Y that samples
 // the baked sky at az - NEUTRAL_SKY_DRIFT · t, the studio's drift. t is the calm-gated sky clock (calm freezes it).
-export function nebulaRotation(t) {
+export function nebulaRotation(t, out = new Array(9)) {
   const th = NEUTRAL_SKY_DRIFT * t;
   const c = Math.cos(th), s = Math.sin(th);
-  return [c, 0, s, 0, 1, 0, -s, 0, c];
+  out[0] = c; out[1] = 0; out[2] = s; out[3] = 0; out[4] = 1; out[5] = 0; out[6] = -s; out[7] = 0; out[8] = c;
+  return out;
 }

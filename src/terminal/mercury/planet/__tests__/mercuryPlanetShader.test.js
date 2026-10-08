@@ -50,6 +50,7 @@ describe('mercuryPlanetShader contract', () => {
     }
     expect(PLANET_VS).toMatch(/^in vec3 position;/m);
     expect(PLANET_FS).toMatch(/out vec4 fragColor;/);
+    expect(PLANET_FS).toContain('precision highp samplerCube;'); // samplerCube defaults to lowp in GLSL ES 3.00 raw shaders
   });
 
   it('declares exactly PLANET_UNIFORMS plus three built-ins in the fragment stage', () => {

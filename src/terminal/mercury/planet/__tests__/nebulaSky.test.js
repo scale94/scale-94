@@ -33,8 +33,9 @@ describe('nebulaSky', () => {
     expect(NEBULA_STAR_RATE).toBeGreaterThan(0.97);
     expect(NEBULA_STAR_MIN).toBeGreaterThanOrEqual(3);
     expect(NEBULA_STAR_MAX).toBeLessThanOrEqual(8);
-    const texel = (Math.PI / 2) / NEBULA_FACE;
-    expect(NEBULA_STAR_SIGMA / texel).toBeGreaterThan(1.2);
+    // face-centre texels are the largest on a cube face (2/N vs the average (pi/2)/N): the worst case for core size
+    const texel = 2 / NEBULA_FACE;
+    expect(NEBULA_STAR_SIGMA / texel).toBeGreaterThan(1.1);
     expect(NEBULA_STAR_SIGMA / texel).toBeLessThan(2.5);
     expect(NEBULA_GEN_GLSL).toContain('for (int dz = -1; dz <= 1; dz++)');
     // a lit star's lattice point is within SHELL of the sample's shell radially and REACH tangentially:
@@ -88,5 +89,12 @@ describe('nebulaSky', () => {
       const a = apply(m, v);
       expect(Math.hypot(...a)).toBeCloseTo(Math.hypot(...v), 12);
     }
+  });
+
+  it('nebulaRotation(t, out) fills and returns the given array (useFrame allocates nothing)', () => {
+    const out = new Array(9);
+    const r = nebulaRotation(13.7, out);
+    expect(r).toBe(out);
+    expect(out).toEqual(nebulaRotation(13.7));
   });
 });

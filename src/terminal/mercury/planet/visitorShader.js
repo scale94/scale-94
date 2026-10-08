@@ -50,6 +50,7 @@ export const VISITOR_UNIFORMS = [...VISITOR_OWN_UNIFORMS, ...HG_MIRROR_UNIFORMS]
 export function buildVisitorShader() {
   const N = VISITOR_SLOTS;
   const fs = /* glsl */ `precision highp float;
+precision highp samplerCube;
 
 in vec3 vFar;
 layout(location = 0) out vec4 fragColor;

@@ -1,5 +1,6 @@
 precision highp float;
 precision highp sampler2D;
+precision highp samplerCube;
 
 in vec3 vWorld;
 layout(location = 0) out vec4 fragColor;

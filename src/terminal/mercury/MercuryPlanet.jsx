@@ -375,20 +375,12 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
   useEffect(() => () => geometry.dispose(), [geometry]);
   useEffect(() => () => material.dispose(), [material]);
 
-  // Neutral nebula (spec 2026-10-08): bake once per renderer + material; without a half-float target the switch stays
-  // on the studio. The droplets / beads / visitors share these uniform objects, so they see the same map.
-  const nebulaOk = useRef(false);
-  useLayoutEffect(() => {
-    if (!canBakeNebula(gl)) {
-      console.warn('[mercury] no half-float render target: neutral nebula off, studio only');
-      nebulaOk.current = false;
-      return undefined;
-    }
-    const neb = bakeNebula(gl);
-    material.uniforms.uNebulaMap.value = neb.texture;
-    nebulaOk.current = true;
-    return () => { nebulaOk.current = false; material.uniforms.uNebulaMap.value = null; neb.dispose(); };
-  }, [gl, material]);
+  // Neutral nebula (spec 2026-10-08): baked LAZILY on the first frame the switch is up (default 0 pays nothing), once per
+  // renderer: keyed on gl only, so a calm/tier material rebuild re-links the cached map (useFrame) instead of re-baking.
+  // Droplets / beads / visitors share the uniform objects by reference, so they see the same map. Without a half-float
+  // target the switch stays on the studio.
+  const nebula = useRef({ map: null, failed: false });
+  useEffect(() => () => { nebula.current.map?.dispose(); nebula.current = { map: null, failed: false }; }, [gl]);
 
   // Dev-only console tuning rig (window.__mercuryTune). Zero prod footprint.
   useEffect(() => {
@@ -397,6 +389,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
 
   const emitRef = useRef(emitters);
   const skyW = useMemo(() => [1, 0, 0, 0], []);
+  const nebRot = useMemo(() => new Array(9), []);
   useEffect(() => { emitRef.current = emitters; }, [emitters]);
 
   // Phase 3 state: the bead's impulses, the drag wake, the scar clock. Preallocated; useFrame allocates nothing.
@@ -511,7 +504,14 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     u.uAetherGain.value = PLANET_TUNE.aetherGain;
     u.uAetherSilver.value = PLANET_TUNE.aetherSilver;
     u.uNeutralSky.value = PLANET_TUNE.neutralSky;
-    u.uNeutralNebula.value = nebulaOk.current ? Math.min(Math.max(PLANET_TUNE.neutralNebula, 0), 1) : 0;
+    const want = Math.min(Math.max(PLANET_TUNE.neutralNebula, 0), 1);
+    const neb = nebula.current;
+    if (want > 0 && !neb.map && !neb.failed) {
+      if (canBakeNebula(gl)) neb.map = bakeNebula(gl); // first frame the switch is up: one bake per renderer
+      else { neb.failed = true; console.warn('[mercury] no half-float render target: neutral nebula off, studio only'); }
+    }
+    u.uNebulaMap.value = neb.map ? neb.map.texture : null; // re-links after a material rebuild
+    u.uNeutralNebula.value = neb.map ? want : 0;
     u.uRayGain.value = PLANET_TUNE.rayGain;
     u.uRoilGain.value = PLANET_TUNE.roilGain;
     u.uRoughLiquid.value = PLANET_TUNE.roughLiquid;
@@ -714,7 +714,8 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     if (aetherClock) {
       tickAetherClock(aetherClock, t, delta);
       u.uSkyT.value = aetherClock.t;
-      u.uNebulaRot.value.set(...nebulaRotation(aetherClock.t));
+      const m = nebulaRotation(aetherClock.t, nebRot);
+      u.uNebulaRot.value.set(m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7], m[8]);
       u.uSkyPhase.value.set(aetherClock.phase.fluid, aetherClock.phase.thermal, aetherClock.phase.earth, aetherClock.phase.air);
     }
     skyWeights(fades, skyW);

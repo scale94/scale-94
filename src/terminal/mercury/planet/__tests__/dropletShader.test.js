@@ -9,6 +9,9 @@ import { BOUND_BEAD } from '../breakupFrame';
 import { glf } from '../../../gl/glf';
 
 describe('dropletShader — the family as one SDF impostor', () => {
+  it('declares highp samplerCube (the shared nebula map; default is lowp)', () => {
+    expect(buildDropletShader().fs).toContain('precision highp samplerCube;');
+  });
   it('builds per tier with that tier\'s caps and march budget', () => {
     for (const t of TIER_NAMES) {
       const { fs, vs } = buildDropletShader({ tier: t });

@@ -15,6 +15,9 @@ const declared = (src) => [...src.matchAll(/^uniform\s+\w+\s+(\w+)(?:\[\d+\])?;/
 const { vs, fs } = buildVisitorShader();
 
 describe('visitorShader — the visitors as analytic bodies', () => {
+  it('declares highp samplerCube (the shared nebula map; default is lowp)', () => {
+    expect(fs).toContain('precision highp samplerCube;');
+  });
   it('shares the droplets\' rect vertex stage and draws after them', () => {
     expect(vs).toBe(DROPLET_VS);
     expect(VISITOR_RENDER_ORDER).toBe(DROPLET_RENDER_ORDER + 1);
