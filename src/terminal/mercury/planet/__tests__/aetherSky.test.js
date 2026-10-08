@@ -99,7 +99,8 @@ describe('aetherSky', () => {
       expect(NEUTRAL_HORIZON_LUM / NEUTRAL_SKY_FLOOR).toBeGreaterThan(25);
       expect(NEUTRAL_STRIP_LUM / NEUTRAL_SKY_FLOOR).toBeGreaterThan(50);
       expect(NEUTRAL_HORIZON_W).toBeGreaterThanOrEqual(0.05); // a band, not a drawn line (author 2026-10-08)
-      expect(AETHER_SKY_GLSL).toContain('return exp(-d * d);'); // no plateau, no edge
+      expect(AETHER_SKY_GLSL).toContain('float soft = exp(-(d * d) / (NEUTRAL_STRIP_HW * NEUTRAL_STRIP_HW));'); // studioCrisp 0: no plateau, no edge
+      expect(AETHER_SKY_GLSL).toContain('return mix(soft, crisp, uStudioLook.x);');
       expect(new Set(NEUTRAL_STRIP_GAIN).size).toBe(NEUTRAL_STRIP_GAIN.length); // a key, a fill, a rim
       expect(Math.max(...NEUTRAL_STRIP_GAIN)).toBe(1);
     });
@@ -112,11 +113,17 @@ describe('aetherSky', () => {
     });
 
     it('studio dome: directional (bright overhead, dark below), live, default .06 (author 2026-10-08)', () => {
-      expect(AETHER_SKY_GLSL).toContain('L += uStudioDome * (NEUTRAL_DOME_NADIR + (1.0 - NEUTRAL_DOME_NADIR) * pow(0.5 + 0.5 * R.y, NEUTRAL_DOME_POW));');
+      expect(AETHER_SKY_GLSL).toContain('float dome = uStudioDome * (NEUTRAL_DOME_NADIR + (1.0 - NEUTRAL_DOME_NADIR) * pow(0.5 + 0.5 * R.y, NEUTRAL_DOME_POW));');
+      expect(AETHER_SKY_GLSL).toContain('L += dome * (1.0 - uStudioLook.z * skyFlag(az, R.y));');
       expect(NEUTRAL_DOME_NADIR).toBeLessThanOrEqual(0.06); // never a flat wash, underbelly stays dark: zenith ≥ ~17× nadir
       expect(HG_MIRROR_UNIFORMS).toContain('uStudioDome');
       expect(PLANET_UNIFORMS).toContain('uStudioDome');
       expect(PLANET_TUNE.studioDome).toBe(0.06);
+      // motion-review look knobs (crisp, key, flags): live, defaults keep the ruled soft look until the sweep is ruled
+      expect(HG_MIRROR_UNIFORMS).toContain('uStudioLook');
+      expect(PLANET_UNIFORMS).toContain('uStudioLook');
+      expect([PLANET_TUNE.studioCrisp, PLANET_TUNE.studioKey, PLANET_TUNE.studioFlags]).toEqual([0, 1, 0]);
+      expect(AETHER_SKY_GLSL).toContain('L += NEUTRAL_STRIP_LUM * uStudioLook.y * span * strips;');
       // numeric mean of the dome shape over the sphere (uniform in R.y)
       const N = 20000; let m = 0;
       for (let i = 0; i < N; i++) { const y = -1 + (2 * (i + 0.5)) / N; m += NEUTRAL_DOME_NADIR + (1 - NEUTRAL_DOME_NADIR) * ((1 + y) / 2) ** NEUTRAL_DOME_POW; }

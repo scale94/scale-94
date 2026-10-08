@@ -60,7 +60,7 @@ export const PLANET_UNIFORMS = [
   'uAlbedo', 'uDem', 'uHasMaps', 'uSunDir', 'uBodyRot', 'uSunIrr', 'uSunSinR',
   'uDemTexel', 'uTime', 'uExposure', 'uRelief', 'uNightFloor',
   'uTau', 'uHeatK', 'uSubsolarT', 'uEmitPos', 'uEmitCol', 'uSunGlint', 'uEmitGain',
-  'uSkyT', 'uSkyPhase', 'uSkyW', 'uAetherGain', 'uAetherSilver', 'uNeutralSky', 'uStudioDome', 'uNeutralNebula', 'uNebulaRot', 'uNebulaMap',
+  'uSkyT', 'uSkyPhase', 'uSkyW', 'uAetherGain', 'uAetherSilver', 'uNeutralSky', 'uStudioDome', 'uStudioLook', 'uNeutralNebula', 'uNebulaRot', 'uNebulaMap',
   'uScar', 'uRayGain',
   'uSurfOn', 'uImpDir', 'uImpMode', 'uImpWave', 'uBulge', 'uRoilGain', 'uPopZoom',
   'uRoughLiquid', 'uMeniscus', 'uMeniscusW', 'uCoreR',
@@ -133,6 +133,7 @@ uniform float uAetherGain;
 uniform float uAetherSilver;
 uniform float uNeutralSky;
 uniform float uStudioDome;
+uniform vec3 uStudioLook;
 uniform float uNeutralNebula;
 uniform mat3 uNebulaRot;
 uniform samplerCube uNebulaMap;

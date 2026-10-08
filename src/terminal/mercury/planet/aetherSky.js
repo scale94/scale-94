@@ -9,7 +9,7 @@
 // Roughness drops octaves (dropped octaves contribute their mean) and, from SKY_ROUGH_FLAT, the sky is just its
 // element's mean radiance: the frost and evaporite ambient lookups (rough 1) and the polycrystalline crust cost
 // ~nothing. Every helper is sky-prefixed: this chunk lands in four shaders that define their own noise.
-// Needs (declared by HG_MIRROR_DECLS_GLSL): uSkyT, uSkyPhase, uSkyW, uNeutralSky, uStudioDome, uNeutralNebula, uNebulaRot,
+// Needs (declared by HG_MIRROR_DECLS_GLSL): uSkyT, uSkyPhase, uSkyW, uNeutralSky, uStudioDome, uStudioLook, uNeutralNebula, uNebulaRot,
 // uNebulaMap, uSunDir.
 
 import { glf, v3 } from '../../gl/glf';
@@ -47,6 +47,16 @@ export const NEUTRAL_STRIP_YSOFT = 0.25;   // end softness (R.y): long fades
 export const NEUTRAL_DOME_NADIR = 0.05;    // dome straight down, × uStudioDome (the zenith value); 0.05 ruled 2026-10-08 (0.12 lifted the underbelly)
 export const NEUTRAL_DOME_POW = 1.5;       // dome rise: NADIR + (1 − NADIR)·((1 + R.y)/2)^POW
 export const NEUTRAL_DOME_MEAN = NEUTRAL_DOME_NADIR + (1 - NEUTRAL_DOME_NADIR) / (NEUTRAL_DOME_POW + 1); // per unit uStudioDome
+// Motion review 2026-10-08: a smooth dome + soft reflectors read as Lambertian clay in motion. Live look knobs
+// (uStudioLook = crisp, key, flags; PLANET_TUNE.studioCrisp / studioKey / studioFlags) for the sweep:
+//   crisp — soft Gaussian reflectors (0) → hard-edged plateaus with NEUTRAL_CRISP_EDGE edges and crisp ends (1);
+//   key   — reflector gain: above ~2.4 the key's peak passes the AETHER_SHOULDER knee (× aetherGain 1.4): a true highlight;
+//   flags — depth of crisp black flags cut out of the dome (vertical bands between the reflectors + one band above
+//           the horizon), so the sphere reflects structural boundaries, not one continuous grey ramp.
+export const NEUTRAL_CRISP_EDGE = 0.012;   // reflector edge half-width at crisp 1 (rad / R.y)
+export const NEUTRAL_FLAG_AZ = Object.freeze([1.15, 3.15, 5.2]); // flag centres, between the reflectors (rig-rigid)
+export const NEUTRAL_FLAG_HW = 0.22;       // flag half-width in azimuth (rad)
+export const NEUTRAL_FLAG_Y = Object.freeze([0.22, 0.38]); // horizontal flag band (R.y)
 export const NEUTRAL_SKY_DRIFT = 0.02;     // rad per sky-clock second (uSkyT is calm-gated: calm freezes it)
 // Analytic mean over the sphere (uniform in R.y), dome excluded (it is live: + uStudioDome · NEUTRAL_DOME_MEAN in the
 // shader): a symmetric smoothstep window integrates to its nominal width, each Gaussian reflector to HW√π (its tails
@@ -128,6 +138,10 @@ const vec3 NEUTRAL_STRIP_GAIN = ${v3(NEUTRAL_STRIP_GAIN)};
 const float NEUTRAL_DOME_NADIR = ${glf(NEUTRAL_DOME_NADIR)};
 const float NEUTRAL_DOME_POW = ${glf(NEUTRAL_DOME_POW)};
 const float NEUTRAL_DOME_MEAN = ${glf(NEUTRAL_DOME_MEAN)};
+const float NEUTRAL_CRISP_EDGE = ${glf(NEUTRAL_CRISP_EDGE)};
+const vec3 NEUTRAL_FLAG_AZ = ${v3(NEUTRAL_FLAG_AZ)};
+const float NEUTRAL_FLAG_HW = ${glf(NEUTRAL_FLAG_HW)};
+const vec2 NEUTRAL_FLAG_Y = vec2(${glf(NEUTRAL_FLAG_Y[0])}, ${glf(NEUTRAL_FLAG_Y[1])});
 const float NEUTRAL_STRIP_Y0 = ${glf(NEUTRAL_STRIP_Y0)};
 const float NEUTRAL_STRIP_Y1 = ${glf(NEUTRAL_STRIP_Y1)};
 const float NEUTRAL_STRIP_YSOFT = ${glf(NEUTRAL_STRIP_YSOFT)};
@@ -226,20 +240,32 @@ vec3 skyAir(vec3 R, float nOct) {
 
 // Neutral studio (option B): deep-space black, a thin horizon line, three soft-edged strips turning
 // rigidly with the calm-gated sky clock. No noise: the edges are what make the liquid read as a mirror.
+float skyAzDist(float az, float c) { return abs(mod(az - c + 3.14159265, 6.28318531) - 3.14159265); }
 float skyNeutralStrip(float az, float c) {
-  float d = abs(mod(az - c + 3.14159265, 6.28318531) - 3.14159265) / NEUTRAL_STRIP_HW;
-  return exp(-d * d);
+  float d = skyAzDist(az, c);
+  float soft = exp(-(d * d) / (NEUTRAL_STRIP_HW * NEUTRAL_STRIP_HW));
+  float crisp = smoothstep(NEUTRAL_STRIP_HW + NEUTRAL_CRISP_EDGE, NEUTRAL_STRIP_HW - NEUTRAL_CRISP_EDGE, d);
+  return mix(soft, crisp, uStudioLook.x);
+}
+// 1 inside a flag (crisp edges), 0 outside: the dome is cut there
+float skyFlag(float az, float y) {
+  float v = 0.0;
+  for (int i = 0; i < 3; i++) v = max(v, smoothstep(NEUTRAL_FLAG_HW + NEUTRAL_CRISP_EDGE, NEUTRAL_FLAG_HW - NEUTRAL_CRISP_EDGE, skyAzDist(az, NEUTRAL_FLAG_AZ[i])));
+  float h = smoothstep(NEUTRAL_FLAG_Y.x - NEUTRAL_CRISP_EDGE, NEUTRAL_FLAG_Y.x + NEUTRAL_CRISP_EDGE, y)
+          * smoothstep(NEUTRAL_FLAG_Y.y + NEUTRAL_CRISP_EDGE, NEUTRAL_FLAG_Y.y - NEUTRAL_CRISP_EDGE, y);
+  return max(v, h);
 }
 vec3 skyStudio(vec3 R) {
   float hz = R.y / NEUTRAL_HORIZON_W;
   float L = NEUTRAL_SKY_FLOOR + NEUTRAL_HORIZON_LUM * exp(-hz * hz);
   float az = atan(R.z, R.x) - NEUTRAL_SKY_DRIFT * uSkyT;
-  float span = smoothstep(NEUTRAL_STRIP_Y0 - NEUTRAL_STRIP_YSOFT, NEUTRAL_STRIP_Y0 + NEUTRAL_STRIP_YSOFT, R.y)
-             * smoothstep(NEUTRAL_STRIP_Y1 + NEUTRAL_STRIP_YSOFT, NEUTRAL_STRIP_Y1 - NEUTRAL_STRIP_YSOFT, R.y);
+  float ys = mix(NEUTRAL_STRIP_YSOFT, NEUTRAL_CRISP_EDGE, uStudioLook.x);
+  float span = smoothstep(NEUTRAL_STRIP_Y0 - ys, NEUTRAL_STRIP_Y0 + ys, R.y) * smoothstep(NEUTRAL_STRIP_Y1 + ys, NEUTRAL_STRIP_Y1 - ys, R.y);
   float strips = NEUTRAL_STRIP_GAIN.x * skyNeutralStrip(az, NEUTRAL_STRIP_AZ.x) + NEUTRAL_STRIP_GAIN.y * skyNeutralStrip(az, NEUTRAL_STRIP_AZ.y)
                + NEUTRAL_STRIP_GAIN.z * skyNeutralStrip(az, NEUTRAL_STRIP_AZ.z);
-  L += NEUTRAL_STRIP_LUM * span * strips;
-  L += uStudioDome * (NEUTRAL_DOME_NADIR + (1.0 - NEUTRAL_DOME_NADIR) * pow(0.5 + 0.5 * R.y, NEUTRAL_DOME_POW));
+  L += NEUTRAL_STRIP_LUM * uStudioLook.y * span * strips;
+  float dome = uStudioDome * (NEUTRAL_DOME_NADIR + (1.0 - NEUTRAL_DOME_NADIR) * pow(0.5 + 0.5 * R.y, NEUTRAL_DOME_POW));
+  L += dome * (1.0 - uStudioLook.z * skyFlag(az, R.y));
   return vec3(L);
 }
 
