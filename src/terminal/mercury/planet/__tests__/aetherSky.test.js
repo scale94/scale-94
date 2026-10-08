@@ -6,7 +6,8 @@ import {
   AIR_SKY_LINE_POW, AIR_SKY_ENV_POW, AIR_SKY_WARP_Y, AIR_SKY_LAT, AIR_SKY_WARP,
   NEUTRAL_SKY_FLOOR, NEUTRAL_HORIZON_LUM, NEUTRAL_HORIZON_W, NEUTRAL_STRIP_LUM, NEUTRAL_STRIP_AZ, NEUTRAL_STRIP_HW,
   NEUTRAL_STRIP_GAIN, NEUTRAL_STRIP_Y0, NEUTRAL_STRIP_Y1, NEUTRAL_STRIP_YSOFT, NEUTRAL_SKY_DRIFT,
-  NEUTRAL_DOME_NADIR, NEUTRAL_DOME_POW, NEUTRAL_DOME_MEAN,
+  NEUTRAL_DOME_NADIR, NEUTRAL_DOME_POW, NEUTRAL_DOME_MEAN, NEUTRAL_CRISP_EDGE, NEUTRAL_HORIZON_CRISP_W, NEUTRAL_SOFTBOX_Y,
+  STUDIO_DEFAULTS, studioMean,
 } from '../aetherSky';
 import { HG_MIRROR_UNIFORMS } from '../hgMirrorGlsl';
 import { PLANET_UNIFORMS } from '../mercuryPlanetShader';
@@ -112,48 +113,55 @@ describe('aetherSky', () => {
       expect(NEUTRAL_STRIP_Y1 - NEUTRAL_STRIP_Y0).toBeGreaterThan(2 * NEUTRAL_STRIP_YSOFT);
     });
 
-    it('studio dome: directional (bright overhead, dark below), live, default .06 (author 2026-10-08)', () => {
-      expect(AETHER_SKY_GLSL).toContain('float dome = uStudioDome * (NEUTRAL_DOME_NADIR + (1.0 - NEUTRAL_DOME_NADIR) * pow(0.5 + 0.5 * R.y, NEUTRAL_DOME_POW));');
-      expect(AETHER_SKY_GLSL).toContain('L += dome * (1.0 - uStudioLook.z * skyFlag(az, R.y));');
-      expect(NEUTRAL_DOME_NADIR).toBeLessThanOrEqual(0.06); // never a flat wash, underbelly stays dark: zenith ≥ ~17× nadir
-      expect(HG_MIRROR_UNIFORMS).toContain('uStudioDome');
-      expect(PLANET_UNIFORMS).toContain('uStudioDome');
-      expect(PLANET_TUNE.studioDome).toBe(0.06);
-      // motion-review look knobs (crisp, key, flags): live, defaults keep the ruled soft look until the sweep is ruled
-      expect(HG_MIRROR_UNIFORMS).toContain('uStudioLook');
-      expect(PLANET_UNIFORMS).toContain('uStudioLook');
-      expect([PLANET_TUNE.studioCrisp, PLANET_TUNE.studioKey, PLANET_TUNE.studioFlags]).toEqual([0, 1, 0]);
+    it('chrome studio (author 2026-10-08): crisp over-unity reflectors, razor horizon, overhead softbox, no dome, no flags', () => {
+      expect([PLANET_TUNE.studioCrisp, PLANET_TUNE.studioKey, PLANET_TUNE.studioSoftbox, PLANET_TUNE.studioDome])
+        .toEqual([STUDIO_DEFAULTS.crisp, STUDIO_DEFAULTS.key, STUDIO_DEFAULTS.softbox, STUDIO_DEFAULTS.dome]);
+      expect(STUDIO_DEFAULTS.dome).toBe(0);
+      expect(STUDIO_DEFAULTS.key * NEUTRAL_STRIP_LUM * 1.4).toBeGreaterThan(1); // key passes the shoulder knee (aetherGain 1.4)
+      expect(STUDIO_DEFAULTS.softbox * 1.4).toBeGreaterThan(2); // softbox well past 2 HDR
+      for (const u of ['uStudioDome', 'uStudioLook']) { expect(HG_MIRROR_UNIFORMS).toContain(u); expect(PLANET_UNIFORMS).toContain(u); }
       expect(AETHER_SKY_GLSL).toContain('L += NEUTRAL_STRIP_LUM * uStudioLook.y * span * strips;');
-      // numeric mean of the dome shape over the sphere (uniform in R.y)
-      const N = 20000; let m = 0;
-      for (let i = 0; i < N; i++) { const y = -1 + (2 * (i + 0.5)) / N; m += NEUTRAL_DOME_NADIR + (1 - NEUTRAL_DOME_NADIR) * ((1 + y) / 2) ** NEUTRAL_DOME_POW; }
-      expect(NEUTRAL_DOME_MEAN).toBeCloseTo(m / N, 5);
-      expect(AETHER_SKY_GLSL).toContain('mean += wStudio * (SKY_MEAN_NEUTRAL + uStudioDome * NEUTRAL_DOME_MEAN);');
+      expect(AETHER_SKY_GLSL).toContain('L += uStudioLook.z * smoothstep(NEUTRAL_SOFTBOX_Y - sbEdge, NEUTRAL_SOFTBOX_Y + sbEdge, R.y); // overhead softbox');
+      expect(AETHER_SKY_GLSL).not.toMatch(/skyFlag|NEUTRAL_FLAG/); // the flag bands/ring read as painted seams: removed
+      expect(AETHER_SKY_GLSL).toContain('mean += wStudio * studioMeanLive();');
+      expect(NEUTRAL_DOME_NADIR).toBeLessThanOrEqual(0.06);
     });
 
-    it('SKY_MEAN.neutral is the analytic mean, colourless, and matches a numeric integral', () => {
-      const ss = (e0, e1, x) => { const t = Math.min(Math.max((x - e0) / (e1 - e0), 0), 1); return t * t * (3 - 2 * t); };
-      const N = 2000, M = 2000; let sum = 0;
+    // JS replica of skyStudio, integrated numerically over the sphere (uniform in R.y)
+    const ss = (e0, e1, x) => { const t = Math.min(Math.max((x - e0) / (e1 - e0), 0), 1); return t * t * (3 - 2 * t); };
+    const lerp = (a, b, t) => a + (b - a) * t;
+    const numericMean = ({ crisp, key, softbox, dome }) => {
+      const N = 1600, M = 1600; let sum = 0;
       for (let i = 0; i < N; i++) {
         const y = -1 + (2 * (i + 0.5)) / N;
-        const hz = y / NEUTRAL_HORIZON_W;
-        const span = ss(NEUTRAL_STRIP_Y0 - NEUTRAL_STRIP_YSOFT, NEUTRAL_STRIP_Y0 + NEUTRAL_STRIP_YSOFT, y)
-          * ss(NEUTRAL_STRIP_Y1 + NEUTRAL_STRIP_YSOFT, NEUTRAL_STRIP_Y1 - NEUTRAL_STRIP_YSOFT, y);
+        const hz = y / lerp(NEUTRAL_HORIZON_W, NEUTRAL_HORIZON_CRISP_W, crisp);
+        const ys = lerp(NEUTRAL_STRIP_YSOFT, NEUTRAL_CRISP_EDGE, crisp);
+        const span = ss(NEUTRAL_STRIP_Y0 - ys, NEUTRAL_STRIP_Y0 + ys, y) * ss(NEUTRAL_STRIP_Y1 + ys, NEUTRAL_STRIP_Y1 - ys, y);
         let strips = 0;
         for (let j = 0; j < M; j++) {
           const az = -Math.PI + (2 * Math.PI * (j + 0.5)) / M;
           NEUTRAL_STRIP_AZ.forEach((c, k) => {
-            const d = Math.abs((((az - c + Math.PI) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI) - Math.PI) / NEUTRAL_STRIP_HW;
-            strips += NEUTRAL_STRIP_GAIN[k] * Math.exp(-d * d);
+            const d = Math.abs((((az - c + Math.PI) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI) - Math.PI);
+            const soft = Math.exp(-(d * d) / (NEUTRAL_STRIP_HW * NEUTRAL_STRIP_HW));
+            const hard = ss(NEUTRAL_STRIP_HW + NEUTRAL_CRISP_EDGE, NEUTRAL_STRIP_HW - NEUTRAL_CRISP_EDGE, d);
+            strips += NEUTRAL_STRIP_GAIN[k] * lerp(soft, hard, crisp);
           });
         }
-        sum += NEUTRAL_SKY_FLOOR + NEUTRAL_HORIZON_LUM * Math.exp(-hz * hz) + NEUTRAL_STRIP_LUM * span * strips / M;
+        const sbE = lerp(0.08, NEUTRAL_CRISP_EDGE, crisp);
+        sum += NEUTRAL_SKY_FLOOR + NEUTRAL_HORIZON_LUM * Math.exp(-hz * hz) + key * NEUTRAL_STRIP_LUM * span * strips / M
+          + softbox * ss(NEUTRAL_SOFTBOX_Y - sbE, NEUTRAL_SOFTBOX_Y + sbE, y)
+          + dome * (NEUTRAL_DOME_NADIR + (1 - NEUTRAL_DOME_NADIR) * ((1 + y) / 2) ** NEUTRAL_DOME_POW);
+      }
+      return sum / N;
+    };
+
+    it("studioMean (so SKY_MEAN.neutral and the shader's live mean) matches a numeric integral of the studio", () => {
+      for (const k of [STUDIO_DEFAULTS, { crisp: 0, key: 1, softbox: 0, dome: 0.06 }, { crisp: 0.5, key: 2, softbox: 1, dome: 0.02 }]) {
+        expect(studioMean(k)).toBeCloseTo(numericMean(k), 3);
       }
       expect(SKY_MEAN.neutral).toHaveLength(3);
-      for (const c of SKY_MEAN.neutral) expect(c).toBeCloseTo(sum / N, 5);
-      expect(SKY_MEAN.neutral[0]).toBe(SKY_MEAN.neutral[1]);
-      expect(SKY_MEAN.neutral[1]).toBe(SKY_MEAN.neutral[2]);
-    });
+      for (const c of SKY_MEAN.neutral) expect(c).toBe(studioMean(STUDIO_DEFAULTS));
+    }, 60000); // ~23 M replica samples: slow under a parallel full run
 
     it('neutral weight fills what the element skies leave; evaluated only above SKY_W_MIN', () => {
       expect(AETHER_SKY_GLSL).toContain('float wN = uNeutralSky * clamp(1.0 - (uSkyW.x + uSkyW.y + uSkyW.z + uSkyW.w), 0.0, 1.0);');
@@ -177,11 +185,11 @@ describe('aetherSky', () => {
       expect(SKY_MEAN.nebula[1]).toBe(SKY_MEAN.nebula[2]);
     });
 
-    it("SKY_MEAN.nebula is the measured mean, in the studio's range (frost / crust ambient does not jump between modes)", () => {
-      // author 2026-10-08 ruled deeper obsidian voids: the nebula now sits ~1/3 under the studio (was within 30 %)
+    it('SKY_MEAN.nebula is the measured mean (dark by ruling)', () => {
+      // author 2026-10-08 ruled deeper obsidian voids. The studio/nebula ratio bound is gone: the chrome studio's softbox
+      // lifts its mean ~18x (0.027 -> 0.495) and the crust renders identically under both (chrome-look.mjs, sheet chrome-a).
       expect(SKY_MEAN.nebula[0]).toBeGreaterThanOrEqual(0.015);
       expect(SKY_MEAN.nebula[0]).toBeLessThanOrEqual(0.035);
-      expect(Math.abs(SKY_MEAN.nebula[0] - SKY_MEAN.neutral[0]) / SKY_MEAN.neutral[0]).toBeLessThan(0.4);
     });
 
     it('the nebula switch is a mirror uniform, studio by default (author rules after the look sheet)', () => {

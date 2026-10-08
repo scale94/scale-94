@@ -47,24 +47,31 @@ export const NEUTRAL_STRIP_YSOFT = 0.25;   // end softness (R.y): long fades
 export const NEUTRAL_DOME_NADIR = 0.05;    // dome straight down, × uStudioDome (the zenith value); 0.05 ruled 2026-10-08 (0.12 lifted the underbelly)
 export const NEUTRAL_DOME_POW = 1.5;       // dome rise: NADIR + (1 − NADIR)·((1 + R.y)/2)^POW
 export const NEUTRAL_DOME_MEAN = NEUTRAL_DOME_NADIR + (1 - NEUTRAL_DOME_NADIR) / (NEUTRAL_DOME_POW + 1); // per unit uStudioDome
-// Motion review 2026-10-08: a smooth dome + soft reflectors read as Lambertian clay in motion. Live look knobs
-// (uStudioLook = crisp, key, flags; PLANET_TUNE.studioCrisp / studioKey / studioFlags) for the sweep:
-//   crisp — soft Gaussian reflectors (0) → hard-edged plateaus with NEUTRAL_CRISP_EDGE edges and crisp ends (1);
-//   key   — reflector gain: above ~2.4 the key's peak passes the AETHER_SHOULDER knee (× aetherGain 1.4): a true highlight;
-//   flags — depth of crisp black flags cut out of the dome (vertical bands between the reflectors + one band above
-//           the horizon), so the sphere reflects structural boundaries, not one continuous grey ramp.
-export const NEUTRAL_CRISP_EDGE = 0.012;   // reflector edge half-width at crisp 1 (rad / R.y)
-export const NEUTRAL_FLAG_AZ = Object.freeze([1.15, 3.15, 5.2]); // flag centres, between the reflectors (rig-rigid)
-export const NEUTRAL_FLAG_HW = 0.22;       // flag half-width in azimuth (rad)
-export const NEUTRAL_FLAG_Y = Object.freeze([0.22, 0.38]); // horizontal flag band (R.y)
+// CHROME STUDIO (author 2026-10-08, after the motion review): a smooth dome + soft reflectors read as Lambertian clay.
+// Liquid Hg is chrome: over-unity whites, pitch-black cuts, no diffuse midtones. Live knobs (uStudioLook = crisp, key,
+// softbox; PLANET_TUNE.studioCrisp / studioKey / studioSoftbox), defaults = the ruled chrome look:
+//   crisp   — soft Gaussian reflectors and horizon (0) → hard-edged reflectors, razor horizon line (1);
+//   key     — reflector gain: past ~2.4 the key's peak passes the AETHER_SHOULDER knee (× aetherGain 1.4): over-unity;
+//   softbox — radiance of a large overhead softbox (R.y > NEUTRAL_SOFTBOX_Y, crisp rim), the chrome ball's white crown.
+// Everything else is the black floor: the black between softbox, reflectors and horizon IS the flag work (the
+// 2026-10-08 flag bands/ring read as painted seams and were removed). The dome stays a knob, default 0.
+export const NEUTRAL_CRISP_EDGE = 0.012;   // reflector / softbox edge half-width at crisp 1 (rad / R.y)
+export const NEUTRAL_HORIZON_CRISP_W = 0.012; // horizon Gaussian width at crisp 1 (a razor line)
+export const NEUTRAL_SOFTBOX_Y = 0.55;     // softbox lower rim (R.y): covers the upper dome
+export const STUDIO_DEFAULTS = Object.freeze({ crisp: 1, key: 4, softbox: 2, dome: 0 }); // = PLANET_TUNE defaults (tested)
+// Mean over the sphere (uniform in R.y) of the studio at the given knobs: a symmetric smoothstep window integrates to
+// its nominal width; a Gaussian reflector to HW√π, a crisp one to 2·HW (tails are dust before the next reflector);
+// horizon w√π/2 (erf(1/w) = 1); softbox (1 − Y)/2; dome NEUTRAL_DOME_MEAN. The shader evaluates the same sum live.
+export function studioMean({ crisp, key, softbox, dome }) {
+  const gains = NEUTRAL_STRIP_GAIN.reduce((a, g) => a + g, 0);
+  const across = NEUTRAL_STRIP_HW * (Math.sqrt(Math.PI) + (2 - Math.sqrt(Math.PI)) * crisp);
+  const hw = NEUTRAL_HORIZON_W + (NEUTRAL_HORIZON_CRISP_W - NEUTRAL_HORIZON_W) * crisp;
+  return NEUTRAL_SKY_FLOOR + NEUTRAL_HORIZON_LUM * hw * Math.sqrt(Math.PI) / 2
+    + key * NEUTRAL_STRIP_LUM * gains * (across / (2 * Math.PI)) * ((NEUTRAL_STRIP_Y1 - NEUTRAL_STRIP_Y0) / 2)
+    + softbox * (1 - NEUTRAL_SOFTBOX_Y) / 2 + dome * NEUTRAL_DOME_MEAN;
+}
 export const NEUTRAL_SKY_DRIFT = 0.02;     // rad per sky-clock second (uSkyT is calm-gated: calm freezes it)
-// Analytic mean over the sphere (uniform in R.y), dome excluded (it is live: + uStudioDome · NEUTRAL_DOME_MEAN in the
-// shader): a symmetric smoothstep window integrates to its nominal width, each Gaussian reflector to HW√π (its tails
-// are dust long before the next one), so: floor + horizon (w√π/2; erf(1/w) = 1) + Σ gain · reflector.
-const NEUTRAL_MEAN = NEUTRAL_SKY_FLOOR
-  + NEUTRAL_HORIZON_LUM * NEUTRAL_HORIZON_W * Math.sqrt(Math.PI) / 2
-  + NEUTRAL_STRIP_GAIN.reduce((a, g) => a + g, 0) * NEUTRAL_STRIP_LUM * (NEUTRAL_STRIP_HW * Math.sqrt(Math.PI) / (2 * Math.PI))
-    * ((NEUTRAL_STRIP_Y1 - NEUTRAL_STRIP_Y0) / 2);
+const NEUTRAL_MEAN = studioMean(STUDIO_DEFAULTS);
 // Neutral nebula (spec 2026-10-08): the baked cube map (nebulaSky.js / nebulaBake.js) is sampled at mip k · this, so a
 // rougher mirror sees it blurred by its own mip chain (not mixed to SKY_MEAN.nebula, which only documents the mean).
 export const NEBULA_MAX_LOD = 6;
@@ -80,7 +87,7 @@ export const SKY_MEAN = Object.freeze({
   thermal: [0.02917, 0.009297, 0.001092],
   earth: [0.008526, 0.005284, 0.00242],
   air: [0.00997, 0.01378, 0.01777],
-  neutral: [NEUTRAL_MEAN, NEUTRAL_MEAN, NEUTRAL_MEAN], // analytic, not measured (see NEUTRAL_MEAN)
+  neutral: [NEUTRAL_MEAN, NEUTRAL_MEAN, NEUTRAL_MEAN], // analytic at STUDIO_DEFAULTS (studioMean); the shader's is live
   nebula: [0.01792, 0.01792, 0.01792], // re-measured 2026-10-08 after the author's look ruling (deeper voids, fibres, rare stars) by nebula-hist.mjs (1024x512 equirect, solid-angle weighted)
 });
 
@@ -139,14 +146,13 @@ const float NEUTRAL_DOME_NADIR = ${glf(NEUTRAL_DOME_NADIR)};
 const float NEUTRAL_DOME_POW = ${glf(NEUTRAL_DOME_POW)};
 const float NEUTRAL_DOME_MEAN = ${glf(NEUTRAL_DOME_MEAN)};
 const float NEUTRAL_CRISP_EDGE = ${glf(NEUTRAL_CRISP_EDGE)};
-const vec3 NEUTRAL_FLAG_AZ = ${v3(NEUTRAL_FLAG_AZ)};
-const float NEUTRAL_FLAG_HW = ${glf(NEUTRAL_FLAG_HW)};
-const vec2 NEUTRAL_FLAG_Y = vec2(${glf(NEUTRAL_FLAG_Y[0])}, ${glf(NEUTRAL_FLAG_Y[1])});
+const float NEUTRAL_HORIZON_CRISP_W = ${glf(NEUTRAL_HORIZON_CRISP_W)};
+const float NEUTRAL_SOFTBOX_Y = ${glf(NEUTRAL_SOFTBOX_Y)};
 const float NEUTRAL_STRIP_Y0 = ${glf(NEUTRAL_STRIP_Y0)};
 const float NEUTRAL_STRIP_Y1 = ${glf(NEUTRAL_STRIP_Y1)};
 const float NEUTRAL_STRIP_YSOFT = ${glf(NEUTRAL_STRIP_YSOFT)};
 const float NEUTRAL_SKY_DRIFT = ${glf(NEUTRAL_SKY_DRIFT)};
-const vec3 SKY_MEAN_NEUTRAL = ${v3(SKY_MEAN.neutral)};
+const vec3 SKY_MEAN_NEUTRAL = ${v3(SKY_MEAN.neutral)}; // documents the default studio; the mirror uses studioMeanLive()
 const vec3 SKY_MEAN_NEBULA = ${v3(SKY_MEAN.nebula)};
 const float NEBULA_MAX_LOD = ${glf(NEBULA_MAX_LOD)};
 const float NEBULA_TEXEL_RAD = ${glf(NEBULA_TEXEL_RAD)};
@@ -247,16 +253,17 @@ float skyNeutralStrip(float az, float c) {
   float crisp = smoothstep(NEUTRAL_STRIP_HW + NEUTRAL_CRISP_EDGE, NEUTRAL_STRIP_HW - NEUTRAL_CRISP_EDGE, d);
   return mix(soft, crisp, uStudioLook.x);
 }
-// 1 inside a flag (crisp edges), 0 outside: the dome is cut there
-float skyFlag(float az, float y) {
-  float v = 0.0;
-  for (int i = 0; i < 3; i++) v = max(v, smoothstep(NEUTRAL_FLAG_HW + NEUTRAL_CRISP_EDGE, NEUTRAL_FLAG_HW - NEUTRAL_CRISP_EDGE, skyAzDist(az, NEUTRAL_FLAG_AZ[i])));
-  float h = smoothstep(NEUTRAL_FLAG_Y.x - NEUTRAL_CRISP_EDGE, NEUTRAL_FLAG_Y.x + NEUTRAL_CRISP_EDGE, y)
-          * smoothstep(NEUTRAL_FLAG_Y.y + NEUTRAL_CRISP_EDGE, NEUTRAL_FLAG_Y.y - NEUTRAL_CRISP_EDGE, y);
-  return max(v, h);
+// The studio's mean at the live knobs (studioMean in JS, same sum): what a rough mirror of it averages to.
+float studioMeanLive() {
+  float across = NEUTRAL_STRIP_HW * mix(1.7724539, 2.0, uStudioLook.x);
+  float hw = mix(NEUTRAL_HORIZON_W, NEUTRAL_HORIZON_CRISP_W, uStudioLook.x);
+  return NEUTRAL_SKY_FLOOR + NEUTRAL_HORIZON_LUM * hw * 0.88622693
+    + uStudioLook.y * NEUTRAL_STRIP_LUM * (NEUTRAL_STRIP_GAIN.x + NEUTRAL_STRIP_GAIN.y + NEUTRAL_STRIP_GAIN.z) * (across / 6.28318531)
+      * (0.5 * (NEUTRAL_STRIP_Y1 - NEUTRAL_STRIP_Y0))
+    + uStudioLook.z * 0.5 * (1.0 - NEUTRAL_SOFTBOX_Y) + uStudioDome * NEUTRAL_DOME_MEAN;
 }
 vec3 skyStudio(vec3 R) {
-  float hz = R.y / NEUTRAL_HORIZON_W;
+  float hz = R.y / mix(NEUTRAL_HORIZON_W, NEUTRAL_HORIZON_CRISP_W, uStudioLook.x);
   float L = NEUTRAL_SKY_FLOOR + NEUTRAL_HORIZON_LUM * exp(-hz * hz);
   float az = atan(R.z, R.x) - NEUTRAL_SKY_DRIFT * uSkyT;
   float ys = mix(NEUTRAL_STRIP_YSOFT, NEUTRAL_CRISP_EDGE, uStudioLook.x);
@@ -264,8 +271,9 @@ vec3 skyStudio(vec3 R) {
   float strips = NEUTRAL_STRIP_GAIN.x * skyNeutralStrip(az, NEUTRAL_STRIP_AZ.x) + NEUTRAL_STRIP_GAIN.y * skyNeutralStrip(az, NEUTRAL_STRIP_AZ.y)
                + NEUTRAL_STRIP_GAIN.z * skyNeutralStrip(az, NEUTRAL_STRIP_AZ.z);
   L += NEUTRAL_STRIP_LUM * uStudioLook.y * span * strips;
-  float dome = uStudioDome * (NEUTRAL_DOME_NADIR + (1.0 - NEUTRAL_DOME_NADIR) * pow(0.5 + 0.5 * R.y, NEUTRAL_DOME_POW));
-  L += dome * (1.0 - uStudioLook.z * skyFlag(az, R.y));
+  float sbEdge = mix(0.08, NEUTRAL_CRISP_EDGE, uStudioLook.x);
+  L += uStudioLook.z * smoothstep(NEUTRAL_SOFTBOX_Y - sbEdge, NEUTRAL_SOFTBOX_Y + sbEdge, R.y); // overhead softbox
+  L += uStudioDome * (NEUTRAL_DOME_NADIR + (1.0 - NEUTRAL_DOME_NADIR) * pow(0.5 + 0.5 * R.y, NEUTRAL_DOME_POW));
   return vec3(L);
 }
 
@@ -283,7 +291,7 @@ vec3 aetherSky(vec3 R, float rough) {
   float wN = uNeutralSky * clamp(1.0 - (uSkyW.x + uSkyW.y + uSkyW.z + uSkyW.w), 0.0, 1.0);
   vec3 mean = uSkyW.x * SKY_MEAN_FLUID + uSkyW.y * SKY_MEAN_THERMAL + uSkyW.z * SKY_MEAN_EARTH + uSkyW.w * SKY_MEAN_AIR;
   float wStudio = wN * (1.0 - uNeutralNebula), wNeb = wN * uNeutralNebula;
-  mean += wStudio * (SKY_MEAN_NEUTRAL + uStudioDome * NEUTRAL_DOME_MEAN);
+  mean += wStudio * studioMeanLive();
   vec3 neb = wNeb > SKY_W_MIN ? wNeb * skyNebula(R, k) : vec3(0.0);
   if (k >= 1.0) return mean + neb;
   float nOct = mix(float(SKY_OCTAVES), 1.0, k);

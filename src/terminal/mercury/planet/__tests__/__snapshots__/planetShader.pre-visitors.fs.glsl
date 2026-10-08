@@ -345,14 +345,13 @@ const float NEUTRAL_DOME_NADIR = 0.0500000000;
 const float NEUTRAL_DOME_POW = 1.50000000;
 const float NEUTRAL_DOME_MEAN = 0.430000000;
 const float NEUTRAL_CRISP_EDGE = 0.0120000000;
-const vec3 NEUTRAL_FLAG_AZ = vec3(1.15000000, 3.15000000, 5.20000000);
-const float NEUTRAL_FLAG_HW = 0.220000000;
-const vec2 NEUTRAL_FLAG_Y = vec2(0.220000000, 0.380000000);
+const float NEUTRAL_HORIZON_CRISP_W = 0.0120000000;
+const float NEUTRAL_SOFTBOX_Y = 0.550000000;
 const float NEUTRAL_STRIP_Y0 = -0.150000000;
 const float NEUTRAL_STRIP_Y1 = 0.600000000;
 const float NEUTRAL_STRIP_YSOFT = 0.250000000;
 const float NEUTRAL_SKY_DRIFT = 0.0200000000;
-const vec3 SKY_MEAN_NEUTRAL = vec3(0.0222350871, 0.0222350871, 0.0222350871);
+const vec3 SKY_MEAN_NEUTRAL = vec3(0.495018620, 0.495018620, 0.495018620); // documents the default studio; the mirror uses studioMeanLive()
 const vec3 SKY_MEAN_NEBULA = vec3(0.0179200000, 0.0179200000, 0.0179200000);
 const float NEBULA_MAX_LOD = 6.00000000;
 const float NEBULA_TEXEL_RAD = 0.00613592315;
@@ -471,16 +470,17 @@ float skyNeutralStrip(float az, float c) {
   float crisp = smoothstep(NEUTRAL_STRIP_HW + NEUTRAL_CRISP_EDGE, NEUTRAL_STRIP_HW - NEUTRAL_CRISP_EDGE, d);
   return mix(soft, crisp, uStudioLook.x);
 }
-// 1 inside a flag (crisp edges), 0 outside: the dome is cut there
-float skyFlag(float az, float y) {
-  float v = 0.0;
-  for (int i = 0; i < 3; i++) v = max(v, smoothstep(NEUTRAL_FLAG_HW + NEUTRAL_CRISP_EDGE, NEUTRAL_FLAG_HW - NEUTRAL_CRISP_EDGE, skyAzDist(az, NEUTRAL_FLAG_AZ[i])));
-  float h = smoothstep(NEUTRAL_FLAG_Y.x - NEUTRAL_CRISP_EDGE, NEUTRAL_FLAG_Y.x + NEUTRAL_CRISP_EDGE, y)
-          * smoothstep(NEUTRAL_FLAG_Y.y + NEUTRAL_CRISP_EDGE, NEUTRAL_FLAG_Y.y - NEUTRAL_CRISP_EDGE, y);
-  return max(v, h);
+// The studio's mean at the live knobs (studioMean in JS, same sum): what a rough mirror of it averages to.
+float studioMeanLive() {
+  float across = NEUTRAL_STRIP_HW * mix(1.7724539, 2.0, uStudioLook.x);
+  float hw = mix(NEUTRAL_HORIZON_W, NEUTRAL_HORIZON_CRISP_W, uStudioLook.x);
+  return NEUTRAL_SKY_FLOOR + NEUTRAL_HORIZON_LUM * hw * 0.88622693
+    + uStudioLook.y * NEUTRAL_STRIP_LUM * (NEUTRAL_STRIP_GAIN.x + NEUTRAL_STRIP_GAIN.y + NEUTRAL_STRIP_GAIN.z) * (across / 6.28318531)
+      * (0.5 * (NEUTRAL_STRIP_Y1 - NEUTRAL_STRIP_Y0))
+    + uStudioLook.z * 0.5 * (1.0 - NEUTRAL_SOFTBOX_Y) + uStudioDome * NEUTRAL_DOME_MEAN;
 }
 vec3 skyStudio(vec3 R) {
-  float hz = R.y / NEUTRAL_HORIZON_W;
+  float hz = R.y / mix(NEUTRAL_HORIZON_W, NEUTRAL_HORIZON_CRISP_W, uStudioLook.x);
   float L = NEUTRAL_SKY_FLOOR + NEUTRAL_HORIZON_LUM * exp(-hz * hz);
   float az = atan(R.z, R.x) - NEUTRAL_SKY_DRIFT * uSkyT;
   float ys = mix(NEUTRAL_STRIP_YSOFT, NEUTRAL_CRISP_EDGE, uStudioLook.x);
@@ -488,8 +488,9 @@ vec3 skyStudio(vec3 R) {
   float strips = NEUTRAL_STRIP_GAIN.x * skyNeutralStrip(az, NEUTRAL_STRIP_AZ.x) + NEUTRAL_STRIP_GAIN.y * skyNeutralStrip(az, NEUTRAL_STRIP_AZ.y)
                + NEUTRAL_STRIP_GAIN.z * skyNeutralStrip(az, NEUTRAL_STRIP_AZ.z);
   L += NEUTRAL_STRIP_LUM * uStudioLook.y * span * strips;
-  float dome = uStudioDome * (NEUTRAL_DOME_NADIR + (1.0 - NEUTRAL_DOME_NADIR) * pow(0.5 + 0.5 * R.y, NEUTRAL_DOME_POW));
-  L += dome * (1.0 - uStudioLook.z * skyFlag(az, R.y));
+  float sbEdge = mix(0.08, NEUTRAL_CRISP_EDGE, uStudioLook.x);
+  L += uStudioLook.z * smoothstep(NEUTRAL_SOFTBOX_Y - sbEdge, NEUTRAL_SOFTBOX_Y + sbEdge, R.y); // overhead softbox
+  L += uStudioDome * (NEUTRAL_DOME_NADIR + (1.0 - NEUTRAL_DOME_NADIR) * pow(0.5 + 0.5 * R.y, NEUTRAL_DOME_POW));
   return vec3(L);
 }
 
@@ -507,7 +508,7 @@ vec3 aetherSky(vec3 R, float rough) {
   float wN = uNeutralSky * clamp(1.0 - (uSkyW.x + uSkyW.y + uSkyW.z + uSkyW.w), 0.0, 1.0);
   vec3 mean = uSkyW.x * SKY_MEAN_FLUID + uSkyW.y * SKY_MEAN_THERMAL + uSkyW.z * SKY_MEAN_EARTH + uSkyW.w * SKY_MEAN_AIR;
   float wStudio = wN * (1.0 - uNeutralNebula), wNeb = wN * uNeutralNebula;
-  mean += wStudio * (SKY_MEAN_NEUTRAL + uStudioDome * NEUTRAL_DOME_MEAN);
+  mean += wStudio * studioMeanLive();
   vec3 neb = wNeb > SKY_W_MIN ? wNeb * skyNebula(R, k) : vec3(0.0);
   if (k >= 1.0) return mean + neb;
   float nOct = mix(float(SKY_OCTAVES), 1.0, k);
