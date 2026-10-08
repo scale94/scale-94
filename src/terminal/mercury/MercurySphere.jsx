@@ -22,6 +22,10 @@ function ElementGlyph({ glyph, color, size = 26 }) {
   const barY2 = cy - 4;  // on upper third of downward triangle
   const barX1 = cx - s * 0.28;
   const barX2 = cx + s * 0.28;
+  // Water droplet (author 2026-10-08): same box (tip at y 2, base at s - 2) and stroke as the triangles
+  const dr = s * 0.3;
+  const dcy = s - 2 - dr;
+  const drop = `M ${cx} 2 C ${cx} 2 ${cx + dr} ${dcy - dr * 0.7} ${cx + dr} ${dcy} A ${dr} ${dr} 0 0 1 ${cx - dr} ${dcy} C ${cx - dr} ${dcy - dr * 0.7} ${cx} 2 ${cx} 2 Z`;
 
   return (
     <svg width={s} height={s} viewBox={`0 0 ${s} ${s}`} style={{ display: 'block', overflow: 'visible' }}>
@@ -30,8 +34,7 @@ function ElementGlyph({ glyph, color, size = 26 }) {
           fill="none" stroke={color} strokeWidth={1.5} strokeLinejoin="round" />
       )}
       {glyph === 'water' && (
-        <polygon points={`${down.x},${down.y} ${tl.x},${tl.y} ${tr.x},${tr.y}`}
-          fill="none" stroke={color} strokeWidth={1.5} strokeLinejoin="round" />
+        <path d={drop} fill="none" stroke={color} strokeWidth={1.5} strokeLinejoin="round" />
       )}
       {glyph === 'air' && (<>
         <polygon points={`${up.x},${up.y} ${br.x},${br.y} ${bl.x},${bl.y}`}
@@ -123,9 +126,9 @@ export default function MercurySphere({
 
           return (
             <group key={phase} position={[x, y, 0]}>
-              {/* Visible 3D anchor dot */}
+              {/* 3D anchor: a pin-point on the orbit, not a disc behind the glyph (author 2026-10-08: no enclosures) */}
               <mesh>
-                <sphereGeometry args={[0.055, 16, 16]} />
+                <sphereGeometry args={[0.014, 12, 12]} />
                 <meshBasicMaterial
                   color={color}
                   transparent
@@ -162,22 +165,23 @@ export default function MercurySphere({
                   onClick={(e) => { if (e.detail === 0) onNodeTap(phase); }} // detail 0 = assistive-tech/keyboard click; a real pointer click (detail >= 1) already tapped on pointerdown
                   aria-label={isLit ? `${element} — release ${phase}, return to neutral` : `${element} — switch to ${phase} phase`}
                 >
-                  {/* Circular ring — bursts on press */}
+                  {/* No resting ring (author 2026-10-08: every node is its bare glyph); a ring only bursts on press */}
                   <div style={{
                     position: 'absolute',
                     inset: 0,
                     borderRadius: '50%',
-                    border: `${isPressed ? 1.5 : 1}px solid ${color}${isLit || isPressed ? 'dd' : '44'}`,
-                    boxShadow: isPressed
-                      ? `0 0 18px ${color}99, 0 0 40px ${color}55, inset 0 0 16px ${color}33`
-                      : isLit
-                        ? `0 0 10px ${color}55, 0 0 22px ${color}28, inset 0 0 8px ${color}18`
-                        : 'none',
+                    border: `1.5px solid ${color}${isPressed ? 'dd' : '00'}`,
+                    boxShadow: isPressed ? `0 0 18px ${color}99, 0 0 40px ${color}55, inset 0 0 16px ${color}33` : 'none',
                     transition: 'box-shadow 0.15s ease, border-color 0.15s ease',
                     pointerEvents: 'none',
                   }} />
-                  {/* Alchemical glyph */}
-                  <div style={{ pointerEvents: 'none', opacity: isLit || isPressed ? 1 : 0.45, transition: 'opacity 0.4s ease' }}>
+                  {/* Alchemical glyph — the lit node glows from the stroke itself */}
+                  <div style={{
+                    pointerEvents: 'none',
+                    opacity: isLit || isPressed ? 1 : 0.45,
+                    filter: isLit ? `drop-shadow(0 0 4px ${color}aa) drop-shadow(0 0 10px ${color}55)` : 'none',
+                    transition: 'opacity 0.4s ease, filter 0.4s ease',
+                  }}>
                     <ElementGlyph glyph={glyph} color={color} size={28} />
                   </div>
                   {/* Element name */}
