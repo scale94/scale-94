@@ -33,6 +33,7 @@ uniform vec4 uSkyW;
 uniform float uAetherGain;
 uniform float uAetherSilver;
 uniform float uNeutralSky;
+uniform float uStudioDome;
 uniform float uNeutralNebula;
 uniform mat3 uNebulaRot;
 uniform samplerCube uNebulaMap;
@@ -338,17 +339,20 @@ const vec3 SKY_MEAN_THERMAL = vec3(0.0291700000, 0.00929700000, 0.00109200000);
 const vec3 SKY_MEAN_EARTH = vec3(0.00852600000, 0.00528400000, 0.00242000000);
 const vec3 SKY_MEAN_AIR = vec3(0.00997000000, 0.0137800000, 0.0177700000);
 const float NEUTRAL_SKY_FLOOR = 0.00400000000;
-const float NEUTRAL_HORIZON_LUM = 0.350000000;
-const float NEUTRAL_HORIZON_W = 0.0250000000;
+const float NEUTRAL_HORIZON_LUM = 0.180000000;
+const float NEUTRAL_HORIZON_W = 0.0600000000;
 const float NEUTRAL_STRIP_LUM = 0.300000000;
 const vec3 NEUTRAL_STRIP_AZ = vec3(0.00000000, 2.25000000, 4.05000000);
 const float NEUTRAL_STRIP_HW = 0.140000000;
-const float NEUTRAL_STRIP_SOFT = 0.0600000000;
+const vec3 NEUTRAL_STRIP_GAIN = vec3(1.00000000, 0.600000000, 0.350000000);
+const float NEUTRAL_DOME_NADIR = 0.120000000;
+const float NEUTRAL_DOME_POW = 1.50000000;
+const float NEUTRAL_DOME_MEAN = 0.472000000;
 const float NEUTRAL_STRIP_Y0 = -0.150000000;
 const float NEUTRAL_STRIP_Y1 = 0.600000000;
-const float NEUTRAL_STRIP_YSOFT = 0.120000000;
+const float NEUTRAL_STRIP_YSOFT = 0.250000000;
 const float NEUTRAL_SKY_DRIFT = 0.0200000000;
-const vec3 SKY_MEAN_NEUTRAL = vec3(0.0267946277, 0.0267946277, 0.0267946277);
+const vec3 SKY_MEAN_NEUTRAL = vec3(0.0222350871, 0.0222350871, 0.0222350871);
 const vec3 SKY_MEAN_NEBULA = vec3(0.0179200000, 0.0179200000, 0.0179200000);
 const float NEBULA_MAX_LOD = 6.00000000;
 const float NEBULA_TEXEL_RAD = 0.00613592315;
@@ -461,8 +465,8 @@ vec3 skyAir(vec3 R, float nOct) {
 // Neutral studio (option B): deep-space black, a thin horizon line, three soft-edged strips turning
 // rigidly with the calm-gated sky clock. No noise: the edges are what make the liquid read as a mirror.
 float skyNeutralStrip(float az, float c) {
-  float d = abs(mod(az - c + 3.14159265, 6.28318531) - 3.14159265);
-  return smoothstep(NEUTRAL_STRIP_HW + NEUTRAL_STRIP_SOFT, NEUTRAL_STRIP_HW - NEUTRAL_STRIP_SOFT, d);
+  float d = abs(mod(az - c + 3.14159265, 6.28318531) - 3.14159265) / NEUTRAL_STRIP_HW;
+  return exp(-d * d);
 }
 vec3 skyStudio(vec3 R) {
   float hz = R.y / NEUTRAL_HORIZON_W;
@@ -470,8 +474,10 @@ vec3 skyStudio(vec3 R) {
   float az = atan(R.z, R.x) - NEUTRAL_SKY_DRIFT * uSkyT;
   float span = smoothstep(NEUTRAL_STRIP_Y0 - NEUTRAL_STRIP_YSOFT, NEUTRAL_STRIP_Y0 + NEUTRAL_STRIP_YSOFT, R.y)
              * smoothstep(NEUTRAL_STRIP_Y1 + NEUTRAL_STRIP_YSOFT, NEUTRAL_STRIP_Y1 - NEUTRAL_STRIP_YSOFT, R.y);
-  float strips = skyNeutralStrip(az, NEUTRAL_STRIP_AZ.x) + skyNeutralStrip(az, NEUTRAL_STRIP_AZ.y) + skyNeutralStrip(az, NEUTRAL_STRIP_AZ.z);
+  float strips = NEUTRAL_STRIP_GAIN.x * skyNeutralStrip(az, NEUTRAL_STRIP_AZ.x) + NEUTRAL_STRIP_GAIN.y * skyNeutralStrip(az, NEUTRAL_STRIP_AZ.y)
+               + NEUTRAL_STRIP_GAIN.z * skyNeutralStrip(az, NEUTRAL_STRIP_AZ.z);
   L += NEUTRAL_STRIP_LUM * span * strips;
+  L += uStudioDome * (NEUTRAL_DOME_NADIR + (1.0 - NEUTRAL_DOME_NADIR) * pow(0.5 + 0.5 * R.y, NEUTRAL_DOME_POW));
   return vec3(L);
 }
 
@@ -489,7 +495,7 @@ vec3 aetherSky(vec3 R, float rough) {
   float wN = uNeutralSky * clamp(1.0 - (uSkyW.x + uSkyW.y + uSkyW.z + uSkyW.w), 0.0, 1.0);
   vec3 mean = uSkyW.x * SKY_MEAN_FLUID + uSkyW.y * SKY_MEAN_THERMAL + uSkyW.z * SKY_MEAN_EARTH + uSkyW.w * SKY_MEAN_AIR;
   float wStudio = wN * (1.0 - uNeutralNebula), wNeb = wN * uNeutralNebula;
-  mean += wStudio * SKY_MEAN_NEUTRAL;
+  mean += wStudio * (SKY_MEAN_NEUTRAL + uStudioDome * NEUTRAL_DOME_MEAN);
   vec3 neb = wNeb > SKY_W_MIN ? wNeb * skyNebula(R, k) : vec3(0.0);
   if (k >= 1.0) return mean + neb;
   float nOct = mix(float(SKY_OCTAVES), 1.0, k);

@@ -346,6 +346,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
       uAetherGain: { value: PLANET_TUNE.aetherGain },
       uAetherSilver: { value: PLANET_TUNE.aetherSilver },
       uNeutralSky: { value: PLANET_TUNE.neutralSky },
+      uStudioDome: { value: PLANET_TUNE.studioDome },
       uNeutralNebula: { value: 0 },
       uNebulaRot: { value: new THREE.Matrix3() },
       uNebulaMap: { value: null },
@@ -504,6 +505,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     u.uAetherGain.value = PLANET_TUNE.aetherGain;
     u.uAetherSilver.value = PLANET_TUNE.aetherSilver;
     u.uNeutralSky.value = PLANET_TUNE.neutralSky;
+    u.uStudioDome.value = PLANET_TUNE.studioDome;
     const want = Math.min(Math.max(PLANET_TUNE.neutralNebula, 0), 1);
     const neb = nebula.current;
     if (want > 0 && !neb.map && !neb.failed) {

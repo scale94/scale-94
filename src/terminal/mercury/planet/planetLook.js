@@ -62,6 +62,7 @@ export const PLANET_TUNE = {
   aetherGain: 1.4,   // liquid mirror + frozen ambient: aether sky gain (re-tuned in the mirror-sky look round)
   aetherSilver: 0,   // desaturation toward silver (0: the mirror shows the gas at its own hue, 2026-10-03)
   neutralSky: 1,     // resting-mirror silver sky gain (0 = the quiet black mirror); author ruling 2026-10-07: on by default
+  studioDome: 0,     // studio dome zenith luminance (2026-10-08 look sheet: 0 / .06 / .12 / .2; author rules the default)
   neutralNebula: 0,  // resting mirror: 0 = studio (option B, ruled 2026-10-07), 1 = baked neutral nebula, between = mix (spec 2026-10-08)
   aetherFloor: 0.2,     // lit element flows never fall below this × their colour (umbra, worst phase) — aetherLight.js
   aetherPenumbra: 0.08, // half-width of the planet shadow cylinder's soft edge, scene units (planet radius 0.75)
