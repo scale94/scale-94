@@ -148,6 +148,12 @@ describe('aetherSky', () => {
       expect(SKY_MEAN.nebula[1]).toBe(SKY_MEAN.nebula[2]);
     });
 
+    it("SKY_MEAN.nebula is the measured mean, in the studio's range (frost / crust ambient does not jump between modes)", () => {
+      expect(SKY_MEAN.nebula[0]).toBeGreaterThanOrEqual(0.02);
+      expect(SKY_MEAN.nebula[0]).toBeLessThanOrEqual(0.035);
+      expect(Math.abs(SKY_MEAN.nebula[0] - SKY_MEAN.neutral[0]) / SKY_MEAN.neutral[0]).toBeLessThan(0.3);
+    });
+
     it('the nebula switch is a mirror uniform, studio by default (author rules after the look sheet)', () => {
       for (const u of ['uNeutralNebula', 'uNebulaRot', 'uNebulaMap']) {
         expect(HG_MIRROR_UNIFORMS).toContain(u);

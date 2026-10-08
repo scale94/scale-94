@@ -343,7 +343,7 @@ const float NEUTRAL_STRIP_Y1 = 0.600000000;
 const float NEUTRAL_STRIP_YSOFT = 0.120000000;
 const float NEUTRAL_SKY_DRIFT = 0.0200000000;
 const vec3 SKY_MEAN_NEUTRAL = vec3(0.0267946277, 0.0267946277, 0.0267946277);
-const vec3 SKY_MEAN_NEBULA = vec3(0.0267946277, 0.0267946277, 0.0267946277);
+const vec3 SKY_MEAN_NEBULA = vec3(0.0295300000, 0.0295300000, 0.0295300000);
 const float NEBULA_MAX_LOD = 6.00000000;
 
 float skyHash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }

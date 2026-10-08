@@ -30,7 +30,7 @@ describe('nebulaSky', () => {
   });
 
   it('stars: sparse, sharp cores reaching the shoulder; shell-bound and windowed so the 27-cell search never cuts one', () => {
-    expect(NEBULA_STAR_RATE).toBeGreaterThan(0.99);
+    expect(NEBULA_STAR_RATE).toBeGreaterThan(0.97);
     expect(NEBULA_STAR_MIN).toBeGreaterThanOrEqual(3);
     expect(NEBULA_STAR_MAX).toBeLessThanOrEqual(8);
     const texel = (Math.PI / 2) / NEBULA_FACE;

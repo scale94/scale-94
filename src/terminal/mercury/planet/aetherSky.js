@@ -59,7 +59,7 @@ export const SKY_MEAN = Object.freeze({
   earth: [0.008526, 0.005284, 0.00242],
   air: [0.00997, 0.01378, 0.01777],
   neutral: [NEUTRAL_MEAN, NEUTRAL_MEAN, NEUTRAL_MEAN], // analytic, not measured (see NEUTRAL_MEAN)
-  nebula: [NEUTRAL_MEAN, NEUTRAL_MEAN, NEUTRAL_MEAN], // measured by nebula-hist.mjs (neutral nebula Task 4)
+  nebula: [0.02953, 0.02953, 0.02953], // measured 2026-10-08 by nebula-hist.mjs (1024x512 equirect, solid-angle weighted)
 });
 
 // Value noise + fBm on an octave budget, shared by the mirror sky and the neutral-nebula bake (nebulaSky.js).
