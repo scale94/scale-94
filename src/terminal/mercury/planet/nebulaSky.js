@@ -28,7 +28,8 @@ export const NEBULA_STAR_MIN = 3;        // core peak range: into AETHER_SHOULDE
 export const NEBULA_STAR_MAX = 8;
 export const NEBULA_HALO_W = 6;          // halo width × sigma
 export const NEBULA_HALO_GAIN = 0.02;    // halo peak × core peak
-export const NEBULA_STAR_REACH = 1;      // a star's light (core + halo) is windowed to zero at this many cells: stars outside the 27-cell search are ≥ 1.1 cells away, so nothing is cut
+export const NEBULA_STAR_REACH = 0.7;    // a star's light is windowed to zero at this many cells (lattice units); with NEBULA_STAR_SHELL, sqrt(SHELL² + REACH²) < 1 keeps every lit star inside the 27-cell search
+export const NEBULA_STAR_SHELL = 0.3;    // only lattice stars within this of the radius-NEBULA_STAR_CELLS shell are lit (a radially offset star would project inside the window from outside the search)
 
 export const NEBULA_GEN_GLSL = /* glsl */ `// ── neutral nebula generator (nebulaSky.js), bake-time only ──
 const int SKY_OCTAVES = ${SKY_OCTAVES};
@@ -49,11 +50,13 @@ const float NEBULA_STAR_MAX = ${glf(NEBULA_STAR_MAX)};
 const float NEBULA_HALO_W = ${glf(NEBULA_HALO_W)};
 const float NEBULA_HALO_GAIN = ${glf(NEBULA_HALO_GAIN)};
 const float NEBULA_STAR_REACH = ${glf(NEBULA_STAR_REACH)};
+const float NEBULA_STAR_SHELL = ${glf(NEBULA_STAR_SHELL)};
 
 ${SKY_NOISE_GLSL}
 
-// Stars on a 3D lattice around the unit sphere. Each star's light is windowed to zero within NEBULA_STAR_REACH cells;
-// stars outside the 27-cell neighbourhood are ≥ 1.1 cells away (jitter ≤ 0.4 cell), so no star is ever cut at a cell edge.
+// Stars live on the radius-NEBULA_STAR_CELLS shell (band ±NEBULA_STAR_SHELL) and each star's light is windowed to zero
+// within NEBULA_STAR_REACH cells. sqrt(SHELL² + REACH²) < 1, so any star lighting a sample lies within one cell index of it
+// on every axis: the 27-cell search never cuts a star.
 float nebStars(vec3 D) {
   vec3 g = D * NEBULA_STAR_CELLS;
   vec3 gi = floor(g);
@@ -66,13 +69,15 @@ float nebStars(vec3 D) {
     float h = skyHash(c);
     if (h <= NEBULA_STAR_RATE) continue;
     vec3 j = vec3(skyHash(c + 17.0), skyHash(c + 41.0), skyHash(c + 73.0)) - 0.5;
-    vec3 sd = normalize(c + 0.5 + 0.8 * j);
+    vec3 P = c + 0.5 + 0.8 * j;
+    if (abs(length(P) - NEBULA_STAR_CELLS) >= NEBULA_STAR_SHELL) continue;
+    vec3 sd = P / length(P);
     float d = length(D - sd); // chord ≈ angle at these sizes
     float peak = mix(NEBULA_STAR_MIN, NEBULA_STAR_MAX, skyHash(c + 101.0));
     float core = exp(-(d * d) / (NEBULA_STAR_SIGMA * NEBULA_STAR_SIGMA));
     float hw = NEBULA_STAR_SIGMA * NEBULA_HALO_W;
     float halo = NEBULA_HALO_GAIN * exp(-(d * d) / (hw * hw));
-    s += peak * (core + halo) * smoothstep(reach, 0.5 * reach, d);
+    s += peak * (core + halo) * (1.0 - smoothstep(0.5 * reach, reach, d));
   }
   return s;
 }

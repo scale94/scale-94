@@ -5,7 +5,7 @@ import {
   NEBULA_FACE, NEBULA_GEN_GLSL, NEBULA_BAKE_VS, NEBULA_BAKE_FS, nebulaRotation,
   NEBULA_FLOOR, NEBULA_VOID_SCALE, NEBULA_VOID_LO, NEBULA_VOID_HI, NEBULA_WISP_SCALE, NEBULA_WISP_WARP,
   NEBULA_WISP_POW, NEBULA_WISP_BASE, NEBULA_WISP_GAIN, NEBULA_STAR_CELLS, NEBULA_STAR_RATE, NEBULA_STAR_SIGMA,
-  NEBULA_STAR_MIN, NEBULA_STAR_MAX, NEBULA_HALO_W, NEBULA_HALO_GAIN, NEBULA_STAR_REACH,
+  NEBULA_STAR_MIN, NEBULA_STAR_MAX, NEBULA_HALO_W, NEBULA_HALO_GAIN, NEBULA_STAR_REACH, NEBULA_STAR_SHELL,
 } from '../nebulaSky';
 import { SKY_NOISE_GLSL, NEUTRAL_SKY_DRIFT } from '../aetherSky';
 
@@ -16,7 +16,7 @@ describe('nebulaSky', () => {
     for (const [n, v] of Object.entries({ NEBULA_FLOOR, NEBULA_VOID_SCALE, NEBULA_VOID_LO, NEBULA_VOID_HI,
       NEBULA_WISP_SCALE, NEBULA_WISP_WARP, NEBULA_WISP_POW, NEBULA_WISP_BASE, NEBULA_WISP_GAIN, NEBULA_STAR_CELLS,
       NEBULA_STAR_RATE, NEBULA_STAR_SIGMA, NEBULA_STAR_MIN, NEBULA_STAR_MAX, NEBULA_HALO_W, NEBULA_HALO_GAIN,
-      NEBULA_STAR_REACH })) {
+      NEBULA_STAR_REACH, NEBULA_STAR_SHELL })) {
       expect(NEBULA_GEN_GLSL).toContain(`const float ${n} = ${glf(v)};`);
     }
   });
@@ -29,7 +29,7 @@ describe('nebulaSky', () => {
     expect(NEBULA_GEN_GLSL).not.toMatch(/uniform/); // bake-time pure function of direction
   });
 
-  it('stars: sparse, sharp cores reaching the shoulder; windowed inside the 27-cell search so nothing clips', () => {
+  it('stars: sparse, sharp cores reaching the shoulder; shell-bound and windowed so the 27-cell search never cuts one', () => {
     expect(NEBULA_STAR_RATE).toBeGreaterThan(0.99);
     expect(NEBULA_STAR_MIN).toBeGreaterThanOrEqual(3);
     expect(NEBULA_STAR_MAX).toBeLessThanOrEqual(8);
@@ -37,10 +37,34 @@ describe('nebulaSky', () => {
     expect(NEBULA_STAR_SIGMA / texel).toBeGreaterThan(1.2);
     expect(NEBULA_STAR_SIGMA / texel).toBeLessThan(2.5);
     expect(NEBULA_GEN_GLSL).toContain('for (int dz = -1; dz <= 1; dz++)');
-    // excluded stars are >= (1 + 0.5 - 0.4) = 1.1 cells away (jitter 0.8 x [-0.5, 0.5] around the cell centre)
-    expect(NEBULA_STAR_REACH).toBeLessThan(1.1);
-    expect(NEBULA_GEN_GLSL).toContain('* smoothstep(reach, 0.5 * reach, d);');
-    expect(NEBULA_GEN_GLSL).toContain('c + 0.5 + 0.8 * j');
+    // a lit star's lattice point is within SHELL of the sample's shell radially and REACH tangentially:
+    // |g - P| < 1 => every axis index within 1 => inside the 27-cell search
+    expect(Math.hypot(NEBULA_STAR_SHELL, NEBULA_STAR_REACH)).toBeLessThan(1);
+    expect(NEBULA_GEN_GLSL).toContain('if (abs(length(P) - NEBULA_STAR_CELLS) >= NEBULA_STAR_SHELL) continue;');
+    expect(NEBULA_GEN_GLSL).toContain('* (1.0 - smoothstep(0.5 * reach, reach, d));');
+  });
+
+  it('no star is ever cut: brute-force a lattice patch, every star lighting a sample lies in its 27-cell search', () => {
+    const C = NEBULA_STAR_CELLS, reach = NEBULA_STAR_REACH / C;
+    let lit = 0;
+    for (let k = 0; k < 4000; k++) {
+      // deterministic sample directions spread over the sphere (golden spiral)
+      const y = 1 - (2 * (k + 0.5)) / 4000, r = Math.sqrt(1 - y * y), a = k * 2.399963229728653;
+      const D = [r * Math.cos(a), y, r * Math.sin(a)], g = D.map((v) => v * C), gi = g.map(Math.floor);
+      // every lattice point P near the shell whose direction is inside the window, regardless of jitter
+      for (let dx = -2; dx <= 2; dx++) for (let dy = -2; dy <= 2; dy++) for (let dz = -2; dz <= 2; dz++) {
+        for (const f of [[0.1, 0.1, 0.1], [0.5, 0.5, 0.5], [0.9, 0.9, 0.9], [0.1, 0.9, 0.5], [0.9, 0.1, 0.5], [0.5, 0.1, 0.9]]) {
+          const c = [gi[0] + dx, gi[1] + dy, gi[2] + dz], P = c.map((v, i) => v + f[i]);
+          const L = Math.hypot(...P);
+          if (Math.abs(L - C) >= NEBULA_STAR_SHELL) continue;
+          const d = Math.hypot(D[0] - P[0] / L, D[1] - P[1] / L, D[2] - P[2] / L);
+          if (d >= reach) continue;
+          lit++;
+          for (let i = 0; i < 3; i++) expect(Math.abs(c[i] - gi[i])).toBeLessThanOrEqual(1);
+        }
+      }
+    }
+    expect(lit).toBeGreaterThan(0); // the property test is not vacuous
   });
 
   it('void floor darker than the studio floor (obsidian pockets)', () => {
