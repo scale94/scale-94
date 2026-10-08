@@ -108,9 +108,12 @@ export default function MercurySphere({
           const length = Math.sqrt(endX * endX + endY * endY);
           const angle  = Math.atan2(endY, endX);
           return (
-            <mesh ref={threadMeshRef} visible={false} position={[midX, midY, 0]} rotation={[0, 0, angle]}>
+            // cylinderGeometry runs along +Y: turn it by angle − π/2 so it lies ALONG planet → node (rotating by angle laid it
+            // across that line: a bar beside the planet, author 2026-10-08). No depth write, like the ring: a written depth
+            // made the later gas fog fail along it, so the thread showed the black background as a dark bar.
+            <mesh ref={threadMeshRef} visible={false} position={[midX, midY, 0]} rotation={[0, 0, angle - Math.PI / 2]}>
               <cylinderGeometry args={[0.008, 0.002, length, 6]} />
-              <meshBasicMaterial ref={threadMatRef} color="#d0d0d0" transparent opacity={0} />
+              <meshBasicMaterial ref={threadMatRef} color="#d0d0d0" transparent opacity={0} depthWrite={false} />
             </mesh>
           );
         })()}
