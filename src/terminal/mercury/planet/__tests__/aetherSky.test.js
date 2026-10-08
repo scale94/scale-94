@@ -4,10 +4,10 @@ import { glf, v3 } from '../../../gl/glf';
 import {
   AETHER_SKY_GLSL, SKY_NOISE_GLSL, NEBULA_MAX_LOD, NEBULA_TEXEL_RAD, SKY_OCTAVES, SKY_ROUGH_SHARP, SKY_ROUGH_FLAT, SKY_W_MIN, SKY_PING_EXP, SKY_PING_GAIN, SKY_MEAN, AIR_SHEAR_BAND,
   AIR_SKY_LINE_POW, AIR_SKY_ENV_POW, AIR_SKY_WARP_Y, AIR_SKY_LAT, AIR_SKY_WARP,
-  NEUTRAL_SKY_FLOOR, NEUTRAL_HORIZON_LUM, NEUTRAL_HORIZON_W, NEUTRAL_STRIP_LUM, NEUTRAL_STRIP_AZ, NEUTRAL_STRIP_HW,
-  NEUTRAL_STRIP_GAIN, NEUTRAL_STRIP_Y0, NEUTRAL_STRIP_Y1, NEUTRAL_STRIP_YSOFT, NEUTRAL_SKY_DRIFT,
-  NEUTRAL_DOME_NADIR, NEUTRAL_DOME_POW, NEUTRAL_DOME_MEAN, NEUTRAL_CRISP_EDGE, NEUTRAL_HORIZON_CRISP_W, NEUTRAL_SOFTBOX_Y,
-  STUDIO_DEFAULTS, studioMean,
+  NEUTRAL_SKY_FLOOR, NEUTRAL_SKY_DRIFT, NEUTRAL_DOME_NADIR, NEUTRAL_DOME_POW,
+  TENT_EDGE_CRISP, TENT_CANOPY_HX, TENT_CANOPY_Z0, TENT_CANOPY_Z1, TENT_CANOPY_FADE, TENT_CANOPY_FRONT_SOFT, TENT_CANOPY_BACK,
+  TENT_CANOPY_SIDE, TENT_STRIP_AZ, TENT_STRIP_HW, TENT_STRIP_SOFT, TENT_STRIP_Y0, TENT_STRIP_Y1, TENT_STRIP_YSOFT, TENT_STRIP_LUM,
+  TENT_STRIP_GAIN, TENT_GAP, TENT_FLOOR_SOFT, TENT_FLOOR_FRONT, STUDIO_DEFAULTS, studioMean, studioMeanCached, studioRadiance,
 } from '../aetherSky';
 import { HG_MIRROR_UNIFORMS } from '../hgMirrorGlsl';
 import { PLANET_UNIFORMS } from '../mercuryPlanetShader';
@@ -84,84 +84,61 @@ describe('aetherSky', () => {
     expect(AETHER_SKY_GLSL).not.toMatch(/uAeth|uTime/);
   });
 
-  describe('neutralSky (Task 7, option B): the resting mirror sees a studio', () => {
-    const SCALARS = { NEUTRAL_SKY_FLOOR, NEUTRAL_HORIZON_LUM, NEUTRAL_HORIZON_W, NEUTRAL_STRIP_LUM, NEUTRAL_STRIP_HW,
-      NEUTRAL_STRIP_Y0, NEUTRAL_STRIP_Y1, NEUTRAL_STRIP_YSOFT, NEUTRAL_SKY_DRIFT, NEUTRAL_DOME_NADIR, NEUTRAL_DOME_POW, NEUTRAL_DOME_MEAN };
+  describe('neutralSky: the resting mirror sees a macro tabletop tent (author 2026-10-08)', () => {
+    const SCALARS = { NEUTRAL_SKY_FLOOR, NEUTRAL_SKY_DRIFT, NEUTRAL_DOME_NADIR, NEUTRAL_DOME_POW, TENT_EDGE_CRISP, TENT_CANOPY_HX,
+      TENT_CANOPY_Z0, TENT_CANOPY_Z1, TENT_CANOPY_FADE, TENT_CANOPY_FRONT_SOFT, TENT_CANOPY_BACK, TENT_CANOPY_SIDE, TENT_STRIP_HW,
+      TENT_STRIP_SOFT, TENT_STRIP_Y0, TENT_STRIP_Y1, TENT_STRIP_YSOFT, TENT_STRIP_LUM, TENT_GAP, TENT_FLOOR_SOFT, TENT_FLOOR_FRONT };
+    const K = STUDIO_DEFAULTS;
+    const dir = (azDeg, elDeg) => { const a = azDeg * Math.PI / 180, e = elDeg * Math.PI / 180; return [Math.cos(e) * Math.sin(a), Math.sin(e), Math.cos(e) * Math.cos(a)]; };
+    const rad = (azDeg, elDeg, k = K) => { const [x, y, z] = dir(azDeg, elDeg); return studioRadiance(x, y, z, k); };
 
     it('constants interpolated into the GLSL', () => {
       for (const [n, v] of Object.entries(SCALARS)) expect(AETHER_SKY_GLSL).toContain(`const float ${n} = ${glf(v)};`);
-      expect(AETHER_SKY_GLSL).toContain(`const vec3 NEUTRAL_STRIP_AZ = ${v3(NEUTRAL_STRIP_AZ)};`);
-      expect(AETHER_SKY_GLSL).toContain(`const vec3 NEUTRAL_STRIP_GAIN = ${v3(NEUTRAL_STRIP_GAIN)};`);
-      expect(NEUTRAL_SKY_DRIFT).toBe(0.02);
+      expect(AETHER_SKY_GLSL).toContain(`const vec2 TENT_STRIP_AZ = vec2(${glf(TENT_STRIP_AZ[0])}, ${glf(TENT_STRIP_AZ[1])});`);
+      expect(AETHER_SKY_GLSL).toContain(`const vec2 TENT_STRIP_GAIN = vec2(${glf(TENT_STRIP_GAIN[0])}, ${glf(TENT_STRIP_GAIN[1])});`);
     });
 
-    it('contrast without decals: near-black floor, reflectors far above it, soft (Gaussian, uneven, soft horizon band)', () => {
-      expect(NEUTRAL_SKY_FLOOR).toBeLessThan(0.01);
-      expect(NEUTRAL_HORIZON_LUM / NEUTRAL_SKY_FLOOR).toBeGreaterThan(25);
-      expect(NEUTRAL_STRIP_LUM / NEUTRAL_SKY_FLOOR).toBeGreaterThan(50);
-      expect(NEUTRAL_HORIZON_W).toBeGreaterThanOrEqual(0.05); // a band, not a drawn line (author 2026-10-08)
-      expect(AETHER_SKY_GLSL).toContain('float soft = exp(-(d * d) / (NEUTRAL_STRIP_HW * NEUTRAL_STRIP_HW));'); // studioCrisp 0: no plateau, no edge
-      expect(AETHER_SKY_GLSL).toContain('return mix(soft, crisp, uStudioLook.x);');
-      expect(new Set(NEUTRAL_STRIP_GAIN).size).toBe(NEUTRAL_STRIP_GAIN.length); // a key, a fill, a rim
-      expect(Math.max(...NEUTRAL_STRIP_GAIN)).toBe(1);
+    it('defaults: over-unity key and canopy, a subtle floor, no dome; PLANET_TUNE matches', () => {
+      expect([PLANET_TUNE.studioCrisp, PLANET_TUNE.studioKey, PLANET_TUNE.studioSoftbox, PLANET_TUNE.studioFloor, PLANET_TUNE.studioDome])
+        .toEqual([K.crisp, K.key, K.canopy, K.floor, K.dome]);
+      expect(K.dome).toBe(0);
+      expect(K.key * TENT_STRIP_LUM * 1.4).toBeGreaterThan(1); // past the shoulder knee (aetherGain 1.4)
+      expect(K.canopy * 1.4).toBeGreaterThan(2);
+      expect(K.floor * 1.4).toBeLessThan(1);                   // the bounce stays under the knee
+      for (const u of ['uStudioDome', 'uStudioLook', 'uStudioMean']) { expect(HG_MIRROR_UNIFORMS).toContain(u); expect(PLANET_UNIFORMS).toContain(u); }
     });
 
-    it('reflectors never overlap (the analytic mean assumes it): gaps exceed 3 widths each side', () => {
-      const az = [...NEUTRAL_STRIP_AZ].sort((x, y) => x - y);
-      const gaps = az.map((c, i) => (i + 1 < az.length ? az[i + 1] - c : az[0] + 2 * Math.PI - c));
-      for (const g of gaps) expect(g).toBeGreaterThan(6 * NEUTRAL_STRIP_HW);
-      expect(NEUTRAL_STRIP_Y1 - NEUTRAL_STRIP_Y0).toBeGreaterThan(2 * NEUTRAL_STRIP_YSOFT);
+    it('layout: canopy overhead, flanking strips, dark trenches between, dark horizon gap, floor lit behind (replica)', () => {
+      expect(rad(0, 80)).toBeGreaterThan(1.5);                 // canopy front, overhead
+      expect(rad(180, 50)).toBeLessThan(rad(0, 80) * 0.6);     // falls off toward the back
+      expect(rad(-TENT_STRIP_AZ[0] * 180 / Math.PI, 20)).toBeGreaterThan(1); // left strip (key)
+      expect(rad(TENT_STRIP_AZ[1] * 180 / Math.PI, 20)).toBeGreaterThan(0.6); // right strip (fill)
+      expect(rad(0, 20)).toBe(NEUTRAL_SKY_FLOOR);              // toward the camera: black (the ball's centre band)
+      expect(rad(-35, 20)).toBe(NEUTRAL_SKY_FLOOR);            // trench between camera axis and the key strip
+      expect(rad(180, -3)).toBe(NEUTRAL_SKY_FLOOR);            // horizon gap
+      expect(rad(180, -30)).toBeGreaterThan(rad(0, -30) * 3);  // floor lit behind the subject: a rim, not a bowl
     });
 
-    it('chrome studio (author 2026-10-08): crisp over-unity reflectors, razor horizon, overhead softbox, no dome, no flags', () => {
-      expect([PLANET_TUNE.studioCrisp, PLANET_TUNE.studioKey, PLANET_TUNE.studioSoftbox, PLANET_TUNE.studioDome])
-        .toEqual([STUDIO_DEFAULTS.crisp, STUDIO_DEFAULTS.key, STUDIO_DEFAULTS.softbox, STUDIO_DEFAULTS.dome]);
-      expect(STUDIO_DEFAULTS.dome).toBe(0);
-      expect(STUDIO_DEFAULTS.key * NEUTRAL_STRIP_LUM * 1.4).toBeGreaterThan(1); // key passes the shoulder knee (aetherGain 1.4)
-      expect(STUDIO_DEFAULTS.softbox * 1.4).toBeGreaterThan(2); // softbox well past 2 HDR
-      for (const u of ['uStudioDome', 'uStudioLook']) { expect(HG_MIRROR_UNIFORMS).toContain(u); expect(PLANET_UNIFORMS).toContain(u); }
-      expect(AETHER_SKY_GLSL).toContain('L += NEUTRAL_STRIP_LUM * uStudioLook.y * span * strips;');
-      expect(AETHER_SKY_GLSL).toContain('L += uStudioLook.z * smoothstep(NEUTRAL_SOFTBOX_Y - sbEdge, NEUTRAL_SOFTBOX_Y + sbEdge, R.y); // overhead softbox');
-      expect(AETHER_SKY_GLSL).not.toMatch(/skyFlag|NEUTRAL_FLAG/); // the flag bands/ring read as painted seams: removed
-      expect(AETHER_SKY_GLSL).toContain('mean += wStudio * studioMeanLive();');
-      expect(NEUTRAL_DOME_NADIR).toBeLessThanOrEqual(0.06);
+    it('GLSL mirrors the replica: canopy plane, camera-fixed azimuth, staggered strips, floor lit behind, no noise, no drift', () => {
+      const body = AETHER_SKY_GLSL.slice(AETHER_SKY_GLSL.indexOf('vec3 skyStudio(vec3 R) {'), AETHER_SKY_GLSL.indexOf('vec3 skyNebula(vec3 R, float k)'));
+      expect(body).toContain('vec2 p = R.xz / R.y;');
+      expect(body).toContain('float az = atan(R.x, R.z); // 0 = toward the camera');
+      expect(body).toContain('abs(az + TENT_STRIP_AZ.x)');
+      expect(body).toContain('abs(az - TENT_STRIP_AZ.y)');
+      expect(body).toContain('* mix(TENT_FLOOR_FRONT, 1.0, smoothstep(0.0, -0.8, R.z)); // floor sweep, lit behind: a lower rim');
+      expect(body).not.toMatch(/skyFbm|skyNoise|skyHash|uSkyT/);
+      expect(AETHER_SKY_GLSL).toContain('mean += wStudio * uStudioMean; // studioMeanCached (JS) at the live knobs');
     });
 
-    // JS replica of skyStudio, integrated numerically over the sphere (uniform in R.y)
-    const ss = (e0, e1, x) => { const t = Math.min(Math.max((x - e0) / (e1 - e0), 0), 1); return t * t * (3 - 2 * t); };
-    const lerp = (a, b, t) => a + (b - a) * t;
-    const numericMean = ({ crisp, key, softbox, dome }) => {
-      const N = 1600, M = 1600; let sum = 0;
-      for (let i = 0; i < N; i++) {
-        const y = -1 + (2 * (i + 0.5)) / N;
-        const hz = y / lerp(NEUTRAL_HORIZON_W, NEUTRAL_HORIZON_CRISP_W, crisp);
-        const ys = lerp(NEUTRAL_STRIP_YSOFT, NEUTRAL_CRISP_EDGE, crisp);
-        const span = ss(NEUTRAL_STRIP_Y0 - ys, NEUTRAL_STRIP_Y0 + ys, y) * ss(NEUTRAL_STRIP_Y1 + ys, NEUTRAL_STRIP_Y1 - ys, y);
-        let strips = 0;
-        for (let j = 0; j < M; j++) {
-          const az = -Math.PI + (2 * Math.PI * (j + 0.5)) / M;
-          NEUTRAL_STRIP_AZ.forEach((c, k) => {
-            const d = Math.abs((((az - c + Math.PI) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI) - Math.PI);
-            const soft = Math.exp(-(d * d) / (NEUTRAL_STRIP_HW * NEUTRAL_STRIP_HW));
-            const hard = ss(NEUTRAL_STRIP_HW + NEUTRAL_CRISP_EDGE, NEUTRAL_STRIP_HW - NEUTRAL_CRISP_EDGE, d);
-            strips += NEUTRAL_STRIP_GAIN[k] * lerp(soft, hard, crisp);
-          });
-        }
-        const sbE = lerp(0.08, NEUTRAL_CRISP_EDGE, crisp);
-        sum += NEUTRAL_SKY_FLOOR + NEUTRAL_HORIZON_LUM * Math.exp(-hz * hz) + key * NEUTRAL_STRIP_LUM * span * strips / M
-          + softbox * ss(NEUTRAL_SOFTBOX_Y - sbE, NEUTRAL_SOFTBOX_Y + sbE, y)
-          + dome * (NEUTRAL_DOME_NADIR + (1 - NEUTRAL_DOME_NADIR) * ((1 + y) / 2) ** NEUTRAL_DOME_POW);
+    it('studioMean: the grid mean converges (finer grid agrees), the cache recomputes only on a knob change', () => {
+      for (const k of [K, { crisp: 0, key: 1, canopy: 0.5, floor: 0, dome: 0.06 }]) {
+        expect(studioMean(k)).toBeCloseTo(studioMean(k, 384, 768), 2);
       }
-      return sum / N;
-    };
-
-    it("studioMean (so SKY_MEAN.neutral and the shader's live mean) matches a numeric integral of the studio", () => {
-      for (const k of [STUDIO_DEFAULTS, { crisp: 0, key: 1, softbox: 0, dome: 0.06 }, { crisp: 0.5, key: 2, softbox: 1, dome: 0.02 }]) {
-        expect(studioMean(k)).toBeCloseTo(numericMean(k), 3);
-      }
-      expect(SKY_MEAN.neutral).toHaveLength(3);
-      for (const c of SKY_MEAN.neutral) expect(c).toBe(studioMean(STUDIO_DEFAULTS));
-    }, 60000); // ~23 M replica samples: slow under a parallel full run
+      expect(SKY_MEAN.neutral).toEqual([studioMean(K), studioMean(K), studioMean(K)]);
+      const a = studioMeanCached(1, 4, 2, 0.35, 0);
+      expect(studioMeanCached(1, 4, 2, 0.35, 0)).toBe(a);
+      expect(studioMeanCached(1, 4, 2, 0, 0)).toBeLessThan(a);
+    }, 60000);
 
     it('neutral weight fills what the element skies leave; evaluated only above SKY_W_MIN', () => {
       expect(AETHER_SKY_GLSL).toContain('float wN = uNeutralSky * clamp(1.0 - (uSkyW.x + uSkyW.y + uSkyW.z + uSkyW.w), 0.0, 1.0);');
@@ -186,8 +163,8 @@ describe('aetherSky', () => {
     });
 
     it('SKY_MEAN.nebula is the measured mean (dark by ruling)', () => {
-      // author 2026-10-08 ruled deeper obsidian voids. The studio/nebula ratio bound is gone: the chrome studio's softbox
-      // lifts its mean ~18x (0.027 -> 0.495) and the crust renders identically under both (chrome-look.mjs, sheet chrome-a).
+      // author 2026-10-08 ruled deeper obsidian voids. No studio/nebula ratio bound: the tent's lights lift the studio mean
+      // far above it and the crust renders identically under both (tent-look.mjs, sheets chrome-a/b).
       expect(SKY_MEAN.nebula[0]).toBeGreaterThanOrEqual(0.015);
       expect(SKY_MEAN.nebula[0]).toBeLessThanOrEqual(0.035);
     });
@@ -199,13 +176,6 @@ describe('aetherSky', () => {
       }
       expect(PLANET_TUNE.neutralNebula).toBe(0);
     });
-    it('no noise, rigid drift on the calm-gated sky clock', () => {
-      const body = AETHER_SKY_GLSL.slice(AETHER_SKY_GLSL.indexOf('float skyNeutralStrip('), AETHER_SKY_GLSL.indexOf('vec3 skyNebula(vec3 R, float k)'));
-      expect(body).not.toMatch(/skyFbm|skyNoise|skyHash/);
-      expect(body).toContain('float az = atan(R.z, R.x) - NEUTRAL_SKY_DRIFT * uSkyT;');
-      expect(body).toContain('NEUTRAL_HORIZON_LUM * exp(-hz * hz)');
-    });
-
     it('uNeutralSky is a mirror uniform, fed to the planet too', () => {
       expect(HG_MIRROR_UNIFORMS).toContain('uNeutralSky');
       expect(PLANET_UNIFORMS).toContain('uNeutralSky');

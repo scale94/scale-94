@@ -9,7 +9,7 @@
 // Roughness drops octaves (dropped octaves contribute their mean) and, from SKY_ROUGH_FLAT, the sky is just its
 // element's mean radiance: the frost and evaporite ambient lookups (rough 1) and the polycrystalline crust cost
 // ~nothing. Every helper is sky-prefixed: this chunk lands in four shaders that define their own noise.
-// Needs (declared by HG_MIRROR_DECLS_GLSL): uSkyT, uSkyPhase, uSkyW, uNeutralSky, uStudioDome, uStudioLook, uNeutralNebula, uNebulaRot,
+// Needs (declared by HG_MIRROR_DECLS_GLSL): uSkyT, uSkyPhase, uSkyW, uNeutralSky, uStudioDome, uStudioLook, uStudioMean, uNeutralNebula, uNebulaRot,
 // uNebulaMap, uSunDir.
 
 import { glf, v3 } from '../../gl/glf';
@@ -27,50 +27,87 @@ export const AIR_SKY_ENV_POW = 1.5;   // air envelope (1 - y²)^k: smooth to the
 export const AIR_SKY_WARP_Y = 0.15;   // air latitude warp
 export const AIR_SKY_LAT = 3.5;       // air latitude stretch (soft threads §5, ruled 2026-10-07; was a hard 8)
 export const AIR_SKY_WARP = 0.6;      // air angle warp, rad scale, in each layer's own rigid frame (soft threads §5, ruled 2026-10-07)
-// Neutral sky (neutral-state Task 7, rebuilt 2026-10-07 as option B): what the resting mirror sees when no element's
-// sky is up. A low-contrast cloud made the 0.14-rough liquid read as a matte grey ball (a mirror of a flat sky looks
-// diffuse), so this is a studio: deep-space black, a thin bright horizon line, three soft-edged light strips turning
-// slowly together on the calm-gated sky clock. Colourless.
-// 2026-10-08 (author + Seraphine): hard-edged strips read as decals, so the reflectors are soft (Gaussian across, long
-// smooth ends, uneven brightness), the horizon is a soft band, and a directional dome (uStudioDome, live) lifts the
-// midtones: brighter overhead, dark below, never a flat wash (a mirror of an even sky reads matte).
-export const NEUTRAL_SKY_FLOOR = 0.004;    // deep-space baseline
-export const NEUTRAL_HORIZON_LUM = 0.18;   // horizon band peak
-export const NEUTRAL_HORIZON_W = 0.06;     // horizon Gaussian width in R.y (soft band, not a drawn line)
-export const NEUTRAL_STRIP_LUM = 0.3;      // brightest reflector's peak
-export const NEUTRAL_STRIP_GAIN = Object.freeze([1, 0.6, 0.35]); // per-reflector brightness: a key, a fill, a rim
-export const NEUTRAL_STRIP_AZ = Object.freeze([0, 2.25, 4.05]); // strip centres (rad); uneven so the rig never looks tiled
-export const NEUTRAL_STRIP_HW = 0.14;      // reflector Gaussian width in azimuth (rad): no plateau, no edge
-export const NEUTRAL_STRIP_Y0 = -0.15;     // strip lower end (R.y)
-export const NEUTRAL_STRIP_Y1 = 0.6;       // strip upper end (R.y)
-export const NEUTRAL_STRIP_YSOFT = 0.25;   // end softness (R.y): long fades
-export const NEUTRAL_DOME_NADIR = 0.05;    // dome straight down, × uStudioDome (the zenith value); 0.05 ruled 2026-10-08 (0.12 lifted the underbelly)
+// Neutral studio = a macro TABLETOP TENT (author 2026-10-08, from reference photos of Hg droplets): the setup product
+// photographers use for chrome and quicksilver. Camera-fixed (the camera sits on +Z looking at the origin), so the
+// reflections hold still and only the liquid's own motion moves them. Colourless. Earlier rounds, for the record: a soft
+// cloud read matte (10-07); soft strips + a smooth dome read as Lambertian clay in motion; a circular overhead cap over an
+// equatorial strip read as a mushroom/helmet (10-08). The tent:
+//   canopy — a broad rectangular diffusion scrim on the plane y = 1, tilted back (−z): crisp front edge, soft back and
+//            sides with a brightness falloff, so the crown rolls into grey instead of a hard helmet seam;
+//   strips — two tall strip softboxes flanking the camera axis (key left, dimmer fill right, staggered): long verticals;
+//   floor  — a white sweep below a dark horizon gap, lit behind the subject: a lit lower rim, not a grey bowl;
+//   void   — everything else: the black trenches between the lights that give the metal its weight.
+// Live knobs uStudioLook = (crisp, key, canopy, floor) ← PLANET_TUNE.studioCrisp / studioKey / studioSoftbox / studioFloor;
+// key and canopy sit above the AETHER_SHOULDER knee (× aetherGain 1.4). uStudioDome (smooth ambient) stays, default 0.
+export const NEUTRAL_SKY_FLOOR = 0.004;    // the void between the lights
+export const TENT_EDGE_CRISP = 0.012;      // crisp edge half-width (rad / R.y; plane units for the canopy front)
+export const TENT_CANOPY_HX = 0.9;         // canopy half-width on the plane y = 1 (x)
+export const TENT_CANOPY_Z0 = -1.5;        // canopy back edge (z on the plane: behind the subject)
+export const TENT_CANOPY_Z1 = 0.25;        // canopy front edge (toward the camera)
+export const TENT_CANOPY_FADE = 0.35;      // soft back/side edge half-width (plane units)
+export const TENT_CANOPY_FRONT_SOFT = 0.15; // front edge half-width at crisp 0
+export const TENT_CANOPY_BACK = 0.35;      // brightness at the back edge × the front
+export const TENT_CANOPY_SIDE = 0.45;      // brightness drop at the side edges (quadratic in x)
+export const TENT_STRIP_AZ = Object.freeze([1.2, 1.4]); // left (key) / right (fill) strip azimuth off the camera axis (rad, ~69° / ~80°): staggered, not a mirrored visor
+export const TENT_STRIP_HW = 0.1;          // strip half-width (rad)
+export const TENT_STRIP_SOFT = 0.06;       // strip edge half-width at crisp 0
+export const TENT_STRIP_Y0 = -0.25;        // strip lower end (R.y)
+export const TENT_STRIP_Y1 = 0.7;          // strip upper end (R.y)
+export const TENT_STRIP_YSOFT = 0.15;      // strip end softness at crisp 0
+export const TENT_STRIP_LUM = 0.3;         // strip radiance per unit key
+export const TENT_STRIP_GAIN = Object.freeze([1, 0.7]); // left key, right fill
+export const TENT_GAP = 0.14;              // dark horizon gap above the floor (R.y): the dark equatorial band
+export const TENT_FLOOR_SOFT = 0.05;       // floor edge half-width at crisp 0
+export const TENT_FLOOR_FRONT = 0.12;      // floor brightness toward the camera (+z) × the back: the ball's bottom RIM (which sees the
+                                           // sweep behind it) lights, its bottom centre (the near table) stays dark
+export const NEUTRAL_DOME_NADIR = 0.05;    // dome straight down, × uStudioDome (the zenith value)
 export const NEUTRAL_DOME_POW = 1.5;       // dome rise: NADIR + (1 − NADIR)·((1 + R.y)/2)^POW
-export const NEUTRAL_DOME_MEAN = NEUTRAL_DOME_NADIR + (1 - NEUTRAL_DOME_NADIR) / (NEUTRAL_DOME_POW + 1); // per unit uStudioDome
-// CHROME STUDIO (author 2026-10-08, after the motion review): a smooth dome + soft reflectors read as Lambertian clay.
-// Liquid Hg is chrome: over-unity whites, pitch-black cuts, no diffuse midtones. Live knobs (uStudioLook = crisp, key,
-// softbox; PLANET_TUNE.studioCrisp / studioKey / studioSoftbox), defaults = the ruled chrome look:
-//   crisp   — soft Gaussian reflectors and horizon (0) → hard-edged reflectors, razor horizon line (1);
-//   key     — reflector gain: past ~2.4 the key's peak passes the AETHER_SHOULDER knee (× aetherGain 1.4): over-unity;
-//   softbox — radiance of a large overhead softbox (R.y > NEUTRAL_SOFTBOX_Y, crisp rim), the chrome ball's white crown.
-// Everything else is the black floor: the black between softbox, reflectors and horizon IS the flag work (the
-// 2026-10-08 flag bands/ring read as painted seams and were removed). The dome stays a knob, default 0.
-export const NEUTRAL_CRISP_EDGE = 0.012;   // reflector / softbox edge half-width at crisp 1 (rad / R.y)
-export const NEUTRAL_HORIZON_CRISP_W = 0.012; // horizon Gaussian width at crisp 1 (a razor line)
-export const NEUTRAL_SOFTBOX_Y = 0.55;     // softbox lower rim (R.y): covers the upper dome
-export const STUDIO_DEFAULTS = Object.freeze({ crisp: 1, key: 4, softbox: 2, dome: 0 }); // = PLANET_TUNE defaults (tested)
-// Mean over the sphere (uniform in R.y) of the studio at the given knobs: a symmetric smoothstep window integrates to
-// its nominal width; a Gaussian reflector to HW√π, a crisp one to 2·HW (tails are dust before the next reflector);
-// horizon w√π/2 (erf(1/w) = 1); softbox (1 − Y)/2; dome NEUTRAL_DOME_MEAN. The shader evaluates the same sum live.
-export function studioMean({ crisp, key, softbox, dome }) {
-  const gains = NEUTRAL_STRIP_GAIN.reduce((a, g) => a + g, 0);
-  const across = NEUTRAL_STRIP_HW * (Math.sqrt(Math.PI) + (2 - Math.sqrt(Math.PI)) * crisp);
-  const hw = NEUTRAL_HORIZON_W + (NEUTRAL_HORIZON_CRISP_W - NEUTRAL_HORIZON_W) * crisp;
-  return NEUTRAL_SKY_FLOOR + NEUTRAL_HORIZON_LUM * hw * Math.sqrt(Math.PI) / 2
-    + key * NEUTRAL_STRIP_LUM * gains * (across / (2 * Math.PI)) * ((NEUTRAL_STRIP_Y1 - NEUTRAL_STRIP_Y0) / 2)
-    + softbox * (1 - NEUTRAL_SOFTBOX_Y) / 2 + dome * NEUTRAL_DOME_MEAN;
+export const NEUTRAL_SKY_DRIFT = 0.02;     // rad per sky-clock second: the nebula's drift (the tent is camera-fixed)
+export const STUDIO_DEFAULTS = Object.freeze({ crisp: 1, key: 4, canopy: 2, floor: 0.35, dome: 0 }); // = PLANET_TUNE (tested)
+
+const ss = (e0, e1, x) => { const t = Math.min(Math.max((x - e0) / (e1 - e0), 0), 1); return t * t * (3 - 2 * t); };
+const lerp = (a, b, t) => a + (b - a) * t;
+// JS replica of skyStudio, line for line (same constants, same order).
+export function studioRadiance(x, y, z, { crisp, key, canopy, floor, dome }) {
+  let L = NEUTRAL_SKY_FLOOR;
+  if (y > 0.02) {
+    const px = x / y, pz = z / y;
+    const ef = lerp(TENT_CANOPY_FRONT_SOFT, TENT_EDGE_CRISP, crisp);
+    const inX = ss(TENT_CANOPY_HX + TENT_CANOPY_FADE, TENT_CANOPY_HX - TENT_CANOPY_FADE, Math.abs(px));
+    const inZ = ss(TENT_CANOPY_Z0 - TENT_CANOPY_FADE, TENT_CANOPY_Z0 + TENT_CANOPY_FADE, pz) * ss(TENT_CANOPY_Z1 + ef, TENT_CANOPY_Z1 - ef, pz);
+    const u = px / TENT_CANOPY_HX;
+    const fall = lerp(1, TENT_CANOPY_BACK, ss(TENT_CANOPY_Z1, TENT_CANOPY_Z0, pz)) * (1 - TENT_CANOPY_SIDE * Math.min(u * u, 1));
+    L += canopy * inX * inZ * fall;
+  }
+  const az = Math.atan2(x, z);
+  const ys = lerp(TENT_STRIP_YSOFT, TENT_EDGE_CRISP, crisp), se = lerp(TENT_STRIP_SOFT, TENT_EDGE_CRISP, crisp);
+  const span = ss(TENT_STRIP_Y0 - ys, TENT_STRIP_Y0 + ys, y) * ss(TENT_STRIP_Y1 + ys, TENT_STRIP_Y1 - ys, y);
+  const sL = ss(TENT_STRIP_HW + se, TENT_STRIP_HW - se, Math.abs(az + TENT_STRIP_AZ[0]));
+  const sR = ss(TENT_STRIP_HW + se, TENT_STRIP_HW - se, Math.abs(az - TENT_STRIP_AZ[1]));
+  L += TENT_STRIP_LUM * key * span * (TENT_STRIP_GAIN[0] * sL + TENT_STRIP_GAIN[1] * sR);
+  const fe = lerp(TENT_FLOOR_SOFT, TENT_EDGE_CRISP, crisp);
+  L += floor * ss(-TENT_GAP + fe, -TENT_GAP - fe, y) * (0.5 + 0.5 * ss(-0.9, -0.15, y)) * lerp(TENT_FLOOR_FRONT, 1, ss(0, -0.8, z));
+  L += dome * (NEUTRAL_DOME_NADIR + (1 - NEUTRAL_DOME_NADIR) * ((0.5 + 0.5 * y) ** NEUTRAL_DOME_POW));
+  return L;
 }
-export const NEUTRAL_SKY_DRIFT = 0.02;     // rad per sky-clock second (uSkyT is calm-gated: calm freezes it)
+// Mean over the sphere (uniform in R.y × azimuth): what a fully rough mirror of the tent sees. Numeric (the canopy's
+// projected rectangle has no tidy closed form); cheap at this grid, and studioMeanCached only recomputes on a knob change.
+export function studioMean(k, N = 96, M = 192) {
+  let sum = 0;
+  for (let i = 0; i < N; i++) {
+    const y = -1 + (2 * (i + 0.5)) / N, r = Math.sqrt(Math.max(0, 1 - y * y));
+    for (let j = 0; j < M; j++) { const a = -Math.PI + (2 * Math.PI * (j + 0.5)) / M; sum += studioRadiance(r * Math.sin(a), y, r * Math.cos(a), k); }
+  }
+  return sum / (N * M);
+}
+const _meanKey = [NaN, NaN, NaN, NaN, NaN]; let _meanVal = 0;
+export function studioMeanCached(crisp, key, canopy, floor, dome) {
+  if (_meanKey[0] !== crisp || _meanKey[1] !== key || _meanKey[2] !== canopy || _meanKey[3] !== floor || _meanKey[4] !== dome) {
+    _meanKey[0] = crisp; _meanKey[1] = key; _meanKey[2] = canopy; _meanKey[3] = floor; _meanKey[4] = dome;
+    _meanVal = studioMean({ crisp, key, canopy, floor, dome });
+  }
+  return _meanVal;
+}
 const NEUTRAL_MEAN = studioMean(STUDIO_DEFAULTS);
 // Neutral nebula (spec 2026-10-08): the baked cube map (nebulaSky.js / nebulaBake.js) is sampled at mip k · this, so a
 // rougher mirror sees it blurred by its own mip chain (not mixed to SKY_MEAN.nebula, which only documents the mean).
@@ -136,23 +173,29 @@ const vec3 SKY_MEAN_THERMAL = ${v3(SKY_MEAN.thermal)};
 const vec3 SKY_MEAN_EARTH = ${v3(SKY_MEAN.earth)};
 const vec3 SKY_MEAN_AIR = ${v3(SKY_MEAN.air)};
 const float NEUTRAL_SKY_FLOOR = ${glf(NEUTRAL_SKY_FLOOR)};
-const float NEUTRAL_HORIZON_LUM = ${glf(NEUTRAL_HORIZON_LUM)};
-const float NEUTRAL_HORIZON_W = ${glf(NEUTRAL_HORIZON_W)};
-const float NEUTRAL_STRIP_LUM = ${glf(NEUTRAL_STRIP_LUM)};
-const vec3 NEUTRAL_STRIP_AZ = ${v3(NEUTRAL_STRIP_AZ)};
-const float NEUTRAL_STRIP_HW = ${glf(NEUTRAL_STRIP_HW)};
-const vec3 NEUTRAL_STRIP_GAIN = ${v3(NEUTRAL_STRIP_GAIN)};
+const float TENT_EDGE_CRISP = ${glf(TENT_EDGE_CRISP)};
+const float TENT_CANOPY_HX = ${glf(TENT_CANOPY_HX)};
+const float TENT_CANOPY_Z0 = ${glf(TENT_CANOPY_Z0)};
+const float TENT_CANOPY_Z1 = ${glf(TENT_CANOPY_Z1)};
+const float TENT_CANOPY_FADE = ${glf(TENT_CANOPY_FADE)};
+const float TENT_CANOPY_FRONT_SOFT = ${glf(TENT_CANOPY_FRONT_SOFT)};
+const float TENT_CANOPY_BACK = ${glf(TENT_CANOPY_BACK)};
+const float TENT_CANOPY_SIDE = ${glf(TENT_CANOPY_SIDE)};
+const vec2 TENT_STRIP_AZ = vec2(${glf(TENT_STRIP_AZ[0])}, ${glf(TENT_STRIP_AZ[1])});
+const float TENT_STRIP_HW = ${glf(TENT_STRIP_HW)};
+const float TENT_STRIP_SOFT = ${glf(TENT_STRIP_SOFT)};
+const float TENT_STRIP_Y0 = ${glf(TENT_STRIP_Y0)};
+const float TENT_STRIP_Y1 = ${glf(TENT_STRIP_Y1)};
+const float TENT_STRIP_YSOFT = ${glf(TENT_STRIP_YSOFT)};
+const float TENT_STRIP_LUM = ${glf(TENT_STRIP_LUM)};
+const vec2 TENT_STRIP_GAIN = vec2(${glf(TENT_STRIP_GAIN[0])}, ${glf(TENT_STRIP_GAIN[1])});
+const float TENT_GAP = ${glf(TENT_GAP)};
+const float TENT_FLOOR_SOFT = ${glf(TENT_FLOOR_SOFT)};
+const float TENT_FLOOR_FRONT = ${glf(TENT_FLOOR_FRONT)};
 const float NEUTRAL_DOME_NADIR = ${glf(NEUTRAL_DOME_NADIR)};
 const float NEUTRAL_DOME_POW = ${glf(NEUTRAL_DOME_POW)};
-const float NEUTRAL_DOME_MEAN = ${glf(NEUTRAL_DOME_MEAN)};
-const float NEUTRAL_CRISP_EDGE = ${glf(NEUTRAL_CRISP_EDGE)};
-const float NEUTRAL_HORIZON_CRISP_W = ${glf(NEUTRAL_HORIZON_CRISP_W)};
-const float NEUTRAL_SOFTBOX_Y = ${glf(NEUTRAL_SOFTBOX_Y)};
-const float NEUTRAL_STRIP_Y0 = ${glf(NEUTRAL_STRIP_Y0)};
-const float NEUTRAL_STRIP_Y1 = ${glf(NEUTRAL_STRIP_Y1)};
-const float NEUTRAL_STRIP_YSOFT = ${glf(NEUTRAL_STRIP_YSOFT)};
 const float NEUTRAL_SKY_DRIFT = ${glf(NEUTRAL_SKY_DRIFT)};
-const vec3 SKY_MEAN_NEUTRAL = ${v3(SKY_MEAN.neutral)}; // documents the default studio; the mirror uses studioMeanLive()
+const vec3 SKY_MEAN_NEUTRAL = ${v3(SKY_MEAN.neutral)}; // documents the default studio; the mirror uses uStudioMean (live)
 const vec3 SKY_MEAN_NEBULA = ${v3(SKY_MEAN.nebula)};
 const float NEBULA_MAX_LOD = ${glf(NEBULA_MAX_LOD)};
 const float NEBULA_TEXEL_RAD = ${glf(NEBULA_TEXEL_RAD)};
@@ -244,35 +287,28 @@ vec3 skyAir(vec3 R, float nOct) {
   return c;
 }
 
-// Neutral studio (option B): deep-space black, a thin horizon line, three soft-edged strips turning
-// rigidly with the calm-gated sky clock. No noise: the edges are what make the liquid read as a mirror.
-float skyAzDist(float az, float c) { return abs(mod(az - c + 3.14159265, 6.28318531) - 3.14159265); }
-float skyNeutralStrip(float az, float c) {
-  float d = skyAzDist(az, c);
-  float soft = exp(-(d * d) / (NEUTRAL_STRIP_HW * NEUTRAL_STRIP_HW));
-  float crisp = smoothstep(NEUTRAL_STRIP_HW + NEUTRAL_CRISP_EDGE, NEUTRAL_STRIP_HW - NEUTRAL_CRISP_EDGE, d);
-  return mix(soft, crisp, uStudioLook.x);
-}
-// The studio's mean at the live knobs (studioMean in JS, same sum): what a rough mirror of it averages to.
-float studioMeanLive() {
-  float across = NEUTRAL_STRIP_HW * mix(1.7724539, 2.0, uStudioLook.x);
-  float hw = mix(NEUTRAL_HORIZON_W, NEUTRAL_HORIZON_CRISP_W, uStudioLook.x);
-  return NEUTRAL_SKY_FLOOR + NEUTRAL_HORIZON_LUM * hw * 0.88622693
-    + uStudioLook.y * NEUTRAL_STRIP_LUM * (NEUTRAL_STRIP_GAIN.x + NEUTRAL_STRIP_GAIN.y + NEUTRAL_STRIP_GAIN.z) * (across / 6.28318531)
-      * (0.5 * (NEUTRAL_STRIP_Y1 - NEUTRAL_STRIP_Y0))
-    + uStudioLook.z * 0.5 * (1.0 - NEUTRAL_SOFTBOX_Y) + uStudioDome * NEUTRAL_DOME_MEAN;
-}
+// The neutral studio: the macro tabletop tent (header; studioRadiance is its JS replica). Camera-fixed, no noise.
 vec3 skyStudio(vec3 R) {
-  float hz = R.y / mix(NEUTRAL_HORIZON_W, NEUTRAL_HORIZON_CRISP_W, uStudioLook.x);
-  float L = NEUTRAL_SKY_FLOOR + NEUTRAL_HORIZON_LUM * exp(-hz * hz);
-  float az = atan(R.z, R.x) - NEUTRAL_SKY_DRIFT * uSkyT;
-  float ys = mix(NEUTRAL_STRIP_YSOFT, NEUTRAL_CRISP_EDGE, uStudioLook.x);
-  float span = smoothstep(NEUTRAL_STRIP_Y0 - ys, NEUTRAL_STRIP_Y0 + ys, R.y) * smoothstep(NEUTRAL_STRIP_Y1 + ys, NEUTRAL_STRIP_Y1 - ys, R.y);
-  float strips = NEUTRAL_STRIP_GAIN.x * skyNeutralStrip(az, NEUTRAL_STRIP_AZ.x) + NEUTRAL_STRIP_GAIN.y * skyNeutralStrip(az, NEUTRAL_STRIP_AZ.y)
-               + NEUTRAL_STRIP_GAIN.z * skyNeutralStrip(az, NEUTRAL_STRIP_AZ.z);
-  L += NEUTRAL_STRIP_LUM * uStudioLook.y * span * strips;
-  float sbEdge = mix(0.08, NEUTRAL_CRISP_EDGE, uStudioLook.x);
-  L += uStudioLook.z * smoothstep(NEUTRAL_SOFTBOX_Y - sbEdge, NEUTRAL_SOFTBOX_Y + sbEdge, R.y); // overhead softbox
+  float c = uStudioLook.x;
+  float L = NEUTRAL_SKY_FLOOR;
+  if (R.y > 0.02) { // canopy: a rectangle on the plane y = 1
+    vec2 p = R.xz / R.y;
+    float ef = mix(TENT_CANOPY_FRONT_SOFT, TENT_EDGE_CRISP, c);
+    float inX = smoothstep(TENT_CANOPY_HX + TENT_CANOPY_FADE, TENT_CANOPY_HX - TENT_CANOPY_FADE, abs(p.x));
+    float inZ = smoothstep(TENT_CANOPY_Z0 - TENT_CANOPY_FADE, TENT_CANOPY_Z0 + TENT_CANOPY_FADE, p.y) * smoothstep(TENT_CANOPY_Z1 + ef, TENT_CANOPY_Z1 - ef, p.y);
+    float u = p.x / TENT_CANOPY_HX;
+    float fall = mix(1.0, TENT_CANOPY_BACK, smoothstep(TENT_CANOPY_Z1, TENT_CANOPY_Z0, p.y)) * (1.0 - TENT_CANOPY_SIDE * min(u * u, 1.0));
+    L += uStudioLook.z * inX * inZ * fall;
+  }
+  float az = atan(R.x, R.z); // 0 = toward the camera
+  float ys = mix(TENT_STRIP_YSOFT, TENT_EDGE_CRISP, c), se = mix(TENT_STRIP_SOFT, TENT_EDGE_CRISP, c);
+  float span = smoothstep(TENT_STRIP_Y0 - ys, TENT_STRIP_Y0 + ys, R.y) * smoothstep(TENT_STRIP_Y1 + ys, TENT_STRIP_Y1 - ys, R.y);
+  float sL = smoothstep(TENT_STRIP_HW + se, TENT_STRIP_HW - se, abs(az + TENT_STRIP_AZ.x));
+  float sR = smoothstep(TENT_STRIP_HW + se, TENT_STRIP_HW - se, abs(az - TENT_STRIP_AZ.y));
+  L += TENT_STRIP_LUM * uStudioLook.y * span * (TENT_STRIP_GAIN.x * sL + TENT_STRIP_GAIN.y * sR);
+  float fe = mix(TENT_FLOOR_SOFT, TENT_EDGE_CRISP, c);
+  L += uStudioLook.w * smoothstep(-TENT_GAP + fe, -TENT_GAP - fe, R.y) * (0.5 + 0.5 * smoothstep(-0.9, -0.15, R.y))
+     * mix(TENT_FLOOR_FRONT, 1.0, smoothstep(0.0, -0.8, R.z)); // floor sweep, lit behind: a lower rim
   L += uStudioDome * (NEUTRAL_DOME_NADIR + (1.0 - NEUTRAL_DOME_NADIR) * pow(0.5 + 0.5 * R.y, NEUTRAL_DOME_POW));
   return vec3(L);
 }
@@ -291,7 +327,7 @@ vec3 aetherSky(vec3 R, float rough) {
   float wN = uNeutralSky * clamp(1.0 - (uSkyW.x + uSkyW.y + uSkyW.z + uSkyW.w), 0.0, 1.0);
   vec3 mean = uSkyW.x * SKY_MEAN_FLUID + uSkyW.y * SKY_MEAN_THERMAL + uSkyW.z * SKY_MEAN_EARTH + uSkyW.w * SKY_MEAN_AIR;
   float wStudio = wN * (1.0 - uNeutralNebula), wNeb = wN * uNeutralNebula;
-  mean += wStudio * studioMeanLive();
+  mean += wStudio * uStudioMean; // studioMeanCached (JS) at the live knobs
   vec3 neb = wNeb > SKY_W_MIN ? wNeb * skyNebula(R, k) : vec3(0.0);
   if (k >= 1.0) return mean + neb;
   float nOct = mix(float(SKY_OCTAVES), 1.0, k);

@@ -62,9 +62,10 @@ export const PLANET_TUNE = {
   aetherGain: 1.4,   // liquid mirror + frozen ambient: aether sky gain (re-tuned in the mirror-sky look round)
   aetherSilver: 0,   // desaturation toward silver (0: the mirror shows the gas at its own hue, 2026-10-03)
   neutralSky: 1,     // resting-mirror silver sky gain (0 = the quiet black mirror); author ruling 2026-10-07: on by default
-  studioCrisp: 1,     // chrome studio (author 2026-10-08): hard-edged reflectors + razor horizon (0 = the soft look)
-  studioKey: 4,       // reflector gain: over-unity (> ~2.4 passes the shoulder knee)
-  studioSoftbox: 2,   // overhead softbox radiance (× aetherGain 1.4 ≈ 2.8 HDR): the chrome crown
+  studioCrisp: 1,     // tabletop tent (author 2026-10-08): crisp canopy front, strips and floor edge (0 = soft)
+  studioKey: 4,       // flanking strip softboxes: × 0.3 × aetherGain 1.4 ≈ 1.7, over the shoulder knee
+  studioSoftbox: 2,   // overhead canopy scrim (× aetherGain 1.4 ≈ 2.8 HDR at its front)
+  studioFloor: 0.35,  // white sweep floor bounce: a lit lower rim, under the knee
   studioDome: 0,      // smooth ambient dome: OFF (author 2026-10-08: it read as grey clay in motion)
   neutralNebula: 0,  // resting mirror: 0 = studio (option B, ruled 2026-10-07), 1 = baked neutral nebula, between = mix (spec 2026-10-08)
   aetherFloor: 0.2,     // lit element flows never fall below this × their colour (umbra, worst phase) — aetherLight.js

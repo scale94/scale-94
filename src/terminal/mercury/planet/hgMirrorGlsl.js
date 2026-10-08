@@ -16,7 +16,7 @@ import {
 
 export const HG_MIRROR_UNIFORMS = [
   'uSunDir', 'uSunIrr', 'uSunSinR', 'uExposure', 'uEmitPos', 'uEmitCol', 'uSunGlint', 'uEmitGain',
-  'uSkyT', 'uSkyPhase', 'uSkyW', 'uAetherGain', 'uAetherSilver', 'uNeutralSky', 'uStudioDome', 'uStudioLook', 'uNeutralNebula', 'uNebulaRot', 'uNebulaMap', 'uRoughLiquid',
+  'uSkyT', 'uSkyPhase', 'uSkyW', 'uAetherGain', 'uAetherSilver', 'uNeutralSky', 'uStudioDome', 'uStudioLook', 'uStudioMean', 'uNeutralNebula', 'uNebulaRot', 'uNebulaMap', 'uRoughLiquid',
 ];
 
 export const HG_MIRROR_DECLS_GLSL = [
@@ -35,7 +35,8 @@ export const HG_MIRROR_DECLS_GLSL = [
   'uniform float uAetherSilver;',
   'uniform float uNeutralSky;',
   'uniform float uStudioDome;',
-  'uniform vec3 uStudioLook;',
+  'uniform vec4 uStudioLook;',
+  'uniform float uStudioMean;',
   'uniform float uNeutralNebula;',
   'uniform mat3 uNebulaRot;',
   'uniform samplerCube uNebulaMap;',
