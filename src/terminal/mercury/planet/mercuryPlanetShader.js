@@ -770,6 +770,8 @@ void main() {
   vec2 gxS = dFdx(uvS), gyS = dFdy(uvS);
   if (abs(gxS.x) + abs(gyS.x) < abs(gx.x) + abs(gy.x)) { gx.x = gxS.x; gy.x = gyS.x; }
   float pxArc = length(fwidth(xw));
+  // On the unit sphere the normal turns pxArc per pixel and its reflection twice that: the nebula's mip floor.
+  skyPxLod = max(0.0, log2(2.0 * pxArc / NEBULA_TEXEL_RAD));
   // <slow-noon>
   // THE SLOW NOON hairlines: fields and derivatives here, in a uniform branch before the discard.
   float ovFreeze = 0.0, ovRing = 0.0, ovTick = 0.0;

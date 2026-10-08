@@ -349,8 +349,11 @@ const float NEUTRAL_STRIP_Y1 = 0.600000000;
 const float NEUTRAL_STRIP_YSOFT = 0.120000000;
 const float NEUTRAL_SKY_DRIFT = 0.0200000000;
 const vec3 SKY_MEAN_NEUTRAL = vec3(0.0267946277, 0.0267946277, 0.0267946277);
-const vec3 SKY_MEAN_NEBULA = vec3(0.0295300000, 0.0295300000, 0.0295300000);
+const vec3 SKY_MEAN_NEBULA = vec3(0.0179200000, 0.0179200000, 0.0179200000);
 const float NEBULA_MAX_LOD = 6.00000000;
+const float NEBULA_TEXEL_RAD = 0.00613592315;
+// Mip floor from the reflection's pixel footprint; a shader with screen derivatives sets it in main (the planet), the rest leave 0.
+float skyPxLod = 0.0;
 
 float skyHash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
 float skyNoise(vec3 x) {
@@ -472,13 +475,11 @@ vec3 skyStudio(vec3 R) {
   return vec3(L);
 }
 
-// The resting mirror's sky: the studio, the baked nebula (one textureLod, rotated on the sky clock, mip by roughness
-// weight k), or a mix by uNeutralNebula. Each side is evaluated only when it has weight (uniform branch: coherent).
-vec3 skyNeutral(vec3 R, float k) {
-  vec3 c = vec3(0.0);
-  if (uNeutralNebula < 1.0) c += (1.0 - uNeutralNebula) * skyStudio(R);
-  if (uNeutralNebula > 0.0) c += uNeutralNebula * textureLod(uNebulaMap, uNebulaRot * R, k * NEBULA_MAX_LOD).rgb;
-  return c;
+// The baked nebula (one textureLod, rotated on the sky clock). Its mip chain IS its roughness blur, so it is never also
+// mixed toward its mean: that double flattening turned a rough (boil 0.4) mirror into flat grey. Mip = roughness weight
+// k, floored by the pixel footprint (skyPxLod) so a grazing limb samples a mip as wide as its pixel, not a sparkling texel.
+vec3 skyNebula(vec3 R, float k) {
+  return textureLod(uNebulaMap, uNebulaRot * R, max(k * NEBULA_MAX_LOD, skyPxLod)).rgb;
 }
 
 // The active element's sky (at most one is up: switches pass through neutral), in a mirror of roughness rough; the neutral sky fills
@@ -487,16 +488,18 @@ vec3 aetherSky(vec3 R, float rough) {
   float k = smoothstep(SKY_ROUGH_SHARP, SKY_ROUGH_FLAT, rough);
   float wN = uNeutralSky * clamp(1.0 - (uSkyW.x + uSkyW.y + uSkyW.z + uSkyW.w), 0.0, 1.0);
   vec3 mean = uSkyW.x * SKY_MEAN_FLUID + uSkyW.y * SKY_MEAN_THERMAL + uSkyW.z * SKY_MEAN_EARTH + uSkyW.w * SKY_MEAN_AIR;
-  mean += wN * mix(SKY_MEAN_NEUTRAL, SKY_MEAN_NEBULA, uNeutralNebula);
-  if (k >= 1.0) return mean;
+  float wStudio = wN * (1.0 - uNeutralNebula), wNeb = wN * uNeutralNebula;
+  mean += wStudio * SKY_MEAN_NEUTRAL;
+  vec3 neb = wNeb > SKY_W_MIN ? wNeb * skyNebula(R, k) : vec3(0.0);
+  if (k >= 1.0) return mean + neb;
   float nOct = mix(float(SKY_OCTAVES), 1.0, k);
   vec3 s = vec3(0.0);
   if (uSkyW.x > SKY_W_MIN) s += uSkyW.x * skyFluid(R, nOct);
   if (uSkyW.y > SKY_W_MIN) s += uSkyW.y * skyThermal(R, nOct);
   if (uSkyW.z > SKY_W_MIN) s += uSkyW.z * skyEarth(R, nOct, k);
   if (uSkyW.w > SKY_W_MIN) s += uSkyW.w * skyAir(R, nOct);
-  if (wN > SKY_W_MIN) s += wN * skyNeutral(R, k);
-  return mix(s, mean, k);
+  if (wStudio > SKY_W_MIN) s += wStudio * skyStudio(R);
+  return mix(s, mean, k) + neb;
 }
 
 // The aether in a mirror of roughness rough: the active element's moving sky (aetherSky.js), night-tinted,
@@ -945,6 +948,8 @@ void main() {
   vec2 gxS = dFdx(uvS), gyS = dFdy(uvS);
   if (abs(gxS.x) + abs(gyS.x) < abs(gx.x) + abs(gy.x)) { gx.x = gxS.x; gy.x = gyS.x; }
   float pxArc = length(fwidth(xw));
+  // On the unit sphere the normal turns pxArc per pixel and its reflection twice that: the nebula's mip floor.
+  skyPxLod = max(0.0, log2(2.0 * pxArc / NEBULA_TEXEL_RAD));
   // <slow-noon>
   // THE SLOW NOON hairlines: fields and derivatives here, in a uniform branch before the discard.
   float ovFreeze = 0.0, ovRing = 0.0, ovTick = 0.0;

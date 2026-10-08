@@ -4,7 +4,7 @@ import { glf } from '../../../gl/glf';
 import {
   NEBULA_FACE, NEBULA_GEN_GLSL, NEBULA_BAKE_VS, NEBULA_BAKE_FS, nebulaRotation,
   NEBULA_FLOOR, NEBULA_VOID_SCALE, NEBULA_VOID_LO, NEBULA_VOID_HI, NEBULA_WISP_SCALE, NEBULA_WISP_WARP,
-  NEBULA_WISP_POW, NEBULA_WISP_BASE, NEBULA_WISP_GAIN, NEBULA_STAR_CELLS, NEBULA_STAR_RATE, NEBULA_STAR_SIGMA,
+  NEBULA_WISP_POW, NEBULA_WISP_STRETCH, NEBULA_WISP_BASE, NEBULA_WISP_GAIN, NEBULA_STAR_CELLS, NEBULA_STAR_RATE, NEBULA_STAR_SIGMA,
   NEBULA_STAR_MIN, NEBULA_STAR_MAX, NEBULA_HALO_W, NEBULA_HALO_GAIN, NEBULA_STAR_REACH, NEBULA_STAR_SHELL,
 } from '../nebulaSky';
 import { SKY_NOISE_GLSL, NEUTRAL_SKY_DRIFT } from '../aetherSky';
@@ -14,7 +14,7 @@ const apply = (m, v) => [0, 1, 2].map((r) => m[3 * r] * v[0] + m[3 * r + 1] * v[
 describe('nebulaSky', () => {
   it('every constant reaches the generator', () => {
     for (const [n, v] of Object.entries({ NEBULA_FLOOR, NEBULA_VOID_SCALE, NEBULA_VOID_LO, NEBULA_VOID_HI,
-      NEBULA_WISP_SCALE, NEBULA_WISP_WARP, NEBULA_WISP_POW, NEBULA_WISP_BASE, NEBULA_WISP_GAIN, NEBULA_STAR_CELLS,
+      NEBULA_WISP_SCALE, NEBULA_WISP_WARP, NEBULA_WISP_POW, NEBULA_WISP_STRETCH, NEBULA_WISP_BASE, NEBULA_WISP_GAIN, NEBULA_STAR_CELLS,
       NEBULA_STAR_RATE, NEBULA_STAR_SIGMA, NEBULA_STAR_MIN, NEBULA_STAR_MAX, NEBULA_HALO_W, NEBULA_HALO_GAIN,
       NEBULA_STAR_REACH, NEBULA_STAR_SHELL })) {
       expect(NEBULA_GEN_GLSL).toContain(`const float ${n} = ${glf(v)};`);
@@ -30,9 +30,16 @@ describe('nebulaSky', () => {
   });
 
   it('stars: sparse, sharp cores reaching the shoulder; shell-bound and windowed so the 27-cell search never cuts one', () => {
-    expect(NEBULA_STAR_RATE).toBeGreaterThan(0.97);
+    // author 2026-10-08: ~20-30 visible hot spots, not confetti. Lattice stars on the shell band, before the m² mask:
+    const lattice = (1 - NEBULA_STAR_RATE) * 4 * Math.PI * NEBULA_STAR_CELLS ** 2 * 2 * NEBULA_STAR_SHELL;
+    expect(lattice).toBeGreaterThan(40);
+    expect(lattice).toBeLessThan(100);
+    expect(NEBULA_GEN_GLSL).toContain('L += nebStars(D) * m * m;');
     expect(NEBULA_STAR_MIN).toBeGreaterThanOrEqual(3);
-    expect(NEBULA_STAR_MAX).toBeLessThanOrEqual(8);
+    expect(NEBULA_STAR_MAX).toBeLessThanOrEqual(16);
+    // the halo fades out inside the window: at the window's outer edge the brightest star's halo is under the void floor
+    const reachRad = NEBULA_STAR_REACH / NEBULA_STAR_CELLS, hw = NEBULA_STAR_SIGMA * NEBULA_HALO_W;
+    expect(NEBULA_STAR_MAX * NEBULA_HALO_GAIN * Math.exp(-((reachRad / hw) ** 2))).toBeLessThan(NEBULA_FLOOR);
     // face-centre texels are the largest on a cube face (2/N vs the average (pi/2)/N): the worst case for core size
     const texel = 2 / NEBULA_FACE;
     expect(NEBULA_STAR_SIGMA / texel).toBeGreaterThan(1.1);

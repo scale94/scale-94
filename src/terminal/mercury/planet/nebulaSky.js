@@ -9,26 +9,28 @@
 // pays one textureLod (aetherSky.skyNeutral). Starting values; tuned against .superpowers/sdd/tools/nebula-hist.mjs.
 
 import { glf } from '../../gl/glf';
-import { SKY_NOISE_GLSL, SKY_OCTAVES, NEUTRAL_SKY_DRIFT } from './aetherSky';
+import { SKY_NOISE_GLSL, SKY_OCTAVES, NEUTRAL_SKY_DRIFT, NEBULA_FACE } from './aetherSky';
 
-export const NEBULA_FACE = 256;          // cube face size (px); 512 is the open author call if cores read soft
+export { NEBULA_FACE }; // defined beside the mirror's LOD maths (aetherSky.js)
 export const NEBULA_FLOOR = 0.002;       // void radiance (studio floor is 0.004)
-export const NEBULA_VOID_SCALE = 1.3;    // void mask frequency (direction units)
+export const NEBULA_VOID_SCALE = 2.2;    // void mask frequency (direction units): several smaller bodies, not one chunky cloud
 export const NEBULA_VOID_LO = 0.5;       // mask smoothstep: fBm below → void
 export const NEBULA_VOID_HI = 0.68;      // fBm above → full density
-export const NEBULA_WISP_SCALE = 3;      // wisp frequency
-export const NEBULA_WISP_WARP = 1.2;     // domain-warp amplitude
-export const NEBULA_WISP_POW = 6;        // ridge sharpness (edges are what read as a mirror)
-export const NEBULA_WISP_BASE = 0.03;    // dense-but-off-ridge radiance
+export const NEBULA_WISP_SCALE = 5;      // wisp frequency (author 2026-10-08: fine fibres, not one chunky cloud)
+export const NEBULA_WISP_WARP = 2.2;     // domain-warp amplitude: high, so the ridges stream into threads
+export const NEBULA_WISP_POW = 16;       // ridge sharpness: a tight ridge is a thin filament
+export const NEBULA_WISP_STRETCH = 5;    // wisp domain squeezed this much across the drift axis (+Y): fibres stream along the drift
+export const NEBULA_WISP_BASE = 0.015;   // dense-but-off-ridge radiance: low, so the filaments, not a grey body, carry the cloud
 export const NEBULA_WISP_GAIN = 0.13;    // ridge radiance on top of the base
-export const NEBULA_STAR_CELLS = 40;     // star lattice cells per direction unit
-export const NEBULA_STAR_RATE = 0.98;   // hash above this lights a cell; only the shell band is lit: 2% × 4π·40²·2·0.3 ≈ 240 stars on the sphere
-export const NEBULA_STAR_SIGMA = 0.009;  // core Gaussian width (rad) ≈ 1.5 texels at NEBULA_FACE 256
-export const NEBULA_STAR_MIN = 3;        // core peak range: into AETHER_SHOULDER, so the cores read white
-export const NEBULA_STAR_MAX = 8;
-export const NEBULA_HALO_W = 6;          // halo width × sigma
-export const NEBULA_HALO_GAIN = 0.02;    // halo peak × core peak
-export const NEBULA_STAR_REACH = 0.7;    // a star's light is windowed to zero at this many cells (lattice units); with NEBULA_STAR_SHELL, sqrt(SHELL² + REACH²) < 1 keeps every lit star inside the 27-cell search
+export const NEBULA_STAR_CELLS = 10;     // star lattice cells per direction unit: coarse, so a star's window (REACH cells) is wide
+export const NEBULA_STAR_RATE = 0.92;    // hash above this lights a cell; shell band only: 8% × 4π·10²·2·0.3 ≈ 60 lattice stars, of which
+                                         // the density mask (m², below) leaves ~20-30 visible: rare hot spots, never in the voids
+export const NEBULA_STAR_SIGMA = 0.012;  // core Gaussian width (rad) ≈ 2 texels at NEBULA_FACE 256
+export const NEBULA_STAR_MIN = 6;        // core peak range: well into AETHER_SHOULDER, so the cores read white-hot
+export const NEBULA_STAR_MAX = 14;
+export const NEBULA_HALO_W = 2.2;        // halo width × sigma: ≈ 0.026 rad, under a third of the window, so it fades out, not cut
+export const NEBULA_HALO_GAIN = 0.05;    // halo peak × core peak
+export const NEBULA_STAR_REACH = 0.7;    // a star's light is windowed to zero at this many cells (0.07 rad at 10 cells); with NEBULA_STAR_SHELL, sqrt(SHELL² + REACH²) < 1 keeps every lit star inside the 27-cell search
 export const NEBULA_STAR_SHELL = 0.3;    // only lattice stars within this of the radius-NEBULA_STAR_CELLS shell are lit (a radially offset star would project inside the window from outside the search)
 
 export const NEBULA_GEN_GLSL = /* glsl */ `// ── neutral nebula generator (nebulaSky.js), bake-time only ──
@@ -40,6 +42,7 @@ const float NEBULA_VOID_HI = ${glf(NEBULA_VOID_HI)};
 const float NEBULA_WISP_SCALE = ${glf(NEBULA_WISP_SCALE)};
 const float NEBULA_WISP_WARP = ${glf(NEBULA_WISP_WARP)};
 const float NEBULA_WISP_POW = ${glf(NEBULA_WISP_POW)};
+const float NEBULA_WISP_STRETCH = ${glf(NEBULA_WISP_STRETCH)};
 const float NEBULA_WISP_BASE = ${glf(NEBULA_WISP_BASE)};
 const float NEBULA_WISP_GAIN = ${glf(NEBULA_WISP_GAIN)};
 const float NEBULA_STAR_CELLS = ${glf(NEBULA_STAR_CELLS)};
@@ -84,12 +87,15 @@ float nebStars(vec3 D) {
 
 vec3 skyNebulaGen(vec3 D) {
   float m = smoothstep(NEBULA_VOID_LO, NEBULA_VOID_HI, skyFbm(D * NEBULA_VOID_SCALE + vec3(3.1, 7.4, 1.9), 3.0));
-  vec3 q = D * NEBULA_WISP_SCALE;
+  vec3 q = D * NEBULA_WISP_SCALE * vec3(1.0, NEBULA_WISP_STRETCH, 1.0) / sqrt(NEBULA_WISP_STRETCH);
   vec3 w = vec3(skyFbm(q + vec3(0.0, 0.0, 0.0), 3.0), skyFbm(q + vec3(5.2, 1.3, 2.8), 3.0), skyFbm(q + vec3(2.1, 7.7, 4.4), 3.0));
   float n = skyFbm(q + NEBULA_WISP_WARP * 2.0 * (w - 0.5), 4.0);
+  // two ridge octaves: the second (2.3x, own warp offset) splits each fibre into finer strands
   float ridge = pow(1.0 - abs(n * 2.0 - 1.0), NEBULA_WISP_POW);
+  float n2 = skyFbm(2.3 * q + NEBULA_WISP_WARP * 2.0 * (w.zxy - 0.5) + vec3(9.1, 3.3, 6.2), 3.0);
+  ridge = max(ridge, 0.6 * pow(1.0 - abs(n2 * 2.0 - 1.0), NEBULA_WISP_POW));
   float L = mix(NEBULA_FLOOR, NEBULA_WISP_BASE + NEBULA_WISP_GAIN * ridge, m);
-  L += nebStars(D) * (0.3 + 0.7 * m);
+  L += nebStars(D) * m * m; // stars only inside the wisp body: the voids stay obsidian
   return vec3(L);
 }`;
 

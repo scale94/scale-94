@@ -48,8 +48,12 @@ const NEUTRAL_MEAN = NEUTRAL_SKY_FLOOR
   + NEUTRAL_HORIZON_LUM * NEUTRAL_HORIZON_W * Math.sqrt(Math.PI) / 2
   + NEUTRAL_STRIP_AZ.length * NEUTRAL_STRIP_LUM * (2 * NEUTRAL_STRIP_HW / (2 * Math.PI)) * ((NEUTRAL_STRIP_Y1 - NEUTRAL_STRIP_Y0) / 2);
 // Neutral nebula (spec 2026-10-08): the baked cube map (nebulaSky.js / nebulaBake.js) is sampled at mip k · this, so a
-// rougher mirror sees it blurred on its way to SKY_MEAN.nebula (k = 1 returns the mean before any lookup).
+// rougher mirror sees it blurred by its own mip chain (not mixed to SKY_MEAN.nebula, which only documents the mean).
 export const NEBULA_MAX_LOD = 6;
+// The baked cube's face size lives here (nebulaSky.js re-exports it) so the mirror can size its pixel-footprint LOD:
+// a mirror pixel whose reflection spans more than a texel samples a coarser mip instead of aliasing (the limb shimmer).
+export const NEBULA_FACE = 256;          // cube face size (px); 512 is the open author call if cores read soft
+export const NEBULA_TEXEL_RAD = (Math.PI / 2) / NEBULA_FACE; // mean texel angle on a face
 // Mean radiance of each sky over all directions (linear), the value a fully rough mirror sees. Measured 2026-10-05 (air re-measured 2026-10-07, soft threads)
 // (plan Task 5, .superpowers/sdd/tools/ms-mean.mjs): 128x64 equirect RGBA32F, cos-latitude weighted, rough 0,
 // 5 clock samples (t 0/7/19/31/53 s at speed 0.1, orbitalSpeed 1.2). Re-measure if a sky function changes.
@@ -59,7 +63,7 @@ export const SKY_MEAN = Object.freeze({
   earth: [0.008526, 0.005284, 0.00242],
   air: [0.00997, 0.01378, 0.01777],
   neutral: [NEUTRAL_MEAN, NEUTRAL_MEAN, NEUTRAL_MEAN], // analytic, not measured (see NEUTRAL_MEAN)
-  nebula: [0.02953, 0.02953, 0.02953], // measured 2026-10-08 by nebula-hist.mjs (1024x512 equirect, solid-angle weighted)
+  nebula: [0.01792, 0.01792, 0.01792], // re-measured 2026-10-08 after the author's look ruling (deeper voids, fibres, rare stars) by nebula-hist.mjs (1024x512 equirect, solid-angle weighted)
 });
 
 // Value noise + fBm on an octave budget, shared by the mirror sky and the neutral-nebula bake (nebulaSky.js).
@@ -120,6 +124,9 @@ const float NEUTRAL_SKY_DRIFT = ${glf(NEUTRAL_SKY_DRIFT)};
 const vec3 SKY_MEAN_NEUTRAL = ${v3(SKY_MEAN.neutral)};
 const vec3 SKY_MEAN_NEBULA = ${v3(SKY_MEAN.nebula)};
 const float NEBULA_MAX_LOD = ${glf(NEBULA_MAX_LOD)};
+const float NEBULA_TEXEL_RAD = ${glf(NEBULA_TEXEL_RAD)};
+// Mip floor from the reflection's pixel footprint; a shader with screen derivatives sets it in main (the planet), the rest leave 0.
+float skyPxLod = 0.0;
 
 ${SKY_NOISE_GLSL}
 vec3 skyRotZ(vec3 v, float a) { float c = cos(a), s = sin(a); return vec3(c * v.x - s * v.y, s * v.x + c * v.y, v.z); }
@@ -223,13 +230,11 @@ vec3 skyStudio(vec3 R) {
   return vec3(L);
 }
 
-// The resting mirror's sky: the studio, the baked nebula (one textureLod, rotated on the sky clock, mip by roughness
-// weight k), or a mix by uNeutralNebula. Each side is evaluated only when it has weight (uniform branch: coherent).
-vec3 skyNeutral(vec3 R, float k) {
-  vec3 c = vec3(0.0);
-  if (uNeutralNebula < 1.0) c += (1.0 - uNeutralNebula) * skyStudio(R);
-  if (uNeutralNebula > 0.0) c += uNeutralNebula * textureLod(uNebulaMap, uNebulaRot * R, k * NEBULA_MAX_LOD).rgb;
-  return c;
+// The baked nebula (one textureLod, rotated on the sky clock). Its mip chain IS its roughness blur, so it is never also
+// mixed toward its mean: that double flattening turned a rough (boil 0.4) mirror into flat grey. Mip = roughness weight
+// k, floored by the pixel footprint (skyPxLod) so a grazing limb samples a mip as wide as its pixel, not a sparkling texel.
+vec3 skyNebula(vec3 R, float k) {
+  return textureLod(uNebulaMap, uNebulaRot * R, max(k * NEBULA_MAX_LOD, skyPxLod)).rgb;
 }
 
 // The active element's sky (at most one is up: switches pass through neutral), in a mirror of roughness rough; the neutral sky fills
@@ -238,14 +243,16 @@ vec3 aetherSky(vec3 R, float rough) {
   float k = smoothstep(SKY_ROUGH_SHARP, SKY_ROUGH_FLAT, rough);
   float wN = uNeutralSky * clamp(1.0 - (uSkyW.x + uSkyW.y + uSkyW.z + uSkyW.w), 0.0, 1.0);
   vec3 mean = uSkyW.x * SKY_MEAN_FLUID + uSkyW.y * SKY_MEAN_THERMAL + uSkyW.z * SKY_MEAN_EARTH + uSkyW.w * SKY_MEAN_AIR;
-  mean += wN * mix(SKY_MEAN_NEUTRAL, SKY_MEAN_NEBULA, uNeutralNebula);
-  if (k >= 1.0) return mean;
+  float wStudio = wN * (1.0 - uNeutralNebula), wNeb = wN * uNeutralNebula;
+  mean += wStudio * SKY_MEAN_NEUTRAL;
+  vec3 neb = wNeb > SKY_W_MIN ? wNeb * skyNebula(R, k) : vec3(0.0);
+  if (k >= 1.0) return mean + neb;
   float nOct = mix(float(SKY_OCTAVES), 1.0, k);
   vec3 s = vec3(0.0);
   if (uSkyW.x > SKY_W_MIN) s += uSkyW.x * skyFluid(R, nOct);
   if (uSkyW.y > SKY_W_MIN) s += uSkyW.y * skyThermal(R, nOct);
   if (uSkyW.z > SKY_W_MIN) s += uSkyW.z * skyEarth(R, nOct, k);
   if (uSkyW.w > SKY_W_MIN) s += uSkyW.w * skyAir(R, nOct);
-  if (wN > SKY_W_MIN) s += wN * skyNeutral(R, k);
-  return mix(s, mean, k);
+  if (wStudio > SKY_W_MIN) s += wStudio * skyStudio(R);
+  return mix(s, mean, k) + neb;
 }`;
