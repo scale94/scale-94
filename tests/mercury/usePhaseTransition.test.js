@@ -16,11 +16,11 @@ afterEach(() => { vi.unstubAllGlobals(); });
 function flush(ms) { nowMs += ms; const cbs = rafCallbacks.splice(0); cbs.forEach((cb) => cb(nowMs)); }
 
 describe('usePhaseTransition — neutral boot', () => {
-  it('boots into neutral: no active phase, all fades 0, holding liquid', () => {
+  it('boots into neutral: no active phase, all fades 0, no liquid hold exposed (author 2026-10-08: spin melts)', () => {
     const { result } = renderHook(() => usePhaseTransition());
     expect(result.current.activePhase).toBe(null);
     expect(result.current.transitionState).toBe('idle');
-    expect(result.current.holdLiquid).toBe(true);
+    expect(result.current).not.toHaveProperty('holdLiquid');
     for (const p of PHASES) expect(result.current.fades[p]).toBe(0);
     expect(rafCallbacks.length).toBe(0); // no animation at rest
   });
@@ -32,7 +32,6 @@ describe('usePhaseTransition — driving the machine', () => {
     act(() => { result.current.triggerTransition('earth'); });
     expect(result.current.activePhase).toBe('earth');
     expect(result.current.transitionState).toBe('spinUp');
-    expect(result.current.holdLiquid).toBe(false);
     act(() => { flush(SPIN_UP_MS / 2); });
     expect(result.current.fades.earth).toBeCloseTo(0.75, 6);
     act(() => { flush(SPIN_UP_MS / 2); });
@@ -48,7 +47,6 @@ describe('usePhaseTransition — driving the machine', () => {
     expect(result.current.transitionState).toBe('fadeOut');
     act(() => { flush(FADE_OUT_MS); });
     expect(result.current.transitionState).toBe('idle');
-    expect(result.current.holdLiquid).toBe(true);
     expect(result.current.fades.air).toBe(0);
   });
   it('element → element passes through the neutral beat', () => {
@@ -56,7 +54,6 @@ describe('usePhaseTransition — driving the machine', () => {
     act(() => { result.current.triggerTransition('fluid'); flush(SPIN_UP_MS); });
     act(() => { result.current.triggerTransition('thermal'); flush(FADE_OUT_MS + 10); });
     expect(result.current.transitionState).toBe('neutral');
-    expect(result.current.holdLiquid).toBe(true);
     for (const p of PHASES) expect(result.current.fades[p]).toBe(0);
     act(() => { flush(NEUTRAL_MS + SPIN_UP_MS); });
     expect(result.current.activePhase).toBe('thermal');

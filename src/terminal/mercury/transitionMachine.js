@@ -1,5 +1,6 @@
-// The /mercury element lifecycle (spec 2026-10-07 neutral state): neutral is a fifth state — the held-liquid planet,
-// no gas. Every switch passes fadeOut → neutral beat → spinUp. Pure, allocation-free in advance(); the hook drives it.
+// The /mercury element lifecycle (spec 2026-10-07 neutral state): neutral is a fifth state — no gas. The planet is NOT
+// held liquid there (author 2026-10-08: it rests as crust and only spin heat melts it); holdLiquid() is kept for the
+// machine tests and is not wired to the body. Every switch passes fadeOut → neutral beat → spinUp. Pure, allocation-free in advance(); the hook drives it.
 export const ELEMENTS = ['fluid', 'thermal', 'earth', 'air'];
 export const FADE_OUT_MS = 400;
 export const NEUTRAL_MS = 300;

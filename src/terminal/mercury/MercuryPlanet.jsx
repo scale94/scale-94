@@ -278,7 +278,7 @@ function stepDrop(drop, { body, surf, camera, ds, calm, stepS, t, bufferW, buffe
   drop.coreScale = coreScale(fam); // phase 6: the planet's live size (1 unless a hyper family is out)
 }
 
-export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = false, emitters = {}, strikes = null, overlay = false, activePhase = null, aetherClock = null, fades = null, holdLiquid = false, onFps = null }) {
+export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = false, emitters = {}, strikes = null, overlay = false, activePhase = null, aetherClock = null, fades = null, onFps = null }) {
   const gl = useThree((s) => s.gl);
   const camera = useThree((s) => s.camera);
   // The drawing buffer's height in device px: the pops are sized from it (mercuryRoil.popZoom).
@@ -535,7 +535,6 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     const ds = drag.sample(performance.now());
     const { dragging, omegaPtr } = ds;
     const stepS = Math.min(delta, MAX_FRAME_DT_S);
-    body.holdLiquid = holdLiquid;
     stepBody(body, stepS, { dragging, omegaPtr, target, calm });
     coolBody(body, delta - stepS); // the clamp holds the body still, not the heat: a hidden tab still cools
     u.uBodyRot.value.setFromMatrix4(m4.makeRotationFromQuaternion(body.q));

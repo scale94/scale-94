@@ -1,5 +1,5 @@
 import { useRef, useReducer, useCallback, useEffect } from 'react';
-import { ELEMENTS, createMachine, request, advance, holdLiquid, activeElement, targetElement } from './transitionMachine';
+import { ELEMENTS, createMachine, request, advance, activeElement, targetElement } from './transitionMachine';
 
 export const PHASES = ELEMENTS;
 
@@ -40,7 +40,6 @@ export default function usePhaseTransition() {
     targetPhase: targetElement(m),
     fades: { ...m.fade },
     transitionState: m.beat,
-    holdLiquid: holdLiquid(m),
     triggerTransition,
   };
 }

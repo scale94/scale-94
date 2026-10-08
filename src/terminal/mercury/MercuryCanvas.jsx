@@ -59,7 +59,7 @@ export default function MercuryCanvas({
   onFps = null,
   overlay = false,
 }) {
-  const { activePhase, targetPhase, fades, transitionState, holdLiquid, triggerTransition } = usePhaseTransition();
+  const { activePhase, targetPhase, fades, transitionState, triggerTransition } = usePhaseTransition();
 
   const calm = useCalm();
   // One time base for the gas and the mirror sky (mirror-sky spec §1). Configured every render, ticked per frame.
@@ -192,7 +192,6 @@ export default function MercuryCanvas({
           activePhase={activePhase}
           aetherClock={aetherClock}
           fades={fades}
-          holdLiquid={holdLiquid}
           onFps={activePhase ? null : onFps}
         />
         <MercurySphere

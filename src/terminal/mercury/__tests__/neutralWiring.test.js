@@ -29,16 +29,16 @@ describe('MercuryCanvas — neutral state wiring', () => {
     expect(canvasSrc).toMatch(/useEffect\(\(\) => \{\s*onPhaseChange\?\.\(targetPhase\);\s*\}, \[targetPhase, onPhaseChange\]\);/);
     expect(canvasSrc).toMatch(/const handleNodeTap = useCallback\(\(phase\) => \{\s*triggerTransition\(phase\);\s*\}, \[triggerTransition\]\);/);
   });
-  it('hands the planet the fades, the hold and the neutral FPS', () => {
+  it('hands the planet the fades and the neutral FPS, never a liquid hold (author 2026-10-08: spin melts, rest is crust)', () => {
     expect(canvasSrc).toContain('fades={fades}');
-    expect(canvasSrc).toContain('holdLiquid={holdLiquid}');
+    expect(canvasSrc).not.toContain('holdLiquid');
     expect(canvasSrc).toContain('onFps={activePhase ? null : onFps}');
   });
 });
 
 describe('MercuryPlanet — neutral state wiring', () => {
-  it('sets the hold on the body before stepping it', () => {
-    expect(planetSrc).toMatch(/body\.holdLiquid = holdLiquid;\s*\n\s*stepBody\(body,/);
+  it('never holds the body liquid: only spin heat melts it', () => {
+    expect(planetSrc).not.toContain('holdLiquid');
   });
   it('mirror sky weights come from the fades', () => {
     expect(planetSrc).toContain('skyWeights(fades, skyW);');
