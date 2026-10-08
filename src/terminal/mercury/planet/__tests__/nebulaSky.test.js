@@ -5,7 +5,7 @@ import {
   NEBULA_FACE, NEBULA_GEN_GLSL, NEBULA_BAKE_VS, NEBULA_BAKE_FS, nebulaRotation,
   NEBULA_FLOOR, NEBULA_VOID_SCALE, NEBULA_VOID_LO, NEBULA_VOID_HI, NEBULA_WISP_SCALE, NEBULA_WISP_WARP,
   NEBULA_WISP_POW, NEBULA_WISP_BASE, NEBULA_WISP_GAIN, NEBULA_STAR_CELLS, NEBULA_STAR_RATE, NEBULA_STAR_SIGMA,
-  NEBULA_STAR_MIN, NEBULA_STAR_MAX, NEBULA_HALO_W, NEBULA_HALO_GAIN,
+  NEBULA_STAR_MIN, NEBULA_STAR_MAX, NEBULA_HALO_W, NEBULA_HALO_GAIN, NEBULA_STAR_REACH,
 } from '../nebulaSky';
 import { SKY_NOISE_GLSL, NEUTRAL_SKY_DRIFT } from '../aetherSky';
 
@@ -15,7 +15,8 @@ describe('nebulaSky', () => {
   it('every constant reaches the generator', () => {
     for (const [n, v] of Object.entries({ NEBULA_FLOOR, NEBULA_VOID_SCALE, NEBULA_VOID_LO, NEBULA_VOID_HI,
       NEBULA_WISP_SCALE, NEBULA_WISP_WARP, NEBULA_WISP_POW, NEBULA_WISP_BASE, NEBULA_WISP_GAIN, NEBULA_STAR_CELLS,
-      NEBULA_STAR_RATE, NEBULA_STAR_SIGMA, NEBULA_STAR_MIN, NEBULA_STAR_MAX, NEBULA_HALO_W, NEBULA_HALO_GAIN })) {
+      NEBULA_STAR_RATE, NEBULA_STAR_SIGMA, NEBULA_STAR_MIN, NEBULA_STAR_MAX, NEBULA_HALO_W, NEBULA_HALO_GAIN,
+      NEBULA_STAR_REACH })) {
       expect(NEBULA_GEN_GLSL).toContain(`const float ${n} = ${glf(v)};`);
     }
   });
@@ -28,7 +29,7 @@ describe('nebulaSky', () => {
     expect(NEBULA_GEN_GLSL).not.toMatch(/uniform/); // bake-time pure function of direction
   });
 
-  it('stars: sparse, sharp cores reaching the shoulder; 27-cell neighbourhood so halos never clip', () => {
+  it('stars: sparse, sharp cores reaching the shoulder; windowed inside the 27-cell search so nothing clips', () => {
     expect(NEBULA_STAR_RATE).toBeGreaterThan(0.99);
     expect(NEBULA_STAR_MIN).toBeGreaterThanOrEqual(3);
     expect(NEBULA_STAR_MAX).toBeLessThanOrEqual(8);
@@ -36,6 +37,10 @@ describe('nebulaSky', () => {
     expect(NEBULA_STAR_SIGMA / texel).toBeGreaterThan(1.2);
     expect(NEBULA_STAR_SIGMA / texel).toBeLessThan(2.5);
     expect(NEBULA_GEN_GLSL).toContain('for (int dz = -1; dz <= 1; dz++)');
+    // excluded stars are >= (1 + 0.5 - 0.4) = 1.1 cells away (jitter 0.8 x [-0.5, 0.5] around the cell centre)
+    expect(NEBULA_STAR_REACH).toBeLessThan(1.1);
+    expect(NEBULA_GEN_GLSL).toContain('* smoothstep(reach, 0.5 * reach, d);');
+    expect(NEBULA_GEN_GLSL).toContain('c + 0.5 + 0.8 * j');
   });
 
   it('void floor darker than the studio floor (obsidian pockets)', () => {

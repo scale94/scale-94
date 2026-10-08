@@ -28,6 +28,7 @@ export const NEBULA_STAR_MIN = 3;        // core peak range: into AETHER_SHOULDE
 export const NEBULA_STAR_MAX = 8;
 export const NEBULA_HALO_W = 6;          // halo width × sigma
 export const NEBULA_HALO_GAIN = 0.02;    // halo peak × core peak
+export const NEBULA_STAR_REACH = 1;      // a star's light (core + halo) is windowed to zero at this many cells: stars outside the 27-cell search are ≥ 1.1 cells away, so nothing is cut
 
 export const NEBULA_GEN_GLSL = /* glsl */ `// ── neutral nebula generator (nebulaSky.js), bake-time only ──
 const int SKY_OCTAVES = ${SKY_OCTAVES};
@@ -47,13 +48,16 @@ const float NEBULA_STAR_MIN = ${glf(NEBULA_STAR_MIN)};
 const float NEBULA_STAR_MAX = ${glf(NEBULA_STAR_MAX)};
 const float NEBULA_HALO_W = ${glf(NEBULA_HALO_W)};
 const float NEBULA_HALO_GAIN = ${glf(NEBULA_HALO_GAIN)};
+const float NEBULA_STAR_REACH = ${glf(NEBULA_STAR_REACH)};
 
 ${SKY_NOISE_GLSL}
 
-// Stars on a 3D lattice around the unit sphere; the 27-cell neighbourhood keeps halos (wider than a cell) whole.
+// Stars on a 3D lattice around the unit sphere. Each star's light is windowed to zero within NEBULA_STAR_REACH cells;
+// stars outside the 27-cell neighbourhood are ≥ 1.1 cells away (jitter ≤ 0.4 cell), so no star is ever cut at a cell edge.
 float nebStars(vec3 D) {
   vec3 g = D * NEBULA_STAR_CELLS;
   vec3 gi = floor(g);
+  float reach = NEBULA_STAR_REACH / NEBULA_STAR_CELLS;
   float s = 0.0;
   for (int dz = -1; dz <= 1; dz++)
   for (int dy = -1; dy <= 1; dy++)
@@ -68,7 +72,7 @@ float nebStars(vec3 D) {
     float core = exp(-(d * d) / (NEBULA_STAR_SIGMA * NEBULA_STAR_SIGMA));
     float hw = NEBULA_STAR_SIGMA * NEBULA_HALO_W;
     float halo = NEBULA_HALO_GAIN * exp(-(d * d) / (hw * hw));
-    s += peak * (core + halo);
+    s += peak * (core + halo) * smoothstep(reach, 0.5 * reach, d);
   }
   return s;
 }
