@@ -111,12 +111,12 @@ describe('aetherSky', () => {
       expect(NEUTRAL_STRIP_Y1 - NEUTRAL_STRIP_Y0).toBeGreaterThan(2 * NEUTRAL_STRIP_YSOFT);
     });
 
-    it('studio dome: directional (bright overhead, dark below), live, default off until the author rules', () => {
+    it('studio dome: directional (bright overhead, dark below), live, default .06 (author 2026-10-08)', () => {
       expect(AETHER_SKY_GLSL).toContain('L += uStudioDome * (NEUTRAL_DOME_NADIR + (1.0 - NEUTRAL_DOME_NADIR) * pow(0.5 + 0.5 * R.y, NEUTRAL_DOME_POW));');
-      expect(NEUTRAL_DOME_NADIR).toBeLessThan(0.2); // never a flat wash: zenith ≥ 5× nadir
+      expect(NEUTRAL_DOME_NADIR).toBeLessThanOrEqual(0.06); // never a flat wash, underbelly stays dark: zenith ≥ ~17× nadir
       expect(HG_MIRROR_UNIFORMS).toContain('uStudioDome');
       expect(PLANET_UNIFORMS).toContain('uStudioDome');
-      expect(PLANET_TUNE.studioDome).toBe(0);
+      expect(PLANET_TUNE.studioDome).toBe(0.06);
       // numeric mean of the dome shape over the sphere (uniform in R.y)
       const N = 20000; let m = 0;
       for (let i = 0; i < N; i++) { const y = -1 + (2 * (i + 0.5)) / N; m += NEUTRAL_DOME_NADIR + (1 - NEUTRAL_DOME_NADIR) * ((1 + y) / 2) ** NEUTRAL_DOME_POW; }
