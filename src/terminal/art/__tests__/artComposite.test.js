@@ -8,7 +8,7 @@
 
 import { describe, it, expect, afterEach } from 'vitest';
 import {
-  compositeDpr, coarsePointer, glBufferSettled, LAYER_Z, COMPOSITE_STYLE, BLOOM, VIGNETTE,
+  compositeDpr, DPR_CAP_COARSE, coarsePointer, glBufferSettled, LAYER_Z, COMPOSITE_STYLE, BLOOM, VIGNETTE,
 } from '../artComposite';
 
 describe('compositeDpr', () => {
@@ -28,14 +28,15 @@ describe('compositeDpr', () => {
     expect(compositeDpr(NaN)).toBe(1);
   });
 
-  it('caps a coarse pointer at 1, which is the DPR the bloom was swept at', () => {
+  it('caps a coarse pointer at DPR_CAP_COARSE (1.5, author call 5d222a4c)', () => {
     // Phones run 2.5-3x, so this is where the fragment count actually falls.
-    // It is not a degradation: `intensity` and `levels` were both chosen on
-    // frames captured at DPR 1 because the mipmap pyramid is measured in
-    // DEVICE pixels — see the two dated blocks in artComposite.js.
-    expect(compositeDpr(3, true)).toBe(1);
-    expect(compositeDpr(2.5, true)).toBe(1);
-    expect(compositeDpr(2, true)).toBe(1);
+    // 1.5 sharpens sub-pixel text and node rings on high-DPI phones at ~2.25x
+    // the fill cost of 1x, against 4x for 2.0 — see the block above the
+    // constant in artComposite.js. BLOOM/KNEE were swept at DPR 1 and left as
+    // measured; a coarse-pointer frame-rate regression means redoing that sweep.
+    expect(compositeDpr(3, true)).toBe(DPR_CAP_COARSE);
+    expect(compositeDpr(2.5, true)).toBe(DPR_CAP_COARSE);
+    expect(compositeDpr(2, true)).toBe(DPR_CAP_COARSE);
   });
 
   it('never UPSCALES a coarse pointer that is already below 1', () => {
