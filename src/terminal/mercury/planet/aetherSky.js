@@ -8,9 +8,10 @@
 // Internal motion (warp, flicker, tumble) reads the calm-gated clock time uSkyT.
 // Roughness drops octaves (dropped octaves contribute their mean) and, from SKY_ROUGH_FLAT, the sky is just its
 // element's mean radiance: the frost and evaporite ambient lookups (rough 1) and the polycrystalline crust cost
-// ~nothing. Every helper is sky-prefixed: this chunk lands in four shaders that define their own noise.
-// Needs (declared by HG_MIRROR_DECLS_GLSL): uSkyT, uSkyPhase, uSkyW, uNeutralSky, uStudioDome, uStudioLook, uStudioMean, uNeutralNebula, uNebulaRot,
-// uNebulaMap, uSunDir.
+// ~nothing. Every helper is sky-prefixed: these chunks land in shaders that define their own noise.
+// ELEMENT_SKY_GLSL (the generators) runs only in the per-frame cube bake (elementSkyBake.js; needs uSkyT, uSkyPhase, uSkyW,
+// uSunDir). AETHER_SKY_GLSL is the mirror's side; needs (declared by HG_MIRROR_DECLS_GLSL): uSkyW, uNeutralSky, uStudioDome,
+// uStudioLook, uStudioMean, uNeutralNebula, uNebulaRot, uNebulaMap, uElementSky, uSunDir.
 
 import { glf, v3 } from '../../gl/glf';
 import { FLUID_SKY_RAD, AIR_SKY_RAD, AIR_LOWER_DIR, FIRE_SKY_RISE, EARTH_SKY_SINK } from './aetherClock';
@@ -118,6 +119,13 @@ export const NEBULA_MAX_LOD = 6;
 // a mirror pixel whose reflection spans more than a texel samples a coarser mip instead of aliasing (the limb shimmer).
 export const NEBULA_FACE = 256;          // cube face size (px); 512 is the open author call if cores read soft
 export const NEBULA_TEXEL_RAD = (Math.PI / 2) / NEBULA_FACE; // mean texel angle on a face
+// The element skies are baked each frame into one shared cube (elementSkyBake.js), so the ~22 fBm calls of a full sky are
+// compiled once, not once per mirror call site (ANGLE/FXC inlines every call: the planet has 9, the visitors 4 inside an
+// unrolled loop, which took 52 s and 47 s to compile on D3D11, measured 2026-10-10). Same face size as the nebula, so
+// skyPxLod (sized from NEBULA_TEXEL_RAD) floors both. A rough mirror reads a coarser mip: 4 levels across the k range
+// stand in for the 4 octaves the analytic sky used to drop (SKY_OCTAVES 5 -> 1).
+export const ELEMENT_SKY_FACE = NEBULA_FACE;
+export const ELEMENT_SKY_MAX_LOD = 4;
 // Mean radiance of each sky over all directions (linear), the value a fully rough mirror sees. Measured 2026-10-05 (air re-measured 2026-10-07, soft threads)
 // (plan Task 5, .superpowers/sdd/tools/ms-mean.mjs): 128x64 equirect RGBA32F, cos-latitude weighted, rough 0,
 // 5 clock samples (t 0/7/19/31/53 s at speed 0.1, orbitalSpeed 1.2). Re-measure if a sky function changes.
@@ -152,7 +160,7 @@ float skyFbm(vec3 p, float nOct) {
   return s;
 }`;
 
-export const AETHER_SKY_GLSL = /* glsl */ `// ── aether sky (aetherSky.js) ──
+export const ELEMENT_SKY_GLSL = /* glsl */ `// ── element skies (aetherSky.js), bake time only (elementSkyBake.js) ──
 const int SKY_OCTAVES = ${SKY_OCTAVES};
 const float FLUID_SKY_RAD = ${glf(FLUID_SKY_RAD)};
 const float AIR_SKY_RAD = ${glf(AIR_SKY_RAD)};
@@ -165,45 +173,9 @@ const float AIR_SKY_LAT = ${glf(AIR_SKY_LAT)};
 const float AIR_SKY_WARP = ${glf(AIR_SKY_WARP)};
 const float FIRE_SKY_RISE = ${glf(FIRE_SKY_RISE)};
 const float EARTH_SKY_SINK = ${glf(EARTH_SKY_SINK)};
-const float SKY_ROUGH_SHARP = ${glf(SKY_ROUGH_SHARP)};
-const float SKY_ROUGH_FLAT = ${glf(SKY_ROUGH_FLAT)};
 const float SKY_W_MIN = ${glf(SKY_W_MIN)};
 const float SKY_PING_EXP = ${glf(SKY_PING_EXP)};
 const float SKY_PING_GAIN = ${glf(SKY_PING_GAIN)};
-const vec3 SKY_MEAN_FLUID = ${v3(SKY_MEAN.fluid)};
-const vec3 SKY_MEAN_THERMAL = ${v3(SKY_MEAN.thermal)};
-const vec3 SKY_MEAN_EARTH = ${v3(SKY_MEAN.earth)};
-const vec3 SKY_MEAN_AIR = ${v3(SKY_MEAN.air)};
-const float NEUTRAL_SKY_FLOOR = ${glf(NEUTRAL_SKY_FLOOR)};
-const float TENT_EDGE_CRISP = ${glf(TENT_EDGE_CRISP)};
-const float TENT_CANOPY_HX = ${glf(TENT_CANOPY_HX)};
-const float TENT_CANOPY_Z0 = ${glf(TENT_CANOPY_Z0)};
-const float TENT_CANOPY_Z1 = ${glf(TENT_CANOPY_Z1)};
-const float TENT_CANOPY_FADE = ${glf(TENT_CANOPY_FADE)};
-const float TENT_CANOPY_FRONT_SOFT = ${glf(TENT_CANOPY_FRONT_SOFT)};
-const float TENT_CANOPY_BACK = ${glf(TENT_CANOPY_BACK)};
-const float TENT_CANOPY_SIDE = ${glf(TENT_CANOPY_SIDE)};
-const vec2 TENT_STRIP_AZ = vec2(${glf(TENT_STRIP_AZ[0])}, ${glf(TENT_STRIP_AZ[1])});
-const float TENT_STRIP_HW = ${glf(TENT_STRIP_HW)};
-const float TENT_STRIP_SOFT = ${glf(TENT_STRIP_SOFT)};
-const float TENT_STRIP_Y0 = ${glf(TENT_STRIP_Y0)};
-const float TENT_STRIP_Y1 = ${glf(TENT_STRIP_Y1)};
-const float TENT_STRIP_YSOFT = ${glf(TENT_STRIP_YSOFT)};
-const float TENT_STRIP_FEATHER = ${glf(TENT_STRIP_FEATHER)};
-const float TENT_STRIP_LUM = ${glf(TENT_STRIP_LUM)};
-const vec2 TENT_STRIP_GAIN = vec2(${glf(TENT_STRIP_GAIN[0])}, ${glf(TENT_STRIP_GAIN[1])});
-const float TENT_GAP = ${glf(TENT_GAP)};
-const float TENT_FLOOR_SOFT = ${glf(TENT_FLOOR_SOFT)};
-const float TENT_FLOOR_FRONT = ${glf(TENT_FLOOR_FRONT)};
-const float NEUTRAL_DOME_NADIR = ${glf(NEUTRAL_DOME_NADIR)};
-const float NEUTRAL_DOME_POW = ${glf(NEUTRAL_DOME_POW)};
-const float NEUTRAL_SKY_DRIFT = ${glf(NEUTRAL_SKY_DRIFT)};
-const vec3 SKY_MEAN_NEUTRAL = ${v3(SKY_MEAN.neutral)}; // documents the default studio; the mirror uses uStudioMean (live)
-const vec3 SKY_MEAN_NEBULA = ${v3(SKY_MEAN.nebula)};
-const float NEBULA_MAX_LOD = ${glf(NEBULA_MAX_LOD)};
-const float NEBULA_TEXEL_RAD = ${glf(NEBULA_TEXEL_RAD)};
-// Mip floor from the reflection's pixel footprint; a shader with screen derivatives sets it in main (the planet), the rest leave 0.
-float skyPxLod = 0.0;
 
 ${SKY_NOISE_GLSL}
 vec3 skyRotZ(vec3 v, float a) { float c = cos(a), s = sin(a); return vec3(c * v.x - s * v.y, s * v.x + c * v.y, v.z); }
@@ -290,6 +262,58 @@ vec3 skyAir(vec3 R, float nOct) {
   return c;
 }
 
+// What the element cube holds: the weighted element skies at full detail (rough 0). A rougher mirror blurs it by the
+// cube's mips (skyElements). Only the weighted elements are evaluated.
+vec3 elementSkies(vec3 R) {
+  float nOct = float(SKY_OCTAVES);
+  vec3 s = vec3(0.0);
+  if (uSkyW.x > SKY_W_MIN) s += uSkyW.x * skyFluid(R, nOct);
+  if (uSkyW.y > SKY_W_MIN) s += uSkyW.y * skyThermal(R, nOct);
+  if (uSkyW.z > SKY_W_MIN) s += uSkyW.z * skyEarth(R, nOct, 0.0);
+  if (uSkyW.w > SKY_W_MIN) s += uSkyW.w * skyAir(R, nOct);
+  return s;
+}`;
+
+export const AETHER_SKY_GLSL = /* glsl */ `// ── aether sky (aetherSky.js) ──
+const float SKY_ROUGH_SHARP = ${glf(SKY_ROUGH_SHARP)};
+const float SKY_ROUGH_FLAT = ${glf(SKY_ROUGH_FLAT)};
+const float SKY_W_MIN = ${glf(SKY_W_MIN)};
+const vec3 SKY_MEAN_FLUID = ${v3(SKY_MEAN.fluid)};
+const vec3 SKY_MEAN_THERMAL = ${v3(SKY_MEAN.thermal)};
+const vec3 SKY_MEAN_EARTH = ${v3(SKY_MEAN.earth)};
+const vec3 SKY_MEAN_AIR = ${v3(SKY_MEAN.air)};
+const float NEUTRAL_SKY_FLOOR = ${glf(NEUTRAL_SKY_FLOOR)};
+const float TENT_EDGE_CRISP = ${glf(TENT_EDGE_CRISP)};
+const float TENT_CANOPY_HX = ${glf(TENT_CANOPY_HX)};
+const float TENT_CANOPY_Z0 = ${glf(TENT_CANOPY_Z0)};
+const float TENT_CANOPY_Z1 = ${glf(TENT_CANOPY_Z1)};
+const float TENT_CANOPY_FADE = ${glf(TENT_CANOPY_FADE)};
+const float TENT_CANOPY_FRONT_SOFT = ${glf(TENT_CANOPY_FRONT_SOFT)};
+const float TENT_CANOPY_BACK = ${glf(TENT_CANOPY_BACK)};
+const float TENT_CANOPY_SIDE = ${glf(TENT_CANOPY_SIDE)};
+const vec2 TENT_STRIP_AZ = vec2(${glf(TENT_STRIP_AZ[0])}, ${glf(TENT_STRIP_AZ[1])});
+const float TENT_STRIP_HW = ${glf(TENT_STRIP_HW)};
+const float TENT_STRIP_SOFT = ${glf(TENT_STRIP_SOFT)};
+const float TENT_STRIP_Y0 = ${glf(TENT_STRIP_Y0)};
+const float TENT_STRIP_Y1 = ${glf(TENT_STRIP_Y1)};
+const float TENT_STRIP_YSOFT = ${glf(TENT_STRIP_YSOFT)};
+const float TENT_STRIP_FEATHER = ${glf(TENT_STRIP_FEATHER)};
+const float TENT_STRIP_LUM = ${glf(TENT_STRIP_LUM)};
+const vec2 TENT_STRIP_GAIN = vec2(${glf(TENT_STRIP_GAIN[0])}, ${glf(TENT_STRIP_GAIN[1])});
+const float TENT_GAP = ${glf(TENT_GAP)};
+const float TENT_FLOOR_SOFT = ${glf(TENT_FLOOR_SOFT)};
+const float TENT_FLOOR_FRONT = ${glf(TENT_FLOOR_FRONT)};
+const float NEUTRAL_DOME_NADIR = ${glf(NEUTRAL_DOME_NADIR)};
+const float NEUTRAL_DOME_POW = ${glf(NEUTRAL_DOME_POW)};
+const float NEUTRAL_SKY_DRIFT = ${glf(NEUTRAL_SKY_DRIFT)};
+const vec3 SKY_MEAN_NEUTRAL = ${v3(SKY_MEAN.neutral)}; // documents the default studio; the mirror uses uStudioMean (live)
+const vec3 SKY_MEAN_NEBULA = ${v3(SKY_MEAN.nebula)};
+const float NEBULA_MAX_LOD = ${glf(NEBULA_MAX_LOD)};
+const float NEBULA_TEXEL_RAD = ${glf(NEBULA_TEXEL_RAD)};
+const float ELEMENT_SKY_MAX_LOD = ${glf(ELEMENT_SKY_MAX_LOD)};
+// Mip floor from the reflection's pixel footprint; a shader with screen derivatives sets it in main (the planet), the rest leave 0.
+float skyPxLod = 0.0;
+
 // The neutral studio: the macro tabletop tent (header; studioRadiance is its JS replica). Camera-fixed, no noise.
 vec3 skyStudio(vec3 R) {
   float c = uStudioLook.x;
@@ -323,22 +347,38 @@ vec3 skyNebula(vec3 R, float k) {
   return textureLod(uNebulaMap, uNebulaRot * R, max(k * NEBULA_MAX_LOD, skyPxLod)).rgb;
 }
 
+// The element skies, baked each frame into one shared cube (elementSkyBake.js): one textureLod, not ~22 fBm. Mip = the
+// roughness blur that dropped octaves used to give, floored by the pixel footprint like the nebula (same face size).
+vec3 skyElements(vec3 R, float k) {
+  return textureLod(uElementSky, R, max(k * ELEMENT_SKY_MAX_LOD, skyPxLod)).rgb;
+}
+
 // The active element's sky (at most one is up: switches pass through neutral), in a mirror of roughness rough; the neutral sky fills
 // whatever weight the element skies leave (full in neutral, zero once an element's sky is at full weight).
 vec3 aetherSky(vec3 R, float rough) {
   float k = smoothstep(SKY_ROUGH_SHARP, SKY_ROUGH_FLAT, rough);
-  float wN = uNeutralSky * clamp(1.0 - (uSkyW.x + uSkyW.y + uSkyW.z + uSkyW.w), 0.0, 1.0);
+  float wE = uSkyW.x + uSkyW.y + uSkyW.z + uSkyW.w;
+  float wN = uNeutralSky * clamp(1.0 - wE, 0.0, 1.0);
   vec3 mean = uSkyW.x * SKY_MEAN_FLUID + uSkyW.y * SKY_MEAN_THERMAL + uSkyW.z * SKY_MEAN_EARTH + uSkyW.w * SKY_MEAN_AIR;
   float wStudio = wN * (1.0 - uNeutralNebula), wNeb = wN * uNeutralNebula;
   mean += wStudio * uStudioMean; // studioMeanCached (JS) at the live knobs
   vec3 neb = wNeb > SKY_W_MIN ? wNeb * skyNebula(R, k) : vec3(0.0);
   if (k >= 1.0) return mean + neb;
-  float nOct = mix(float(SKY_OCTAVES), 1.0, k);
   vec3 s = vec3(0.0);
-  if (uSkyW.x > SKY_W_MIN) s += uSkyW.x * skyFluid(R, nOct);
-  if (uSkyW.y > SKY_W_MIN) s += uSkyW.y * skyThermal(R, nOct);
-  if (uSkyW.z > SKY_W_MIN) s += uSkyW.z * skyEarth(R, nOct, k);
-  if (uSkyW.w > SKY_W_MIN) s += uSkyW.w * skyAir(R, nOct);
+  if (wE > SKY_W_MIN) s += skyElements(R, k); // the cube already carries the weights
   if (wStudio > SKY_W_MIN) s += wStudio * skyStudio(R);
   return mix(s, mean, k) + neb;
+}`;
+
+// Bake pass (elementSkyBake.js): a BackSide unit sphere at the cube camera's origin, as the nebula bake (nebulaSky.js).
+export const ELEMENT_SKY_BAKE_FS = /* glsl */ `precision highp float;
+uniform float uSkyT;
+uniform vec4 uSkyPhase;
+uniform vec4 uSkyW;
+uniform vec3 uSunDir;
+in vec3 vDir;
+out vec4 o;
+${ELEMENT_SKY_GLSL}
+void main() {
+  o = vec4(elementSkies(normalize(vDir)), 1.0);
 }`;

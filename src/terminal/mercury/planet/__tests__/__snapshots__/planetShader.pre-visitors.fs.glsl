@@ -39,6 +39,7 @@ uniform float uStudioMean;
 uniform float uNeutralNebula;
 uniform mat3 uNebulaRot;
 uniform samplerCube uNebulaMap;
+uniform samplerCube uElementSky;
 uniform sampler2D uScar;
 uniform float uRayGain;
 uniform float uSurfOn;
@@ -314,23 +315,9 @@ vec3 aetherHue(vec3 col) {
 }
 
 // ── aether sky (aetherSky.js) ──
-const int SKY_OCTAVES = 5;
-const float FLUID_SKY_RAD = 10.0530965;
-const float AIR_SKY_RAD = 0.750000000;
-const float AIR_LOWER_DIR = -0.850000000;
-const float AIR_SHEAR_BAND = 0.250000000;
-const float AIR_SKY_LINE_POW = 10.0000000;
-const float AIR_SKY_ENV_POW = 1.50000000;
-const float AIR_SKY_WARP_Y = 0.150000000;
-const float AIR_SKY_LAT = 3.50000000;
-const float AIR_SKY_WARP = 0.600000000;
-const float FIRE_SKY_RISE = 1.47500000;
-const float EARTH_SKY_SINK = 0.890057143;
 const float SKY_ROUGH_SHARP = 0.150000000;
 const float SKY_ROUGH_FLAT = 0.600000000;
 const float SKY_W_MIN = 0.00400000000;
-const float SKY_PING_EXP = 250.000000;
-const float SKY_PING_GAIN = 10.0000000;
 const vec3 SKY_MEAN_FLUID = vec3(0.0170200000, 0.0198900000, 0.0373600000);
 const vec3 SKY_MEAN_THERMAL = vec3(0.0291700000, 0.00929700000, 0.00109200000);
 const vec3 SKY_MEAN_EARTH = vec3(0.00852600000, 0.00528400000, 0.00242000000);
@@ -363,111 +350,9 @@ const vec3 SKY_MEAN_NEUTRAL = vec3(0.208443441, 0.208443441, 0.208443441); // do
 const vec3 SKY_MEAN_NEBULA = vec3(0.0179200000, 0.0179200000, 0.0179200000);
 const float NEBULA_MAX_LOD = 6.00000000;
 const float NEBULA_TEXEL_RAD = 0.00613592315;
+const float ELEMENT_SKY_MAX_LOD = 4.00000000;
 // Mip floor from the reflection's pixel footprint; a shader with screen derivatives sets it in main (the planet), the rest leave 0.
 float skyPxLod = 0.0;
-
-float skyHash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
-float skyNoise(vec3 x) {
-  vec3 i = floor(x), f = fract(x);
-  f = f * f * (3.0 - 2.0 * f);
-  return mix(mix(mix(skyHash(i), skyHash(i + vec3(1, 0, 0)), f.x), mix(skyHash(i + vec3(0, 1, 0)), skyHash(i + vec3(1, 1, 0)), f.x), f.y),
-             mix(mix(skyHash(i + vec3(0, 0, 1)), skyHash(i + vec3(1, 0, 1)), f.x), mix(skyHash(i + vec3(0, 1, 1)), skyHash(i + vec3(1, 1, 1)), f.x), f.y), f.z);
-}
-// fBm on an octave budget nOct (float): octaves past it contribute their mean, so a rougher mirror keeps the
-// same brightness with less detail.
-float skyFbm(vec3 p, float nOct) {
-  float a = 0.5, s = 0.0;
-  for (int i = 0; i < SKY_OCTAVES; i++) {
-    float w = clamp(nOct - float(i), 0.0, 1.0);
-    s += a * (w > 0.0 ? mix(0.5, skyNoise(p), w) : 0.5);
-    p = p * 2.03 + vec3(1.7, 9.2, 3.1);
-    a *= 0.5;
-  }
-  return s;
-}
-vec3 skyRotZ(vec3 v, float a) { float c = cos(a), s = sin(a); return vec3(c * v.x - s * v.y, s * v.x + c * v.y, v.z); }
-
-// Water: curling filaments and folding sheets, forward-scattering (brighter toward the Sun). The knot's axis is +Z.
-vec3 skyFluid(vec3 R, float nOct) {
-  float t = uSkyT;
-  vec3 q = skyRotZ(R, -FLUID_SKY_RAD * uSkyPhase.x) * 2.2;
-  vec3 w = vec3(skyFbm(q + vec3(0.0, 0.0, t * 0.15), nOct), skyFbm(q + vec3(5.2, 1.3, -t * 0.12), nOct), skyFbm(q + vec3(2.1, 7.7, t * 0.1), nOct));
-  float n = skyFbm(q * 1.1 + 1.8 * w, nOct);
-  float ridge = pow(1.0 - abs(n * 2.0 - 1.0), 9.0);
-  float sheet = smoothstep(0.40, 0.75, skyFbm(q * 0.6 + w * 1.2 + vec3(0.0, t * 0.05, 0.0), nOct));
-  vec3 col = mix(vec3(0.22, 0.55, 0.78), vec3(0.52, 0.32, 0.85), smoothstep(0.3, 0.7, w.x));
-  float fwd = 0.35 + 1.4 * pow(max(dot(R, uSunDir), 0.0), 3.0);
-  return col * (ridge * 0.12 + sheet * ridge * 1.5 + sheet * 0.02) * fwd * 0.55;
-}
-
-// Fire: self-lit tongues rooted low, rising at the flame's own pace, flickering; blackbody ramp; ignores the Sun.
-vec3 skyThermal(vec3 R, float nOct) {
-  float t = uSkyT;
-  float flick = 0.85 + 0.15 * skyNoise(vec3(t * 6.0, 0.0, 0.0));
-  vec3 q = vec3(R.x * 3.2, (R.y - FIRE_SKY_RISE * uSkyPhase.y) * 1.3, R.z * 3.2);
-  vec3 w = vec3(skyFbm(q * 0.8 + vec3(t * 0.3, 0.0, 0.0), nOct), skyFbm(q * 0.8 + vec3(3.0, t * 0.2, 1.0), nOct), 0.0);
-  float n = skyFbm(q + vec3(w.xy * 1.5, 0.0), nOct);
-  float base = smoothstep(0.55, -0.7, R.y);
-  float tg = smoothstep(0.42 + 0.35 * (1.0 - base), 0.92, n) * flick;
-  vec3 ember = vec3(0.45, 0.05, 0.0), orange = vec3(1.0, 0.38, 0.04), yellow = vec3(1.0, 0.82, 0.45);
-  vec3 c = mix(ember, orange, smoothstep(0.0, 0.5, tg));
-  c = mix(c, yellow, smoothstep(0.5, 1.0, tg));
-  return c * tg * (0.25 + 0.9 * base) * 0.9;
-}
-
-// Earth: dim ochre haze + sparse grains settling at the sediment's pace, backscattering (brightest opposite the
-// Sun); each grain a tumbling facet that rarely flashes a sharp Sun ping on the sunward, haze-dark side.
-// The tumble phase is t × a constant per-grain rate: integrated by construction; calm freezes t.
-vec3 skyEarth(vec3 R, float nOct, float k) {
-  float t = uSkyT;
-  vec3 Rs = R + vec3(0.0, EARTH_SKY_SINK * uSkyPhase.z, 0.0);
-  vec3 q = Rs * 3.0;
-  float haze = smoothstep(0.35, 0.85, skyFbm(q + skyFbm(q * 1.5, nOct) * 0.8, nOct));
-  vec3 g = Rs * 70.0;
-  vec3 gi = floor(g);
-  float hh = skyHash(gi);
-  float isGrain = step(0.93, hh);
-  float dg = length(fract(g) - 0.5);
-  float grain = isGrain * smoothstep(0.45, 0.0, dg) * (0.6 + 0.4 * sin(t * 1.3 + hh * 40.0));
-  float opp = 0.25 + 1.6 * pow(max(dot(R, -uSunDir), 0.0), 4.0);
-  float h2 = skyHash(gi + 17.0), h3 = skyHash(gi + 41.0), h4 = skyHash(gi + 73.0);
-  vec3 m = normalize(vec3(sin(t * (0.7 + h2) + h3 * 40.0), sin(t * (0.5 + h3) + h4 * 40.0), sin(t * (0.6 + h4) + h2 * 40.0)));
-  vec3 hv = normalize(uSunDir - R);
-  float spec = pow(max(dot(m, hv), 0.0), SKY_PING_EXP);
-  float sunward = smoothstep(-0.3, 0.5, dot(R, uSunDir));
-  float dc = length(g - normalize(gi + 0.5) * length(g));
-  float core = smoothstep(0.55, 0.0, dc);
-  vec3 ping = vec3(1.0, 0.93, 0.78) * spec * core * sunward * isGrain * SKY_PING_GAIN * (1.0 - smoothstep(0.0, 0.15, k));
-  return vec3(0.78, 0.47, 0.20) * (haze * 0.10 + grain * 0.9) * opp + ping;
-}
-
-// Air: streamlines along the orbit, the upper layer one way, the lower AIR_LOWER_DIR the other; Rayleigh-weighted.
-// Soft threads §5: a gentler latitude stretch (AIR_SKY_LAT, was 8), a warp in the layer's own frame (ph: periodic,
-// rigid with its layer, on the calm-gated sky clock), softer ridges, a smooth (1 - y²)^k envelope.
-vec3 skyAirLayer(vec3 R, float ph, float s, float nOct) {
-  float wOct = min(nOct, 3.0);
-  vec3 wq = vec3(cos(ph), sin(ph), R.y * 1.5) * 1.2 + vec3(0.0, 0.0, uSkyT * 0.03);
-  float phw = ph + AIR_SKY_WARP * (skyFbm(wq, wOct) - 0.5);
-  float yw = R.y + AIR_SKY_WARP_Y * (skyFbm(wq + 7.3, wOct) - 0.5);
-  vec3 q = vec3(cos(phw) * 1.2, sin(phw) * 1.2, yw * AIR_SKY_LAT);
-  float n = skyFbm(q + vec3(0.0, 0.0, skyFbm(q * 0.5, nOct) * 2.0), nOct);
-  float lines = pow(1.0 - abs(n * 2.0 - 1.0), AIR_SKY_LINE_POW);
-  float gust = smoothstep(0.45, 0.8, skyFbm(vec3(cos(phw + 0.6 * s) * 0.9, sin(phw + 0.6 * s) * 0.9, yw * 2.0) + 4.0, nOct));
-  float band = pow(max(1.0 - R.y * R.y, 0.0), AIR_SKY_ENV_POW);
-  float mu = dot(R, uSunDir);
-  return vec3(0.55, 0.76, 0.98) * lines * gust * band * (0.5 + 0.5 * (1.0 + mu * mu)) * 0.6;
-}
-
-vec3 skyAir(vec3 R, float nOct) {
-  float az = atan(R.z, R.x);
-  float spin = AIR_SKY_RAD * uSkyPhase.w;
-  // Each hemisphere turns rigidly (upper +1, lower AIR_LOWER_DIR); a sheared single field would wind up without bound.
-  float wUp = smoothstep(-AIR_SHEAR_BAND, AIR_SHEAR_BAND, R.y);
-  vec3 c = vec3(0.0);
-  if (wUp > 0.001) c += wUp * skyAirLayer(R, az - spin, 1.0, nOct);
-  if (wUp < 0.999) c += (1.0 - wUp) * skyAirLayer(R, az - spin * AIR_LOWER_DIR, -1.0, nOct);
-  return c;
-}
 
 // The neutral studio: the macro tabletop tent (header; studioRadiance is its JS replica). Camera-fixed, no noise.
 vec3 skyStudio(vec3 R) {
@@ -502,22 +387,25 @@ vec3 skyNebula(vec3 R, float k) {
   return textureLod(uNebulaMap, uNebulaRot * R, max(k * NEBULA_MAX_LOD, skyPxLod)).rgb;
 }
 
+// The element skies, baked each frame into one shared cube (elementSkyBake.js): one textureLod, not ~22 fBm. Mip = the
+// roughness blur that dropped octaves used to give, floored by the pixel footprint like the nebula (same face size).
+vec3 skyElements(vec3 R, float k) {
+  return textureLod(uElementSky, R, max(k * ELEMENT_SKY_MAX_LOD, skyPxLod)).rgb;
+}
+
 // The active element's sky (at most one is up: switches pass through neutral), in a mirror of roughness rough; the neutral sky fills
 // whatever weight the element skies leave (full in neutral, zero once an element's sky is at full weight).
 vec3 aetherSky(vec3 R, float rough) {
   float k = smoothstep(SKY_ROUGH_SHARP, SKY_ROUGH_FLAT, rough);
-  float wN = uNeutralSky * clamp(1.0 - (uSkyW.x + uSkyW.y + uSkyW.z + uSkyW.w), 0.0, 1.0);
+  float wE = uSkyW.x + uSkyW.y + uSkyW.z + uSkyW.w;
+  float wN = uNeutralSky * clamp(1.0 - wE, 0.0, 1.0);
   vec3 mean = uSkyW.x * SKY_MEAN_FLUID + uSkyW.y * SKY_MEAN_THERMAL + uSkyW.z * SKY_MEAN_EARTH + uSkyW.w * SKY_MEAN_AIR;
   float wStudio = wN * (1.0 - uNeutralNebula), wNeb = wN * uNeutralNebula;
   mean += wStudio * uStudioMean; // studioMeanCached (JS) at the live knobs
   vec3 neb = wNeb > SKY_W_MIN ? wNeb * skyNebula(R, k) : vec3(0.0);
   if (k >= 1.0) return mean + neb;
-  float nOct = mix(float(SKY_OCTAVES), 1.0, k);
   vec3 s = vec3(0.0);
-  if (uSkyW.x > SKY_W_MIN) s += uSkyW.x * skyFluid(R, nOct);
-  if (uSkyW.y > SKY_W_MIN) s += uSkyW.y * skyThermal(R, nOct);
-  if (uSkyW.z > SKY_W_MIN) s += uSkyW.z * skyEarth(R, nOct, k);
-  if (uSkyW.w > SKY_W_MIN) s += uSkyW.w * skyAir(R, nOct);
+  if (wE > SKY_W_MIN) s += skyElements(R, k); // the cube already carries the weights
   if (wStudio > SKY_W_MIN) s += wStudio * skyStudio(R);
   return mix(s, mean, k) + neb;
 }

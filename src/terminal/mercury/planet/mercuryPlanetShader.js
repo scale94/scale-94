@@ -60,7 +60,7 @@ export const PLANET_UNIFORMS = [
   'uAlbedo', 'uDem', 'uHasMaps', 'uSunDir', 'uBodyRot', 'uSunIrr', 'uSunSinR',
   'uDemTexel', 'uTime', 'uExposure', 'uRelief', 'uNightFloor',
   'uTau', 'uHeatK', 'uSubsolarT', 'uEmitPos', 'uEmitCol', 'uSunGlint', 'uEmitGain',
-  'uSkyT', 'uSkyPhase', 'uSkyW', 'uAetherGain', 'uAetherSilver', 'uNeutralSky', 'uStudioDome', 'uStudioLook', 'uStudioMean', 'uNeutralNebula', 'uNebulaRot', 'uNebulaMap',
+  'uSkyT', 'uSkyPhase', 'uSkyW', 'uAetherGain', 'uAetherSilver', 'uNeutralSky', 'uStudioDome', 'uStudioLook', 'uStudioMean', 'uNeutralNebula', 'uNebulaRot', 'uNebulaMap', 'uElementSky',
   'uScar', 'uRayGain',
   'uSurfOn', 'uImpDir', 'uImpMode', 'uImpWave', 'uBulge', 'uRoilGain', 'uPopZoom',
   'uRoughLiquid', 'uMeniscus', 'uMeniscusW', 'uCoreR',
@@ -138,6 +138,7 @@ uniform float uStudioMean;
 uniform float uNeutralNebula;
 uniform mat3 uNebulaRot;
 uniform samplerCube uNebulaMap;
+uniform samplerCube uElementSky;
 uniform sampler2D uScar;
 uniform float uRayGain;
 uniform float uSurfOn;

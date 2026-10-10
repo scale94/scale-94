@@ -56,7 +56,8 @@ import { spawnFling, spawnSplash, stepBeads, FLING_N, SPLASH_N } from './planet/
 import { CALORIS_DIR_BODY, stepOverlay } from './planet/slowNoon';
 import { nebulaRotation } from './planet/nebulaSky';
 import { canBakeNebula, bakeNebula } from './nebulaBake';
-import { studioMeanCached } from './planet/aetherSky';
+import { createElementSky } from './elementSkyBake';
+import { studioMeanCached, SKY_W_MIN } from './planet/aetherSky';
 
 const EPHEMERIS_REFRESH_S = 1;
 const MAX_FRAME_DT_S = 0.1; // a backgrounded tab must not fling the body
@@ -353,6 +354,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
       uNeutralNebula: { value: 0 },
       uNebulaRot: { value: new THREE.Matrix3() },
       uNebulaMap: { value: null },
+      uElementSky: { value: null },
       uScar: { value: scarTex },
       uRayGain: { value: PLANET_TUNE.rayGain },
       uRoilGain: { value: PLANET_TUNE.roilGain },
@@ -385,6 +387,13 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
   // target the switch stays on the studio.
   const nebula = useRef({ map: null, failed: false });
   useEffect(() => () => { nebula.current.map?.dispose(); nebula.current = { map: null, failed: false }; }, [gl]);
+  // The element skies' cube (elementSkyBake.js): made at mount, so its one program links before the first element tap;
+  // re-rendered only on frames an element's sky has weight. Shared by reference like the nebula's map.
+  const elementSky = useRef(null);
+  useEffect(() => {
+    elementSky.current = createElementSky(gl, canBakeNebula(gl));
+    return () => { elementSky.current?.dispose(); elementSky.current = null; };
+  }, [gl]);
 
   // Dev-only console tuning rig (window.__mercuryTune). Zero prod footprint.
   useEffect(() => {
@@ -726,6 +735,9 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     }
     skyWeights(fades, skyW);
     u.uSkyW.value.set(skyW[0], skyW[1], skyW[2], skyW[3]);
+    const es = elementSky.current;
+    if (es && skyW[0] + skyW[1] + skyW[2] + skyW[3] > SKY_W_MIN) es.update(u); // the mirrors skip the cube below this
+    u.uElementSky.value = es ? es.texture : null;
 
     beadCtx.phase = activePhase;
     beadCtx.coreR = R_SCENE * drop.coreScale;

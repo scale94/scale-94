@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { glf, v3 } from '../../../gl/glf';
 import {
-  AETHER_SKY_GLSL, SKY_NOISE_GLSL, NEBULA_MAX_LOD, NEBULA_TEXEL_RAD, SKY_OCTAVES, SKY_ROUGH_SHARP, SKY_ROUGH_FLAT, SKY_W_MIN, SKY_PING_EXP, SKY_PING_GAIN, SKY_MEAN, AIR_SHEAR_BAND,
+  AETHER_SKY_GLSL, ELEMENT_SKY_GLSL, ELEMENT_SKY_BAKE_FS, ELEMENT_SKY_FACE, ELEMENT_SKY_MAX_LOD, NEBULA_FACE, SKY_NOISE_GLSL, NEBULA_MAX_LOD, NEBULA_TEXEL_RAD, SKY_OCTAVES, SKY_ROUGH_SHARP, SKY_ROUGH_FLAT, SKY_W_MIN, SKY_PING_EXP, SKY_PING_GAIN, SKY_MEAN, AIR_SHEAR_BAND,
   AIR_SKY_LINE_POW, AIR_SKY_ENV_POW, AIR_SKY_WARP_Y, AIR_SKY_LAT, AIR_SKY_WARP,
   NEUTRAL_SKY_FLOOR, NEUTRAL_SKY_DRIFT, NEUTRAL_DOME_NADIR, NEUTRAL_DOME_POW,
   TENT_EDGE_CRISP, TENT_CANOPY_HX, TENT_CANOPY_Z0, TENT_CANOPY_Z1, TENT_CANOPY_FADE, TENT_CANOPY_FRONT_SOFT, TENT_CANOPY_BACK,
@@ -17,10 +17,13 @@ import { ROUGH_LIQUID, ROUGH_SOLID, PLANET_TUNE } from '../planetLook';
 describe('aetherSky', () => {
   it('interpolates every constant from its owner', () => {
     for (const [n, v] of Object.entries({ FLUID_SKY_RAD, AIR_SKY_RAD, AIR_LOWER_DIR, FIRE_SKY_RISE, EARTH_SKY_SINK,
-      SKY_ROUGH_SHARP, SKY_ROUGH_FLAT, SKY_W_MIN, SKY_PING_EXP, SKY_PING_GAIN, AIR_SHEAR_BAND })) {
+      SKY_W_MIN, SKY_PING_EXP, SKY_PING_GAIN, AIR_SHEAR_BAND })) {
+      expect(ELEMENT_SKY_GLSL).toContain(`const float ${n} = ${glf(v)};`);
+    }
+    expect(ELEMENT_SKY_GLSL).toContain(`const int SKY_OCTAVES = ${SKY_OCTAVES};`);
+    for (const [n, v] of Object.entries({ SKY_ROUGH_SHARP, SKY_ROUGH_FLAT, SKY_W_MIN, ELEMENT_SKY_MAX_LOD })) {
       expect(AETHER_SKY_GLSL).toContain(`const float ${n} = ${glf(v)};`);
     }
-    expect(AETHER_SKY_GLSL).toContain(`const int SKY_OCTAVES = ${SKY_OCTAVES};`);
     for (const [el, rgb] of Object.entries(SKY_MEAN)) {
       expect(AETHER_SKY_GLSL).toContain(`const vec3 SKY_MEAN_${el.toUpperCase()} = ${v3(rgb)};`);
     }
@@ -33,12 +36,12 @@ describe('aetherSky', () => {
   });
 
   it('each element sky moves WITH its gas (sampled at minus the advected offset)', () => {
-    expect(AETHER_SKY_GLSL).toContain('skyRotZ(R, -FLUID_SKY_RAD * uSkyPhase.x)');
-    expect(AETHER_SKY_GLSL).toContain('(R.y - FIRE_SKY_RISE * uSkyPhase.y)');
-    expect(AETHER_SKY_GLSL).toContain('R + vec3(0.0, EARTH_SKY_SINK * uSkyPhase.z, 0.0)');
-    expect(AETHER_SKY_GLSL).toContain('skyAirLayer(R, az - spin, 1.0, nOct)');
-    expect(AETHER_SKY_GLSL).toContain('skyAirLayer(R, az - spin * AIR_LOWER_DIR, -1.0, nOct)');
-    expect(AETHER_SKY_GLSL).toContain('float spin = AIR_SKY_RAD * uSkyPhase.w;');
+    expect(ELEMENT_SKY_GLSL).toContain('skyRotZ(R, -FLUID_SKY_RAD * uSkyPhase.x)');
+    expect(ELEMENT_SKY_GLSL).toContain('(R.y - FIRE_SKY_RISE * uSkyPhase.y)');
+    expect(ELEMENT_SKY_GLSL).toContain('R + vec3(0.0, EARTH_SKY_SINK * uSkyPhase.z, 0.0)');
+    expect(ELEMENT_SKY_GLSL).toContain('skyAirLayer(R, az - spin, 1.0, nOct)');
+    expect(ELEMENT_SKY_GLSL).toContain('skyAirLayer(R, az - spin * AIR_LOWER_DIR, -1.0, nOct)');
+    expect(ELEMENT_SKY_GLSL).toContain('float spin = AIR_SKY_RAD * uSkyPhase.w;');
   });
 
   it('the knot centre turns +2·2π per knot phase about +Z, so the water sky rotates by minus it', () => {
@@ -51,32 +54,34 @@ describe('aetherSky', () => {
   });
 
   it('the air contra-rotation: upper layer +1, lower layer AIR_LOWER_DIR', () => {
-    expect(AETHER_SKY_GLSL).toContain('skyAirLayer(R, az - spin, 1.0, nOct)');
-    expect(AETHER_SKY_GLSL).toContain('skyAirLayer(R, az - spin * AIR_LOWER_DIR, -1.0, nOct)');
-    expect(AETHER_SKY_GLSL).toContain('smoothstep(-AIR_SHEAR_BAND, AIR_SHEAR_BAND, R.y)');
-    expect(AETHER_SKY_GLSL).not.toContain('dirS');
+    expect(ELEMENT_SKY_GLSL).toContain('skyAirLayer(R, az - spin, 1.0, nOct)');
+    expect(ELEMENT_SKY_GLSL).toContain('skyAirLayer(R, az - spin * AIR_LOWER_DIR, -1.0, nOct)');
+    expect(ELEMENT_SKY_GLSL).toContain('smoothstep(-AIR_SHEAR_BAND, AIR_SHEAR_BAND, R.y)');
+    expect(ELEMENT_SKY_GLSL).not.toContain('dirS');
   });
 
   it('the old sheared single field is gone for good (it wound up into equatorial bands)', () => {
     expect(AETHER_SKY_GLSL).not.toMatch(/uSkyPhase\.w \* dirS/);
   });
 
-  it('only the weighted elements are evaluated; at or above SKY_ROUGH_FLAT the sky is its mean (no noise)', () => {
+  it('only the weighted elements are baked; at or above SKY_ROUGH_FLAT the sky is its mean (no noise)', () => {
     for (const [i, f] of [['x', 'skyFluid'], ['y', 'skyThermal'], ['z', 'skyEarth'], ['w', 'skyAir']]) {
-      expect(AETHER_SKY_GLSL).toContain(`if (uSkyW.${i} > SKY_W_MIN) s += uSkyW.${i} * ${f}(`);
+      expect(ELEMENT_SKY_GLSL).toContain(`if (uSkyW.${i} > SKY_W_MIN) s += uSkyW.${i} * ${f}(`);
     }
+    expect(ELEMENT_SKY_GLSL).toContain('if (uSkyW.z > SKY_W_MIN) s += uSkyW.z * skyEarth(R, nOct, 0.0);'); // baked sharp: pings on
+    expect(AETHER_SKY_GLSL).toContain('if (wE > SKY_W_MIN) s += skyElements(R, k); // the cube already carries the weights');
     expect(AETHER_SKY_GLSL).toContain('if (k >= 1.0) return mean + neb;'); // the nebula blurs by its own mips, never to a mean
     expect(AETHER_SKY_GLSL).toContain('vec3 aetherSky(vec3 R, float rough) {');
   });
 
   it('octaves past the budget contribute their mean (brightness holds as rough rises)', () => {
-    expect(AETHER_SKY_GLSL).toContain('s += a * (w > 0.0 ? mix(0.5, skyNoise(p), w) : 0.5);');
+    expect(ELEMENT_SKY_GLSL).toContain('s += a * (w > 0.0 ? mix(0.5, skyNoise(p), w) : 0.5);');
   });
 
   it('earth pings: rare, sharp, sunward, off on a rough mirror', () => {
-    expect(AETHER_SKY_GLSL).toContain('pow(max(dot(m, hv), 0.0), SKY_PING_EXP)');
-    expect(AETHER_SKY_GLSL).toContain('smoothstep(-0.3, 0.5, dot(R, uSunDir))');
-    expect(AETHER_SKY_GLSL).toContain('* (1.0 - smoothstep(0.0, 0.15, k))');
+    expect(ELEMENT_SKY_GLSL).toContain('pow(max(dot(m, hv), 0.0), SKY_PING_EXP)');
+    expect(ELEMENT_SKY_GLSL).toContain('smoothstep(-0.3, 0.5, dot(R, uSunDir))');
+    expect(ELEMENT_SKY_GLSL).toContain('* (1.0 - smoothstep(0.0, 0.15, k))');
   });
 
   it('collision-safe names; no lobes, no wall clock', () => {
@@ -153,7 +158,8 @@ describe('aetherSky', () => {
     }, 60000);
 
     it('neutral weight fills what the element skies leave; evaluated only above SKY_W_MIN', () => {
-      expect(AETHER_SKY_GLSL).toContain('float wN = uNeutralSky * clamp(1.0 - (uSkyW.x + uSkyW.y + uSkyW.z + uSkyW.w), 0.0, 1.0);');
+      expect(AETHER_SKY_GLSL).toContain('float wE = uSkyW.x + uSkyW.y + uSkyW.z + uSkyW.w;');
+      expect(AETHER_SKY_GLSL).toContain('float wN = uNeutralSky * clamp(1.0 - wE, 0.0, 1.0);');
       expect(AETHER_SKY_GLSL).toContain('vec3 skyStudio(vec3 R) {');
       expect(AETHER_SKY_GLSL).toContain('float wStudio = wN * (1.0 - uNeutralNebula), wNeb = wN * uNeutralNebula;');
       expect(AETHER_SKY_GLSL).toContain('if (wStudio > SKY_W_MIN) s += wStudio * skyStudio(R);');
@@ -168,7 +174,7 @@ describe('aetherSky', () => {
       expect(AETHER_SKY_GLSL).toContain('float skyPxLod = 0.0;');
       expect(AETHER_SKY_GLSL).toContain(`const float NEBULA_TEXEL_RAD = ${glf(NEBULA_TEXEL_RAD)};`);
       expect(AETHER_SKY_GLSL).toContain(`const float NEBULA_MAX_LOD = ${glf(NEBULA_MAX_LOD)};`);
-      expect(AETHER_SKY_GLSL.match(/textureLod\(/g)).toHaveLength(1);
+      expect(AETHER_SKY_GLSL.match(/textureLod\(/g)).toHaveLength(2); // the nebula and the element cube
       expect(SKY_MEAN.nebula).toHaveLength(3);
       expect(SKY_MEAN.nebula[0]).toBe(SKY_MEAN.nebula[1]);
       expect(SKY_MEAN.nebula[1]).toBe(SKY_MEAN.nebula[2]);
@@ -202,8 +208,30 @@ describe('aetherSky', () => {
     expect(SKY_NOISE_GLSL).toContain('float skyHash(vec3 p) {');
     expect(SKY_NOISE_GLSL).toContain('float skyNoise(vec3 x) {');
     expect(SKY_NOISE_GLSL).toContain('float skyFbm(vec3 p, float nOct) {');
-    expect(AETHER_SKY_GLSL).toContain(SKY_NOISE_GLSL);
-    expect(AETHER_SKY_GLSL.split('float skyHash(').length).toBe(2); // defined once
+    expect(ELEMENT_SKY_GLSL).toContain(SKY_NOISE_GLSL);
+    expect(ELEMENT_SKY_GLSL.split('float skyHash(').length).toBe(2); // defined once
+  });
+
+  describe('element cube (2026-10-10: the analytic skies compiled once per mirror call site, 52 s / 47 s on ANGLE D3D11)', () => {
+    it('the mirror chunk carries no noise at all: every mirror reads the baked cube', () => {
+      expect(AETHER_SKY_GLSL).not.toMatch(/skyFbm|skyNoise|skyHash|skyFluid|skyThermal|skyEarth|skyAir|uSkyT|uSkyPhase|SKY_OCTAVES/);
+      expect(AETHER_SKY_GLSL).toContain('return textureLod(uElementSky, R, max(k * ELEMENT_SKY_MAX_LOD, skyPxLod)).rgb;');
+    });
+    it('the bake pass evaluates the weighted skies at full detail', () => {
+      expect(ELEMENT_SKY_BAKE_FS).toContain(ELEMENT_SKY_GLSL);
+      expect(ELEMENT_SKY_BAKE_FS).toContain('o = vec4(elementSkies(normalize(vDir)), 1.0);');
+      expect(ELEMENT_SKY_GLSL).toContain('float nOct = float(SKY_OCTAVES);');
+      for (const u of ['uSkyT', 'uSkyPhase', 'uSkyW', 'uSunDir']) expect(ELEMENT_SKY_BAKE_FS).toMatch(new RegExp(`uniform \\w+ ${u};`));
+    });
+    it('same face as the nebula, so the one skyPxLod floor fits both; mips stand in for the 4 dropped octaves', () => {
+      expect(ELEMENT_SKY_FACE).toBe(NEBULA_FACE);
+      expect(ELEMENT_SKY_MAX_LOD).toBe(SKY_OCTAVES - 1);
+      expect(ELEMENT_SKY_MAX_LOD).toBeLessThan(Math.log2(ELEMENT_SKY_FACE));
+    });
+    it('uElementSky is a mirror uniform, fed to the planet too', () => {
+      expect(HG_MIRROR_UNIFORMS).toContain('uElementSky');
+      expect(PLANET_UNIFORMS).toContain('uElementSky');
+    });
   });
 
   describe('soft threads §5: the air mirror sky', () => {
@@ -215,37 +243,38 @@ describe('aetherSky', () => {
       expect(AIR_SKY_LAT).toBe(3.5);
       expect(AIR_SKY_WARP).toBe(0.6);
       for (const [n, v] of Object.entries({ AIR_SKY_LINE_POW, AIR_SKY_ENV_POW, AIR_SKY_WARP_Y, AIR_SKY_LAT, AIR_SKY_WARP })) {
-        expect(AETHER_SKY_GLSL).toContain(`const float ${n} = ${glf(v)};`);
+        expect(ELEMENT_SKY_GLSL).toContain(`const float ${n} = ${glf(v)};`);
       }
     });
 
     it('stretch + warp are frozen consts; the warp is in the layer frame (ph), periodic (cos/sin ph), on the sky clock, <= 3 octaves', () => {
-      expect(AETHER_SKY_GLSL).not.toContain('R.y * 8.0');
-      expect(AETHER_SKY_GLSL).toContain('vec3 wq = vec3(cos(ph), sin(ph), R.y * 1.5) * 1.2 + vec3(0.0, 0.0, uSkyT * 0.03);');
-      expect(AETHER_SKY_GLSL).toContain('float phw = ph + AIR_SKY_WARP * (skyFbm(wq, wOct) - 0.5);');
-      expect(AETHER_SKY_GLSL).toContain('float yw = R.y + AIR_SKY_WARP_Y * (skyFbm(wq + 7.3, wOct) - 0.5);');
-      expect(AETHER_SKY_GLSL).toContain('vec3 q = vec3(cos(phw) * 1.2, sin(phw) * 1.2, yw * AIR_SKY_LAT);');
-      expect(AETHER_SKY_GLSL).toContain('float wOct = min(nOct, 3.0);');
+      expect(ELEMENT_SKY_GLSL).not.toContain('R.y * 8.0');
+      expect(ELEMENT_SKY_GLSL).toContain('vec3 wq = vec3(cos(ph), sin(ph), R.y * 1.5) * 1.2 + vec3(0.0, 0.0, uSkyT * 0.03);');
+      expect(ELEMENT_SKY_GLSL).toContain('float phw = ph + AIR_SKY_WARP * (skyFbm(wq, wOct) - 0.5);');
+      expect(ELEMENT_SKY_GLSL).toContain('float yw = R.y + AIR_SKY_WARP_Y * (skyFbm(wq + 7.3, wOct) - 0.5);');
+      expect(ELEMENT_SKY_GLSL).toContain('vec3 q = vec3(cos(phw) * 1.2, sin(phw) * 1.2, yw * AIR_SKY_LAT);');
+      expect(ELEMENT_SKY_GLSL).toContain('float wOct = min(nOct, 3.0);');
     });
 
     it('softer lines; a smooth spherical envelope instead of the plateau + shoulder', () => {
-      expect(AETHER_SKY_GLSL).toContain('float lines = pow(1.0 - abs(n * 2.0 - 1.0), AIR_SKY_LINE_POW);');
-      expect(AETHER_SKY_GLSL).toContain('float band = pow(max(1.0 - R.y * R.y, 0.0), AIR_SKY_ENV_POW);');
-      expect(AETHER_SKY_GLSL).not.toContain('smoothstep(0.95, 0.2, abs(R.y))');
+      expect(ELEMENT_SKY_GLSL).toContain('float lines = pow(1.0 - abs(n * 2.0 - 1.0), AIR_SKY_LINE_POW);');
+      expect(ELEMENT_SKY_GLSL).toContain('float band = pow(max(1.0 - R.y * R.y, 0.0), AIR_SKY_ENV_POW);');
+      expect(ELEMENT_SKY_GLSL).not.toContain('smoothstep(0.95, 0.2, abs(R.y))');
       const env = (y) => Math.max(1 - y * y, 0) ** AIR_SKY_ENV_POW;
       for (let y = 0.01; y < 1; y += 0.01) expect(env(y)).toBeLessThan(env(y - 0.01));
       expect(env(0.2)).toBeLessThan(0.95);
     });
 
     it('both layers stay rigid: the warp reads ph (az - spin of its own layer), never az alone', () => {
-      expect(AETHER_SKY_GLSL).toContain('c += wUp * skyAirLayer(R, az - spin, 1.0, nOct);');
-      expect(AETHER_SKY_GLSL).toContain('c += (1.0 - wUp) * skyAirLayer(R, az - spin * AIR_LOWER_DIR, -1.0, nOct);');
+      expect(ELEMENT_SKY_GLSL).toContain('c += wUp * skyAirLayer(R, az - spin, 1.0, nOct);');
+      expect(ELEMENT_SKY_GLSL).toContain('c += (1.0 - wUp) * skyAirLayer(R, az - spin * AIR_LOWER_DIR, -1.0, nOct);');
     });
 
     it('uAirSkyLat / uAirSkyWarp are gone: consts, no uniforms, no PLANET_TUNE knobs', () => {
       for (const u of ['uAirSkyLat', 'uAirSkyWarp']) {
         expect(HG_MIRROR_UNIFORMS).not.toContain(u);
         expect(PLANET_UNIFORMS).not.toContain(u);
+        expect(ELEMENT_SKY_GLSL).not.toContain(u);
         expect(AETHER_SKY_GLSL).not.toContain(u);
       }
       expect(PLANET_TUNE).not.toHaveProperty('airSkyLat');
