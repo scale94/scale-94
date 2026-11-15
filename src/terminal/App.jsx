@@ -18,7 +18,6 @@ import SeraphineScaleIcon from './components/icons/SeraphineScaleIcon';
 import PacketIcon from './components/icons/PacketIcon';
 import LedgerSealIcon from './components/icons/LedgerSealIcon';
 import KernelCoreIcon from './components/icons/KernelCoreIcon';
-import AirgapIcon from './components/icons/AirgapIcon';
 import LatticeIcon from './components/icons/LatticeIcon';
 import EarthshineMoonIcon from './components/icons/EarthshineMoonIcon';
 
@@ -72,7 +71,6 @@ import KernelTab from './views/KernelTab';
 // Views — lazy-loaded so each tab bundle is only fetched when first visited
 const ScalingTab       = lazy(() => import('./views/ScalingTab'));
 const ManifestoTab     = lazy(() => import('./views/ManifestoTab'));
-const PrivacyTab       = lazy(() => import('./views/PrivacyTab'));
 const SurveillanceTab  = lazy(() => import('./views/SurveillanceTab'));
 const BskyTab          = lazy(() => import('./views/BskyTab'));
 const EcocideTab       = lazy(() => import('./views/EcocideTab'));
@@ -639,6 +637,24 @@ const App = () => {
     setSearchFilter('');
   }, []);
 
+  // Privacy protocol lives in a drawer on /SURVEILLANCE. Opening it (button,
+  // `g p`, or the `privacy` command) still counts as a 'privacy' visit — the
+  // compiled house_privacy kernel reads tabsVisited.privacy. The emit is
+  // deferred for the same reason as in handleNav.
+  const [privacyOpen, setPrivacyOpen] = useState(false);
+  const openPrivacy = useCallback(() => {
+    handleNav('~/system/surveillance', 'surveillance');
+    setPrivacyOpen(true);
+    setTimeout(() => emitObs('gaze', 'tab_navigated', { tab: 'privacy' }), 0);
+  }, [handleNav]);
+  const handlePrivacyOpenChange = useCallback((next) => {
+    setPrivacyOpen(next);
+    if (next) setTimeout(() => emitObs('gaze', 'tab_navigated', { tab: 'privacy' }), 0);
+  }, []);
+  useEffect(() => {
+    if (activeTab !== 'surveillance') setPrivacyOpen(false);
+  }, [activeTab]);
+
   // g-leader navigation (Colemak-DH home-row optimised)
   const G_NAV = {
     n: ['~/system/kernel',       'kernel'],
@@ -648,7 +664,6 @@ const App = () => {
     m: ['~/system/mercury',      'mercury'],
     l: ['~/system/lunar',        'lunar'],
     r: ['~/system/ledger',       'ledger'],
-    p: ['~/system/privacy',      'privacy'],
   };
 
   useEffect(() => {
@@ -672,13 +687,15 @@ const App = () => {
       clearTimeout(gModeTimerRef.current);
       setGMode(false);
 
-      const entry = G_NAV[e.key.toLowerCase()];
+      const key = e.key.toLowerCase();
+      if (key === 'p') { openPrivacy(); return; }
+      const entry = G_NAV[key];
       if (entry) handleNav(entry[0], entry[1]);
     };
 
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [gMode, handleNav]);
+  }, [gMode, handleNav, openPrivacy]);
 
   // Open an article from the global search overlay — routes to the right tab
   const openArticleFromSearch = useCallback((article) => {
@@ -712,7 +729,7 @@ const App = () => {
     setSystemLogs, setClassifiedSession, setActiveTab, setSelectedArticle,
     setSearchFilter, setCurrentPath, setRelicMode, setBreachOpen, setSanctuaryOpen, applyEcoCost,
     setOriginTab, setArchitectThesis, setTagCloudView,
-    appendSystemLog, handleNav, handleKernelClick, handleTransmissionSelect,
+    appendSystemLog, handleNav, openPrivacy, handleKernelClick, handleTransmissionSelect,
     loadAbortRef, activeKernels, setKuramotoViz, setAssociativeField, setSpectralBridges, setEnclaveKeys, setProbeNode, setBoneFusions,
     fusionLog, setFusionLog, kernelRunHistoryRef,
     onKernelRun: (ts, kernelId, durationMs) => {
@@ -1175,8 +1192,6 @@ const App = () => {
 
             <button aria-label="Scent" aria-current={activeTab === 'scaling' ? 'page' : undefined} onClick={() => handleNav('~/system/scent', 'scaling')} className={`${activeTab === 'scaling' ? 'bg-fuchsia-500 text-black shadow-[0_0_10px_rgba(217,70,239,0.5)]' : 'text-fuchsia-500 hover:text-fuchsia-200 hover:bg-fuchsia-900/30'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><ScentGlyph className="w-3 h-3" /> /Scent</button>
 
-            <button aria-label="Privacy" aria-current={activeTab === 'privacy' ? 'page' : undefined} onClick={() => handleNav('~/system/privacy', 'privacy')} className={`${activeTab === 'privacy' ? 'bg-rose-900 text-rose-100 shadow-[0_0_10px_rgba(244,63,94,0.4)]' : 'text-rose-400/80 hover:text-rose-200 hover:bg-rose-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><AirgapIcon className="w-3 h-3" /> /Privacy</button>
-
             <button aria-label="Surveillance" aria-current={activeTab === 'surveillance' ? 'page' : undefined} onClick={() => handleNav('~/system/surveillance', 'surveillance')} className={`${activeTab === 'surveillance' ? 'bg-red-900 text-red-100 shadow-[0_0_10px_rgba(248,113,113,0.4)]' : 'text-red-500/70 hover:text-red-300 hover:bg-red-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><InterceptIcon className="w-3 h-3" /> /Surveillance</button>
 
             <button aria-label="Cryptography" aria-current={activeTab === 'cryptography' ? 'page' : undefined} onClick={() => handleNav('~/system/cryptography', 'cryptography')} className={`${activeTab === 'cryptography' ? 'bg-orange-950 text-orange-200 shadow-[0_0_12px_rgba(249,115,22,0.5)]' : 'text-orange-500/70 hover:text-orange-300 hover:bg-orange-950/30'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><LatticeIcon className="w-3 h-3" /> /Cryptography</button>
@@ -1209,7 +1224,6 @@ const App = () => {
               manifesto:    { prompt: 'text-violet-400',  path: 'text-violet-300',  cursor: 'bg-violet-400',  border: 'border-violet-500/25',glow: '0 0 18px rgba(139,92,246,0.25), 0 0 4px rgba(139,92,246,0.4)',    cursorGlow: '0 0 10px rgba(139,92,246,0.8)',     pathGlow: '0 0 6px rgba(139,92,246,0.3)' },
               transmission: { prompt: 'text-purple-400',  path: 'text-purple-300',  cursor: 'bg-purple-400',  border: 'border-purple-500/25',glow: '0 0 18px rgba(168,85,247,0.25), 0 0 4px rgba(168,85,247,0.4)',    cursorGlow: '0 0 10px rgba(168,85,247,0.8)',     pathGlow: '0 0 6px rgba(168,85,247,0.3)' },
               scaling:      { prompt: 'text-fuchsia-400', path: 'text-fuchsia-300', cursor: 'bg-fuchsia-400', border: 'border-fuchsia-500/25',glow: '0 0 18px rgba(217,70,239,0.25), 0 0 4px rgba(217,70,239,0.4)',   cursorGlow: '0 0 10px rgba(217,70,239,0.8)',     pathGlow: '0 0 6px rgba(217,70,239,0.3)' },
-              privacy:      { prompt: 'text-rose-400',    path: 'text-rose-300',    cursor: 'bg-rose-400',    border: 'border-rose-500/25',  glow: '0 0 18px rgba(244,63,94,0.2), 0 0 4px rgba(244,63,94,0.35)',     cursorGlow: '0 0 10px rgba(244,63,94,0.8)',      pathGlow: '0 0 6px rgba(244,63,94,0.3)' },
               surveillance: { prompt: 'text-red-400',     path: 'text-red-300',     cursor: 'bg-red-400',     border: 'border-red-500/25',   glow: '0 0 18px rgba(248,113,113,0.2), 0 0 4px rgba(248,113,113,0.35)', cursorGlow: '0 0 10px rgba(248,113,113,0.8)',    pathGlow: '0 0 6px rgba(248,113,113,0.3)' },
               cryptography: { prompt: 'text-orange-400',  path: 'text-orange-300',  cursor: 'bg-orange-400',  border: 'border-orange-500/25',glow: '0 0 18px rgba(249,115,22,0.25), 0 0 4px rgba(249,115,22,0.4)',   cursorGlow: '0 0 10px rgba(249,115,22,0.8)',     pathGlow: '0 0 6px rgba(249,115,22,0.3)' },
               art:          { prompt: 'text-amber-400',   path: 'text-amber-300',   cursor: 'bg-amber-400',   border: 'border-amber-500/25', glow: '0 0 18px rgba(255,215,0,0.25), 0 0 4px rgba(255,215,0,0.4)',     cursorGlow: '0 0 10px rgba(255,215,0,0.8)',      pathGlow: '0 0 6px rgba(255,215,0,0.3)' },
@@ -1303,16 +1317,14 @@ const App = () => {
             />
           )}
 
-          {/* Privacy Tab */}
-          {activeTab === 'privacy' && !selectedArticle && !architectThesis && (
-            <PrivacyTab systemArticles={systemArticles} />
-          )}
-
           {/* Surveillance Tab — @grey-c0 / Navigators Guild legislation corpus */}
           {activeTab === 'surveillance' && !selectedArticle && !architectThesis && (
             <SurveillanceTab
               legislationArticles={legislationArticles}
               onOpenLaw={handleLegislationSelect}
+              systemArticles={systemArticles}
+              privacyOpen={privacyOpen}
+              onPrivacyOpenChange={handlePrivacyOpenChange}
             />
           )}
 
@@ -1425,9 +1437,6 @@ const App = () => {
         <button onClick={() => handleNav('~/system/scent', 'scaling')} aria-label="Scent" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'scaling' ? 'text-fuchsia-400' : 'text-fuchsia-400/50'}`}>
           <ScentGlyph className="w-5 h-5" />
         </button>
-        <button onClick={() => handleNav('~/system/privacy', 'privacy')} aria-label="Privacy" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'privacy' ? 'text-rose-400' : 'text-rose-400/50'}`}>
-          <AirgapIcon className="w-5 h-5" />
-        </button>
         <button onClick={() => handleNav('~/system/surveillance', 'surveillance')} aria-label="Surveillance" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'surveillance' ? 'text-red-400' : 'text-red-400/50'}`}>
           <InterceptIcon className="w-5 h-5" />
         </button>
@@ -1471,7 +1480,7 @@ const App = () => {
             <span style={{ color: '#39ff14', fontWeight: 800 }}>g·</span>
             {[
               ['n','kernel'], ['a','chaos'], ['e','eco'], ['s','surv'],
-              ['m','mercury'], ['l','lunar'], ['r','ledger'], ['p','privacy'],
+              ['m','mercury'], ['l','lunar'], ['r','ledger'],
             ].map(([k, label]) => (
               <span key={k}>
                 <span style={{ color: '#39ff14', fontWeight: 700 }}>{k}</span>

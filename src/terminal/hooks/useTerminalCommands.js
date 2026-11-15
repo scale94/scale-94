@@ -18,6 +18,7 @@ export default function useTerminalCommands({
   handleKernelClick,
   handleTransmissionSelect,
   handleNav,
+  openPrivacy,
   appendSystemLog,
   setSystemLogs,
   setActiveTab,
@@ -161,8 +162,8 @@ export default function useTerminalCommands({
     } else if (['research', 'fiction', 'ls'].includes(action)) {
       executeCommand(rawCmd, "ERROR: Target directory purged. Content migrated to external archive.");
     } else if (action === 'privacy') {
-      handleNav('~/system/privacy', 'privacy');
-      executeCommand(rawCmd, "Switching directory to /system/privacy...");
+      openPrivacy();
+      executeCommand(rawCmd, "Opening privacy protocol in /system/surveillance...");
     } else if (action === 'about' || action === 'accretion' || action === 'manifesto') {
       handleNav('~/system/accretion', 'manifesto');
       executeCommand(rawCmd, "Switching directory to /system/accretion...");
@@ -432,7 +433,7 @@ export default function useTerminalCommands({
   }, [
     suggestions, activeSugg, cmdHistory, historyIdx, savedInput, commandInput,
     kernelBuilds, articles, transmissionStories,
-    appendSystemLog, setSystemLogs, handleKernelClick, handleTransmissionSelect, handleNav,
+    appendSystemLog, setSystemLogs, handleKernelClick, handleTransmissionSelect, handleNav, openPrivacy,
     setActiveTab, setSelectedArticle, setCurrentPath, setSearchFilter,
     setArchitectThesis, setOriginTab,
     executeSuggestion,

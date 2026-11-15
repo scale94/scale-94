@@ -66,7 +66,7 @@ export const CMD_MANIFEST = [
   { name: 'accretion',    desc: 'navigate to /accretion' },
   { name: 'surveillance',  desc: 'navigate to /surveillance' },
   { name: 'bsky',          desc: 'navigate to /bsky' },
-  { name: 'privacy',       desc: 'navigate to /privacy' },
+  { name: 'privacy',       desc: 'open the privacy protocol' },
   { name: 'cryptography',  desc: 'navigate to /cryptography — PQC kernel' },
   { name: 'verify',        desc: 'submit classified challenge  e.g. verify ABCDEF' },
   { name: 'keygen',        desc: 'generate ML-KEM-768 keypair for encrypt/decrypt' },

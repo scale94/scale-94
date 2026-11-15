@@ -28,7 +28,7 @@ const LOAD_TAB_MAP = {
   surveillance: 'surveillance', panopticon: 'surveillance', legislation: 'surveillance',
   cryptography: 'cryptography', classified: 'cryptography', pqc: 'cryptography', mlkem: 'cryptography',
   kernel: 'kernel', home: 'kernel', scaling: 'scaling', scent: 'scaling', saponification: 'scaling', transmission: 'transmission',
-  accretion: 'manifesto', manifesto: 'manifesto', bsky: 'bsky', bluesky: 'bsky', privacy: 'privacy',
+  accretion: 'manifesto', manifesto: 'manifesto', bsky: 'bsky', bluesky: 'bsky',
   art: 'art', graph: 'art', fade: 'art', 'fade_doctrine': 'art', 'feigenbaum_fade': 'art', visual: 'art', chaos: 'art',
   ledger: 'ledger', audit: 'ledger', verdicts: 'ledger', 'open_ledger': 'ledger',
   mercury: 'mercury', lunar: 'lunar', moon: 'lunar',
@@ -58,7 +58,7 @@ export function useCommandDispatch(ctx) {
       setSystemLogs, setClassifiedSession, setActiveTab, setSelectedArticle,
       setSearchFilter, setCurrentPath, setRelicMode, setBreachOpen, setSanctuaryOpen, applyEcoCost,
       setOriginTab, setArchitectThesis, setTagCloudView,
-      appendSystemLog, handleNav, handleKernelClick, handleTransmissionSelect,
+      appendSystemLog, handleNav, openPrivacy, handleKernelClick, handleTransmissionSelect,
       loadAbortRef, activeKernels, setKuramotoViz, setAssociativeField, setSpectralBridges, setEnclaveKeys, setProbeNode, setBoneFusions,
       fusionLog, setFusionLog, kernelRunHistoryRef, onKernelRun,
     } = ctxRef.current;
@@ -439,8 +439,8 @@ export function useCommandDispatch(ctx) {
       return;
     }
     if (action === 'privacy') {
-      handleNav('~/system/privacy', 'privacy');
-      executeCommand(rawCmd, "Switching directory to /system/privacy...");
+      openPrivacy();
+      executeCommand(rawCmd, "Opening privacy protocol in /system/surveillance...");
       return;
     }
     if (action === 'cryptography' || action === 'classified' || action === 'pqc' || action === 'mlkem') {
