@@ -13,6 +13,7 @@ import CascadeIcon from './components/CascadeIcon';
 import AccretionIcon from './components/AccretionIcon';
 import AmbientParticles from './components/AmbientParticles';
 import ScentGlyph from './components/icons/ScentGlyph';
+import SolGlyph from './components/icons/SolGlyph';
 import InterceptIcon from './components/icons/InterceptIcon';
 import SeraphineScaleIcon from './components/icons/SeraphineScaleIcon';
 import PacketIcon from './components/icons/PacketIcon';
@@ -72,6 +73,7 @@ import KernelTab from './views/KernelTab';
 const ScalingTab       = lazy(() => import('./views/ScalingTab'));
 const ManifestoTab     = lazy(() => import('./views/ManifestoTab'));
 const SurveillanceTab  = lazy(() => import('./views/SurveillanceTab'));
+const SolTab           = lazy(() => import('./views/SolTab'));
 const BskyTab          = lazy(() => import('./views/BskyTab'));
 const EcocideTab       = lazy(() => import('./views/EcocideTab'));
 // ButterflyIcon — inline nav variant (matches BskyTab icon, no extra import needed)
@@ -664,6 +666,7 @@ const App = () => {
     a: ['~/system/chaos',        'art'],
     e: ['~/system/ecocide',      'ecocide'],
     s: ['~/system/surveillance', 'surveillance'],
+    o: ['~/system/sol',          'sol'],
     m: ['~/system/mercury',      'mercury'],
     l: ['~/system/lunar',        'lunar'],
     r: ['~/system/ledger',       'ledger'],
@@ -1195,6 +1198,8 @@ const App = () => {
 
             <button aria-label="Scent" aria-current={activeTab === 'scaling' ? 'page' : undefined} onClick={() => handleNav('~/system/scent', 'scaling')} className={`${activeTab === 'scaling' ? 'bg-fuchsia-500 text-black shadow-[0_0_10px_rgba(217,70,239,0.5)]' : 'text-fuchsia-500 hover:text-fuchsia-200 hover:bg-fuchsia-900/30'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><ScentGlyph className="w-3 h-3" /> /Scent</button>
 
+            <button aria-label="Sol" aria-current={activeTab === 'sol' ? 'page' : undefined} onClick={() => handleNav('~/system/sol', 'sol')} className={`${activeTab === 'sol' ? 'bg-yellow-100 text-black shadow-[0_0_10px_rgba(254,249,195,0.5)]' : 'text-yellow-100/80 hover:text-yellow-50 hover:bg-yellow-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><SolGlyph className="w-3 h-3" /> /Sol</button>
+
             <button aria-label="Surveillance" aria-current={activeTab === 'surveillance' ? 'page' : undefined} onClick={() => handleNav('~/system/surveillance', 'surveillance')} className={`${activeTab === 'surveillance' ? 'bg-red-900 text-red-100 shadow-[0_0_10px_rgba(248,113,113,0.4)]' : 'text-red-500/70 hover:text-red-300 hover:bg-red-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><InterceptIcon className="w-3 h-3" /> /Surveillance</button>
 
             <button aria-label="Cryptography" aria-current={activeTab === 'cryptography' ? 'page' : undefined} onClick={() => handleNav('~/system/cryptography', 'cryptography')} className={`${activeTab === 'cryptography' ? 'bg-orange-950 text-orange-200 shadow-[0_0_12px_rgba(249,115,22,0.5)]' : 'text-orange-500/70 hover:text-orange-300 hover:bg-orange-950/30'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><LatticeIcon className="w-3 h-3" /> /Cryptography</button>
@@ -1227,7 +1232,8 @@ const App = () => {
               manifesto:    { prompt: 'text-violet-400',  path: 'text-violet-300',  cursor: 'bg-violet-400',  border: 'border-violet-500/25',glow: '0 0 18px rgba(139,92,246,0.25), 0 0 4px rgba(139,92,246,0.4)',    cursorGlow: '0 0 10px rgba(139,92,246,0.8)',     pathGlow: '0 0 6px rgba(139,92,246,0.3)' },
               transmission: { prompt: 'text-purple-400',  path: 'text-purple-300',  cursor: 'bg-purple-400',  border: 'border-purple-500/25',glow: '0 0 18px rgba(168,85,247,0.25), 0 0 4px rgba(168,85,247,0.4)',    cursorGlow: '0 0 10px rgba(168,85,247,0.8)',     pathGlow: '0 0 6px rgba(168,85,247,0.3)' },
               scaling:      { prompt: 'text-fuchsia-400', path: 'text-fuchsia-300', cursor: 'bg-fuchsia-400', border: 'border-fuchsia-500/25',glow: '0 0 18px rgba(217,70,239,0.25), 0 0 4px rgba(217,70,239,0.4)',   cursorGlow: '0 0 10px rgba(217,70,239,0.8)',     pathGlow: '0 0 6px rgba(217,70,239,0.3)' },
-              surveillance: { prompt: 'text-red-400',     path: 'text-red-300',     cursor: 'bg-red-400',     border: 'border-red-500/25',   glow: '0 0 18px rgba(248,113,113,0.2), 0 0 4px rgba(248,113,113,0.35)', cursorGlow: '0 0 10px rgba(248,113,113,0.8)',    pathGlow: '0 0 6px rgba(248,113,113,0.3)' },
+              sol:          { prompt: 'text-yellow-100',  path: 'text-yellow-200',  cursor: 'bg-yellow-100',  border: 'border-yellow-200/25',glow: '0 0 18px rgba(254,249,195,0.2), 0 0 4px rgba(254,249,195,0.35)',  cursorGlow: '0 0 10px rgba(254,249,195,0.8)',    pathGlow: '0 0 6px rgba(254,249,195,0.3)' },
+              surveillance: { prompt: 'text-red-400',    path: 'text-red-300',     cursor: 'bg-red-400',     border: 'border-red-500/25',   glow: '0 0 18px rgba(248,113,113,0.2), 0 0 4px rgba(248,113,113,0.35)', cursorGlow: '0 0 10px rgba(248,113,113,0.8)',    pathGlow: '0 0 6px rgba(248,113,113,0.3)' },
               cryptography: { prompt: 'text-orange-400',  path: 'text-orange-300',  cursor: 'bg-orange-400',  border: 'border-orange-500/25',glow: '0 0 18px rgba(249,115,22,0.25), 0 0 4px rgba(249,115,22,0.4)',   cursorGlow: '0 0 10px rgba(249,115,22,0.8)',     pathGlow: '0 0 6px rgba(249,115,22,0.3)' },
               art:          { prompt: 'text-amber-400',   path: 'text-amber-300',   cursor: 'bg-amber-400',   border: 'border-amber-500/25', glow: '0 0 18px rgba(255,215,0,0.25), 0 0 4px rgba(255,215,0,0.4)',     cursorGlow: '0 0 10px rgba(255,215,0,0.8)',      pathGlow: '0 0 6px rgba(255,215,0,0.3)' },
               ecocide:      { prompt: 'text-lime-400',    path: 'text-lime-300',    cursor: 'bg-lime-400',    border: 'border-lime-500/25',  glow: '0 0 18px rgba(122,184,0,0.25), 0 0 4px rgba(122,184,0,0.4)',    cursorGlow: '0 0 10px rgba(122,184,0,0.8)',      pathGlow: '0 0 6px rgba(122,184,0,0.3)' },
@@ -1371,6 +1377,11 @@ const App = () => {
             />
           )}
 
+          {/* Sol — the star */}
+          {activeTab === 'sol' && !selectedArticle && !architectThesis && (
+            <SolTab />
+          )}
+
           {/* Lunar Tab — circalunar fragrance protocol */}
           {activeTab === 'lunar' && !selectedArticle && !architectThesis && (
             <LunarTab />
@@ -1442,6 +1453,9 @@ const App = () => {
         <button onClick={() => handleNav('~/system/scent', 'scaling')} aria-label="Scent" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'scaling' ? 'text-fuchsia-400' : 'text-fuchsia-400/50'}`}>
           <ScentGlyph className="w-5 h-5" />
         </button>
+        <button onClick={() => handleNav('~/system/sol', 'sol')} aria-label="Sol" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'sol' ? 'text-yellow-100' : 'text-yellow-100/50'}`}>
+          <SolGlyph className="w-5 h-5" />
+        </button>
         <button onClick={() => handleNav('~/system/surveillance', 'surveillance')} aria-label="Surveillance" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'surveillance' ? 'text-red-400' : 'text-red-400/50'}`}>
           <InterceptIcon className="w-5 h-5" />
         </button>
@@ -1484,7 +1498,7 @@ const App = () => {
           >
             <span style={{ color: '#39ff14', fontWeight: 800 }}>g·</span>
             {[
-              ['n','kernel'], ['a','chaos'], ['e','eco'], ['s','surv'],
+              ['n','kernel'], ['a','chaos'], ['e','eco'], ['s','surv'], ['o','sol'],
               ['m','mercury'], ['l','lunar'], ['r','ledger'],
             ].map(([k, label]) => (
               <span key={k}>

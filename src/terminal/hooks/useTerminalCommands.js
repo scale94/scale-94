@@ -185,6 +185,9 @@ export default function useTerminalCommands({
     } else if (action === 'lunar') {
       handleNav('~/system/lunar', 'lunar');
       executeCommand(rawCmd, "Switching directory to /system/lunar...");
+    } else if (action === 'sol') {
+      handleNav('~/system/sol', 'sol');
+      executeCommand(rawCmd, "Switching directory to /system/sol...");
     } else if (action === 'mercury') {
       handleNav('~/system/mercury', 'mercury');
       executeCommand(rawCmd, "Switching directory to /system/mercury...");
@@ -266,7 +269,7 @@ export default function useTerminalCommands({
       setCurrentPath(`~/system/kernel?q=${query.replace(/ /g, '_')}`);
       executeCommand(rawCmd, `Applying search filter to kernel index: "${query}".`);
     } else if (action === 'help') {
-      executeCommand(rawCmd, "Commands: load [term], list, search [term], run [kernel], home/kernel, scent, transmission, accretion, privacy, bsky, surveillance, cryptography, art, ecocide, lunar, mercury, ledger, thesis, clear, help. ↑↓ history.");
+      executeCommand(rawCmd, "Commands: load [term], list, search [term], run [kernel], home/kernel, scent, transmission, accretion, privacy, bsky, surveillance, cryptography, art, ecocide, sol, lunar, mercury, ledger, thesis, clear, help. ↑↓ history.");
     } else if (action === 'run') {
       // ── WASM-exclusive executor ─────────────────────────────────────────────
       const currentRegistry = wasmRegistry;

@@ -31,7 +31,7 @@ const LOAD_TAB_MAP = {
   accretion: 'manifesto', manifesto: 'manifesto', bsky: 'bsky', bluesky: 'bsky',
   art: 'art', graph: 'art', fade: 'art', 'fade_doctrine': 'art', 'feigenbaum_fade': 'art', visual: 'art', chaos: 'art',
   ledger: 'ledger', audit: 'ledger', verdicts: 'ledger', 'open_ledger': 'ledger',
-  mercury: 'mercury', lunar: 'lunar', moon: 'lunar',
+  mercury: 'mercury', lunar: 'lunar', moon: 'lunar', sol: 'sol',
 };
 
 const HEX_POOL    = ['BD','E9','1C','7A','55','FF','E3','9A','C2','4F','A1','3D'];
@@ -466,6 +466,11 @@ export function useCommandDispatch(ctx) {
     if (action === 'lunar') {
       handleNav('~/system/lunar', 'lunar');
       executeCommand(rawCmd, "Switching directory to /system/lunar...");
+      return;
+    }
+    if (action === 'sol') {
+      handleNav('~/system/sol', 'sol');
+      executeCommand(rawCmd, "Switching directory to /system/sol...");
       return;
     }
     if (action === 'mercury') {
@@ -939,7 +944,7 @@ export function useCommandDispatch(ctx) {
         setOriginTab(activeTab);
         setSelectedArticle(helpArticle);
       } else {
-        executeCommand(rawCmd, 'Commands: load [term], list, search [term], home/kernel, scent, transmission, accretion, privacy, thesis, clear, help. ↑↓ history.');
+        executeCommand(rawCmd, 'Commands: load [term], list, search [term], home/kernel, scent, transmission, accretion, privacy, sol, thesis, clear, help. ↑↓ history.');
       }
       return;
     }
