@@ -138,3 +138,28 @@ describe('SurveillanceTab privacy drawer', () => {
     expect(await screen.findByTestId('privacy-drawer')).toBeTruthy();
   });
 });
+
+describe('SurveillanceTab privacy focus token', () => {
+  const btn = () => screen.getByRole('button', { name: /privacy protocol/i });
+  it('scrolls the button into view when the token changes, once, and not on click or initial render', () => {
+    const spy = vi.fn();
+    Element.prototype.scrollIntoView = spy;
+    const onHandled = vi.fn();
+    const onChange = vi.fn();
+    const { rerender } = renderTab({ onPrivacyOpenChange: onChange, onPrivacyFocusHandled: onHandled });
+    expect(spy).not.toHaveBeenCalled();
+    fireEvent.click(btn());
+    expect(spy).not.toHaveBeenCalled();
+    rerender(<SurveillanceTab legislationArticles={laws} onOpenLaw={() => {}} privacyFocusToken={1} onPrivacyFocusHandled={onHandled} />);
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy.mock.instances[0]).toBe(btn());
+    expect(spy.mock.calls[0][0]).toMatchObject({ block: 'start' });
+    expect(onHandled).toHaveBeenCalledTimes(1);
+  });
+  it('scrolls on mount when the token is already set (tab mounted by the nav change)', () => {
+    const spy = vi.fn();
+    Element.prototype.scrollIntoView = spy;
+    renderTab({ privacyFocusToken: 1 });
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+});

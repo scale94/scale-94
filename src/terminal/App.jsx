@@ -642,9 +642,12 @@ const App = () => {
   // compiled house_privacy kernel reads tabsVisited.privacy. The emit is
   // deferred for the same reason as in handleNav.
   const [privacyOpen, setPrivacyOpen] = useState(false);
+  const [privacyFocusToken, setPrivacyFocusToken] = useState(0);
+  const clearPrivacyFocus = useCallback(() => setPrivacyFocusToken(0), []);
   const openPrivacy = useCallback(() => {
     handleNav('~/system/surveillance', 'surveillance');
     setPrivacyOpen(true);
+    setPrivacyFocusToken(t => t + 1);
     setTimeout(() => emitObs('gaze', 'tab_navigated', { tab: 'privacy' }), 0);
   }, [handleNav]);
   const handlePrivacyOpenChange = useCallback((next) => {
@@ -1325,6 +1328,8 @@ const App = () => {
               systemArticles={systemArticles}
               privacyOpen={privacyOpen}
               onPrivacyOpenChange={handlePrivacyOpenChange}
+              privacyFocusToken={privacyFocusToken}
+              onPrivacyFocusHandled={clearPrivacyFocus}
             />
           )}
 

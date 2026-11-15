@@ -1,4 +1,4 @@
-import React, { useState, useMemo, lazy, Suspense } from 'react';
+import React, { useState, useMemo, useRef, useEffect, lazy, Suspense } from 'react';
 import { ShieldAlert, ChevronRight, Globe, Filter, AlertTriangle, X, Activity } from 'lucide-react';
 import AirgapIcon from '../components/icons/AirgapIcon';
 import InterceptLattice from '../components/intercept/InterceptLattice';
@@ -46,7 +46,18 @@ const PrivacyTab = lazy(() => import('./PrivacyTab'));
 const SurveillanceTab = ({
   legislationArticles = [], onOpenLaw, systemArticles = {},
   privacyOpen = false, onPrivacyOpenChange,
+  privacyFocusToken = 0, onPrivacyFocusHandled,
 }) => {
+  // One-shot: a non-zero token (set by App's openPrivacy) scrolls the drawer
+  // button to the top once, then asks App to clear it so a later remount of
+  // this tab does not scroll again. The button is not lazy, so it exists here.
+  const privacyBtnRef = useRef(null);
+  useEffect(() => {
+    if (!privacyFocusToken) return;
+    const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    privacyBtnRef.current?.scrollIntoView?.({ block: 'start', behavior: reduce ? 'auto' : 'smooth' });
+    onPrivacyFocusHandled?.();
+  }, [privacyFocusToken]); // eslint-disable-line react-hooks/exhaustive-deps
   const [region,   setRegion]   = useState('ALL');
   const [category, setCategory] = useState('ALL');
   const [minSev,   setMinSev]   = useState(0);
@@ -363,6 +374,7 @@ const SurveillanceTab = ({
       {/* ── Privacy protocol drawer ───────────────────────────────────────── */}
       <div className="border-t border-orange-900/20 pt-6">
         <button
+          ref={privacyBtnRef}
           type="button"
           aria-expanded={privacyOpen}
           onClick={() => onPrivacyOpenChange?.(!privacyOpen)}
