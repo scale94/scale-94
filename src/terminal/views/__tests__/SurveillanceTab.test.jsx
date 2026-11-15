@@ -9,7 +9,7 @@ vi.mock('../../lib/panopticon', async (importOriginal) => {
   return { ...real, setPanopticonCorpus: vi.fn(real.setPanopticonCorpus) };
 });
 
-const renderTab = () => render(<SurveillanceTab legislationArticles={laws} onOpenLaw={() => {}} />);
+const renderTab = (props = {}) => render(<SurveillanceTab legislationArticles={laws} onOpenLaw={() => {}} {...props} />);
 const cards = () => screen.queryAllByTestId('law-card');
 
 describe('SurveillanceTab ledger (spec §2 bug, §8)', () => {
@@ -118,5 +118,23 @@ describe('SurveillanceTab law cards keyboard activation', () => {
 
     fireEvent.keyDown(card, { key: 'Enter', repeat: true });
     expect(onOpenLaw).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('SurveillanceTab privacy drawer', () => {
+  it('shows a privacy button and no drawer by default', () => {
+    renderTab({ privacyOpen: false });
+    expect(screen.getByRole('button', { name: /privacy protocol/i })).toBeTruthy();
+    expect(screen.queryByTestId('privacy-drawer')).toBeNull();
+  });
+  it('asks to open when the button is pressed', () => {
+    const onChange = vi.fn();
+    renderTab({ privacyOpen: false, onPrivacyOpenChange: onChange });
+    fireEvent.click(screen.getByRole('button', { name: /privacy protocol/i }));
+    expect(onChange).toHaveBeenCalledWith(true);
+  });
+  it('renders the privacy panel inside the drawer when open', async () => {
+    renderTab({ privacyOpen: true, systemArticles: { 'PRIVACY-PROTOCOL': { content: 'x' } } });
+    expect(await screen.findByTestId('privacy-drawer')).toBeTruthy();
   });
 });

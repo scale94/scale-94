@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, lazy, Suspense } from 'react';
 import { ShieldAlert, ChevronRight, Globe, Filter, AlertTriangle, X, Activity } from 'lucide-react';
+import AirgapIcon from '../components/icons/AirgapIcon';
 import InterceptLattice from '../components/intercept/InterceptLattice';
 import { computePanopticonIndex } from '../lib/panopticon';
 import { lawNodes, lawTaps, TAPS } from '../lib/interceptLattice';
@@ -40,7 +41,12 @@ const REGIONS = [
 const CATS = [['ALL', 'All Categories'], ...TAPS.map((t) => [t.tag, t.tag])];
 
 // ── Component ──────────────────────────────────────────────────────────────
-const SurveillanceTab = ({ legislationArticles = [], onOpenLaw }) => {
+const PrivacyTab = lazy(() => import('./PrivacyTab'));
+
+const SurveillanceTab = ({
+  legislationArticles = [], onOpenLaw, systemArticles = {},
+  privacyOpen = false, onPrivacyOpenChange,
+}) => {
   const [region,   setRegion]   = useState('ALL');
   const [category, setCategory] = useState('ALL');
   const [minSev,   setMinSev]   = useState(0);
@@ -354,8 +360,29 @@ const SurveillanceTab = ({ legislationArticles = [], onOpenLaw }) => {
         </div>
       )}
 
+      {/* ── Privacy protocol drawer ───────────────────────────────────────── */}
+      <div className="border-t border-orange-900/20 pt-6">
+        <button
+          type="button"
+          aria-expanded={privacyOpen}
+          onClick={() => onPrivacyOpenChange?.(!privacyOpen)}
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 border border-orange-900/40 bg-orange-950/10 text-orange-400/70 hover:text-orange-300 hover:border-orange-500/50 transition-colors font-mono text-[10px] font-bold tracking-widest uppercase"
+        >
+          <AirgapIcon className="w-4 h-4" />
+          PRIVACY PROTOCOL
+          <ChevronRight className={`w-3 h-3 transition-transform ${privacyOpen ? 'rotate-90' : ''}`} />
+        </button>
+        {privacyOpen && (
+          <section data-testid="privacy-drawer" className="mt-4 border border-orange-900/30 p-4">
+            <Suspense fallback={<div className="text-[9px] font-mono text-orange-400/40 tracking-widest">LOADING PRIVACY PROTOCOL…</div>}>
+              <PrivacyTab systemArticles={systemArticles} />
+            </Suspense>
+          </section>
+        )}
+      </div>
+
       {/* ── Footer credit ─────────────────────────────────────────────────── */}
-      <div className="border-t border-orange-900/20 pt-6 pb-8 text-center">
+      <div className="border-t border-orange-900/20 mt-6 pt-6 pb-8 text-center">
         <div className="text-[10px] font-mono text-orange-400/30 tracking-widest mb-1">
           SURVEILLANCE DATA © @grey-c0 / NAVIGATORS GUILD · INTEGRATED VIA SCALE_9.4 CAS PIPELINE
         </div>
