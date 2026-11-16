@@ -1,11 +1,11 @@
 import React from 'react';
 
-// A small disc with one loop of field standing on its upper-right limb: both
-// feet of the loop sit on the limb and its two legs cross once just above the
-// surface, which is the twist. No rays, so it cannot read as a generic sun, and
-// the two-footed loop keeps it from reading as a circle with a single spoke.
-// Two strokes stay legible at w-3 h-3 (12px). Stroke language matches
-// lucide-react so it sits correctly in the nav row.
+// The star's limb: a disc larger than the icon, cropped by the svg's own edge,
+// with one loop of field standing on it, both feet on the surface and the two
+// legs crossing once (the twist). No rays, so it cannot read as a generic sun.
+// The disc is cropped because a small whole circle with a loop at its upper
+// right reads as the male symbol at 12px. Two strokes stay legible at w-3 h-3.
+// Stroke language matches lucide-react so it sits correctly in the nav row.
 const SolGlyph = ({ className }) => (
   <svg
     className={className}
@@ -17,10 +17,10 @@ const SolGlyph = ({ className }) => (
     strokeLinejoin="round"
     aria-hidden="true"
   >
-    {/* the disc */}
-    <circle cx="9" cy="15" r="6" />
+    {/* the limb (extends past the left and bottom edges; the svg crops it) */}
+    <circle cx="8" cy="18" r="9" />
     {/* the loop: foot to foot on the limb, legs crossing once */}
-    <path d="M11.5 9.6C15 9 22 9 20.5 4.5C19.5 1.5 15 3 14.4 12.5" />
+    <path d="M11.8 9.8C16 9.5 23 10 21.5 5C20.5 1.5 15.5 3 16.2 14.2" />
   </svg>
 );
 
