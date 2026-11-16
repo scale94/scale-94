@@ -13,7 +13,7 @@
 // and twist of the noise domain; (3) two-phase domain-warped fbm granulation
 // drifting at omega(lat); (4) per region: bipolar pores with bright rims;
 // (5) limb darkening on heat + heat ramp; (6) corona; (7) per region: arch
-// ribbon; (9) the snap: surface/corona shock, plume or halo, bloom kick;
+// ribbon; (9) the snap: surface/corona shock, plume or halo, exposure dip;
 // (8) clamp below white (CAP); (10) the reconnection flash, the only term
 // added AFTER the cap, so the only white on the tab; dither, premultiplied alpha.
 //
@@ -95,9 +95,11 @@ const float RIPPLE_W = 2.2;         // rad/s phase rate: crests travel outward
 const int ARCH_N = 10;              // arch polyline points
 // The snap (Task 9).
 const float SHOCK_REACH = 1.9;      // rad on the sphere the surface shock crosses
-const float PLUME_REACH = 2.0;      // disc radii the plume front travels (leaves frame about 4 s in)
-const float HALO_REACH = 3.6;       // disc radii the halo ring grows to (leaves frame)
-const float FLASH_CORE = 0.045;     // disc radii, the white core's gaussian width
+const float PLUME_REACH = 1.9;      // disc radii the plume bubble's centre travels from its anchor
+const float PLUME_BUBBLE = 0.55;    // bubble radius / anchor distance (self-similar widening)
+const float EJ_ANG_F = 12.0;        // filament count scale around the ejection (noise circle radius)
+const float FLASH_CORE = 0.022;     // disc radii, the white core's gaussian width
+const float FLASH_DIP = 0.42;       // exposure dip of everything but the flash at its peak
 
 // Never white: white is the reconnection flash's alone.
 const vec3 CAP = vec3(1.0, 0.93, 0.78);
@@ -431,76 +433,132 @@ void main() {
   }
 
   // (9b) ejection structure: ONE noise sample per pixel, outside any loop,
-  // and only while a plume or halo is in flight.
-  float ejN = 0.0;
-  if (uPlume > 0.0 || uHalo > 0.0) {
-    ejN = gnoise(vec3(uv * 2.6 - pDir.xy * (uPlume + uHalo) * 3.0, uTime * 0.22 + 4.0 * (uPlume + uHalo)));
+  // only while a plume or halo is in flight (never both: facing decides).
+  // Sampled in polar coordinates about the ejection's centre: the angular
+  // coordinate (a point on a circle of radius EJ_ANG_F) is fine, the radial
+  // one coarse and measured FROM THE FRONT, so the structure is radial
+  // filaments that stream outward with the front instead of sitting still.
+  float ejS = max(uPlume, uHalo);
+  vec2 dl = pDir.xy;
+  float dlen = length(dl);
+  dl = dlen > 1e-3 ? dl / dlen : vec2(0.0, 1.0);
+  vec2 ejC = vec2(0.0);        // centre of the shell / bubble
+  float ejR = 0.0;             // its front radius
+  float plD = 0.0;             // plume: anchor -> bubble centre distance
+  if (uHalo > 0.0) {
+    ejC = fv.xy * (1.0 - 0.6 * smoothstep(0.0, 0.35, ejS));
+    // apparent radius of something coming at the viewer: grows faster and
+    // faster (speed 6 -> 12 radii per unit progress): at the limb ~0.8 s,
+    // across the stage by ~2.5 s, out of a 950x460 stage by ~2.8 s
+    ejR = 0.12 + 6.0 * ejS + 3.0 * ejS * ejS;
+  } else if (uPlume > 0.0) {
+    plD = 0.18 + PLUME_REACH * (1.0 - pow(1.0 - ejS, 1.4));
+    ejC = fv.xy + dl * plD;
+    ejR = PLUME_BUBBLE * plD;
   }
+  float ejN = 0.0;
+  if (ejS > 0.0) {
+    vec2 e = uv - ejC;
+    float ed = length(e);
+    vec2 eu = ed > 1e-5 ? e / ed : vec2(1.0, 0.0);
+    ejN = gnoise(vec3(eu * EJ_ANG_F, (ed - ejR) * 1.4 + uTime * 0.12 + 7.3));
+  }
+  float fil = 0.40 + 0.95 * smoothstep(-0.35, 0.45, ejN);   // filament contrast, mean ~0.9
+  {
+    // polar coordinates are singular at the centre: neutral there
+    float ec = length(uv - ejC);
+    fil = mix(0.9, fil, smoothstep(0.0, 0.45 * max(ejR, 1e-3), ec));
+  }
+  float filFront = 0.80 + 0.22 * fil;                        // fronts: only a light streak
 
-  // (9c) plume (not facing): a widening, fading cone along the projection
-  // of the normal, front a spherical cap at distance F from the projected
-  // footpoint. Bright leading loop, fainter cavity, soft sides. In front of
-  // the disc when the footpoint faced front, behind it otherwise, so a
-  // far-side snap appears from behind the limb.
+  // (9c) plume (not facing): the classic three-part ejection leaving the
+  // limb. A bubble (circle, centre ejC, radius ejR = PLUME_BUBBLE * plD) rides
+  // out along the projected normal, self-similar so it widens as it goes:
+  // a bright convex leading arc (shell weighted toward the front), a dark
+  // cavity, a faint bright core low in the bubble, and two legs that curve
+  // back from the bubble's flanks to the anchor (the footpoint). All edges
+  // are gaussians: no straight sides, no cut-off. In front of the disc when
+  // the footpoint faced front, behind it otherwise.
   if (uPlume > 0.0) {
     float s = uPlume;
-    float I = fxGain * smoothstep(0.0, 0.05, s) * pow(1.0 - s, 1.3);
-    vec2 dl = pDir.xy;
-    float dlen = length(dl);
-    dl = dlen > 1e-3 ? dl / dlen : vec2(0.0, 1.0);
-    vec2 O = fv.xy;
-    vec2 w = uv - O;
-    float rr = length(w);
-    float cosA = rr > 1e-4 ? dot(w, dl) / rr : 1.0;
-    float th = acos(clamp(cosA, -1.0, 1.0));
-    float halfA = 0.32 + 0.28 * s;                              // the cone opens as it goes
-    float cone = 1.0 - smoothstep(halfA * 0.55, halfA, th);
-    float F = 0.10 + PLUME_REACH * (1.0 - pow(1.0 - s, 1.15));   // front distance
-    float lw = 0.07 + 0.22 * s;
-    float xf = (rr - F) / lw;
-    float loop = exp(-xf * xf);
-    float fill = 0.30 * smoothstep(0.0, 0.25, rr) * (1.0 - smoothstep(F - lw * 0.3, F + lw * 0.3, rr));
-    float dens = (loop + fill) * cone * (0.55 + 0.75 * ejN) / (1.0 + 0.6 * rr);
-    float front = smoothstep(-0.05, 0.05, fv.z);
-    dens *= mix(1.0 - disc, 1.0, front);
-    col += mix(vec3(1.0, 0.50, 0.10), vec3(1.0, 0.70, 0.26), loop) * dens * I * 3.5;
+    float I = (0.55 + 0.45 * fxGain) * smoothstep(0.0, 0.04, s) * pow(1.0 - s, 1.2);
+    vec2 e = uv - ejC;
+    float ed = length(e);
+    float cosT = ed > 1e-5 ? dot(e, dl) / ed : 0.0;
+    float sw = 0.035 + 0.10 * ejR;                                // shell width
+    float xs = (ed - ejR) / sw;
+    float shell = exp(-xs * xs) * (0.04 + 0.96 * smoothstep(-0.25, 0.75, cosT));
+    float coreB = exp(-pow(length(e + dl * ejR * 0.45) / (0.20 * ejR), 2.0)) * 0.40;
+    // legs, in the anchor's frame: along a, across c; half-gap grows with a
+    // as a concave curve, meeting the bubble's flanks near its centre
+    vec2 w = uv - fv.xy;
+    float a = dot(w, dl);
+    float c = dot(w, vec2(-dl.y, dl.x));
+    float u = clamp(a / plD, 0.0, 1.0);
+    float gap = 0.92 * ejR * pow(u, 0.6);
+    float lw = 0.025 + 0.06 * ejR;
+    float xl = (abs(c) - gap) / lw;
+    float legs = exp(-xl * xl) * smoothstep(0.0, 0.25, u) * (1.0 - smoothstep(0.80, 1.10, a / plD)) * 0.85;
+    float dens = (shell + coreB) * filFront + legs * (0.55 + 0.5 * fil);
+    dens *= mix(1.0 - disc, 1.0, smoothstep(-0.05, 0.05, fv.z));
+    vec3 hot = vec3(1.0, 0.76, 0.34);
+    vec3 amber = vec3(1.0, 0.56, 0.14);
+    col += mix(amber, hot, clamp(shell, 0.0, 1.0)) * dens * I * 1.25;
   }
 
-  // (9d) halo (facing): a thick, soft ring born at the projected footpoint
-  // and drifting toward the disc centre as it grows past the whole disc and
-  // out of frame: the cloud coming at the viewer. Fades as it grows.
+  // (9d) halo (facing): a shell of plasma rushing AT the viewer. Born at the
+  // projected footpoint, centre drifting toward the disc centre, radius
+  // accelerating past the limb and out of frame. A bright thin leading front
+  // (its apparent thickness grows with its size), a fainter thicker body
+  // behind, both streaked by the radial filaments; full strength until it
+  // leaves, then fading. Passing over the disc it lays a faint veil on it.
   if (uHalo > 0.0) {
     float s = uHalo;
-    float I = fxGain * smoothstep(0.0, 0.05, s) * pow(1.0 - s, 1.5);
-    vec2 C = fv.xy * (1.0 - 0.6 * smoothstep(0.0, 0.5, s));
-    float Rh = HALO_REACH * (1.0 - pow(1.0 - s, 1.3));
-    float wh = 0.10 + 0.55 * s;
-    float dh = length(uv - C);
-    float xh = (dh - Rh) / wh;
-    float ring = exp(-xh * xh);
-    float inner = 0.22 * (1.0 - smoothstep(Rh * 0.2, Rh, dh)) * smoothstep(0.0, 0.3, s);
-    float dens = (ring + inner) * (0.55 + 0.75 * ejN);
-    dens *= 1.0 - 0.45 * disc;                                   // in front, but quieter over the bright disc
-    col += mix(vec3(1.0, 0.48, 0.09), vec3(1.0, 0.66, 0.22), ring) * dens * I * 1.5;
+    float I = (0.65 + 0.35 * clamp((fxGain - 0.35) / 0.65, 0.0, 1.0))
+            * smoothstep(0.0, 0.03, s) * (1.0 - smoothstep(0.50, 1.0, s));
+    float dh = length(uv - ejC);
+    float x = dh - ejR;                                           // + outside the front
+    float wf = 0.030 + 0.025 * ejR;
+    float wb = 0.20 + 0.30 * ejR;
+    float fr = exp(-(x * x) / (wf * wf));
+    float body = x < 0.0 ? 0.40 * exp(x / wb) * (1.0 - fr) : 0.0;
+    float dens = (fr * filFront + body * fil) / (1.0 + 0.10 * ejR);
+    // over the bright disc a thin shade just inside the front draws its edge
+    float xin = (x + 2.2 * wf) / wf;
+    col *= 1.0 - 0.22 * disc * exp(-xin * xin) * I;
+    vec3 hot = vec3(1.0, 0.78, 0.36);
+    vec3 amber = vec3(1.0, 0.58, 0.16);
+    vec3 hc = mix(amber, hot, fr) * dens * I;
+    col *= 1.0 + 0.18 * dens * I * disc;                          // the veil as it passes the disc
+    col += hc * mix(1.1, 0.35, disc);
   }
 
-  // the bloom kick: the whole frame lifts a little with the flash (still capped)
-  col *= 1.0 + 0.10 * uFlash;
+  // the exposure dip: the flash's white reads anywhere on the disc because
+  // everything else darkens with it, recovering as uFlash decays (~0.5 s);
+  // identity at uFlash = 0
+  col *= 1.0 - FLASH_DIP * min(uFlash, 1.0);
 
   // (8) never white, dither, premultiplied alpha
   col = min(col, CAP);
 
-  // (10) the reconnection flash: the ONLY light allowed past CAP. A small
-  // white core on the footpoint, a gold falloff, a broad soft bloom; hidden
-  // by the disc when the footpoint is on the far side, bleeding past the limb
-  // when it is near it.
+  // (10) the reconnection flash: the ONLY light allowed past CAP. A tight
+  // blinding white core, an over-exposure bleed (white -> pale gold -> gone
+  // within a small radius), six short soft diffraction-like rays, and a
+  // faint gold glow; hidden by the disc when the footpoint is on the far
+  // side, bleeding past the limb when it is near it.
   if (uFlash > 0.0) {
-    float df = length(uv - fv.xy);
+    vec2 d = uv - fv.xy;
+    float df = length(d);
     float vis = smoothstep(-0.35, 0.0, fv.z) * mix(1.0 - disc, 1.0, smoothstep(-0.05, 0.05, fv.z));
-    float core = exp(-(df * df) / (FLASH_CORE * FLASH_CORE));
-    float glow = exp(-df / 0.11);
-    float bloom = exp(-df / 0.35) * 0.30;
-    col += (vec3(1.0) * core * 2.0 + vec3(1.0, 0.74, 0.34) * (glow + bloom)) * uFlash * vis;
+    float core = exp(-(df * df) / (FLASH_CORE * FLASH_CORE)) * 3.0;
+    float bleed = exp(-df / 0.045) * 1.1;
+    vec3 bleedC = mix(vec3(1.0, 0.86, 0.55), vec3(1.0), exp(-df / 0.03));
+    float rot = hash12(uFlashPos.xy * 97.0 + uFlashPos.z * 13.0) * TAU;
+    float phi = atan(d.y, d.x + 1e-6);
+    float ray = pow(abs(cos(3.0 * phi + rot)), 48.0) * exp(-df / 0.09) * smoothstep(0.01, 0.03, df) * 0.7;
+    vec3 rayC = mix(vec3(1.0, 0.80, 0.45), vec3(1.0), exp(-df / 0.05));
+    float glow = exp(-df / 0.25) * 0.18;
+    col += (vec3(1.0) * core + bleedC * bleed + rayC * ray + vec3(1.0, 0.70, 0.30) * glow) * uFlash * vis;
   }
 
   col += (hash12(gl_FragCoord.xy + fract(uTime * 7.0) * 61.0) - 0.5) / 255.0;
