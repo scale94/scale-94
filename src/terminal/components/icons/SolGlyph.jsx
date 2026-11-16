@@ -1,9 +1,11 @@
 import React from 'react';
 
-// A disc with one twisted arch of field lifting off its upper-right limb: the
-// star, and the loop of flux pulled out of its surface. No rays, so it cannot
-// read as a generic sun. Three strokes keep it legible at w-3 h-3 (12px). Stroke
-// language matches lucide-react so it sits correctly in the nav row. Two strokes.
+// A small disc with one loop of field standing on its upper-right limb: both
+// feet of the loop sit on the limb and its two legs cross once just above the
+// surface, which is the twist. No rays, so it cannot read as a generic sun, and
+// the two-footed loop keeps it from reading as a circle with a single spoke.
+// Two strokes stay legible at w-3 h-3 (12px). Stroke language matches
+// lucide-react so it sits correctly in the nav row.
 const SolGlyph = ({ className }) => (
   <svg
     className={className}
@@ -16,10 +18,9 @@ const SolGlyph = ({ className }) => (
     aria-hidden="true"
   >
     {/* the disc */}
-    <circle cx="10" cy="14" r="7" />
-    {/* one arch: leaves the limb at upper right, rises, and returns to the limb
-        on a crossing path so the loop carries a visible twist */}
-    <path d="M14 8.5C15 2.5 22 3 21 7C20 10 16 6 17.5 11" />
+    <circle cx="9" cy="15" r="6" />
+    {/* the loop: foot to foot on the limb, legs crossing once */}
+    <path d="M11.5 9.6C15 9 22 9 20.5 4.5C19.5 1.5 15 3 14.4 12.5" />
   </svg>
 );
 

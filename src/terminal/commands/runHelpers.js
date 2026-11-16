@@ -66,7 +66,7 @@ export const CMD_MANIFEST = [
   { name: 'accretion',    desc: 'navigate to /accretion' },
   { name: 'surveillance',  desc: 'navigate to /surveillance' },
   { name: 'sol',           desc: 'navigate to /sol' },
-  { name: 'bsky',         desc: 'navigate to /bsky' },
+  { name: 'bsky',          desc: 'navigate to /bsky' },
   { name: 'privacy',       desc: 'open the privacy protocol' },
   { name: 'cryptography',  desc: 'navigate to /cryptography — PQC kernel' },
   { name: 'verify',        desc: 'submit classified challenge  e.g. verify ABCDEF' },
