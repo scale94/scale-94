@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createSnapFx, triggerSnap, stepSnapFx, snapUniforms, snapGeometry } from '../snapFx';
+import { createSnapFx, triggerSnap, stepSnapFx, snapUniforms, snapGeometry, stillSnapUniforms } from '../snapFx';
 
 const FACING = { posStar: [0, 0, 1], dirView: [0, 0, 1], strength01: 1, facing: true };
 const LIMB = { posStar: [1, 0, 0], dirView: [1, 0, 0], strength01: 1, facing: false };
@@ -154,5 +154,46 @@ describe('snapFx', () => {
     expect(g.dirView[2]).toBeCloseTo(1, 12);
     const h = snapGeometry(0, Math.PI / 2, { yaw: 0, pitch: 0 }, 0);
     expect(h.dirView[0]).toBeCloseTo(1, 12);
+  });
+
+  describe('stillSnapUniforms (reduced motion: the snap as one still frame)', () => {
+    it('a facing snap: flash at its peak, halo mid-flight, shock at 0.4, no shake', () => {
+      const u = stillSnapUniforms(FACING);
+      // the peak of the animated flash for the same strength
+      const fx = createSnapFx();
+      triggerSnap(fx, FACING);
+      let peak = 0;
+      for (let i = 0; i < 700; i++) { stepSnapFx(fx, 0.001); peak = Math.max(peak, snapUniforms(fx).uFlash); }
+      expect(u.uFlash).toBeCloseTo(peak, 3);
+      expect(u.uFlash).toBeGreaterThanOrEqual(peak - 1e-6);
+      expect(u.uHalo).toBe(0.35);
+      expect(u.uPlume).toBe(0);
+      expect(u.uShock).toBe(0.4);
+      expect(Array.from(u.shake)).toEqual([0, 0]);
+      expect(Array.from(u.uFlashPos)).toEqual([0, 0, 1]);
+      expect(Array.from(u.uPlumeDir)).toEqual([0, 0, 1]); // gain 1 at strength 1
+    });
+
+    it('a limb snap shows the plume; a weak snap a weaker flash and a shorter plume dir', () => {
+      const u = stillSnapUniforms(LIMB);
+      expect(u.uPlume).toBe(0.35);
+      expect(u.uHalo).toBe(0);
+      const w = stillSnapUniforms({ ...LIMB, strength01: 0 });
+      expect(w.uFlash).toBeLessThan(u.uFlash);
+      expect(w.uFlash).toBeGreaterThan(0);
+      expect(w.uPlumeDir[0]).toBeCloseTo(0.35, 12);
+    });
+
+    it('the same shape as snapUniforms, a fresh object each call, finite on hostile input', () => {
+      const a = stillSnapUniforms(FACING);
+      const b = stillSnapUniforms(FACING);
+      expect(a).not.toBe(b);
+      expect(Object.keys(a).sort()).toEqual(Object.keys(createSnapFx().out).sort());
+      const h = stillSnapUniforms({ posStar: [NaN, 0, 0], dirView: null, strength01: NaN });
+      for (const v of [h.uFlash, h.uShock, h.uPlume, h.uHalo, ...h.uFlashPos, ...h.uPlumeDir, ...h.shake]) {
+        expect(Number.isFinite(v)).toBe(true);
+      }
+      expect(stillSnapUniforms().uPlume).toBe(0.35);
+    });
   });
 });

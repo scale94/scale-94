@@ -138,6 +138,38 @@ export function snapUniforms(fx) {
   return o;
 }
 
+// The highest value flashAt(t, 1) reaches: the attack's smoothstep meets the
+// decay a hair before FLASH_ATTACK_S, so it is found by a fine sweep once.
+const FLASH_PEAK_K = (() => {
+  let m = 0;
+  for (let i = 0; i <= 4000; i++) m = Math.max(m, flashAt((i / 4000) * 2 * FLASH_ATTACK_S, 1));
+  return m;
+})();
+
+// Reduced motion: the snap as ONE still frame (SolTab holds it ~1.2 s).
+const STILL_EJECT = 0.35;   // plume / halo progress shown
+const STILL_SHOCK = 0.4;    // shock progress shown
+
+/**
+ * One representative moment of a snap, for reduced motion: the flash at its
+ * peak for this strength, the plume or halo mid-flight, the shock part way
+ * out, no shake. Same shape as snapUniforms(fx); a fresh object each call.
+ */
+export function stillSnapUniforms({ posStar, dirView, strength01, facing } = {}) {
+  const p = vec3(posStar);
+  const d = vec3(dirView);
+  const gain = 0.35 + 0.65 * clamp01(fin(strength01));
+  return {
+    uFlashPos: p,
+    uFlash: gain * FLASH_PEAK_K,
+    uShock: STILL_SHOCK,
+    uPlumeDir: [d[0] * gain, d[1] * gain, d[2] * gain],
+    uPlume: facing ? 0 : STILL_EJECT,
+    uHalo: facing ? STILL_EJECT : 0,
+    shake: [0, 0],
+  };
+}
+
 /** Footpoint geometry at the snap: star-frame unit vector and view-space outward normal. */
 export function snapGeometry(lat, lon, cam, rotLon = 0) {
   const la = fin(lat);

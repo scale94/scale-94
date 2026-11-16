@@ -1,20 +1,34 @@
 // SolCanvas.jsx — the star on the shared shader harness.
 //
 // Owns: the canvas, its size (follows its container, like CouncilField), the
-// shader clock and the uniform upload. The simulation and the hand live in
-// useSolStar; this component only calls star.frame(dt) and star.uniforms()
-// from the draw loop and wires star.handlers onto the canvas. An optional
-// onFrame(dt) runs once per frame right after star.frame(dt); `effects` is
-// read live through a ref (a stable object mutated in place is expected).
+// shader clock, the quality path and the uniform upload. The simulation and
+// the hand live in useSolStar; this component only calls star.frame(dt) and
+// star.uniforms() from the draw loop and wires star.handlers onto the canvas.
+// An optional onFrame(dt) runs once per frame right after star.frame(dt);
+// `effects` is read live through a ref (a stable object mutated in place is
+// expected).
 //
 // uTime is the SIMULATED clock (the sum of the dt handed to star.frame), not
 // the wall clock: regions.js moves each region by omega(lat) * dt and the
 // shader drifts the plasma by omega(lat) * uTime, so the two must share one
-// clock or the regions slide off their plasma.
+// clock or the regions slide off their plasma. It survives host rebuilds.
+//
+// Reduced motion (the `reducedMotion` prop; the caller reads the media query
+// and follows its changes): the harness does not run the loop; uStill = 1
+// freezes everything in the shader that moves on its own; onReady hands the
+// caller a requestDraw() that paints one frame on demand (coalesced to one
+// per animation frame). A change of the flag rebuilds the host on the same
+// canvas, so the context is NOT lost on dispose (the program, buffer and VAO
+// are still deleted by glHost).
+//
+// Quality (quality.js): 1 or 0.5, chosen at mount from the viewport width;
+// the average frame time over the first running second can lower it to 0.5
+// once, never back. 0.5 also renders the canvas at 0.75 of the pixel ratio.
 
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { useShaderCanvas } from '../gl/useShaderCanvas';
 import { QUAD_VS, SOL_FS, SOL_UNIFORMS } from './solShader';
+import { chooseQuality, pixelRatioFor, QUALITY_FULL, MEASURE_S } from './quality';
 
 const CONTEXT_OPTIONS = {
   alpha: true,
@@ -26,9 +40,16 @@ const CONTEXT_OPTIONS = {
 
 const fin = (v, d = 0) => (Number.isFinite(v) ? v : d);
 const ZERO3 = [0, 0, 0];
+const NO_EFFECTS = Object.freeze({});
 const vec3Of = (v) => (Array.isArray(v) || ArrayBuffer.isView(v) ? v : ZERO3);
+const viewportWidth = () => (typeof window !== 'undefined' ? window.innerWidth : NaN);
+// glHost's own ratio (it multiplies host.resize's arguments by this).
+const hostDpr = () => Math.min(2, (typeof window !== 'undefined' && window.devicePixelRatio) || 1);
 
-function paint(gl, U, u, eff, time) {
+// The shader build time is logged once per page load, not per host rebuild.
+let buildLogged = false;
+
+function paint(gl, U, u, eff, time, still, quality) {
   gl.clearColor(0, 0, 0, 0);
   gl.clear(gl.COLOR_BUFFER_BIT);
   gl.uniform2f(U.uRes, gl.canvas.width, gl.canvas.height);
@@ -42,7 +63,7 @@ function paint(gl, U, u, eff, time) {
   gl.uniform1fv(U.uRegionTwist, u.uRegionTwist);
   gl.uniform1fv(U.uRegionTension, u.uRegionTension);
 
-  const e = eff || {};
+  const e = eff || NO_EFFECTS;
   const fp = vec3Of(e.uFlashPos);
   const pd = vec3Of(e.uPlumeDir);
   gl.uniform3f(U.uFlashPos, fin(fp[0]), fin(fp[1]), fin(fp[2]));
@@ -53,22 +74,30 @@ function paint(gl, U, u, eff, time) {
   gl.uniform1f(U.uHalo, fin(e.uHalo));
   gl.uniform1f(U.uAurora, fin(e.uAurora));
   gl.uniform1f(U.uAuroraRed, fin(e.uAuroraRed));
-  gl.uniform1f(U.uStill, fin(e.uStill));
-  gl.uniform1f(U.uQuality, fin(e.uQuality, 1));
+  gl.uniform1f(U.uStill, still ? 1 : 0);
+  gl.uniform1f(U.uQuality, fin(quality, QUALITY_FULL));
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 }
 
-export default function SolCanvas({ star, effects, onFrame }) {
+export default function SolCanvas({ star, effects, onFrame, reducedMotion = false, onReady }) {
   const canvasRef = useRef(null);
   const starRef = useRef(star);
   const effectsRef = useRef(effects);
   const onFrameRef = useRef(onFrame);
-  const timeRef = useRef(0);
+  const stillRef = useRef(!!reducedMotion);
+  const onReadyRef = useRef(onReady);
+  const timeRef = useRef(0);            // set once at first mount; kept across rebuilds
   const visibleRef = useRef(true);
   const buildStartRef = useRef(0);
+  const qualityRef = useRef(null);
+  if (qualityRef.current === null) qualityRef.current = chooseQuality({ viewportWidth: viewportWidth() });
+  // first-second frame-time measurement: done, running time (s), frame count
+  const measureRef = useRef({ done: qualityRef.current !== QUALITY_FULL, t: 0, n: 0 });
   starRef.current = star;
   effectsRef.current = effects;
   onFrameRef.current = onFrame;
+  stillRef.current = !!reducedMotion;
+  onReadyRef.current = onReady;
 
   // Declared before useShaderCanvas so it runs first: stamps the start of the
   // host build, which onInit (called right after compile + link) reads.
@@ -84,23 +113,25 @@ export default function SolCanvas({ star, effects, onFrame }) {
     vs: QUAD_VS,
     fs: SOL_FS,
     uniforms: SOL_UNIFORMS,
-    pixelSize: { w: 800, h: 600 }, // corrected by the ResizeObserver below
+    pixelSize: { w: 800, h: 600 }, // corrected by applySize below
     setStyleSize: false,
     label: 'solShader',
-    loseContextOnDispose: true,
+    // The host is rebuilt on the same canvas when reduced motion changes (and
+    // by a Vite hot update): a lost context would fail every later compile.
+    loseContextOnDispose: false,
     dtClamp: 0.05,
     trackVisibility: true,
     haltOnReducedMotion: true,
 
     onInit() {
-      timeRef.current = 0;
-      if (import.meta.env?.DEV && import.meta.env?.MODE !== 'test') {
+      if (!buildLogged && import.meta.env?.DEV && import.meta.env?.MODE !== 'test') {
+        buildLogged = true;
         const ms = performance.now() - buildStartRef.current;
         console.info('[sol] shader build ms', Math.round(ms));
       }
     },
 
-    draw(host, { dt }) {
+    draw(host, { dt, hidden }) {
       if (!visibleRef.current) return;
       const s = starRef.current;
       const step = Number.isFinite(dt) && dt > 0 ? dt : 0;
@@ -109,30 +140,74 @@ export default function SolCanvas({ star, effects, onFrame }) {
       // star just emitted, and before the effects are uploaded.
       onFrameRef.current?.(step);
       timeRef.current += step;
-      paint(host.gl, host.U, s.uniforms(), effectsRef.current, timeRef.current);
+      paint(host.gl, host.U, s.uniforms(), effectsRef.current, timeRef.current, stillRef.current, qualityRef.current);
+      measure(step, hidden);
     },
 
     // Reduced motion: the loop never starts; repaint the still star on demand.
     onSnap(host) {
-      paint(host.gl, host.U, starRef.current.uniforms(), effectsRef.current, timeRef.current);
+      paint(host.gl, host.U, starRef.current.uniforms(), effectsRef.current, timeRef.current,
+        stillRef.current, qualityRef.current);
     },
 
-    deps: [],
+    deps: [!!reducedMotion],
   });
+
+  // Backing store = CSS size x the quality's pixel ratio.
+  const applySize = useCallback(() => {
+    const el = canvasRef.current;
+    const host = hostRef.current;
+    if (!el || !host) return;
+    const w = el.clientWidth, h = el.clientHeight;
+    if (!w || !h) return;
+    const ratio = pixelRatioFor({ quality: qualityRef.current, viewportWidth: viewportWidth(), dpr: hostDpr() });
+    const k = ratio / hostDpr();
+    if (k === 1) host.resize(w, h);
+    else host.resize(w * k, h * k);
+    snap(); // setting canvas.width cleared the buffer (a no-op unless reduced motion)
+  }, [hostRef, snap]);
+
+  // The first running second's average frame time can lower quality, once.
+  // Hidden or zero-dt frames are not counted (a hidden page's timers lie).
+  function measure(step, hidden) {
+    const m = measureRef.current;
+    if (m.done || hidden || !(step > 0)) return;
+    m.t += step;
+    m.n += 1;
+    if (m.t < MEASURE_S) return;
+    m.done = true;
+    const q = chooseQuality({ viewportWidth: viewportWidth(), avgFrameMs: (m.t * 1000) / m.n });
+    if (q < qualityRef.current) {
+      qualityRef.current = q;
+      applySize();
+    }
+  }
+
+  // After every host build (first mount, reduced-motion change): the harness
+  // sized the canvas to pixelSize, so size it to its box again.
+  useEffect(() => { applySize(); }, [reducedMotion, applySize]);
+
+  // On-demand drawing for the caller, coalesced to one draw per animation frame.
+  useEffect(() => {
+    let raf = 0;
+    const requestDraw = () => {
+      if (raf || typeof requestAnimationFrame !== 'function') return;
+      raf = requestAnimationFrame(() => { raf = 0; snap(); });
+    };
+    onReadyRef.current?.({ requestDraw });
+    return () => {
+      if (raf && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(raf);
+      raf = 0;
+    };
+  }, [snap]);
 
   useEffect(() => {
     const el = canvasRef.current;
     if (!el || typeof ResizeObserver === 'undefined') return undefined;
-    const ro = new ResizeObserver(() => {
-      const host = hostRef.current;
-      const w = el.clientWidth, h = el.clientHeight;
-      if (!host || !w || !h) return;
-      host.resize(w, h);
-      snap(); // setting canvas.width cleared the buffer
-    });
+    const ro = new ResizeObserver(() => applySize());
     ro.observe(el);
     return () => ro.disconnect();
-  }, [hostRef, snap]);
+  }, [applySize]);
 
   // Off-screen (scrolled away): neither simulate nor draw.
   useEffect(() => {
@@ -155,6 +230,7 @@ export default function SolCanvas({ star, effects, onFrame }) {
       onPointerUp={h.onPointerUp}
       onPointerCancel={h.onPointerCancel}
       onLostPointerCapture={h.onLostPointerCapture}
+      onPointerLeave={h.onPointerLeave}
       style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', touchAction: 'none', display: 'block' }}
     />
   );

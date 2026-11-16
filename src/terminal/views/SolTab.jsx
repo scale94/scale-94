@@ -3,30 +3,65 @@ import SolGlyph from '../components/icons/SolGlyph';
 import SolCanvas from '../sol/SolCanvas';
 import SolHud from '../sol/SolHud';
 import { useSolStar } from '../sol/useSolStar';
-import { createSnapFx, triggerSnap, stepSnapFx, snapUniforms, snapGeometry } from '../sol/snapFx';
+import {
+  createSnapFx, triggerSnap, stepSnapFx, snapUniforms, snapGeometry, stillSnapUniforms,
+} from '../sol/snapFx';
 import { strength01 } from '../sol/solPhysics';
 
 const LIGHT_LINE_MS = 20000;   // the light line holds for 20 s after each snap
 const HUD_POLL_MS = 100;       // tension readout; React state only when the integer changes
+const STILL_SNAP_MS = 1200;     // reduced motion: how long the still snap frame holds
 const NO_CLOUDS = [];
+const RM_QUERY = '(prefers-reduced-motion: reduce)';
 
-const prefersReducedMotion = () =>
-  typeof window !== 'undefined' &&
-  typeof window.matchMedia === 'function' &&
-  !!window.matchMedia('(prefers-reduced-motion: reduce)')?.matches;
+const reducedMotionQuery = () =>
+  typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+    ? window.matchMedia(RM_QUERY) || null
+    : null;
+const prefersReducedMotion = () => !!reducedMotionQuery()?.matches;
+
+// Copies a snap-uniforms object into the stable effects object, in place.
+function writeEffects(out, u) {
+  for (let i = 0; i < 3; i++) {
+    out.uFlashPos[i] = u.uFlashPos[i];
+    out.uPlumeDir[i] = u.uPlumeDir[i];
+  }
+  out.uFlash = u.uFlash;
+  out.uShock = u.uShock;
+  out.uPlume = u.uPlume;
+  out.uHalo = u.uHalo;
+  out.shake[0] = 0;
+  out.shake[1] = 0;
+}
 
 // The star fills the stage panel; the HUD sits under it. Snap envelopes run
 // on the star's own frame clock (SolCanvas onFrame) and reach the shader
 // through one stable object mutated in place; the camera impulse is written
 // straight onto the canvas wrapper's style. No React state changes per frame.
+// Reduced motion is read here, once, and followed live (OS toggle): it goes
+// to the hook (the pointer drives the simulation) and to the canvas (no loop,
+// uStill). A snap under reduced motion is one still frame held 1.2 s, no shake.
 const SolTab = () => {
   const fxRef = useRef(null);
   if (fxRef.current === null) fxRef.current = createSnapFx();
   const starRef = useRef(null);
   const wrapRef = useRef(null);
   const shakeRef = useRef('');
-  const stillRef = useRef(false);
   const lightTimerRef = useRef(0);
+  const stillTimerRef = useRef(0);
+  const requestDrawRef = useRef(null);
+
+  const [reducedMotion, setReducedMotion] = useState(prefersReducedMotion);
+  const stillRef = useRef(reducedMotion);
+  stillRef.current = reducedMotion;
+
+  const requestDraw = useCallback(() => requestDrawRef.current?.(), []);
+  const onReady = useCallback(({ requestDraw: rd } = {}) => { requestDrawRef.current = rd || null; }, []);
+
+  const clearShake = useCallback((el = wrapRef.current) => {
+    if (el) el.style.transform = '';
+    shakeRef.current = '';
+  }, []);
 
   const [tensionG, setTensionG] = useState(0);
   const [lastReleaseErg, setLastReleaseErg] = useState(null);
@@ -35,14 +70,28 @@ const SolTab = () => {
   const onSnap = useCallback((ev) => {
     const u = starRef.current?.uniforms();
     const geo = snapGeometry(ev.lat, ev.lon, { yaw: u?.uCamYaw, pitch: u?.uCamPitch }, u?.uRotLon);
-    triggerSnap(fxRef.current, { ...geo, strength01: strength01(ev.energyErg), facing: ev.facing });
+    const snap = { ...geo, strength01: strength01(ev.energyErg), facing: ev.facing };
+    const fx = fxRef.current;
+    if (stillRef.current) {
+      // One fixed moment, held, then cleared. A newer snap restarts the hold.
+      fx.active = false;
+      writeEffects(fx.out, stillSnapUniforms(snap));
+      requestDraw();
+      clearTimeout(stillTimerRef.current);
+      stillTimerRef.current = setTimeout(() => {
+        snapUniforms(fx); // inactive: zeroes the effects in place
+        requestDraw();
+      }, STILL_SNAP_MS);
+    } else {
+      triggerSnap(fx, snap);
+    }
     if (Number.isFinite(ev.energyErg)) setLastReleaseErg(ev.energyErg);
     setLightOn(true);
     clearTimeout(lightTimerRef.current);
     lightTimerRef.current = setTimeout(() => setLightOn(false), LIGHT_LINE_MS);
-  }, []);
+  }, [requestDraw]);
 
-  const star = useSolStar({ onSnap });
+  const star = useSolStar({ onSnap, reducedMotion, requestDraw });
   starRef.current = star;
 
   const onFrame = useCallback((dt) => {
@@ -56,8 +105,48 @@ const SolTab = () => {
     }
   }, []);
 
+  // Follow the OS setting live.
   useEffect(() => {
-    stillRef.current = prefersReducedMotion();
+    const mql = reducedMotionQuery();
+    if (!mql) return undefined;
+    const onChange = () => setReducedMotion(!!mql.matches);
+    onChange();
+    if (typeof mql.addEventListener === 'function') {
+      mql.addEventListener('change', onChange);
+      return () => mql.removeEventListener('change', onChange);
+    }
+    if (typeof mql.addListener === 'function') {
+      mql.addListener(onChange);
+      return () => mql.removeListener(onChange);
+    }
+    return undefined;
+  }, []);
+
+  // A pane hidden mid-shake stops the frame callback: never leave the offset frozen.
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+    const el = wrapRef.current; // still the wrapper at unmount, when the ref is already detached
+    const onVis = () => { if (document.hidden) clearShake(el); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      document.removeEventListener('visibilitychange', onVis);
+      clearShake(el);
+    };
+  }, [clearShake]);
+
+  // Turning reduced motion on mid-snap: drop the running snap (the loop that
+  // would finish it has stopped) and show the still star.
+  useEffect(() => {
+    if (!reducedMotion) return;
+    const fx = fxRef.current;
+    if (!fx.active) return;
+    fx.active = false;
+    snapUniforms(fx);
+    clearShake();
+    requestDraw();
+  }, [reducedMotion, clearShake, requestDraw]);
+
+  useEffect(() => {
     const read = () => {
       const g = Math.round(star.hud().tensionG);
       if (Number.isFinite(g)) setTensionG((prev) => (prev === g ? prev : g));
@@ -67,6 +156,7 @@ const SolTab = () => {
     return () => {
       clearInterval(id);
       clearTimeout(lightTimerRef.current);
+      clearTimeout(stillTimerRef.current);
     };
   }, [star]);
 
@@ -89,7 +179,13 @@ const SolTab = () => {
         className="relative w-full min-h-[60vh] border border-yellow-200/25 rounded-sm overflow-hidden"
       >
         <div ref={wrapRef} className="absolute inset-0">
-          <SolCanvas star={star} effects={fxRef.current.out} onFrame={onFrame} />
+          <SolCanvas
+            star={star}
+            effects={fxRef.current.out}
+            onFrame={onFrame}
+            reducedMotion={reducedMotion}
+            onReady={onReady}
+          />
         </div>
       </div>
 

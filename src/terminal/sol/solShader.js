@@ -20,6 +20,20 @@
 // Compile budget (ANGLE/D3D11, the 87 s /MERCURY stall): every loop is
 // constant-bounded and small; noise is only ever called from the granulation
 // pass, never inside a per-region loop; no derivatives anywhere.
+//
+// uStill (reduced motion): 1 freezes everything that moves on its own. Every
+// clock-driven term reads gT, which is uTime when uStill is 0 (output
+// unchanged) and the fixed STILL_T when it is 1: granulation boil and drift,
+// ripples, the arch breathing, the ejection streaks and the dither all hold.
+// Region position, twist and tension still act, so a stir visibly winds.
+//
+// uQuality (quality.js): 1 is the full path. Below 0.75 the shader does less
+// work per pixel, through branches on a uniform inside constant-bounded loops:
+// fbm evaluates 3 octaves instead of 4 (the 4th is skipped, not down-weighted;
+// gradient noise is zero-mean, so brightness holds); the two granulation
+// layers cross-fade over a third of each cycle instead of all of it (weights
+// still sum to 1), so for two thirds of the time only ONE layer is evaluated;
+// the arch's second strand is skipped.
 
 import { glf } from '../gl/glf';
 import { OMEGA_EQ } from './regions';
@@ -69,6 +83,9 @@ uniform float uAuroraRed;
 uniform float uStill;
 uniform float uQuality;
 
+// The clock every self-moving term reads (see uStill above); set first in main.
+float gT;
+
 const float PI = 3.14159265;
 const float TAU = 6.28318531;
 const float OMEGA_EQ = ${glf(OMEGA_EQ)};
@@ -93,6 +110,8 @@ const float LANE_PX_OK = 2.8;       // lane spacing (px) at full contrast
 const float RIPPLE_K = 70.0;        // rad^-1 along the surface
 const float RIPPLE_W = 2.2;         // rad/s phase rate: crests travel outward
 const int ARCH_N = 10;              // arch polyline points
+const float STILL_T = 0.0;          // s; the frozen clock under uStill
+const float Q_REDUCED = 0.75;       // uQuality below this takes the cheaper path
 // The snap (Task 9).
 const float SHOCK_REACH = 1.9;      // rad on the sphere the surface shock crosses
 const float PLUME_REACH = 1.9;      // disc radii the plume bubble's centre travels from its anchor
@@ -143,13 +162,13 @@ float gnoise(vec3 p) {
              mix(mix(n001, n101, u.x), mix(n011, n111, u.x), u.y), u.z);
 }
 
-// 4 octaves; the finest is weighted by uQuality (1 desktop, lower on slow devices).
+// 4 octaves at full quality; the reduced path never evaluates the 4th.
 float fbm(vec3 p) {
   float s = 0.0;
   float a = 0.5;
   for (int i = 0; i < 4; i++) {
-    float w = (i == 3) ? uQuality : 1.0;
-    s += a * w * gnoise(p);
+    if (i == 3 && uQuality < Q_REDUCED) break;
+    s += a * gnoise(p);
     p = p * 2.03 + vec3(1.7, 9.2, 3.1);
     a *= 0.5;
   }
@@ -160,7 +179,7 @@ float fbm(vec3 p) {
 // move through 3D, so cells boil (split, merge, fade) rather than scroll.
 float granLayer(vec3 m, vec3 seed) {
   vec3 p = m * GRAN_F + seed;
-  float t = uTime;
+  float t = gT;
   vec3 q = p * 0.33;
   vec3 w = vec3(gnoise(q + vec3(0.0, 0.0, t * 0.050)),
                 gnoise(q + vec3(5.2, 1.3, -t * 0.043)),
@@ -176,11 +195,17 @@ float granulation(vec3 q) {
   float om = OMEGA_EQ * (1.0 - OMEGA_K * q.y * q.y);
   float g = 0.0;
   for (int k = 0; k < 2; k++) {
-    float ph = uTime / LAYER_T + 0.5 * float(k);
+    float ph = gT / LAYER_T + 0.5 * float(k);
     float tau = fract(ph) * LAYER_T;
     float cyc = floor(ph);
     float wgt = sin(PI * fract(ph));
     wgt *= wgt;
+    if (uQuality < Q_REDUCED) {
+      // the two weights are w and 1 - w; smoothstep(.25, .75, .) keeps that
+      // sum, and is exactly 0 for a third of the cycle: skip the layer then
+      wgt = smoothstep(0.25, 0.75, wgt);
+      if (wgt <= 0.0) continue;
+    }
     float a = -om * tau;
     vec3 m = rotY(q, cos(a), sin(a));
     vec3 seed = hash33(vec3(cyc, float(k) * 7.0, 3.0)) * 41.0;
@@ -231,6 +256,7 @@ float segDist(vec2 p, vec2 a, vec2 b) {
 }
 
 void main() {
+  gT = uStill > 0.5 ? STILL_T : uTime;
   float minRes = max(min(uRes.x, uRes.y), 1.0);
   float starR = max(uStarRadius, 1e-3);
   float radiusPx = max(starR * minRes * 0.5, 1.0);
@@ -280,8 +306,8 @@ void main() {
         float rl = length(rad);
         vec3 dir = rl > 1e-5 ? rad / rl : vec3(0.0);
         float env = T * T * exp(-d / 0.32) * smoothstep(0.0, 0.06, d) * (1.0 - smoothstep(0.55, 0.9, d));
-        env *= 0.65 + 0.35 * sin(d * 9.0 - uTime * 0.45);   // wave groups, not a stamp
-        float ph = d * RIPPLE_K - uTime * RIPPLE_W;
+        env *= 0.65 + 0.35 * sin(d * 9.0 - gT * 0.45);   // wave groups, not a stamp
+        float ph = d * RIPPLE_K - gT * RIPPLE_W;
         q += dir * (sin(ph) * env * 0.010);
         shade += cos(ph) * env * 0.07;
       }
@@ -370,13 +396,14 @@ void main() {
     float sep = 0.06 + 0.10 * T;
     vec3 A = normalize(c + axis * (sep * 0.5));
     vec3 B = normalize(c - axis * (sep * 0.5));
-    float H = sep * (0.5 + 1.4 * T) * (1.0 + 0.03 * sin(uTime * 0.7 + float(i) * 1.7));
+    float H = sep * (0.5 + 1.4 * T) * (1.0 + 0.03 * sin(gT * 0.7 + float(i) * 1.7));
     float expo = mix(0.95, 0.55, T);                           // taut: fuller, straighter legs
     float w = mix(0.034, 0.015, T);                            // ribbon half-width, radius units
     // second strand: a little lower, nudged sideways off the pair axis
     vec3 side = cross(c, axis) * (sep * 0.12);
     float best = 1e3;
     float best2 = 1e3;
+    bool strand2 = uQuality >= Q_REDUCED;                      // the reduced path draws one strand
     vec3 prevV = rotX(rotY(A, cy, sy), cp, sp);
     vec3 prevW = prevV;
     for (int j = 1; j < ARCH_N; j++) {
@@ -384,13 +411,15 @@ void main() {
       float sh = pow(max(sin(PI * u), 0.0), expo);
       vec3 S = normalize(mix(A, B, u));
       vec3 V = rotX(rotY(S * (1.0 + H * sh), cy, sy), cp, sp);
-      vec3 W = rotX(rotY(normalize(S + side * sh) * (1.0 + 0.82 * H * sh), cy, sy), cp, sp);
       vec3 M = 0.5 * (prevV + V);
       float behind = (1.0 - smoothstep(-0.02, 0.02, M.z)) * (1.0 - smoothstep(0.98, 1.02, length(M.xy)));
       best = min(best, segDist(uv, prevV.xy, V.xy) + behind * 1e3);
-      best2 = min(best2, segDist(uv, prevW.xy, W.xy) + behind * 1e3);
+      if (strand2) {
+        vec3 W = rotX(rotY(normalize(S + side * sh) * (1.0 + 0.82 * H * sh), cy, sy), cp, sp);
+        best2 = min(best2, segDist(uv, prevW.xy, W.xy) + behind * 1e3);
+        prevW = W;
+      }
       prevV = V;
-      prevW = W;
     }
     float core = exp(-(best * best) / (w * w));
     float strand = exp(-(best2 * best2) / (0.36 * w * w)) * 0.45;
@@ -468,7 +497,7 @@ void main() {
     float wa = EJ_WARP * ed;
     float cw = cos(wa), sw = sin(wa);
     vec2 euw = vec2(eu.x * cw - eu.y * sw, eu.x * sw + eu.y * cw);
-    ejN = gnoise(vec3(euw * EJ_ANG_F, (ed - ejR) * 0.45 + uTime * 0.12 + 7.3));
+    ejN = gnoise(vec3(euw * EJ_ANG_F, (ed - ejR) * 0.45 + gT * 0.12 + 7.3));
   }
   float fil = 0.40 + 0.95 * smoothstep(-0.35, 0.45, ejN);   // filament contrast, mean ~0.9
   {
@@ -570,7 +599,7 @@ void main() {
     col += (vec3(1.0) * core + bleedC * bleed + rayC * ray + vec3(1.0, 0.70, 0.30) * glow) * uFlash * vis;
   }
 
-  col += (hash12(gl_FragCoord.xy + fract(uTime * 7.0) * 61.0) - 0.5) / 255.0;
+  col += (hash12(gl_FragCoord.xy + fract(gT * 7.0) * 61.0) - 0.5) / 255.0;
   col = clamp(col, 0.0, 1.0);
   float alpha = max(disc, clamp(max(col.r, max(col.g, col.b)) * 1.25, 0.0, 1.0));
   fragColor = vec4(col, alpha);
