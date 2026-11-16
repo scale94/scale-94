@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useSolStar } from '../useSolStar';
 import { tensionG } from '../solPhysics';
+import { STAR_RADIUS_NDC, viewNormal } from '../solCamera';
 
 const RECT = { left: 0, top: 0, width: 800, height: 600 };
 const CX = 400;
@@ -139,6 +140,52 @@ describe('useSolStar', () => {
     expect(onSnap).toHaveBeenCalledTimes(1);
     expect(onSnap.mock.calls[0][0].origin).toBe('star');
     expect(typeof onSnap.mock.calls[0][0].facing).toBe('boolean');
+  });
+
+  it.each([
+    [0.3, 1, 2], [0.3, -1, -2], [-0.3, 1, 2], [-0.3, -1, -2],
+  ])('a stir on a star region at lat %s (dir %s) shows twist %s whatever its own winding', (lat, dir, want) => {
+    const { api, ev } = setup();
+    const { star } = api._debug();
+    star.regions = [{ id: 1, lat, lon: 0, starTurns: 3, handTurns: 0, held: false, born: 'star' }];
+    const t0 = api.uniforms().uRegionTension[0];
+    expect(api.uniforms().uRegionTwist[0]).toBe(0);
+    // the region's screen position at rest: straight above/below the centre
+    const radius = (STAR_RADIUS_NDC * 600) / 2;
+    const py = CY - Math.sin(lat) * radius;
+    api.handlers.onPointerDown(ev(CX, py));
+    expect(heldRegions(api).map((r) => r.id)).toEqual([1]);
+    circle(api, ev, { cx: CX, cy: py, turns: 2, dir, r: 50 });
+    const u = api.uniforms();
+    expect(Math.abs(u.uRegionTwist[0] - want)).toBeLessThan(0.05);
+    expect(u.uRegionTension[0]).toBeGreaterThan(t0);
+  });
+
+  it('untouched star regions carry no twist', () => {
+    const onSnap = vi.fn();
+    const { result } = renderHook(() => useSolStar({ onSnap, getRect: () => RECT }));
+    const api = result.current;
+    api.frame(1);
+    const u = api.uniforms();
+    expect(u.uRegionCount).toBeGreaterThan(0);
+    for (let i = 0; i < u.uRegionCount; i++) expect(u.uRegionTwist[i]).toBe(0);
+  });
+
+  it('the stir centre rides with the rotation', () => {
+    const { api, ev } = setup();
+    api.handlers.onPointerDown(ev(CX, CY));
+    const id = heldRegions(api)[0].id;
+    api.frame(30);
+    const r = api._debug().star.regions.find((x) => x.id === id);
+    const n = viewNormal(api._debug().cam, r.lat, r.lon, 0);
+    const radius = (STAR_RADIUS_NDC * 600) / 2;
+    const cx = CX + n[0] * radius;
+    const cy = CY - n[1] * radius;
+    expect(cx - CX).toBeGreaterThan(80); // it really moved; the old centre lies outside the circle
+    // follow the point to its new place (the hand travels with it, through the deadzone)
+    api.handlers.onPointerMove(ev(cx, cy));
+    circle(api, ev, { cx, cy, turns: 2, r: 40 });
+    expect(Math.abs(r.handTurns - 2)).toBeLessThan(0.05);
   });
 
   it('uniforms carry region slots and stay finite on hostile input', () => {

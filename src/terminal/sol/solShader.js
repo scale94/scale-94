@@ -12,8 +12,8 @@
 // Main passes: (1) pixel -> star frame; (2) per region: ripple displacement
 // and twist of the noise domain; (3) two-phase domain-warped fbm granulation
 // drifting at omega(lat); (4) per region: bipolar pores with bright rims;
-// (5) limb darkening + palette; (6) corona; (7) per region: arch; (8) soft
-// clip below white, dither, premultiplied alpha.
+// (5) limb darkening on heat + heat ramp; (6) corona; (7) per region: arch
+// ribbon; (8) clamp below white (CAP), dither, premultiplied alpha.
 //
 // Compile budget (ANGLE/D3D11, the 87 s /MERCURY stall): every loop is
 // constant-bounded and small; noise is only ever called from the granulation
@@ -74,8 +74,19 @@ const float OMEGA_K = ${glf(OMEGA_POLE_K)};
 // Look knobs.
 const float GRAN_F = 17.0;          // granule frequency on the unit sphere
 const float LAYER_T = 40.0;         // s; two-phase reseed period, bounds the rotation shear
-const float TWIST_SIGMA = 0.16;     // angular falloff of the hand's twist
-const float TWIST_VIS_TURNS = 1.5;  // displayed twist saturates softly here (aliasing guard)
+// The hand's twist: rigid rotation by the FULL angle inside TWIST_R0 (rad on
+// the sphere; the pore pair lives in there), then a falloff to zero over a
+// log-radius width L that grows with |angle| so the shear r*d(angle)/dr
+// stays at TWIST_SHEAR until L hits its cap. The dominant region's ring
+// carries only the wrapped remainder of its angle (two blended branches,
+// see main), so its shear stays bounded; anywhere lanes would still drop
+// under ~2 px the granulation contrast fades instead of the angle capping.
+const float TWIST_R0 = 0.16;
+const float TWIST_SHEAR = 3.0;
+const float TWIST_LMIN = 0.7;
+const float TWIST_LMAX = 1.15;      // falloff ends at R0 * e^1.15 ~ 0.5 rad
+const float LANE_PX_MIN = 1.3;      // lane spacing (px) where contrast is gone
+const float LANE_PX_OK = 2.8;       // lane spacing (px) at full contrast
 const float RIPPLE_K = 70.0;        // rad^-1 along the surface
 const float RIPPLE_W = 2.2;         // rad/s phase rate: crests travel outward
 const int ARCH_N = 10;              // arch polyline points
@@ -143,7 +154,7 @@ float granLayer(vec3 m, vec3 seed) {
   vec3 w = vec3(gnoise(q + vec3(0.0, 0.0, t * 0.050)),
                 gnoise(q + vec3(5.2, 1.3, -t * 0.043)),
                 gnoise(q + vec3(2.1, 7.7, t * 0.037)));
-  float n = fbm(p + 1.6 * w + vec3(t * 0.021, -t * 0.017, t * 0.019));
+  float n = fbm(p + 0.9 * w + vec3(t * 0.021, -t * 0.017, t * 0.019));
   // bright cells, dark intergranular lanes
   return smoothstep(-0.32, 0.38, n);
 }
@@ -167,12 +178,31 @@ float granulation(vec3 q) {
   return g;
 }
 
-vec3 palette(float mu) {
-  vec3 limb = vec3(0.80, 0.27, 0.05);
-  vec3 amber = vec3(1.0, 0.62, 0.22);
-  vec3 core = vec3(1.0, 0.88, 0.64);
-  vec3 c = mix(limb, amber, smoothstep(0.0, 0.45, mu));
-  return mix(c, core, smoothstep(0.35, 1.0, mu));
+// Heat (0..1) -> photosphere colour: dark red-brown, deep orange, amber,
+// gold, white-gold. Piecewise LINEAR (smoothstep segments would plateau at
+// each stop and band). Every stop has g/r <= 0.90 and b/r <= 0.60, so any
+// sum of these colours stays below CAP's hue: no white.
+vec3 heatRamp(float t) {
+  vec3 c0 = vec3(0.20, 0.035, 0.0);
+  vec3 c1 = vec3(0.62, 0.13, 0.01);
+  vec3 c2 = vec3(0.95, 0.36, 0.04);
+  vec3 c3 = vec3(1.0, 0.60, 0.15);
+  vec3 c4 = vec3(1.0, 0.78, 0.38);
+  vec3 c5 = vec3(1.0, 0.89, 0.58);
+  vec3 c = mix(c0, c1, clamp(t / 0.25, 0.0, 1.0));
+  c = mix(c, c2, clamp((t - 0.25) / 0.25, 0.0, 1.0));
+  c = mix(c, c3, clamp((t - 0.50) / 0.20, 0.0, 1.0));
+  c = mix(c, c4, clamp((t - 0.70) / 0.15, 0.0, 1.0));
+  return mix(c, c5, clamp((t - 0.85) / 0.15, 0.0, 1.0));
+}
+
+// Twist angle at chord distance d from a region, for a hand angle th0
+// (radians, cw positive). Also returns the local shear r*abs(d angle/dr).
+float twistAngle(float d, float th0, out float shear) {
+  float L = clamp(1.5 * abs(th0) / TWIST_SHEAR, TWIST_LMIN, TWIST_LMAX);
+  float u = clamp(log(max(d, TWIST_R0) / TWIST_R0) / L, 0.0, 1.0);
+  shear = abs(th0) * 6.0 * u * (1.0 - u) / L;
+  return th0 * (1.0 - u * u * (3.0 - 2.0 * u));
 }
 
 // Tangent frame at a surface point: east (+lon), north. Safe at the poles.
@@ -181,10 +211,6 @@ void frameAt(vec3 c, out vec3 east, out vec3 north) {
   float el = length(e);
   east = el > 1e-4 ? e / el : vec3(1.0, 0.0, 0.0);
   north = cross(c, east);
-}
-
-float visTwist(float turns) {
-  return TWIST_VIS_TURNS * tanh(turns / TWIST_VIS_TURNS);
 }
 
 float segDist(vec2 p, vec2 a, vec2 b) {
@@ -216,9 +242,21 @@ void main() {
     // view -> star: rotX(-pitch), then rotY(yaw - rotLon)
     vec3 p = rotY(rotX(v, cp, -sp), cy, -sy);
 
-    // (2) ripples and twist warp the noise domain
+    // (2) ripples and twist warp the noise domain. The region with the
+    // largest |twist| (in practice the held one; at most one region carries
+    // more than a turn) is applied last, in two BRANCHES (see below).
+    int dom = -1;
+    float domAbs = 0.0;
+    for (int i = 0; i < 6; i++) {
+      if (i >= uRegionCount) break;
+      float at = abs(uRegionTwist[i]);
+      if (at > domAbs) { domAbs = at; dom = i; }
+    }
     vec3 q = p;
     float shade = 0.0;
+    float maxShear = 0.0;
+    vec3 domC = vec3(0.0, 0.0, 1.0);
+    float domD = 4.0;
     for (int i = 0; i < 6; i++) {
       if (i >= uRegionCount) break;
       vec3 c = uRegionPos[i];
@@ -234,16 +272,39 @@ void main() {
         q += dir * (sin(ph) * env * 0.010);
         shade += cos(ph) * env * 0.07;
       }
-      float x = d / TWIST_SIGMA;
-      float a = TAU * visTwist(uRegionTwist[i]) * exp(-x * x);
+      if (i == dom) { domC = c; domD = d; continue; }
+      float shear;
+      float a = twistAngle(d, TAU * uRegionTwist[i], shear);
+      maxShear = max(maxShear, shear);
       q = rotAxis(q, c, a);
     }
-    q = normalize(q);
 
-    // (3) convection
-    float g = granulation(q);
-    float lum = 0.70 + 0.52 * g;
-    lum *= 1.0 + shade;
+    // The dominant twist. A rotation by 2*pi is the identity, so the rigid
+    // core can turn by the FULL hand angle while the falloff ring carries
+    // only the wrapped remainder: branch A winds the ring by the angle's
+    // fractional turn f in [0, 1), branch B by f - 1. Both agree exactly in
+    // the core; they are blended (B weight = f) so everything is continuous
+    // in handTurns, and the ring's winding never exceeds about half a turn
+    // at full weight: no concentric-ring lanes at 6 turns.
+    float g = 0.53;
+    {
+      float F = dom >= 0 ? uRegionTwist[dom] : 0.0;
+      float f = F - floor(F);
+      float lane0 = radiusPx / GRAN_F;
+      for (int b = 0; b < 2; b++) {
+        float wb = b == 0 ? 1.0 - f : f;
+        if (wb < 1e-3) continue;
+        float ringTurns = b == 0 ? f : f - 1.0;
+        float shear;
+        float a = twistAngle(domD, TAU * ringTurns, shear);
+        vec3 qb = normalize(rotAxis(q, domC, a));
+        float s = max(maxShear, shear);
+        // contrast fades only where lanes would still drop under ~2 px
+        float gb = mix(0.53, granulation(qb), smoothstep(LANE_PX_MIN, LANE_PX_OK, lane0 / (1.0 + s)));
+        g += wb * (gb - 0.53);
+      }
+    }
+    float lum = (0.42 + 0.95 * g) * (1.0 + shade);
 
     // (4) pores with bright rims
     float rim = 0.0;
@@ -255,26 +316,26 @@ void main() {
       vec3 c = uRegionPos[i];
       vec3 east, north;
       frameAt(c, east, north);
-      float beta = -TAU * visTwist(uRegionTwist[i]);           // the pair turns with the hand
+      float beta = -TAU * uRegionTwist[i];             // the pair turns rigidly with the hand
       vec3 axis = east * cos(beta) + north * sin(beta);
-      float sep = 0.035 + 0.075 * T;
-      float rp = 0.010 + 0.020 * T;
+      float sep = 0.06 + 0.10 * T;
+      float rp = 0.018 + 0.030 * T;
       for (int s = 0; s < 2; s++) {
         float sg = s == 0 ? 0.5 : -0.5;
         vec3 pc = normalize(c + axis * (sep * sg));
         float dd = length(p - pc);
         float umbra = 1.0 - smoothstep(rp * 0.45, rp * 1.05, dd);
-        lum *= mix(1.0, 0.16, D * umbra);
+        lum *= mix(1.0, 0.06, D * umbra);
         float e = (dd - rp * 1.35) / (rp * 0.5);
         rim += D * exp(-e * e);
       }
     }
 
-    // (5) limb darkening and palette
-    float limbI = 0.38 + 0.62 * mu;
-    vec3 surf = palette(mu) * limbI * lum * 1.12;
-    surf += vec3(1.0, 0.74, 0.34) * rim * 0.28 * limbI;
-    col = surf * disc;
+    // (5) limb darkening I(mu) = 1 - 0.72 (1 - mu) acting on heat, so the
+    // colour reddens toward the limb across the whole disc
+    float limbI = 1.0 - 0.72 * (1.0 - mu);
+    float heat = limbI * lum + rim * 0.30 * limbI;
+    col = heatRamp(1.0 - exp(-2.5 * heat)) * disc;
   }
 
   // (6) a thin corona
@@ -291,35 +352,46 @@ void main() {
     vec3 c = uRegionPos[i];
     vec3 east, north;
     frameAt(c, east, north);
-    float beta = -TAU * visTwist(uRegionTwist[i]);
+    float beta = -TAU * uRegionTwist[i];
     vec3 axis = east * cos(beta) + north * sin(beta);
-    float sep = 0.035 + 0.075 * T;
+    float sep = 0.06 + 0.10 * T;
     vec3 A = normalize(c + axis * (sep * 0.5));
     vec3 B = normalize(c - axis * (sep * 0.5));
-    float H = sep * (0.5 + 1.9 * T) * (1.0 + 0.03 * sin(uTime * 0.7 + float(i) * 1.7));
+    float H = sep * (0.5 + 1.4 * T) * (1.0 + 0.03 * sin(uTime * 0.7 + float(i) * 1.7));
     float expo = mix(0.95, 0.55, T);                           // taut: fuller, straighter legs
-    float w = mix(0.010, 0.0035, T);
+    float w = mix(0.034, 0.015, T);                            // ribbon half-width, radius units
+    // second strand: a little lower, nudged sideways off the pair axis
+    vec3 side = cross(c, axis) * (sep * 0.12);
     float best = 1e3;
+    float best2 = 1e3;
     vec3 prevV = rotX(rotY(A, cy, sy), cp, sp);
+    vec3 prevW = prevV;
     for (int j = 1; j < ARCH_N; j++) {
       float u = float(j) / float(ARCH_N - 1);
       float sh = pow(max(sin(PI * u), 0.0), expo);
-      vec3 P = normalize(mix(A, B, u)) * (1.0 + H * sh);
-      vec3 V = rotX(rotY(P, cy, sy), cp, sp);
+      vec3 S = normalize(mix(A, B, u));
+      vec3 V = rotX(rotY(S * (1.0 + H * sh), cy, sy), cp, sp);
+      vec3 W = rotX(rotY(normalize(S + side * sh) * (1.0 + 0.82 * H * sh), cy, sy), cp, sp);
       vec3 M = 0.5 * (prevV + V);
       float behind = (1.0 - smoothstep(-0.02, 0.02, M.z)) * (1.0 - smoothstep(0.98, 1.02, length(M.xy)));
-      float dseg = segDist(uv, prevV.xy, V.xy);
-      best = min(best, dseg + behind * 1e3);
+      best = min(best, segDist(uv, prevV.xy, V.xy) + behind * 1e3);
+      best2 = min(best2, segDist(uv, prevW.xy, W.xy) + behind * 1e3);
       prevV = V;
+      prevW = W;
     }
     float core = exp(-(best * best) / (w * w));
-    float glow = exp(-best / (w * 4.0)) * 0.22;
-    col *= 1.0 - 0.30 * core * gain;
-    col += vec3(1.0, 0.68, 0.28) * (core * 0.85 + glow) * gain;
+    float strand = exp(-(best2 * best2) / (0.36 * w * w)) * 0.45;
+    float flank = exp(-(best * best) / (7.0 * w * w)) * (1.0 - core);
+    float glow = exp(-best / (w * 3.0)) * 0.18;
+    // amber-gold, brighter as it pulls taut; never past the ramp's gold
+    vec3 archCol = heatRamp(0.80 + 0.17 * T);
+    col *= 1.0 - 0.30 * flank * gain * disc;                   // the ribbon's shadow over the disc
+    col = mix(col, archCol, clamp(max(core, strand) * gain * (0.75 + 0.25 * T), 0.0, 1.0));
+    col += archCol * glow * gain * (1.0 - 0.6 * disc);
   }
 
-  // (8) soft clip below CAP (never white), dither, premultiplied alpha
-  col = CAP * (1.0 - exp(-1.5 * col / CAP));
+  // (8) never white, dither, premultiplied alpha
+  col = min(col, CAP);
   col += (hash12(gl_FragCoord.xy + fract(uTime * 7.0) * 61.0) - 0.5) / 255.0;
   col = clamp(col, 0.0, 1.0);
   float alpha = max(disc, clamp(max(col.r, max(col.g, col.b)) * 1.25, 0.0, 1.0));

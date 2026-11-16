@@ -143,7 +143,6 @@ function createSolStar(onSnapRef, getRectRef) {
     if (heldId != null && !findRegion(heldId)) endHoldBySnap();
   }
 
-  const signedStarWinding = (r) => (r.lat >= 0 ? -r.starTurns : r.starTurns);
   const tension01 = (r) =>
     clamp01((tensionG(regionTurns(r)) - TENSION_QUIET_G) / (TENSION_SNAP_G - TENSION_QUIET_G));
 
@@ -161,7 +160,9 @@ function createSolStar(onSnapRef, getRectRef) {
       pos[i * 3] = cl * Math.sin(lon);
       pos[i * 3 + 1] = Math.sin(lat);
       pos[i * 3 + 2] = cl * Math.cos(lon);
-      twist[i] = fin(fin(r.handTurns) + fin(signedStarWinding(r)));
+      // The swirl is the hand's signature only: the star's own winding shows
+      // through tension (pores, arch), never as a spiral.
+      twist[i] = fin(r.handTurns);
       tension[i] = fin(tension01(r));
     }
     return {
