@@ -97,7 +97,8 @@ const int ARCH_N = 10;              // arch polyline points
 const float SHOCK_REACH = 1.9;      // rad on the sphere the surface shock crosses
 const float PLUME_REACH = 1.9;      // disc radii the plume bubble's centre travels from its anchor
 const float PLUME_BUBBLE = 0.55;    // bubble radius / anchor distance (self-similar widening)
-const float EJ_ANG_F = 12.0;        // filament count scale around the ejection (noise circle radius)
+const float EJ_ANG_F = 4.0;         // streak scale around the ejection (noise circle radius; ~25 soft cells)
+const float EJ_WARP = 0.15;         // rad of angular warp per disc radius: streaks lean and wander, never a regular comb
 const float FLASH_CORE = 0.022;     // disc radii, the white core's gaussian width
 const float FLASH_DIP = 0.42;       // exposure dip of everything but the flash at its peak
 
@@ -435,9 +436,12 @@ void main() {
   // (9b) ejection structure: ONE noise sample per pixel, outside any loop,
   // only while a plume or halo is in flight (never both: facing decides).
   // Sampled in polar coordinates about the ejection's centre: the angular
-  // coordinate (a point on a circle of radius EJ_ANG_F) is fine, the radial
-  // one coarse and measured FROM THE FRONT, so the structure is radial
-  // filaments that stream outward with the front instead of sitting still.
+  // coordinate is LOW frequency (a circle of radius EJ_ANG_F) and warped by a
+  // slow function of radius, the radial one lower still and measured FROM
+  // THE FRONT, so the structure is long, irregular radial streaks that stream
+  // outward with the front. Thin curves (fronts, plume legs, plume core)
+  // take almost none of it: gradient noise sampled along a thin line reads
+  // as evenly spaced beads, so those stay smooth.
   float ejS = max(uPlume, uHalo);
   vec2 dl = pDir.xy;
   float dlen = length(dl);
@@ -461,7 +465,10 @@ void main() {
     vec2 e = uv - ejC;
     float ed = length(e);
     vec2 eu = ed > 1e-5 ? e / ed : vec2(1.0, 0.0);
-    ejN = gnoise(vec3(eu * EJ_ANG_F, (ed - ejR) * 1.4 + uTime * 0.12 + 7.3));
+    float wa = EJ_WARP * ed;
+    float cw = cos(wa), sw = sin(wa);
+    vec2 euw = vec2(eu.x * cw - eu.y * sw, eu.x * sw + eu.y * cw);
+    ejN = gnoise(vec3(euw * EJ_ANG_F, (ed - ejR) * 0.45 + uTime * 0.12 + 7.3));
   }
   float fil = 0.40 + 0.95 * smoothstep(-0.35, 0.45, ejN);   // filament contrast, mean ~0.9
   {
@@ -469,7 +476,7 @@ void main() {
     float ec = length(uv - ejC);
     fil = mix(0.9, fil, smoothstep(0.0, 0.45 * max(ejR, 1e-3), ec));
   }
-  float filFront = 0.80 + 0.22 * fil;                        // fronts: only a light streak
+  float filThin = 1.0 + 0.08 * (fil - 0.9);                  // thin curves: near-smooth (+-4%)
 
   // (9c) plume (not facing): the classic three-part ejection leaving the
   // limb. A bubble (circle, centre ejC, radius ejR = PLUME_BUBBLE * plD) rides
@@ -499,7 +506,7 @@ void main() {
     float lw = 0.025 + 0.06 * ejR;
     float xl = (abs(c) - gap) / lw;
     float legs = exp(-xl * xl) * smoothstep(0.0, 0.25, u) * (1.0 - smoothstep(0.80, 1.10, a / plD)) * 0.85;
-    float dens = (shell + coreB) * filFront + legs * (0.55 + 0.5 * fil);
+    float dens = (shell + coreB + legs) * filThin;
     dens *= mix(1.0 - disc, 1.0, smoothstep(-0.05, 0.05, fv.z));
     vec3 hot = vec3(1.0, 0.76, 0.34);
     vec3 amber = vec3(1.0, 0.56, 0.14);
@@ -522,7 +529,9 @@ void main() {
     float wb = 0.20 + 0.30 * ejR;
     float fr = exp(-(x * x) / (wf * wf));
     float body = x < 0.0 ? 0.40 * exp(x / wb) * (1.0 - fr) : 0.0;
-    float dens = (fr * filFront + body * fil) / (1.0 + 0.10 * ejR);
+    // streak contrast grows with depth behind the thin front, zero at it
+    float deep = x < 0.0 ? 1.0 - exp(x / (3.0 * wf)) : 0.0;
+    float dens = (fr * filThin + body * mix(0.9, fil, deep)) / (1.0 + 0.10 * ejR);
     // over the bright disc a thin shade just inside the front draws its edge
     float xin = (x + 2.2 * wf) / wf;
     col *= 1.0 - 0.22 * disc * exp(-xin * xin) * I;
