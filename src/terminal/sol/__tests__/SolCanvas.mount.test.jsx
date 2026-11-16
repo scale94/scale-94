@@ -147,4 +147,122 @@ describe('SolCanvas mount', () => {
       window.innerWidth = w0;
     }
   });
+
+  describe('sizing: the buffer is the CSS box x the chosen ratio', () => {
+    // jsdom lays nothing out: give the canvas a box, a viewport and a DPR.
+    function withLayout({ boxW, boxH, innerW, dpr }, fn) {
+      const proto = HTMLCanvasElement.prototype;
+      const cw = Object.getOwnPropertyDescriptor(proto, 'clientWidth');
+      const ch = Object.getOwnPropertyDescriptor(proto, 'clientHeight');
+      Object.defineProperty(proto, 'clientWidth', { configurable: true, get: () => boxW });
+      Object.defineProperty(proto, 'clientHeight', { configurable: true, get: () => boxH });
+      const w0 = window.innerWidth;
+      const d0 = window.devicePixelRatio;
+      window.innerWidth = innerW;
+      window.devicePixelRatio = dpr;
+      try { return fn(); } finally {
+        if (cw) Object.defineProperty(proto, 'clientWidth', cw); else delete proto.clientWidth;
+        if (ch) Object.defineProperty(proto, 'clientHeight', ch); else delete proto.clientHeight;
+        window.innerWidth = w0;
+        window.devicePixelRatio = d0;
+      }
+    }
+    const uRes = (log) => log.filter((e) => e[0] === 'uniform2f' && String(e[1]).endsWith(':uRes')).map((e) => [e[2], e[3]]);
+    const qualities = (log) => log.filter((e) => e[0] === 'uniform1f' && String(e[1]).endsWith(':uQuality')).map((e) => e[2]);
+
+    it('at mount and after a rebuild, every frame is painted at the box size (never the placeholder)', () => {
+      withLayout({ boxW: 948, boxH: 459, innerW: 1024, dpr: 1 }, () => {
+        stubRaf();
+        const rec = installRecordingGL({ version: 2 });
+        try {
+          const { result } = renderHook(() => useSolStar());
+          let canvas;
+          const { rerender } = withReducedMotion(() => render(<SolCanvas star={result.current} reducedMotion />));
+          canvas = document.querySelector('[data-testid=sol-canvas]');
+          expect([canvas.width, canvas.height]).toEqual([948, 459]);
+          expect(uRes(rec.log).length).toBeGreaterThan(0);
+          for (const r of uRes(rec.log)) expect(r).toEqual([948, 459]);
+          rec.log.length = 0;
+          rerender(<SolCanvas star={result.current} reducedMotion={false} />);   // host rebuild
+          expect(rec.log.filter((e) => e[0] === 'createProgram')).toHaveLength(1);
+          expect([canvas.width, canvas.height]).toEqual([948, 459]);
+          for (const r of uRes(rec.log)) expect(r).toEqual([948, 459]);
+        } finally {
+          rec.restore();
+        }
+      });
+    });
+
+    it('a phone (375 wide, DPR 2) renders at 0.75 x the 1.5 cap', () => {
+      withLayout({ boxW: 341, boxH: 485, innerW: 375, dpr: 2 }, () => {
+        withReducedMotion(() => {
+          const rec = installRecordingGL({ version: 2 });
+          try {
+            const { result } = renderHook(() => useSolStar());
+            render(<SolCanvas star={result.current} reducedMotion />);
+            const canvas = document.querySelector('[data-testid=sol-canvas]');
+            expect([canvas.width, canvas.height]).toEqual([384, 546]);
+            for (const r of uRes(rec.log)) expect(r).toEqual([384, 546]);
+            expect(qualities(rec.log).every((q) => q === 0.5)).toBe(true);
+          } finally {
+            rec.restore();
+          }
+        });
+      });
+    });
+
+    // Drives the real frame loop with a stubbed rAF and frame times in ms.
+    function runFrames(rec, frameMs) {
+      const q = [];
+      vi.stubGlobal('requestAnimationFrame', (cb) => { q.push(cb); return q.length; });
+      vi.stubGlobal('cancelAnimationFrame', () => {});
+      const { result } = renderHook(() => useSolStar());
+      const { unmount } = render(<SolCanvas star={result.current} />);
+      let t = performance.now();
+      for (const ms of frameMs) {
+        t += ms;
+        const cbs = q.splice(0);
+        for (const cb of cbs) cb(t);
+      }
+      return { canvas: document.querySelector('[data-testid=sol-canvas]'), unmount };
+    }
+
+    it('a slow first second (25 ms frames) drops quality to 0.5 exactly once and shrinks the buffer', () => {
+      withLayout({ boxW: 948, boxH: 459, innerW: 1024, dpr: 1 }, () => {
+        const rec = installRecordingGL({ version: 2 });
+        try {
+          const { canvas, unmount } = runFrames(rec, Array(120).fill(25));   // 3 s
+          const qs = qualities(rec.log);
+          const flips = qs.filter((v, i) => i > 0 && v !== qs[i - 1]).length;
+          expect(qs[0]).toBe(1);
+          expect(qs[qs.length - 1]).toBe(0.5);
+          expect(flips).toBe(1);
+          // not before the warm-up plus the measured second (0.4 + 1 s = 56 frames of 25 ms)
+          expect(qs.indexOf(0.5)).toBeGreaterThanOrEqual(56);
+          expect([canvas.width, canvas.height]).toEqual([711, 344]);
+          const res = uRes(rec.log);
+          expect(res[res.length - 1]).toEqual([711, 344]);
+          unmount();
+        } finally {
+          rec.restore();
+        }
+      });
+    });
+
+    it('mount jank (three 50 ms frames, then 8 ms) keeps full quality', () => {
+      withLayout({ boxW: 948, boxH: 459, innerW: 1024, dpr: 1 }, () => {
+        const rec = installRecordingGL({ version: 2 });
+        try {
+          const frames = [50, 50, 50, ...Array(300).fill(8)];
+          for (let i = 0; i < 5; i++) frames[60 + i * 30] = 50;   // and five hitches in the measured second
+          const { canvas, unmount } = runFrames(rec, frames);
+          expect(qualities(rec.log).every((q) => q === 1)).toBe(true);
+          expect([canvas.width, canvas.height]).toEqual([948, 459]);
+          unmount();
+        } finally {
+          rec.restore();
+        }
+      });
+    });
+  });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { chooseQuality, pixelRatioFor } from '../quality';
+import { chooseQuality, pixelRatioFor, typicalFrameMs, WARMUP_S, MEASURE_S } from '../quality';
 
 describe('chooseQuality', () => {
   it('a phone-width viewport gets the reduced path', () => {
@@ -38,5 +38,30 @@ describe('pixelRatioFor', () => {
   it('hostile input falls back to DPR 1, full quality', () => {
     expect(pixelRatioFor({ quality: NaN, viewportWidth: NaN, dpr: NaN })).toBe(1);
     expect(pixelRatioFor()).toBe(1);
+  });
+});
+
+describe('typicalFrameMs (the robust first-second statistic)', () => {
+  it('a fast run with five 50 ms spikes stays fast: quality 1', () => {
+    const s = Array(120).fill(8);
+    for (let i = 0; i < 5; i++) s[i * 20] = 50;
+    const t = typicalFrameMs(s);
+    expect(t).toBeLessThan(9);
+    expect(chooseQuality({ viewportWidth: 1280, avgFrameMs: t })).toBe(1);
+  });
+  it('a steady 25 ms run is slow: quality 0.5', () => {
+    const t = typicalFrameMs(Array(40).fill(25));
+    expect(t).toBeCloseTo(25, 9);
+    expect(chooseQuality({ viewportWidth: 1280, avgFrameMs: t })).toBe(0.5);
+  });
+  it('drops the slowest tenth, ignores non-finite entries, NaN when empty', () => {
+    expect(typicalFrameMs([10, 10, 10, 10, 10, 10, 10, 10, 10, 1000])).toBe(10);
+    expect(typicalFrameMs([10, NaN, Infinity, -5, 10])).toBe(10);
+    expect(Number.isNaN(typicalFrameMs([]))).toBe(true);
+    expect(Number.isNaN(typicalFrameMs())).toBe(true);
+  });
+  it('the measurement skips a warm-up before it starts', () => {
+    expect(WARMUP_S).toBeGreaterThanOrEqual(0.3);
+    expect(MEASURE_S).toBeGreaterThanOrEqual(1);
   });
 });

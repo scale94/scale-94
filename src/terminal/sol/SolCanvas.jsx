@@ -22,13 +22,22 @@
 // are still deleted by glHost).
 //
 // Quality (quality.js): 1 or 0.5, chosen at mount from the viewport width;
-// the average frame time over the first running second can lower it to 0.5
-// once, never back. 0.5 also renders the canvas at 0.75 of the pixel ratio.
+// after a 0.4 s warm-up, the typical frame time (mean without the slowest
+// 10%) of the next running second can lower it to 0.5 once, never back. 0.5
+// also renders the canvas at 0.75 of the pixel ratio.
+//
+// Size: the backing store is ALWAYS the canvas's CSS box x the chosen pixel
+// ratio. It is set inside every host build (onInit, before the first frame,
+// so the harness's pixelSize placeholder is never painted), again by the
+// ResizeObserver and after the quality drop, and, if the box was still zero
+// when the host was built, by the first draw that finds a real box.
 
 import React, { useCallback, useEffect, useRef } from 'react';
 import { useShaderCanvas } from '../gl/useShaderCanvas';
 import { QUAD_VS, SOL_FS, SOL_UNIFORMS } from './solShader';
-import { chooseQuality, pixelRatioFor, QUALITY_FULL, MEASURE_S } from './quality';
+import {
+  chooseQuality, pixelRatioFor, typicalFrameMs, QUALITY_FULL, WARMUP_S, MEASURE_S,
+} from './quality';
 
 const CONTEXT_OPTIONS = {
   alpha: true,
@@ -43,11 +52,21 @@ const ZERO3 = [0, 0, 0];
 const NO_EFFECTS = Object.freeze({});
 const vec3Of = (v) => (Array.isArray(v) || ArrayBuffer.isView(v) ? v : ZERO3);
 const viewportWidth = () => (typeof window !== 'undefined' ? window.innerWidth : NaN);
-// glHost's own ratio (it multiplies host.resize's arguments by this).
-const hostDpr = () => Math.min(2, (typeof window !== 'undefined' && window.devicePixelRatio) || 1);
+const deviceDpr = () => (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
+
+/** Backing-store size for the canvas's CSS box at a quality, or null while the box is empty. */
+function targetSize(el, quality) {
+  const w = el?.clientWidth;
+  const h = el?.clientHeight;
+  if (!(w > 0) || !(h > 0)) return null;
+  const ratio = pixelRatioFor({ quality, viewportWidth: viewportWidth(), dpr: deviceDpr() });
+  return { w: Math.max(1, Math.round(w * ratio)), h: Math.max(1, Math.round(h * ratio)) };
+}
 
 // The shader build time is logged once per page load, not per host rebuild.
-let buildLogged = false;
+// The flag lives on the window, so a Vite hot update that re-evaluates this
+// module does not log again.
+const LOG_FLAG = '__solShaderBuildLogged';
 
 function paint(gl, U, u, eff, time, still, quality) {
   gl.clearColor(0, 0, 0, 0);
@@ -91,8 +110,10 @@ export default function SolCanvas({ star, effects, onFrame, reducedMotion = fals
   const buildStartRef = useRef(0);
   const qualityRef = useRef(null);
   if (qualityRef.current === null) qualityRef.current = chooseQuality({ viewportWidth: viewportWidth() });
-  // first-second frame-time measurement: done, running time (s), frame count
-  const measureRef = useRef({ done: qualityRef.current !== QUALITY_FULL, t: 0, n: 0 });
+  // first-second frame-time measurement: done, running time (s) since the
+  // host was ready, measured frame times (ms) after the warm-up
+  const measureRef = useRef({ done: qualityRef.current !== QUALITY_FULL, t: 0, samples: [] });
+  const sizedRef = useRef(false);      // the buffer matches a real (non-empty) box
   starRef.current = star;
   effectsRef.current = effects;
   onFrameRef.current = onFrame;
@@ -113,7 +134,7 @@ export default function SolCanvas({ star, effects, onFrame, reducedMotion = fals
     vs: QUAD_VS,
     fs: SOL_FS,
     uniforms: SOL_UNIFORMS,
-    pixelSize: { w: 800, h: 600 }, // corrected by applySize below
+    pixelSize: { w: 800, h: 600 }, // placeholder only: onInit sizes the canvas before any frame
     setStyleSize: false,
     label: 'solShader',
     // The host is rebuilt on the same canvas when reduced motion changes (and
@@ -123,9 +144,22 @@ export default function SolCanvas({ star, effects, onFrame, reducedMotion = fals
     trackVisibility: true,
     haltOnReducedMotion: true,
 
-    onInit() {
-      if (!buildLogged && import.meta.env?.DEV && import.meta.env?.MODE !== 'test') {
-        buildLogged = true;
+    // Runs inside every host build, after the harness set the placeholder
+    // size and before it restores the viewport from canvas.width/height and
+    // paints the first frame.
+    onInit(gl, { canvas }) {
+      const size = targetSize(canvas, qualityRef.current);
+      if (size) {
+        canvas.width = size.w;
+        canvas.height = size.h;
+      }
+      sizedRef.current = !!size;
+      // a new host: the measurement (if still pending) restarts its warm-up
+      const m = measureRef.current;
+      if (!m.done) { m.t = 0; m.samples.length = 0; }
+      if (typeof window !== 'undefined' && !window[LOG_FLAG]
+          && import.meta.env?.DEV && import.meta.env?.MODE !== 'test') {
+        window[LOG_FLAG] = true;
         const ms = performance.now() - buildStartRef.current;
         console.info('[sol] shader build ms', Math.round(ms));
       }
@@ -133,6 +167,7 @@ export default function SolCanvas({ star, effects, onFrame, reducedMotion = fals
 
     draw(host, { dt, hidden }) {
       if (!visibleRef.current) return;
+      if (!sizedRef.current) sizeTo(host);
       const s = starRef.current;
       const step = Number.isFinite(dt) && dt > 0 ? dt : 0;
       s.frame(step);
@@ -146,6 +181,7 @@ export default function SolCanvas({ star, effects, onFrame, reducedMotion = fals
 
     // Reduced motion: the loop never starts; repaint the still star on demand.
     onSnap(host) {
+      if (!sizedRef.current) sizeTo(host);
       paint(host.gl, host.U, starRef.current.uniforms(), effectsRef.current, timeRef.current,
         stillRef.current, qualityRef.current);
     },
@@ -153,38 +189,48 @@ export default function SolCanvas({ star, effects, onFrame, reducedMotion = fals
     deps: [!!reducedMotion],
   });
 
-  // Backing store = CSS size x the quality's pixel ratio.
-  const applySize = useCallback(() => {
-    const el = canvasRef.current;
-    const host = hostRef.current;
-    if (!el || !host) return;
-    const w = el.clientWidth, h = el.clientHeight;
-    if (!w || !h) return;
-    const ratio = pixelRatioFor({ quality: qualityRef.current, viewportWidth: viewportWidth(), dpr: hostDpr() });
-    const k = ratio / hostDpr();
-    if (k === 1) host.resize(w, h);
-    else host.resize(w * k, h * k);
-    snap(); // setting canvas.width cleared the buffer (a no-op unless reduced motion)
-  }, [hostRef, snap]);
+  // Backing store = CSS box x the quality's pixel ratio. Returns true when
+  // the canvas size changed (which cleared its buffer). Never draws.
+  function sizeTo(host) {
+    const el = host?.gl?.canvas || canvasRef.current;
+    const size = targetSize(el, qualityRef.current);
+    sizedRef.current = !!size;
+    if (!size || (el.width === size.w && el.height === size.h)) return false;
+    el.width = size.w;
+    el.height = size.h;
+    host.gl.viewport(0, 0, size.w, size.h);
+    return true;
+  }
 
-  // The first running second's average frame time can lower quality, once.
-  // Hidden or zero-dt frames are not counted (a hidden page's timers lie).
+  // Resize from outside a draw: then repaint (a no-op unless reduced motion;
+  // the running loop repaints on its own).
+  const applySize = useCallback(() => {
+    const host = hostRef.current;
+    if (host && sizeTo(host)) snap();
+  }, [hostRef, snap]); // sizeTo reads only refs
+
+  // Quality can drop once: the first WARMUP_S of running frames after the host
+  // is ready are discarded (tab fade, React commit, link jank), the next
+  // MEASURE_S are reduced to a typical frame time. Hidden or zero-dt frames
+  // are not counted (a hidden page's timers lie).
   function measure(step, hidden) {
     const m = measureRef.current;
     if (m.done || hidden || !(step > 0)) return;
     m.t += step;
-    m.n += 1;
-    if (m.t < MEASURE_S) return;
+    if (m.t <= WARMUP_S) return;
+    m.samples.push(step * 1000);
+    if (m.t < WARMUP_S + MEASURE_S) return;
     m.done = true;
-    const q = chooseQuality({ viewportWidth: viewportWidth(), avgFrameMs: (m.t * 1000) / m.n });
+    const q = chooseQuality({ viewportWidth: viewportWidth(), avgFrameMs: typicalFrameMs(m.samples) });
+    m.samples = [];
     if (q < qualityRef.current) {
       qualityRef.current = q;
       applySize();
     }
   }
 
-  // After every host build (first mount, reduced-motion change): the harness
-  // sized the canvas to pixelSize, so size it to its box again.
+  // Belt and braces after every host build: onInit already sized the canvas
+  // when its box was known.
   useEffect(() => { applySize(); }, [reducedMotion, applySize]);
 
   // On-demand drawing for the caller, coalesced to one draw per animation frame.
