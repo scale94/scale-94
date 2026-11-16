@@ -1,0 +1,327 @@
+// solShader.js — the star: one analytic sphere in a full-screen fragment shader.
+//
+// Conventions are solCamera.js's, copied exactly:
+//   view +x right, +y up, +z toward the viewer; orthographic; star radius in
+//   pixels = uStarRadius * min(res) / 2, centred.
+//   star -> view: rotY(uRotLon), rotY(-uCamYaw), rotX(+uCamPitch).
+//   rotY(a): x' = x cos a + z sin a, z' = -x sin a + z cos a.
+// The star frame does not rotate: the plasma drifts in longitude at
+// omega(lat) = OMEGA_EQ (1 - 0.265 sin^2 lat), the same rate regions.js moves
+// each region at, so a region stays on the plasma it sits on.
+//
+// Main passes: (1) pixel -> star frame; (2) per region: ripple displacement
+// and twist of the noise domain; (3) two-phase domain-warped fbm granulation
+// drifting at omega(lat); (4) per region: bipolar pores with bright rims;
+// (5) limb darkening + palette; (6) corona; (7) per region: arch; (8) soft
+// clip below white, dither, premultiplied alpha.
+//
+// Compile budget (ANGLE/D3D11, the 87 s /MERCURY stall): every loop is
+// constant-bounded and small; noise is only ever called from the granulation
+// pass, never inside a per-region loop; no derivatives anywhere.
+
+import { glf } from '../gl/glf';
+import { OMEGA_EQ } from './regions';
+
+/** Pole slow-down of differential rotation: omega(lat) = OMEGA_EQ (1 - K sin^2 lat). Mirrors regions.js omega(). */
+export const OMEGA_POLE_K = 0.265;
+
+export const SOL_UNIFORMS = ['uRes', 'uTime', 'uCamYaw', 'uCamPitch', 'uRotLon', 'uStarRadius',
+  'uRegionPos', 'uRegionTwist', 'uRegionTension', 'uRegionCount',
+  'uFlashPos', 'uFlash', 'uShock', 'uPlumeDir', 'uPlume', 'uHalo',
+  'uAurora', 'uAuroraRed', 'uStill', 'uQuality'];
+
+export const QUAD_VS = `#version 300 es
+precision highp float;
+layout(location = 0) in vec2 aPos;
+out vec2 vScreen;
+void main() {
+  vScreen = aPos;
+  gl_Position = vec4(aPos, 0.0, 1.0);
+}`;
+
+export const SOL_FS = `#version 300 es
+precision highp float;
+in vec2 vScreen;
+out vec4 fragColor;
+
+uniform vec2 uRes;
+uniform float uTime;
+uniform float uCamYaw;
+uniform float uCamPitch;
+uniform float uRotLon;
+uniform float uStarRadius;
+uniform vec3 uRegionPos[6];
+uniform float uRegionTwist[6];
+uniform float uRegionTension[6];
+uniform int uRegionCount;
+// Snap effects (Task 9) and clock effects (Task 14): declared, not yet drawn.
+uniform vec3 uFlashPos;
+uniform float uFlash;
+uniform float uShock;
+uniform vec3 uPlumeDir;
+uniform float uPlume;
+uniform float uHalo;
+uniform float uAurora;
+uniform float uAuroraRed;
+uniform float uStill;
+uniform float uQuality;
+
+const float PI = 3.14159265;
+const float TAU = 6.28318531;
+const float OMEGA_EQ = ${glf(OMEGA_EQ)};
+const float OMEGA_K = ${glf(OMEGA_POLE_K)};
+
+// Look knobs.
+const float GRAN_F = 17.0;          // granule frequency on the unit sphere
+const float LAYER_T = 40.0;         // s; two-phase reseed period, bounds the rotation shear
+const float TWIST_SIGMA = 0.16;     // angular falloff of the hand's twist
+const float TWIST_VIS_TURNS = 1.5;  // displayed twist saturates softly here (aliasing guard)
+const float RIPPLE_K = 70.0;        // rad^-1 along the surface
+const float RIPPLE_W = 2.2;         // rad/s phase rate: crests travel outward
+const int ARCH_N = 10;              // arch polyline points
+
+// Never white: white is the reconnection flash's alone.
+const vec3 CAP = vec3(1.0, 0.93, 0.78);
+
+vec3 rotY(vec3 p, float c, float s) { return vec3(p.x * c + p.z * s, p.y, -p.x * s + p.z * c); }
+vec3 rotX(vec3 p, float c, float s) { return vec3(p.x, p.y * c - p.z * s, p.y * s + p.z * c); }
+
+vec3 rotAxis(vec3 v, vec3 k, float a) {
+  float c = cos(a);
+  float s = sin(a);
+  return v * c + cross(k, v) * s + k * dot(k, v) * (1.0 - c);
+}
+
+vec3 hash33(vec3 p3) {
+  p3 = fract(p3 * vec3(0.1031, 0.1030, 0.0973));
+  p3 += dot(p3, p3.yxz + 33.33);
+  return -1.0 + 2.0 * fract((p3.xxy + p3.yxx) * p3.zyx);
+}
+
+float hash12(vec2 p) {
+  vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+  p3 += dot(p3, p3.yzx + 33.33);
+  return fract((p3.x + p3.y) * p3.z);
+}
+
+// 3D gradient noise, quintic fade, about -1..1.
+float gnoise(vec3 p) {
+  vec3 i = floor(p);
+  vec3 f = fract(p);
+  vec3 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+  float n000 = dot(hash33(i), f);
+  float n100 = dot(hash33(i + vec3(1.0, 0.0, 0.0)), f - vec3(1.0, 0.0, 0.0));
+  float n010 = dot(hash33(i + vec3(0.0, 1.0, 0.0)), f - vec3(0.0, 1.0, 0.0));
+  float n110 = dot(hash33(i + vec3(1.0, 1.0, 0.0)), f - vec3(1.0, 1.0, 0.0));
+  float n001 = dot(hash33(i + vec3(0.0, 0.0, 1.0)), f - vec3(0.0, 0.0, 1.0));
+  float n101 = dot(hash33(i + vec3(1.0, 0.0, 1.0)), f - vec3(1.0, 0.0, 1.0));
+  float n011 = dot(hash33(i + vec3(0.0, 1.0, 1.0)), f - vec3(0.0, 1.0, 1.0));
+  float n111 = dot(hash33(i + vec3(1.0, 1.0, 1.0)), f - vec3(1.0, 1.0, 1.0));
+  return mix(mix(mix(n000, n100, u.x), mix(n010, n110, u.x), u.y),
+             mix(mix(n001, n101, u.x), mix(n011, n111, u.x), u.y), u.z);
+}
+
+// 4 octaves; the finest is weighted by uQuality (1 desktop, lower on slow devices).
+float fbm(vec3 p) {
+  float s = 0.0;
+  float a = 0.5;
+  for (int i = 0; i < 4; i++) {
+    float w = (i == 3) ? uQuality : 1.0;
+    s += a * w * gnoise(p);
+    p = p * 2.03 + vec3(1.7, 9.2, 3.1);
+    a *= 0.5;
+  }
+  return s;
+}
+
+// One granulation layer on the material sphere point m. Warp and base both
+// move through 3D, so cells boil (split, merge, fade) rather than scroll.
+float granLayer(vec3 m, vec3 seed) {
+  vec3 p = m * GRAN_F + seed;
+  float t = uTime;
+  vec3 q = p * 0.33;
+  vec3 w = vec3(gnoise(q + vec3(0.0, 0.0, t * 0.050)),
+                gnoise(q + vec3(5.2, 1.3, -t * 0.043)),
+                gnoise(q + vec3(2.1, 7.7, t * 0.037)));
+  float n = fbm(p + 1.6 * w + vec3(t * 0.021, -t * 0.017, t * 0.019));
+  // bright cells, dark intergranular lanes
+  return smoothstep(-0.32, 0.38, n);
+}
+
+// Two half-period-offset layers, each drifting at omega(lat) for tau seconds
+// and reseeded while its weight is zero: correct drift, bounded shear.
+float granulation(vec3 q) {
+  float om = OMEGA_EQ * (1.0 - OMEGA_K * q.y * q.y);
+  float g = 0.0;
+  for (int k = 0; k < 2; k++) {
+    float ph = uTime / LAYER_T + 0.5 * float(k);
+    float tau = fract(ph) * LAYER_T;
+    float cyc = floor(ph);
+    float wgt = sin(PI * fract(ph));
+    wgt *= wgt;
+    float a = -om * tau;
+    vec3 m = rotY(q, cos(a), sin(a));
+    vec3 seed = hash33(vec3(cyc, float(k) * 7.0, 3.0)) * 41.0;
+    g += wgt * granLayer(m, seed);
+  }
+  return g;
+}
+
+vec3 palette(float mu) {
+  vec3 limb = vec3(0.80, 0.27, 0.05);
+  vec3 amber = vec3(1.0, 0.62, 0.22);
+  vec3 core = vec3(1.0, 0.88, 0.64);
+  vec3 c = mix(limb, amber, smoothstep(0.0, 0.45, mu));
+  return mix(c, core, smoothstep(0.35, 1.0, mu));
+}
+
+// Tangent frame at a surface point: east (+lon), north. Safe at the poles.
+void frameAt(vec3 c, out vec3 east, out vec3 north) {
+  vec3 e = cross(vec3(0.0, 1.0, 0.0), c);
+  float el = length(e);
+  east = el > 1e-4 ? e / el : vec3(1.0, 0.0, 0.0);
+  north = cross(c, east);
+}
+
+float visTwist(float turns) {
+  return TWIST_VIS_TURNS * tanh(turns / TWIST_VIS_TURNS);
+}
+
+float segDist(vec2 p, vec2 a, vec2 b) {
+  vec2 ab = b - a;
+  float t = clamp(dot(p - a, ab) / max(dot(ab, ab), 1e-8), 0.0, 1.0);
+  return length(p - a - ab * t);
+}
+
+void main() {
+  float minRes = max(min(uRes.x, uRes.y), 1.0);
+  float starR = max(uStarRadius, 1e-3);
+  float radiusPx = max(starR * minRes * 0.5, 1.0);
+  vec2 uv = vScreen * uRes / (starR * minRes);   // star radius = 1
+  float r = length(uv);
+  float aa = 1.5 / radiusPx;
+
+  float cy = cos(uRotLon - uCamYaw), sy = sin(uRotLon - uCamYaw);
+  float cp = cos(uCamPitch), sp = sin(uCamPitch);
+
+  vec3 col = vec3(0.0);
+  float disc = 1.0 - smoothstep(1.0 - aa, 1.0 + aa, r);
+
+  // ---- photosphere ----
+  if (r < 1.0 + aa) {
+    float rc = min(r, 0.99999);
+    vec2 sxy = r > 0.99999 ? uv * (0.99999 / r) : uv;
+    vec3 v = vec3(sxy, sqrt(max(0.0, 1.0 - rc * rc)));
+    float mu = v.z;
+    // view -> star: rotX(-pitch), then rotY(yaw - rotLon)
+    vec3 p = rotY(rotX(v, cp, -sp), cy, -sy);
+
+    // (2) ripples and twist warp the noise domain
+    vec3 q = p;
+    float shade = 0.0;
+    for (int i = 0; i < 6; i++) {
+      if (i >= uRegionCount) break;
+      vec3 c = uRegionPos[i];
+      float T = uRegionTension[i];
+      float d = length(p - c);
+      if (T > 0.01 && d < 0.9) {
+        vec3 rad = p - c * dot(p, c);
+        float rl = length(rad);
+        vec3 dir = rl > 1e-5 ? rad / rl : vec3(0.0);
+        float env = T * T * exp(-d / 0.32) * smoothstep(0.0, 0.06, d) * (1.0 - smoothstep(0.55, 0.9, d));
+        env *= 0.65 + 0.35 * sin(d * 9.0 - uTime * 0.45);   // wave groups, not a stamp
+        float ph = d * RIPPLE_K - uTime * RIPPLE_W;
+        q += dir * (sin(ph) * env * 0.010);
+        shade += cos(ph) * env * 0.07;
+      }
+      float x = d / TWIST_SIGMA;
+      float a = TAU * visTwist(uRegionTwist[i]) * exp(-x * x);
+      q = rotAxis(q, c, a);
+    }
+    q = normalize(q);
+
+    // (3) convection
+    float g = granulation(q);
+    float lum = 0.70 + 0.52 * g;
+    lum *= 1.0 + shade;
+
+    // (4) pores with bright rims
+    float rim = 0.0;
+    for (int i = 0; i < 6; i++) {
+      if (i >= uRegionCount) break;
+      float T = uRegionTension[i];
+      float D = smoothstep(0.12, 0.55, T);
+      if (D <= 0.0) continue;
+      vec3 c = uRegionPos[i];
+      vec3 east, north;
+      frameAt(c, east, north);
+      float beta = -TAU * visTwist(uRegionTwist[i]);           // the pair turns with the hand
+      vec3 axis = east * cos(beta) + north * sin(beta);
+      float sep = 0.035 + 0.075 * T;
+      float rp = 0.010 + 0.020 * T;
+      for (int s = 0; s < 2; s++) {
+        float sg = s == 0 ? 0.5 : -0.5;
+        vec3 pc = normalize(c + axis * (sep * sg));
+        float dd = length(p - pc);
+        float umbra = 1.0 - smoothstep(rp * 0.45, rp * 1.05, dd);
+        lum *= mix(1.0, 0.16, D * umbra);
+        float e = (dd - rp * 1.35) / (rp * 0.5);
+        rim += D * exp(-e * e);
+      }
+    }
+
+    // (5) limb darkening and palette
+    float limbI = 0.38 + 0.62 * mu;
+    vec3 surf = palette(mu) * limbI * lum * 1.12;
+    surf += vec3(1.0, 0.74, 0.34) * rim * 0.28 * limbI;
+    col = surf * disc;
+  }
+
+  // (6) a thin corona
+  float off = max(r - 1.0, 0.0);
+  float halo = exp(-off * 11.0) * 0.30 + exp(-off * 2.6) * 0.05;
+  col += vec3(1.0, 0.46, 0.13) * halo * (1.0 - disc);
+
+  // (7) arches: a loop over each pore pair, above the surface
+  for (int i = 0; i < 6; i++) {
+    if (i >= uRegionCount) break;
+    float T = uRegionTension[i];
+    float gain = smoothstep(0.05, 0.35, T);
+    if (gain <= 0.0) continue;
+    vec3 c = uRegionPos[i];
+    vec3 east, north;
+    frameAt(c, east, north);
+    float beta = -TAU * visTwist(uRegionTwist[i]);
+    vec3 axis = east * cos(beta) + north * sin(beta);
+    float sep = 0.035 + 0.075 * T;
+    vec3 A = normalize(c + axis * (sep * 0.5));
+    vec3 B = normalize(c - axis * (sep * 0.5));
+    float H = sep * (0.5 + 1.9 * T) * (1.0 + 0.03 * sin(uTime * 0.7 + float(i) * 1.7));
+    float expo = mix(0.95, 0.55, T);                           // taut: fuller, straighter legs
+    float w = mix(0.010, 0.0035, T);
+    float best = 1e3;
+    vec3 prevV = rotX(rotY(A, cy, sy), cp, sp);
+    for (int j = 1; j < ARCH_N; j++) {
+      float u = float(j) / float(ARCH_N - 1);
+      float sh = pow(max(sin(PI * u), 0.0), expo);
+      vec3 P = normalize(mix(A, B, u)) * (1.0 + H * sh);
+      vec3 V = rotX(rotY(P, cy, sy), cp, sp);
+      vec3 M = 0.5 * (prevV + V);
+      float behind = (1.0 - smoothstep(-0.02, 0.02, M.z)) * (1.0 - smoothstep(0.98, 1.02, length(M.xy)));
+      float dseg = segDist(uv, prevV.xy, V.xy);
+      best = min(best, dseg + behind * 1e3);
+      prevV = V;
+    }
+    float core = exp(-(best * best) / (w * w));
+    float glow = exp(-best / (w * 4.0)) * 0.22;
+    col *= 1.0 - 0.30 * core * gain;
+    col += vec3(1.0, 0.68, 0.28) * (core * 0.85 + glow) * gain;
+  }
+
+  // (8) soft clip below CAP (never white), dither, premultiplied alpha
+  col = CAP * (1.0 - exp(-1.5 * col / CAP));
+  col += (hash12(gl_FragCoord.xy + fract(uTime * 7.0) * 61.0) - 0.5) / 255.0;
+  col = clamp(col, 0.0, 1.0);
+  float alpha = max(disc, clamp(max(col.r, max(col.g, col.b)) * 1.25, 0.0, 1.0));
+  fragColor = vec4(col, alpha);
+}`;
