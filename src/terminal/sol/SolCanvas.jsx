@@ -3,7 +3,9 @@
 // Owns: the canvas, its size (follows its container, like CouncilField), the
 // shader clock and the uniform upload. The simulation and the hand live in
 // useSolStar; this component only calls star.frame(dt) and star.uniforms()
-// from the draw loop and wires star.handlers onto the canvas.
+// from the draw loop and wires star.handlers onto the canvas. An optional
+// onFrame(dt) runs once per frame right after star.frame(dt); `effects` is
+// read live through a ref (a stable object mutated in place is expected).
 //
 // uTime is the SIMULATED clock (the sum of the dt handed to star.frame), not
 // the wall clock: regions.js moves each region by omega(lat) * dt and the
@@ -56,15 +58,17 @@ function paint(gl, U, u, eff, time) {
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 }
 
-export default function SolCanvas({ star, effects }) {
+export default function SolCanvas({ star, effects, onFrame }) {
   const canvasRef = useRef(null);
   const starRef = useRef(star);
   const effectsRef = useRef(effects);
+  const onFrameRef = useRef(onFrame);
   const timeRef = useRef(0);
   const visibleRef = useRef(true);
   const buildStartRef = useRef(0);
   starRef.current = star;
   effectsRef.current = effects;
+  onFrameRef.current = onFrame;
 
   // Declared before useShaderCanvas so it runs first: stamps the start of the
   // host build, which onInit (called right after compile + link) reads.
@@ -101,6 +105,9 @@ export default function SolCanvas({ star, effects }) {
       const s = starRef.current;
       const step = Number.isFinite(dt) && dt > 0 ? dt : 0;
       s.frame(step);
+      // Same clock as the star: snap envelopes step here, after any snap the
+      // star just emitted, and before the effects are uploaded.
+      onFrameRef.current?.(step);
       timeRef.current += step;
       paint(host.gl, host.U, s.uniforms(), effectsRef.current, timeRef.current);
     },

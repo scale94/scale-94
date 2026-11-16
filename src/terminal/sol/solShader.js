@@ -13,7 +13,9 @@
 // and twist of the noise domain; (3) two-phase domain-warped fbm granulation
 // drifting at omega(lat); (4) per region: bipolar pores with bright rims;
 // (5) limb darkening on heat + heat ramp; (6) corona; (7) per region: arch
-// ribbon; (8) clamp below white (CAP), dither, premultiplied alpha.
+// ribbon; (9) the snap: surface/corona shock, plume or halo, bloom kick;
+// (8) clamp below white (CAP); (10) the reconnection flash, the only term
+// added AFTER the cap, so the only white on the tab; dither, premultiplied alpha.
 //
 // Compile budget (ANGLE/D3D11, the 87 s /MERCURY stall): every loop is
 // constant-bounded and small; noise is only ever called from the granulation
@@ -54,7 +56,8 @@ uniform vec3 uRegionPos[6];
 uniform float uRegionTwist[6];
 uniform float uRegionTension[6];
 uniform int uRegionCount;
-// Snap effects (Task 9) and clock effects (Task 14): declared, not yet drawn.
+// Snap effects (snapFx.js): uFlashPos star frame; uPlumeDir view space, its
+// length is the snap's gain. Clock effects (Task 14): declared, not yet drawn.
 uniform vec3 uFlashPos;
 uniform float uFlash;
 uniform float uShock;
@@ -90,6 +93,11 @@ const float LANE_PX_OK = 2.8;       // lane spacing (px) at full contrast
 const float RIPPLE_K = 70.0;        // rad^-1 along the surface
 const float RIPPLE_W = 2.2;         // rad/s phase rate: crests travel outward
 const int ARCH_N = 10;              // arch polyline points
+// The snap (Task 9).
+const float SHOCK_REACH = 1.9;      // rad on the sphere the surface shock crosses
+const float PLUME_REACH = 2.0;      // disc radii the plume front travels (leaves frame about 4 s in)
+const float HALO_REACH = 3.6;       // disc radii the halo ring grows to (leaves frame)
+const float FLASH_CORE = 0.045;     // disc radii, the white core's gaussian width
 
 // Never white: white is the reconnection flash's alone.
 const vec3 CAP = vec3(1.0, 0.93, 0.78);
@@ -232,6 +240,7 @@ void main() {
 
   vec3 col = vec3(0.0);
   float disc = 1.0 - smoothstep(1.0 - aa, 1.0 + aa, r);
+  vec3 pSurf = vec3(0.0);   // star-frame surface point under this pixel (disc only)
 
   // ---- photosphere ----
   if (r < 1.0 + aa) {
@@ -241,6 +250,7 @@ void main() {
     float mu = v.z;
     // view -> star: rotX(-pitch), then rotY(yaw - rotLon)
     vec3 p = rotY(rotX(v, cp, -sp), cy, -sy);
+    pSurf = p;
 
     // (2) ripples and twist warp the noise domain. The region with the
     // largest |twist| (in practice the held one; at most one region carries
@@ -390,8 +400,109 @@ void main() {
     col += archCol * glow * gain * (1.0 - 0.6 * disc);
   }
 
+  // (9) the snap. Every term below is exactly zero when its uniform is 0.
+  // Footpoint in view space (star -> view, as the arches do), and the snap's
+  // gain, carried as the length of uPlumeDir (snapFx.js).
+  vec3 fv = rotX(rotY(uFlashPos, cy, sy), cp, sp);
+  float fxGain = length(uPlumeDir);
+  vec3 pDir = uPlumeDir / max(fxGain, 1e-4);
+
+  // (9a) shock: a ring crossing the SURFACE from the footpoint (angular
+  // distance in the star frame), decelerating; soft leading edge, longer
+  // wake. It brightens the photosphere it passes, then runs on as a faint
+  // ring in the corona around the projected footpoint.
+  if (uShock > 0.0) {
+    float s = uShock;
+    float I = fxGain * smoothstep(0.0, 0.06, s) * (1.0 - s) * (1.0 - s);
+    float R = SHOCK_REACH * (1.0 - pow(1.0 - s, 2.2));
+    float lead = 0.05 + 0.06 * s;
+    float wake = 0.12 + 0.30 * s;
+    float ang = acos(clamp(dot(pSurf, uFlashPos), -1.0, 1.0));
+    float x = ang - R;
+    float ring = x > 0.0 ? exp(-(x * x) / (lead * lead)) : exp(x / wake) * (0.55 + 0.45 * exp(-(x * x) / (lead * lead)));
+    ring *= disc * I;
+    col *= 1.0 + 0.55 * ring;
+    col += vec3(1.0, 0.60, 0.20) * ring * 0.10;
+    float dc = length(uv - fv.xy);
+    float Rc = 0.10 + SHOCK_REACH * 1.15 * (1.0 - pow(1.0 - s, 2.2));
+    float wc = 0.05 + 0.12 * s;
+    float xc = (dc - Rc) / wc;
+    col += vec3(1.0, 0.50, 0.15) * exp(-xc * xc) * I * 0.22 * (1.0 - disc) * exp(-off * 1.2);
+  }
+
+  // (9b) ejection structure: ONE noise sample per pixel, outside any loop,
+  // and only while a plume or halo is in flight.
+  float ejN = 0.0;
+  if (uPlume > 0.0 || uHalo > 0.0) {
+    ejN = gnoise(vec3(uv * 2.6 - pDir.xy * (uPlume + uHalo) * 3.0, uTime * 0.22 + 4.0 * (uPlume + uHalo)));
+  }
+
+  // (9c) plume (not facing): a widening, fading cone along the projection
+  // of the normal, front a spherical cap at distance F from the projected
+  // footpoint. Bright leading loop, fainter cavity, soft sides. In front of
+  // the disc when the footpoint faced front, behind it otherwise, so a
+  // far-side snap appears from behind the limb.
+  if (uPlume > 0.0) {
+    float s = uPlume;
+    float I = fxGain * smoothstep(0.0, 0.05, s) * pow(1.0 - s, 1.3);
+    vec2 dl = pDir.xy;
+    float dlen = length(dl);
+    dl = dlen > 1e-3 ? dl / dlen : vec2(0.0, 1.0);
+    vec2 O = fv.xy;
+    vec2 w = uv - O;
+    float rr = length(w);
+    float cosA = rr > 1e-4 ? dot(w, dl) / rr : 1.0;
+    float th = acos(clamp(cosA, -1.0, 1.0));
+    float halfA = 0.32 + 0.28 * s;                              // the cone opens as it goes
+    float cone = 1.0 - smoothstep(halfA * 0.55, halfA, th);
+    float F = 0.10 + PLUME_REACH * (1.0 - pow(1.0 - s, 1.15));   // front distance
+    float lw = 0.07 + 0.22 * s;
+    float xf = (rr - F) / lw;
+    float loop = exp(-xf * xf);
+    float fill = 0.30 * smoothstep(0.0, 0.25, rr) * (1.0 - smoothstep(F - lw * 0.3, F + lw * 0.3, rr));
+    float dens = (loop + fill) * cone * (0.55 + 0.75 * ejN) / (1.0 + 0.6 * rr);
+    float front = smoothstep(-0.05, 0.05, fv.z);
+    dens *= mix(1.0 - disc, 1.0, front);
+    col += mix(vec3(1.0, 0.50, 0.10), vec3(1.0, 0.70, 0.26), loop) * dens * I * 3.5;
+  }
+
+  // (9d) halo (facing): a thick, soft ring born at the projected footpoint
+  // and drifting toward the disc centre as it grows past the whole disc and
+  // out of frame: the cloud coming at the viewer. Fades as it grows.
+  if (uHalo > 0.0) {
+    float s = uHalo;
+    float I = fxGain * smoothstep(0.0, 0.05, s) * pow(1.0 - s, 1.5);
+    vec2 C = fv.xy * (1.0 - 0.6 * smoothstep(0.0, 0.5, s));
+    float Rh = HALO_REACH * (1.0 - pow(1.0 - s, 1.3));
+    float wh = 0.10 + 0.55 * s;
+    float dh = length(uv - C);
+    float xh = (dh - Rh) / wh;
+    float ring = exp(-xh * xh);
+    float inner = 0.22 * (1.0 - smoothstep(Rh * 0.2, Rh, dh)) * smoothstep(0.0, 0.3, s);
+    float dens = (ring + inner) * (0.55 + 0.75 * ejN);
+    dens *= 1.0 - 0.45 * disc;                                   // in front, but quieter over the bright disc
+    col += mix(vec3(1.0, 0.48, 0.09), vec3(1.0, 0.66, 0.22), ring) * dens * I * 1.5;
+  }
+
+  // the bloom kick: the whole frame lifts a little with the flash (still capped)
+  col *= 1.0 + 0.10 * uFlash;
+
   // (8) never white, dither, premultiplied alpha
   col = min(col, CAP);
+
+  // (10) the reconnection flash: the ONLY light allowed past CAP. A small
+  // white core on the footpoint, a gold falloff, a broad soft bloom; hidden
+  // by the disc when the footpoint is on the far side, bleeding past the limb
+  // when it is near it.
+  if (uFlash > 0.0) {
+    float df = length(uv - fv.xy);
+    float vis = smoothstep(-0.35, 0.0, fv.z) * mix(1.0 - disc, 1.0, smoothstep(-0.05, 0.05, fv.z));
+    float core = exp(-(df * df) / (FLASH_CORE * FLASH_CORE));
+    float glow = exp(-df / 0.11);
+    float bloom = exp(-df / 0.35) * 0.30;
+    col += (vec3(1.0) * core * 2.0 + vec3(1.0, 0.74, 0.34) * (glow + bloom)) * uFlash * vis;
+  }
+
   col += (hash12(gl_FragCoord.xy + fract(uTime * 7.0) * 61.0) - 0.5) / 255.0;
   col = clamp(col, 0.0, 1.0);
   float alpha = max(disc, clamp(max(col.r, max(col.g, col.b)) * 1.25, 0.0, 1.0));
