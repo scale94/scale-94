@@ -32,7 +32,7 @@ const VECTORS = [
     sev:      0,
     status:   'NULL',
     actor:    'scale-9.4',
-    detail:   'Zero cookies set. No localStorage behavioral tracking. Session history is ephemeral — cleared on tab close or refresh. No persistent client-side identity constructed. IndexedDB stores anonymous sphere simulation memory (node positions, phase state) between visits — no identity data is captured or linked across sessions.',
+    detail:   'Zero cookies set. No localStorage behavioral tracking. Session history is ephemeral — cleared on tab close or refresh. No persistent client-side identity constructed. IndexedDB stores anonymous sphere simulation memory (node positions, phase state) between visits — no identity data is captured or linked across sessions. localStorage keeps the clouds launched on /SOL (launch time, energy, spin direction, hand or star, whether the landing was seen) on this device until they land, then a log of the last 32 landings — never sent anywhere; clearing site data erases them.',
     scope:    'CLIENT_ENCLAVE',
   },
   {
