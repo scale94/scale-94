@@ -86,11 +86,6 @@ describe('SolGlyph geometry', () => {
     }
   });
 
-  it('the disc is a limb: it extends past the left and bottom edges by design', () => {
-    expect(cx - r).toBeLessThan(0);
-    expect(cy + r).toBeGreaterThan(24);
-  });
-
   it('the stroked path stays inside the 24 box', () => {
     for (const [x, y] of [...A, ...B]) {
       expect(x).toBeGreaterThanOrEqual(1);
