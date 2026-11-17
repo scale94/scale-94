@@ -8,13 +8,17 @@ import {
 } from '../sol/snapFx';
 import { strength01 } from '../sol/solPhysics';
 import { cloudStatus } from '../sol/cloudClock';
-import { launchCloud, getClouds, sweep, subscribeClouds } from '../sol/cloudStore';
+import { launchCloud, getClouds, sweep, subscribeClouds, markWitnessed } from '../sol/cloudStore';
+import { auroraUniforms } from '../sol/aurora';
 
 const LIGHT_LINE_MS = 20000;   // the light line holds for 20 s after each snap
 const HUD_POLL_MS = 100;       // tension readout; React state only when the integer changes
 const STILL_SNAP_MS = 1200;     // reduced motion: how long the still snap frame holds
 const CLOCK_TICK_MS = 1000;    // cloud statuses are re-read from the wall clock this often
 const MAX_LANDING_LINES = 3;   // newest landings shown under the star
+const AURORA_TAU_S = 2;        // the curtain eases toward its storm value: never pops in or out
+
+const pageVisible = () => typeof document === 'undefined' || document.visibilityState !== 'hidden';
 
 /** Every stored cloud with its status at `now`. */
 const readClouds = (now) => getClouds().map((c) => ({ ...cloudStatus(c, now), id: c.id }));
@@ -49,7 +53,11 @@ function writeEffects(out, u) {
 // uStill). A snap under reduced motion is one still frame held 1.2 s, no shake.
 const SolTab = () => {
   const fxRef = useRef(null);
-  if (fxRef.current === null) fxRef.current = createSnapFx();
+  if (fxRef.current === null) {
+    fxRef.current = createSnapFx();
+    fxRef.current.out.uAurora = 0;
+    fxRef.current.out.uAuroraRed = 0;
+  }
   const starRef = useRef(null);
   const wrapRef = useRef(null);
   const shakeRef = useRef('');
@@ -107,6 +115,11 @@ const SolTab = () => {
   const onFrame = useCallback((dt) => {
     const fx = fxRef.current;
     stepSnapFx(fx, dt, { still: stillRef.current });
+    const out = fx.out;
+    const target = auroraRef.current;
+    const k = dt > 0 ? 1 - Math.exp(-dt / AURORA_TAU_S) : 0;
+    out.uAurora += (target.uAurora - out.uAurora) * k;
+    out.uAuroraRed += (target.uAuroraRed - out.uAuroraRed) * k;
     const [x, y] = snapUniforms(fx).shake;
     const t = x === 0 && y === 0 ? '' : `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0)`;
     if (t !== shakeRef.current && wrapRef.current) {
@@ -158,11 +171,23 @@ const SolTab = () => {
 
   // The clouds: statuses come from the wall clock, never from elapsed frames,
   // so a page hidden for hours shows each cloud where it truly is on return.
+  // A storm in progress raises the aurora; seen on a visible page, it is witnessed.
+  const auroraRef = useRef({ uAurora: 0, uAuroraRed: 0 });
   const [statuses, setStatuses] = useState(() => readClouds(Date.now()));
   const refreshClouds = useCallback(() => {
     const now = Date.now();
     sweep(now);
-    setStatuses(readClouds(now));
+    const list = readClouds(now);
+    setStatuses(list);
+    const a = auroraUniforms(list);
+    auroraRef.current = { uAurora: a.uAurora, uAuroraRed: a.uAuroraRed };
+    const out = fxRef.current.out;
+    if (stillRef.current && (out.uAurora !== a.uAurora || out.uAuroraRed !== a.uAuroraRed)) {
+      out.uAurora = a.uAurora;
+      out.uAuroraRed = a.uAuroraRed;
+      requestDrawRef.current?.();
+    }
+    if (pageVisible()) for (const id of a.witnessIds) markWitnessed(id);
   }, []);
 
   useEffect(() => {

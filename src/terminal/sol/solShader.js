@@ -19,8 +19,9 @@
 // heat ramp; (6) three-layer corona with streamers; (7) the nearest
 // region's prominence: tapered, threaded, frayed, flickering; (9) the snap:
 // torn surface/corona shock, torn plume or halo, exposure dip; (8) clamp
-// below white (CAP); (10) the reconnection flash, the only term added AFTER
-// the cap, so the only white on the tab; dither, premultiplied alpha.
+// below white (CAP); (11) the aurora, after the cap, veiled then screened so
+// it stays below white; (10) the reconnection flash, the only white on the
+// tab; dither, premultiplied alpha.
 //
 // Compile budget (ANGLE/D3D11, the 87 s /MERCURY stall): every loop is
 // constant-bounded and small; no derivatives anywhere; NO noise inside a
@@ -808,6 +809,49 @@ void main() {
 
   // (8) never white, dither, premultiplied alpha
   col = min(col, CAP);
+
+  // (11) the aurora: in front of everything, in screen space, the star still
+  // visible through it. Three folding curtains (nearest brightest, lowest,
+  // fastest), each a sharp lower hem decaying upward, with vertical rays
+  // drifting along it. Oxygen 557.7 nm green body; the 630 nm red crown
+  // sits higher and only for strong storms (uAuroraRed). Composited after
+  // CAP as a veil then a screen blend: smooth (no clip plateau) and never
+  // white. Every term is continuous; the dither below breaks any banding.
+  if (uAurora > 0.0) {
+    vec2 s = vScreen * uRes / minRes;             // short axis spans -1..1
+    float A = min(uAurora, 1.0);
+    float reach = mix(0.55, -0.05, A);            // stronger storms hang lower
+    float tall = 0.10 + 0.10 * A;                 // green body above the hem
+    float gSum = 0.0;
+    float rSum = 0.0;
+    for (int k = 0; k < 3; k++) {
+      float fk = float(k);
+      float depth = 1.0 - 0.3 * fk;
+      float x = s.x * (1.0 + 0.3 * fk) + fk * 1.7;
+      // the hem folds: one slow swell, then noise at two scales, so it is never a clean wave
+      float fold = 0.12 * sin(x * 0.9 + gT * 0.07 * (1.0 + 0.3 * fk) + fk * 2.0)
+                 + 0.17 * gnoise(vec3(x * 0.8, fk * 3.1, gT * 0.05))
+                 + 0.05 * gnoise(vec3(x * 2.3, fk * 3.1 + 9.0, gT * 0.09));
+      float dy = s.y - (reach + 0.2 * fk + fold);
+      // rays: tall vertical streaks drifting along the curtain, high contrast
+      float rx = x * 8.0 + 1.6 * gnoise(vec3(x * 1.3, fk + 7.0, gT * 0.06)) - gT * 0.12 * (1.0 + 0.5 * fk);
+      float rn = clamp(0.5 + 0.95 * gnoise(vec3(rx, dy * 0.25, gT * 0.10 + fk * 4.0)), 0.0, 1.0);
+      float rays = rn * rn;
+      float hem = smoothstep(-0.012, 0.02, dy);
+      float up = max(dy, 0.0);
+      float body = exp(-up / (tall * (0.6 + 0.8 * rn)));   // rays reach higher than the gaps
+      float edge = exp(-up / 0.025);                          // the bright lower edge
+      gSum += hem * (body * (0.12 + 0.88 * rays) + edge * (0.35 + 0.65 * rn)) * depth;
+      // the 630 nm red rises from the ray tops, above the green
+      float top = up - tall * 1.1;
+      rSum += smoothstep(-0.08, 0.06, top) * exp(-max(top, 0.0) / 0.32) * rays * hem * depth;
+    }
+    float g = (1.0 - exp(-gSum * 1.3)) * A;
+    float rd = (1.0 - exp(-rSum * 1.2)) * uAuroraRed;
+    col *= 1.0 - min(0.3 * g + 0.2 * rd, 0.35);
+    vec3 em = vec3(0.16, 0.95, 0.40) * g + vec3(0.85, 0.05, 0.16) * rd * 0.8;
+    col = 1.0 - (1.0 - col) * (1.0 - min(em, vec3(0.9)));
+  }
 
   // (10) the reconnection flash: the ONLY light allowed past CAP. A tight
   // blinding white core, an over-exposure bleed (white -> pale gold -> gone

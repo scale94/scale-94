@@ -101,6 +101,41 @@ describe('SolTab clouds', () => {
     expect(captured.effects.uAurora || 0).toBe(0);
   });
 
+  it('a storm in progress raises the aurora smoothly and is witnessed while visible', () => {
+    // a strong southward cloud, 6 h into its 12 h storm
+    const c = launchCloud({ energyErg: 5e32, handedness: 'cw', origin: 'hand' }, T0 - (17.6 + 6) * H);
+    setVisibility('visible');
+    render(<SolTab />);
+    expect(getClouds()[0].witnessed).toBe(true);
+    expect(screen.getAllByTestId('sol-landing')[0].textContent).toBe('arrived · southward · coupled · −1200 nT');
+    act(() => { captured.onFrame(1 / 60); });
+    const early = captured.effects.uAurora;
+    expect(early).toBeGreaterThan(0);
+    expect(early).toBeLessThan(0.05);
+    act(() => { for (let i = 0; i < 60 * 20; i++) captured.onFrame(1 / 60); });
+    expect(captured.effects.uAurora).toBeCloseTo(1, 3);
+    expect(captured.effects.uAuroraRed).toBeCloseTo(1, 3);
+    expect(c.id).toBe(getClouds()[0].id);
+  });
+
+  it('a storm on a hidden page is not witnessed', () => {
+    launchCloud({ energyErg: 5e32, handedness: 'cw', origin: 'hand' }, T0 - (17.6 + 6) * H);
+    setVisibility('hidden');
+    render(<SolTab />);
+    act(() => { vi.advanceTimersByTime(2000); });
+    expect(getClouds()[0].witnessed).toBe(false);
+    act(() => { setVisibility('visible'); });
+    expect(getClouds()[0].witnessed).toBe(true);
+  });
+
+  it('a storm closed while away lands unwitnessed, with no aurora', () => {
+    launchCloud({ energyErg: 5e32, handedness: 'cw', origin: 'hand' }, T0 - 40 * H);
+    render(<SolTab />);
+    act(() => { for (let i = 0; i < 600; i++) captured.onFrame(1 / 60); });
+    expect(captured.effects.uAurora).toBe(0);
+    expect(screen.getByTestId('sol-landing').textContent).toBe('arrived · unwitnessed');
+  });
+
   it('shows at most the three newest landings', () => {
     for (let i = 0; i < 5; i++) {
       launchCloud({ energyErg: 5e32, handedness: 'ccw', origin: 'hand' }, T0 - (100 + i) * H);
