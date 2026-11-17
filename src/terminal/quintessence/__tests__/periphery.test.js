@@ -2,9 +2,10 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { emit, _resetForTests } from '../../../observatory/observatoryBus';
 import { snapshotPeriphery } from '../periphery';
 import kernelBuilds from '../../data/kernelBuilds';
+import * as cloudStore from '../../sol/cloudStore';
 
 describe('snapshotPeriphery', () => {
-  beforeEach(() => _resetForTests());
+  beforeEach(() => { _resetForTests(); cloudStore._resetCloudsForTests(); });
 
   it('an untouched session yields all-None houses', () => {
     const p = snapshotPeriphery();
@@ -12,7 +13,32 @@ describe('snapshotPeriphery', () => {
       ciphers: null, transmissions: null, essences: null,
       lunarRead: null, houses: { ecocide: null, ledger: null, privacy: null, surveillance: null },
       art: null, ecocideSim: null, ledgerVerdict: null, manifestoFragment: null,
-      corpus: null,
+      corpus: null, sol: null,
+    });
+  });
+
+  describe('sol', () => {
+    it('entered but nothing launched: visits', () => {
+      emit('gaze', 'tab_navigated', { tab: 'sol' });
+      emit('gaze', 'tab_navigated', { tab: 'sol' });
+      expect(snapshotPeriphery().sol).toEqual({ visits: 2 });
+    });
+
+    it('a stored cloud counts as came, even with no visit this session', () => {
+      cloudStore.launchCloud({ energyErg: 5e32, handedness: 'cw', origin: 'hand' }, Date.now());
+      const sol = snapshotPeriphery().sol;
+      expect(sol.inFlight).toHaveLength(1);
+      expect(sol.inFlight[0].orientation).toBeNull();
+      expect(sol.lastReleaseErg).toBe(5e32);
+    });
+
+    it('a throwing store compiles as never came', () => {
+      const spy = vi.spyOn(cloudStore, 'snapshotSol').mockImplementation(() => { throw new Error('x'); });
+      try {
+        expect(snapshotPeriphery().sol).toBeNull();
+      } finally {
+        spy.mockRestore();
+      }
     });
   });
 
@@ -56,7 +82,7 @@ describe('snapshotPeriphery', () => {
       ciphers: null, transmissions: null, essences: null,
       lunarRead: null, houses: { ecocide: null, ledger: null, privacy: null, surveillance: null },
       art: null, ecocideSim: null, ledgerVerdict: null, manifestoFragment: null,
-      corpus: null,
+      corpus: null, sol: null,
     });
   });
 

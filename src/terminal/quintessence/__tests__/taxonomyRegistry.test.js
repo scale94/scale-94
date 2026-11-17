@@ -38,6 +38,7 @@ describe('taxonomyRegistry — completeness', () => {
     expect(ownerOf('pirarucu')).toBe('CHEMISTRY ⇄ ALCHEMY');
     expect(ownerOf('house_ledger')).toBe('HISTORY');
     expect(ownerOf('house_privacy')).toBe('SOCIOLOGY');
+    expect(ownerOf('house_sol')).toBe('AESTHETICS');
     expect(ownerOf('not_a_slot')).toBeNull();
   });
 });
@@ -177,9 +178,9 @@ describe('deep periphery — enriched readings', () => {
     expect(history.detail(withPeriphery({ ledgerVerdict: null }))).toBeNull();
   });
 
-  it('anthropology denominator is 9', () => {
+  it('anthropology denominator is 10', () => {
     const anthro = entry('witness_intro');
-    expect(anthro.detail({ ...CTX, meta: { ...CTX.meta, filledHouses: 6 } })).toBe('6 of 9 houses witnessed');
+    expect(anthro.detail({ ...CTX, meta: { ...CTX.meta, filledHouses: 6 } })).toBe('6 of 10 houses witnessed');
   });
 });
 

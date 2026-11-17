@@ -43,6 +43,57 @@ function houseLine(name, value, describe) {
     : `    ${name}: Some(${JSON.stringify(describe)}),`;
 }
 
+/** Houses the periphery filled (the spine's four vertebrae not included). The Altar adds those. */
+export function countFilledHouses(periphery) {
+  return [periphery.ciphers, periphery.transmissions, periphery.essences, periphery.lunarRead,
+    periphery.art, periphery.sol]
+    .filter(Boolean).length +
+    Object.values(periphery.houses ?? {}).filter(Boolean).length;
+}
+
+// ── SOL (sol spec 2026-11-15 §11) ────────────────────────────────────────────
+// The telemetry lists what left the star and what became of it, in flight
+// first. A cloud whose orientation is still unread compiles as None: the
+// kernel never knows more than the visitor could.
+const rustErg = (e) => Number(e).toExponential(2).replace('e+', 'e');
+const optStr = (s) => (s == null ? 'None' : `Some(${JSON.stringify(s)})`);
+
+function solDescribe(sol) {
+  if (!sol) return null;
+  if (sol.visits != null) return `entered ${sol.visits}× · the star untouched`;
+  const fates = { coupled: 0, passed: 0, unwitnessed: 0 };
+  for (const l of sol.landings) if (l.fate in fates) fates[l.fate] += 1;
+  return [
+    sol.inFlight.length ? `${sol.inFlight.length} in flight` : null,
+    ...Object.entries(fates).map(([k, n]) => (n ? `${n} ${k}` : null)),
+    `last release ${Number(sol.lastReleaseErg).toExponential(1).replace('e+', 'e')} erg`,
+  ].filter(Boolean).join(' · ');
+}
+
+function solTelemetryBlock(sol) {
+  if (!sol) return 'mod sol_telemetry { /* never witnessed */ }';
+  if (sol.visits != null) return `mod sol_telemetry { /* entered ${sol.visits}×, nothing left the star */ }`;
+  const row = ({ launched, arrives, erg, origin, crossed, orientation, fate, nt }) =>
+    `    SolCloud { launched: ${Math.round(launched)}, arrives: ${Math.round(arrives)}, erg: ${rustErg(erg)}, `
+    + `origin: ${JSON.stringify(origin)}, crossed_mercury: ${crossed}, orientation: ${optStr(orientation)}, `
+    + `fate: ${optStr(fate)}, nt: ${Number.isFinite(nt) ? `Some(${Math.round(nt)})` : 'None'} },`;
+  const rows = [
+    ...sol.inFlight.map((c) => row({
+      launched: c.launchedAt, arrives: c.arrivalAt, erg: c.energyErg, origin: c.origin,
+      crossed: !!c.mercuryPassed, orientation: c.orientation, fate: null, nt: null,
+    })),
+    ...sol.landings.map((l) => row({
+      launched: l.launchedAt, arrives: l.arrivedAt, erg: l.energyErg, origin: l.origin,
+      crossed: true, orientation: l.orientation, fate: l.fate, nt: l.nT,
+    })),
+  ];
+  return `/// SOL — what left the star, and what became of it.
+struct SolCloud { launched: u64, arrives: u64, erg: f64, origin: &'static str, crossed_mercury: bool, orientation: Option<&'static str>, fate: Option<&'static str>, nt: Option<i32> }
+const SOL_TELEMETRY: &[SolCloud] = &[
+${rows.join('\n')}
+];`;
+}
+
 // ── THE LINKER (spec 2026-07-17) ─────────────────────────────────────────────
 // TARGET 0: nt_success — the default build, fixed at eighteen, never linked.
 // The corpus is the library of documented divergences; the artifact links only
@@ -126,10 +177,7 @@ export async function compileKernel(spine, periphery, engine, opts = {}) {
   const lock    = entropyLockValue(periphery.lunarRead);
   const [mindA, mindB] = spine.council.pair;
 
-  const filledHouses =
-    [periphery.ciphers, periphery.transmissions, periphery.essences, periphery.lunarRead, periphery.art]
-      .filter(Boolean).length +
-    Object.values(periphery.houses).filter(Boolean).length;
+  const filledHouses = countFilledHouses(periphery);
   // The faculty's reading context (registry spec §6). Assembled AFTER the hash:
   // lenses are voice, not identity — hash inputs are untouched.
   const ctx = { spine, periphery, meta: { dryness, bpm, verdict, daemon: el.daemon, filledHouses } };
@@ -292,6 +340,7 @@ struct PeripheralWitness {
     house_ecocide: Option<&'static str>,
     house_privacy: Option<&'static str>,
     house_surveillance: Option<&'static str>,
+    house_sol: Option<&'static str>,
 }
 const WITNESS: PeripheralWitness = PeripheralWitness {
     // ${lensFor('house_ciphers', ctx, rng)}
@@ -309,7 +358,10 @@ ${houseLine('house_chaos', periphery.art, artDesc)}
 ${houseLine('house_ecocide', ecocideValue, ecocideDesc)}
 ${houseLine('house_privacy', periphery.houses.privacy, `entered ${periphery.houses.privacy}×`)}
 ${houseLine('house_surveillance', periphery.houses.surveillance, `entered ${periphery.houses.surveillance}×`)}
+${houseLine('house_sol', periphery.sol ?? null, solDescribe(periphery.sol ?? null))}
 };
+
+${solTelemetryBlock(periphery.sol ?? null)}
 
 ${linkerBlock(periphery.corpus ?? null, ctx, rng)}
 

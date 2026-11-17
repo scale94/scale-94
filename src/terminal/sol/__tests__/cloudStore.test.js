@@ -152,8 +152,11 @@ describe('cloudStore', () => {
       const snap = snapshotSol(t0 + 200 * H);
       expect(snap.inFlight).toEqual([]);
       expect(snap.landings).toEqual([
-        { arrivedAt: cloudStatus(coupled, t0).arrivalAt, energyErg: 5e32, origin: 'hand', fate: 'coupled', nT: -1200 },
-        expect.objectContaining({ energyErg: 1e31, origin: 'star', fate: 'passed', nT: null }),
+        {
+          launchedAt: t0, arrivedAt: cloudStatus(coupled, t0).arrivalAt, energyErg: 5e32, origin: 'hand',
+          orientation: 'southward', fate: 'coupled', nT: -1200,
+        },
+        expect.objectContaining({ energyErg: 1e31, origin: 'star', orientation: 'northward', fate: 'passed', nT: null }),
       ]);
       expect(snap.lastReleaseErg).toBe(1e31);
     });

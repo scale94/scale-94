@@ -5,7 +5,9 @@ import { useEffect, useReducer, useRef, useState } from 'react';
 import { getSpine, setElement, missingVertebrae, subscribeSpine } from '../quintessence/spineStore';
 import { snapshotPeriphery } from '../quintessence/periphery';
 import { witnessEngine, trendToPressure } from '../quintessence/engineWitness';
-import { compileKernel } from '../quintessence/compileKernel';
+import { compileKernel, countFilledHouses } from '../quintessence/compileKernel';
+import { getClouds, subscribeClouds } from '../sol/cloudStore';
+import { cloudStatus } from '../sol/cloudClock';
 import { holdVolatile } from '../quintessence/volatileHold';
 import { STORAGE_KEY } from '../quintessence/sealedArtifact';
 import { drynessFor } from '../data/lunarAccords';
@@ -23,6 +25,48 @@ const ELEMENTS = [
 ];
 
 const STAGES = ['SPINE READ', 'PERIPHERY WITNESSED', 'ENGINE FIRED', 'HASH PRECIPITATED', 'VERDICT', 'SEALED'];
+
+// /SOL (sol spec §11): what left the star, still on its way. Re-read from the
+// wall clock once a minute and whenever the cloud store changes. Never the
+// orientation: the Altar knows no more than the visitor.
+const SOL_TICK_MS = 60e3;
+
+function arrivesIn(ms) {
+  const min = Math.floor(ms / 60e3);
+  if (min < 1) return 'arrives in < 1 min';
+  const h = Math.floor(min / 60);
+  return `arrives in ${h} h ${String(min % 60).padStart(2, '0')} min`;
+}
+
+function readSolFlight() {
+  try {
+    const now = Date.now();
+    return getClouds()
+      .map(c => ({ id: c.id, s: cloudStatus(c, now) }))
+      .filter(({ s }) => s.phase === 'flight')
+      .sort((a, b) => a.s.etaMs - b.s.etaMs);
+  } catch (_) { return []; }
+}
+
+function SolWitness() {
+  const [flight, setFlight] = useState(readSolFlight);
+  useEffect(() => {
+    const read = () => setFlight(readSolFlight());
+    const off = subscribeClouds(read);
+    const id = setInterval(read, SOL_TICK_MS);
+    return () => { off(); clearInterval(id); };
+  }, []);
+  if (!flight.length) return null;
+  return (
+    <div className="mt-4 font-mono text-[9px] tracking-[0.2em] lowercase text-yellow-100/60 space-y-0.5">
+      {flight.map(({ id, s }) => (
+        <div key={id} data-testid="altar-sol-line">
+          ☉ sol · {s.mercuryPassed ? "crossed Mercury's orbit" : 'ejecta in flight'} · {arrivesIn(s.etaMs)}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function QuintessenceAltar({ onDeposited, onNavigate }) {
   const [, force] = useReducer(x => x + 1, 0);
@@ -75,9 +119,9 @@ export default function QuintessenceAltar({ onDeposited, onNavigate }) {
         await new Promise(r => setTimeout(r, 650));
         if (!alive.current) return;
       }
-      const filledHouses = Object.values(periphery.houses).filter(Boolean).length
-        + ['ciphers', 'transmissions', 'essences', 'lunarRead', 'art'].filter(k => periphery[k]).length
-        + 4; // the four spine vertebrae themselves
+      // The kernel's own count (sol included: a witnessed sun deepens the run),
+      // plus the four spine vertebrae themselves.
+      const filledHouses = countFilledHouses(periphery) + 4;
       const engine = await witnessEngine({
         rPressure: trendToPressure(spine.trend.velocity),
         maxLayers: Math.max(4, filledHouses),
@@ -221,6 +265,8 @@ export default function QuintessenceAltar({ onDeposited, onNavigate }) {
           </button>
         </div>
       )}
+
+      <SolWitness />
     </div>
   );
 }

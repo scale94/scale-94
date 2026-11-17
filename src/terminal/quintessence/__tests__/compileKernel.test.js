@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { compileKernel, ELEMENT_MAP } from '../compileKernel';
+import { compileKernel, ELEMENT_MAP, countFilledHouses } from '../compileKernel';
 
 const FULL_SPINE = {
   trend: { label: 'degrowth', velocity: 0.9, volume: 1200 },
@@ -219,6 +219,71 @@ describe('THE LINKER (spec 2026-07-17)', () => {
   it('deterministic with corpus present', async () => {
     const a = await compileKernel(FULL_SPINE, CORPUS_PERIPHERY, ENGINE, OPTS);
     const b = await compileKernel(FULL_SPINE, CORPUS_PERIPHERY, ENGINE, OPTS);
+    expect(a.source).toBe(b.source);
+    expect(a.hash).toBe(b.hash);
+  });
+});
+
+// /SOL joins the Altar as an optional witness (sol spec §11).
+describe('compileKernel — house_sol and sol_telemetry', () => {
+  const L = 1763380800000;            // a launch, ms epoch
+  const FLYING_UNREAD = {
+    inFlight: [{ launchedAt: L, arrivalAt: L + 63360000, energyErg: 5e32, origin: 'hand', mercuryPassed: false, orientation: null }],
+    landings: [], lastReleaseErg: 5e32,
+  };
+
+  it('null sol: empty house and an unwitnessed telemetry module', async () => {
+    const { source } = await compileKernel(FULL_SPINE, { ...FULL_PERIPHERY, sol: null }, ENGINE, OPTS);
+    expect(source).toContain('    // HOUSE EMPTY — never witnessed\n    house_sol: None,');
+    expect(source).toContain('mod sol_telemetry { /* never witnessed */ }');
+    expect(source).toContain('    house_sol: Option<&\'static str>,');
+  });
+
+  it('entered only: the star untouched', async () => {
+    const { source } = await compileKernel(FULL_SPINE, { ...FULL_PERIPHERY, sol: { visits: 3 } }, ENGINE, OPTS);
+    expect(source).toContain('house_sol: Some("entered 3× · the star untouched"),');
+    expect(source).toContain('mod sol_telemetry { /* entered 3×, nothing left the star */ }');
+  });
+
+  it('an unread cloud compiles orientation None and leaks no direction anywhere', async () => {
+    const { source } = await compileKernel(FULL_SPINE, { ...FULL_PERIPHERY, sol: FLYING_UNREAD }, ENGINE, OPTS);
+    expect(source).toContain('struct SolCloud {');
+    expect(source).toContain('const SOL_TELEMETRY: &[SolCloud] = &[');
+    expect(source).toContain(`SolCloud { launched: ${L}, arrives: ${L + 63360000}, erg: 5.00e32, origin: "hand", crossed_mercury: false, orientation: None, fate: None, nt: None },`);
+    expect(source).toContain('house_sol: Some("1 in flight · last release 5.0e32 erg"),');
+    expect(source).not.toMatch(/southward|northward/);
+  });
+
+  it('landings: coupled with nT, passed without, past Mercury', async () => {
+    const sol = {
+      inFlight: [{ ...FLYING_UNREAD.inFlight[0], mercuryPassed: true, orientation: 'southward' }],
+      landings: [
+        { launchedAt: L - 9e7, arrivedAt: L - 2e7, energyErg: 2e31, origin: 'star', orientation: 'southward', fate: 'coupled', nT: -850.2 },
+        { launchedAt: L - 8e7, arrivedAt: L - 1e7, energyErg: 1e30, origin: 'hand', orientation: 'northward', fate: 'passed', nT: null },
+        { launchedAt: L - 7e7, arrivedAt: L - 5e6, energyErg: 1e31, origin: 'hand', orientation: 'southward', fate: 'unwitnessed', nT: -400 },
+      ],
+      lastReleaseErg: 5e32,
+    };
+    const { source } = await compileKernel(FULL_SPINE, { ...FULL_PERIPHERY, sol }, ENGINE, OPTS);
+    expect(source).toContain('crossed_mercury: true, orientation: Some("southward"), fate: None, nt: None },');
+    expect(source).toContain('fate: Some("coupled"), nt: Some(-850) },');
+    expect(source).toContain('fate: Some("passed"), nt: None },');
+    expect(source).toContain('fate: Some("unwitnessed"), nt: Some(-400) },');
+    expect(source).toContain('house_sol: Some("1 in flight · 1 coupled · 1 passed · 1 unwitnessed · last release 5.0e32 erg"),');
+    // in flight first, then landings
+    expect(source.indexOf('fate: None')).toBeLessThan(source.indexOf('fate: Some("coupled")'));
+  });
+
+  it('sol fills one more house', () => {
+    expect(countFilledHouses({ ...FULL_PERIPHERY, sol: { visits: 1 } }))
+      .toBe(countFilledHouses({ ...FULL_PERIPHERY, sol: null }) + 1);
+    expect(countFilledHouses({ ...FULL_PERIPHERY })).toBe(countFilledHouses({ ...FULL_PERIPHERY, sol: null }));
+  });
+
+  it('stays deterministic with sol present', async () => {
+    const p = { ...FULL_PERIPHERY, sol: FLYING_UNREAD };
+    const a = await compileKernel(FULL_SPINE, p, ENGINE, OPTS);
+    const b = await compileKernel(FULL_SPINE, p, ENGINE, OPTS);
     expect(a.source).toBe(b.source);
     expect(a.hash).toBe(b.hash);
   });

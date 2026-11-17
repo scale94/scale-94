@@ -82,7 +82,7 @@ export const TAXONOMY = [
     id: 'aesthetics',
     tier: 'HUMANITIES',
     tag: 'AESTHETICS',
-    owns: ['house_essences', 'house_chaos'],
+    owns: ['house_essences', 'house_chaos', 'house_sol'],
     // Entering the sphere counts as witnessing form, even untouched (deep-periphery spec §5.3).
     band: (ctx) => ((ctx?.periphery?.essences || ctx?.periphery?.art) ? 'witnessed' : 'absent'),
     detail: (ctx) => {
@@ -309,9 +309,9 @@ export const TAXONOMY = [
     owns: ['witness_intro'],
     band: (ctx) => {
       const n = ctx?.meta?.filledHouses ?? 0;
-      return n < 3 ? 'sparse' : n < 7 ? 'attended' : 'dense'; // 9 houses since deep periphery
+      return n < 3 ? 'sparse' : n < 7 ? 'attended' : 'dense'; // 10 houses since /SOL (thresholds unchanged)
     },
-    detail: (ctx) => `${ctx?.meta?.filledHouses ?? 0} of 9 houses witnessed`,
+    detail: (ctx) => `${ctx?.meta?.filledHouses ?? 0} of 10 houses witnessed`,
     pools: {
       sparse: {
         FIRE:  ['a brief visitation · the fieldworker logs a passing flame',

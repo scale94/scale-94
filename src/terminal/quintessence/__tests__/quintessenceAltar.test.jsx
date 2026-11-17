@@ -7,6 +7,7 @@ import { createRoot } from 'react-dom/client';
 import QuintessenceAltar from '../../mercury/QuintessenceAltar';
 import { setTrend, setCouncil, setPhase, _resetSpineForTests } from '../spineStore';
 import { emit, _resetForTests as resetBus } from '../../../observatory/observatoryBus';
+import { launchCloud, _resetCloudsForTests } from '../../sol/cloudStore';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -239,5 +240,37 @@ describe('QuintessenceAltar — the living altar', () => {
     expect(walk).toBeTruthy();
     act(() => { walk.click(); });
     expect(onNavigate).toHaveBeenCalledWith('ledger');
+  });
+});
+
+// /SOL witnessed at the Altar (sol spec §11): one compact line per cloud in flight.
+describe('QuintessenceAltar — the sun', () => {
+  const H = 3600e3;
+  const solLines = () => [...container.querySelectorAll('[data-testid="altar-sol-line"]')].map(n => n.textContent);
+
+  afterEach(() => _resetCloudsForTests());
+
+  it('no clouds: no sol line', () => {
+    expect(solLines()).toEqual([]);
+  });
+
+  it('a cloud in flight shows its time to arrival', () => {
+    act(() => { launchCloud({ energyErg: 5e32, handedness: 'cw', origin: 'hand' }, Date.now()); });
+    const lines = solLines();
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatch(/arrives in 17 h 3[56] min/);
+    expect(lines[0]).not.toContain("crossed Mercury's orbit");
+    expect(lines[0]).not.toMatch(/southward|northward/);
+  });
+
+  it("past Mercury's orbit the line says so", () => {
+    act(() => { launchCloud({ energyErg: 5e32, handedness: 'cw', origin: 'hand' }, Date.now() - 10 * H); });
+    expect(solLines()[0]).toContain("crossed Mercury's orbit");
+    expect(solLines()[0]).toMatch(/arrives in 7 h 3[56] min/);
+  });
+
+  it('a landed cloud is not in flight', () => {
+    act(() => { launchCloud({ energyErg: 5e32, handedness: 'ccw', origin: 'hand' }, Date.now() - 100 * H); });
+    expect(solLines()).toEqual([]);
   });
 });

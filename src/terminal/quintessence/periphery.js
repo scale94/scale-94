@@ -5,6 +5,20 @@
 import { getTotals, getJournal } from '../../observatory/observatoryBus';
 import kernelBuilds from '../data/kernelBuilds';
 import { resolveWasmAlias } from '../data/mobileWasmMap';
+import { snapshotSol } from '../sol/cloudStore';
+
+// /SOL (spec 2026-11-15 §11): the clouds persist on the device while the bus
+// is per session, so a non-empty cloud store counts as "came" even when this
+// session never opened the tab. null = never came; { visits } = entered, the
+// star untouched; otherwise the store's own snapshot, which carries no
+// orientation for a cloud not yet read.
+function snapshotSolHouse(g) {
+  let sol = null;
+  try { sol = snapshotSol(Date.now()); } catch (_) { sol = null; }
+  if (sol) return sol;
+  const visits = g?.tabsVisited?.sol || 0;
+  return visits > 0 ? { visits } : null;
+}
 
 const TRACKED_HOUSES = ['ecocide', 'ledger', 'privacy', 'surveillance'];
 
@@ -83,5 +97,6 @@ export function snapshotPeriphery() {
     ledgerVerdict: tr?.verdict ?? null,
     manifestoFragment: g?.lastManifestoFragment ?? null,
     corpus: snapshotCorpus(tr, g),
+    sol: snapshotSolHouse(g),
   };
 }

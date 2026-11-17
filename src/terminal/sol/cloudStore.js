@@ -121,8 +121,8 @@ export function snapshotSol(now = Date.now()) {
       });
     } else {
       landings.push({
-        arrivedAt: s.arrivalAt, energyErg: c.energyErg, origin: c.origin,
-        fate: s.fate, nT: s.fate === 'passed' ? null : s.stormNt,
+        launchedAt: c.launchedAt, arrivedAt: s.arrivalAt, energyErg: c.energyErg, origin: c.origin,
+        orientation: s.orientation, fate: s.fate, nT: s.fate === 'passed' ? null : s.stormNt,
       });
     }
   }
