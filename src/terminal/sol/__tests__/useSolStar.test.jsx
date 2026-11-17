@@ -171,6 +171,56 @@ describe('useSolStar', () => {
     for (let i = 0; i < u.uRegionCount; i++) expect(u.uRegionTwist[i]).toBe(0);
   });
 
+  it("the star's own winding goes out signed by hemisphere, beside the hand's twist", () => {
+    const { api } = setup();
+    const { star } = api._debug();
+    star.regions = [
+      { id: 1, lat: 0.3, lon: 0, starTurns: 3, handTurns: 0, held: false, born: 'star' },
+      { id: 2, lat: -0.3, lon: 1, starTurns: 2, handTurns: 0.5, held: false, born: 'star' },
+    ];
+    const u = api.uniforms();
+    expect(u.uRegionWind[0]).toBe(-3);   // north winds counter-clockwise
+    expect(u.uRegionWind[1]).toBe(2);    // south winds clockwise
+    expect(u.uRegionTwist[0]).toBe(0);
+    expect(u.uRegionTwist[1]).toBe(0.5);
+    expect(u.uRegionWind[2]).toBe(0);
+  });
+
+  it('a held orbit does not coast, and a pause before release lets go of a still star', () => {
+    const { api, ev } = setup();
+    const { cam } = api._debug();
+    const at = (x, y, t) => ({ ...ev(x, y), timeStamp: t });
+    api.handlers.onPointerDown(at(20, 20, 0));
+    for (let k = 1; k <= 10; k++) {
+      api.handlers.onPointerMove(at(20 + 6 * k, 20, 8 * k));
+      api.frame(0.008);
+    }
+    const yawHeld = cam.yaw;
+    expect(Math.abs(cam.yawVel)).toBeGreaterThan(1);   // moving: the speed is kept
+    // the hand stops but keeps holding: the star stays under it and forgets the fling
+    for (let k = 0; k < 60; k++) api.frame(0.008);
+    expect(cam.yaw).toBe(yawHeld);
+    expect(Math.abs(cam.yawVel)).toBeLessThan(0.05);
+    api.handlers.onPointerUp(at(80, 20, 600));
+    for (let k = 0; k < 60; k++) api.frame(0.008);
+    expect(Math.abs(cam.yaw - yawHeld)).toBeLessThan(0.02);
+  });
+
+  it('a fling released in motion coasts on', () => {
+    const { api, ev } = setup();
+    const { cam } = api._debug();
+    const at = (x, y, t) => ({ ...ev(x, y), timeStamp: t });
+    api.handlers.onPointerDown(at(20, 20, 0));
+    for (let k = 1; k <= 10; k++) {
+      api.handlers.onPointerMove(at(20 + 6 * k, 20, 8 * k));
+      api.frame(0.008);
+    }
+    const yaw0 = cam.yaw;
+    api.handlers.onPointerUp(at(80, 20, 81));
+    for (let k = 0; k < 360; k++) api.frame(1 / 360);
+    expect(Math.abs(cam.yaw - yaw0)).toBeGreaterThan(0.5);
+  });
+
   it('the stir centre rides with the rotation', () => {
     const { api, ev } = setup();
     api.handlers.onPointerDown(ev(CX, CY));

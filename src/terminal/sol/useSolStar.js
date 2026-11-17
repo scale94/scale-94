@@ -21,14 +21,21 @@
 // of a stir steps the simulation by the wall-clock time since the previous
 // event of that drag (clamped to 0.05 s), applies the stir, then asks for one
 // redraw; an orbit drag moves the camera with no coast.
+//
+// Orbit: while the pointer holds the sky the camera follows it exactly and
+// does not coast (holdCamera only lets the remembered fling speed die, so a
+// pause before letting go releases a still star). The fling speed is
+// measured against the events' own timestamps, so a 1000 Hz mouse on a
+// 360 Hz panel throws the star as far as a 60 Hz one.
 
 import { useRef } from 'react';
 import { createStar, stepStar, applyStir, grab, release, regionTurns, MAX_REGIONS } from './regions';
-import { createCamera, orbitDrag, stepCamera, pick, viewNormal, STAR_RADIUS_NDC } from './solCamera';
+import { createCamera, orbitDrag, stepCamera, holdCamera, pick, viewNormal, STAR_RADIUS_NDC } from './solCamera';
 import { stirDelta } from './stir';
 import { tensionG, facesCamera, TENSION_QUIET_G, TENSION_SNAP_G } from './solPhysics';
 
 const ROT_LON = 0;
+const ORBIT_IDLE_S = 0.05; // s without a pointer event before a held orbit starts forgetting its speed
 const RM_DT_MAX = 0.05;   // s; the most one pointer event may step under reduced motion
 const TO_CAMERA = [0, 0, 1];
 const fin = (v) => (Number.isFinite(v) ? v : 0);
@@ -50,10 +57,13 @@ function createSolStar(onSnapRef, getRectRef, optsRef) {
   let prev = null;
   let captured = false;     // pointer capture taken; if not, pointerleave ends the hold
   let lastT = null;         // reduced motion: wall clock (ms) of the previous event of this drag
+  let orbitIdle = 0;        // orbit: seconds of frames since the pointer last moved
+  let orbitT = null;        // orbit: timeStamp (ms) of the previous event of this drag, when events carry one
 
   const pos = new Float32Array(MAX_REGIONS * 3);
   const twist = new Float32Array(MAX_REGIONS);
   const tension = new Float32Array(MAX_REGIONS);
+  const wind = new Float32Array(MAX_REGIONS);
 
   const findRegion = (id) => (id == null ? null : star.regions.find((r) => r.id === id) || null);
   const reduced = () => !!optsRef.current.reducedMotion;
@@ -128,6 +138,7 @@ function createSolStar(onSnapRef, getRectRef, optsRef) {
     prev = null;
     captured = false;
     lastT = null;
+    orbitT = null;
     if (id != null && findRegion(id)) emit(release(star, id));
     if (reduced()) requestDraw();
   }
@@ -150,6 +161,8 @@ function createSolStar(onSnapRef, getRectRef, optsRef) {
       } catch { captured = false; /* not capturable: pointerleave ends the hold */ }
       prev = p;
       lastT = reduced() ? nowMs() : null;
+      orbitT = Number.isFinite(e.timeStamp) ? e.timeStamp : null;
+      orbitIdle = 0;
       const hit = pick(cam, p.x, p.y, rect.width, rect.height, ROT_LON);
       if (hit && Number.isFinite(hit.lat) && Number.isFinite(hit.lon)) {
         heldId = grab(star, hit.lat, hit.lon);
@@ -175,7 +188,11 @@ function createSolStar(onSnapRef, getRectRef, optsRef) {
         if (dt > 0) step(dt);
       }
       if (mode === 'orbit') {
-        orbitDrag(cam, p.x - prev.x, p.y - prev.y, Math.min(rect.width, rect.height));
+        const ts = Number.isFinite(e.timeStamp) ? e.timeStamp : null;
+        const dtEv = ts != null && orbitT != null ? (ts - orbitT) / 1000 : undefined;
+        orbitT = ts;
+        orbitIdle = 0;
+        orbitDrag(cam, p.x - prev.x, p.y - prev.y, Math.min(rect.width, rect.height), dtEv);
         if (rm) { cam.yawVel = 0; cam.pitchVel = 0; }   // no coast: nothing moves on its own
       } else if (mode === 'stir') {
         const r = findRegion(heldId);
@@ -204,7 +221,13 @@ function createSolStar(onSnapRef, getRectRef, optsRef) {
   function frame(dtSeconds) {
     const dt = Number.isFinite(dtSeconds) && dtSeconds > 0 ? dtSeconds : 0;
     if (dt === 0) return;
-    stepCamera(cam, dt);
+    if (mode === 'orbit') {
+      // a moving pointer keeps its speed; only a pointer at rest forgets it
+      orbitIdle += dt;
+      if (orbitIdle > ORBIT_IDLE_S) holdCamera(cam, dt);
+    } else {
+      stepCamera(cam, dt);
+    }
     step(dt);
   }
 
@@ -221,6 +244,7 @@ function createSolStar(onSnapRef, getRectRef, optsRef) {
     uRegionPos: pos,
     uRegionTwist: twist,
     uRegionTension: tension,
+    uRegionWind: wind,
   };
 
   function uniforms() {
@@ -229,6 +253,7 @@ function createSolStar(onSnapRef, getRectRef, optsRef) {
     pos.fill(0);
     twist.fill(0);
     tension.fill(0);
+    wind.fill(0);
     for (let i = 0; i < n; i++) {
       const r = regions[i];
       const lat = fin(r.lat);
@@ -237,9 +262,12 @@ function createSolStar(onSnapRef, getRectRef, optsRef) {
       pos[i * 3] = cl * Math.sin(lon);
       pos[i * 3 + 1] = Math.sin(lat);
       pos[i * 3 + 2] = cl * Math.cos(lon);
-      // The swirl is the hand's signature only: the star's own winding shows
-      // through tension (pores, arch), never as a spiral.
+      // uRegionTwist is the hand's turns only. The star's own winding goes
+      // out beside it, signed like the hand's (clockwise positive): the
+      // northern hemisphere winds counter-clockwise, the southern clockwise
+      // (solPhysics.hemisphereHandedness), so an untouched region spirals.
       twist[i] = fin(r.handTurns);
+      wind[i] = fin(r.starTurns) * (lat >= 0 ? -1 : 1);
       tension[i] = fin(tension01(r));
     }
     out.uCamYaw = fin(cam.yaw);

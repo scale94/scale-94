@@ -81,6 +81,7 @@ function paint(gl, U, u, eff, time, still, quality) {
   gl.uniform3fv(U.uRegionPos, u.uRegionPos);
   gl.uniform1fv(U.uRegionTwist, u.uRegionTwist);
   gl.uniform1fv(U.uRegionTension, u.uRegionTension);
+  if (u.uRegionWind) gl.uniform1fv(U.uRegionWind, u.uRegionWind);
 
   const e = eff || NO_EFFECTS;
   const fp = vec3Of(e.uFlashPos);

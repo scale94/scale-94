@@ -14,10 +14,20 @@
 //  orbitDrag: dragging right by the short side gives yaw -= PI (the surface follows
 //    the pointer to the right); dragging down by the short side gives pitch += PI
 //    (the surface follows the pointer down). yawVel/pitchVel are radians per second.
+//    The optional 5th argument is the real time since the previous pointer event
+//    (seconds); with it the fling speed is the true angular speed, low-passed over
+//    VEL_SMOOTH_S, whatever the pointer's report rate. Without it each event is
+//    taken as 1/60 s and its speed replaces the last (the original behaviour).
+//  stepCamera coasts: speed decays as exp(-t / TAU), so a fling travels speed * TAU
+//    in all. holdCamera is for while the pointer holds the sky: no coast, and the
+//    remembered fling speed dies over HOLD_TAU, so a pause before release is a stop.
 //  pick inverts the chain exactly; lon is wrapped to (-PI, PI].
 
 export const STAR_RADIUS_NDC = 0.62
-const TAU = 0.35
+const TAU = 0.62          // s; the coast's time constant (was 0.35: heavier, longer glide)
+const HOLD_TAU = 0.09     // s; how fast a held, unmoving pointer forgets its fling speed
+const VEL_SMOOTH_S = 0.045 // s; fling speed is averaged over about this much pointer travel
+const EVENT_DT_MIN = 1 / 2000
 const PITCH_MAX = 1.2
 const VEL_MAX = 6
 const DRAG_DT = 1 / 60
@@ -28,14 +38,30 @@ export function createCamera() {
   return { yaw: 0, pitch: 0, yawVel: 0, pitchVel: 0 }
 }
 
-export function orbitDrag(cam, dxPx, dyPx, shortSidePx) {
+export function orbitDrag(cam, dxPx, dyPx, shortSidePx, dtSeconds) {
   if (!Number.isFinite(dxPx) || !Number.isFinite(dyPx) || !(shortSidePx > 0)) return
   const dYaw = (-dxPx / shortSidePx) * Math.PI
   const dPitch = (dyPx / shortSidePx) * Math.PI
   cam.yaw = fin(cam.yaw) + dYaw
   cam.pitch = Math.max(-PITCH_MAX, Math.min(PITCH_MAX, fin(cam.pitch) + dPitch))
-  cam.yawVel = Math.max(-VEL_MAX, Math.min(VEL_MAX, dYaw / DRAG_DT))
-  cam.pitchVel = Math.max(-VEL_MAX, Math.min(VEL_MAX, dPitch / DRAG_DT))
+  const clampV = (v) => Math.max(-VEL_MAX, Math.min(VEL_MAX, v))
+  if (Number.isFinite(dtSeconds) && dtSeconds > 0) {
+    const dt = Math.max(dtSeconds, EVENT_DT_MIN)
+    const k = 1 - Math.exp(-dt / VEL_SMOOTH_S)
+    cam.yawVel = clampV(fin(cam.yawVel) + (dYaw / dt - fin(cam.yawVel)) * k)
+    cam.pitchVel = clampV(fin(cam.pitchVel) + (dPitch / dt - fin(cam.pitchVel)) * k)
+    return
+  }
+  cam.yawVel = clampV(dYaw / DRAG_DT)
+  cam.pitchVel = clampV(dPitch / DRAG_DT)
+}
+
+/** While the pointer holds the sky: no coast; the fling speed dies over HOLD_TAU. */
+export function holdCamera(cam, dtSeconds) {
+  const dt = Number.isFinite(dtSeconds) && dtSeconds > 0 ? dtSeconds : 0
+  const decay = Math.exp(-dt / HOLD_TAU)
+  cam.yawVel = fin(cam.yawVel) * decay
+  cam.pitchVel = fin(cam.pitchVel) * decay
 }
 
 export function stepCamera(cam, dtSeconds) {

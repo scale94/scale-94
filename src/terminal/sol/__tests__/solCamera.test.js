@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { STAR_RADIUS_NDC, createCamera, orbitDrag, stepCamera, pick, viewNormal } from '../solCamera.js'
+import { STAR_RADIUS_NDC, createCamera, orbitDrag, stepCamera, holdCamera, pick, viewNormal } from '../solCamera.js'
 
 const close = (a, b, eps = 1e-9) => expect(Math.abs(a - b)).toBeLessThan(eps)
 
@@ -155,5 +155,45 @@ describe('pick', () => {
     expect(pick(cam, 400, 300, W, H, NaN)).toBeNull()
     expect(pick({ ...cam, yaw: NaN }, 400, 300, W, H, 0)).toBeNull()
     expect(pick(cam, 0, 0, 0, 600, 0)).toBeNull()
+  })
+})
+
+describe('orbit fling speed and coast', () => {
+  it('with real event times the fling speed does not depend on the pointer report rate', () => {
+    // the same hand speed (600 px/s on a 600 px short side = PI rad/s) reported at 60 Hz and at 1000 Hz
+    const run = (hz) => {
+      const cam = createCamera()
+      for (let i = 0; i < hz / 2; i++) orbitDrag(cam, 600 / hz, 0, 600, 1 / hz)
+      return cam.yawVel
+    }
+    const slow = run(60)
+    const fast = run(1000)
+    close(Math.abs(slow), Math.PI, 0.02)
+    close(Math.abs(fast), Math.PI, 0.02)
+  })
+  it('real event times still clamp to 6 rad/s and ignore a zero or non-finite interval', () => {
+    const cam = createCamera()
+    for (let i = 0; i < 60; i++) orbitDrag(cam, 100, 0, 600, 1 / 120)
+    expect(Math.abs(cam.yawVel)).toBe(6)
+    const c2 = createCamera()
+    orbitDrag(c2, 1, 0, 600, 0)
+    close(Math.abs(c2.yawVel), (Math.PI / 600) * 60)
+    orbitDrag(c2, 1, 0, 600, NaN)
+    expect(Number.isFinite(c2.yawVel)).toBe(true)
+  })
+  it('a fling glides its speed times 0.62 s in all', () => {
+    const cam = { yaw: 0, pitch: 0, yawVel: 2, pitchVel: 0 }
+    for (let i = 0; i < 3600; i++) stepCamera(cam, 1 / 360)
+    close(cam.yaw, 2 * 0.62, 1e-4)
+  })
+  it('holdCamera forgets the fling speed without moving the camera', () => {
+    const cam = { yaw: 0.4, pitch: -0.2, yawVel: 3, pitchVel: -2 }
+    holdCamera(cam, 0.3)
+    expect(cam.yaw).toBe(0.4)
+    expect(cam.pitch).toBe(-0.2)
+    expect(Math.abs(cam.yawVel)).toBeLessThan(0.2)
+    expect(Math.abs(cam.pitchVel)).toBeLessThan(0.2)
+    holdCamera(cam, NaN)
+    expect(Number.isFinite(cam.yawVel)).toBe(true)
   })
 })
