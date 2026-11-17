@@ -70,3 +70,18 @@ describe('stirDelta', () => {
     expect(stirDelta({ x: 110, y: 50 }, { x: 100, y: 60 }, c)).toBeCloseTo(0.25, 12);
   });
 });
+
+describe('stirDelta edges (review minors)', () => {
+  const C = { x: 0, y: 0 };
+  it('an exact half turn is half a turn in magnitude (its sign follows the sign of zero)', () => {
+    expect(Math.abs(stirDelta({ x: 50, y: 0 }, { x: -50, y: 0 }, C))).toBe(0.5);
+  });
+  it('a point exactly on the deadzone radius counts', () => {
+    const d = STIR_DEADZONE_PX;
+    expect(stirDelta({ x: d, y: 0 }, { x: 0, y: d }, C)).toBeCloseTo(0.25, 12);
+    expect(stirDelta({ x: d - 0.01, y: 0 }, { x: 0, y: d }, C)).toBe(0);
+  });
+  it('prev equal to cur far outside the deadzone is still 0', () => {
+    expect(stirDelta({ x: 80, y: -30 }, { x: 80, y: -30 }, C)).toBe(0);
+  });
+});

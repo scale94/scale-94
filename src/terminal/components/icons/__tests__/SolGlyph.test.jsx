@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { render } from '@testing-library/react';
 import SolGlyph from '../SolGlyph';
 
@@ -55,13 +55,18 @@ function segIntersect(a, b, c, d) {
 }
 
 describe('SolGlyph geometry', () => {
-  const { container } = render(<SolGlyph className="x" />);
-  const circle = container.querySelector('circle');
-  const cx = +circle.getAttribute('cx');
-  const cy = +circle.getAttribute('cy');
-  const r = +circle.getAttribute('r');
-  const segs = parseCubics(container.querySelector('path').getAttribute('d'));
-  const [A, B] = segs.map(sample);
+  let cx, cy, r, segs, A, B;
+  // Read once inside the test lifecycle (not at collection time), then unmount.
+  beforeAll(() => {
+    const { container, unmount } = render(<SolGlyph className="x" />);
+    const circle = container.querySelector('circle');
+    cx = +circle.getAttribute('cx');
+    cy = +circle.getAttribute('cy');
+    r = +circle.getAttribute('r');
+    segs = parseCubics(container.querySelector('path').getAttribute('d'));
+    [A, B] = segs.map(sample);
+    unmount();
+  });
 
   it('the arch is two cubic segments', () => {
     expect(segs.length).toBe(2);

@@ -109,7 +109,17 @@ const SolTab = () => {
     lightTimerRef.current = setTimeout(() => setLightOn(false), LIGHT_LINE_MS);
   }, [requestDraw]);
 
-  const star = useSolStar({ onSnap, reducedMotion, requestDraw });
+  // The pointer maps against the stage's padding box: the canvas fills it,
+  // but the canvas's own rect carries the snap's shake translate.
+  const stageRef = useRef(null);
+  const getRect = useCallback(() => {
+    const el = stageRef.current;
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    return { left: r.left + el.clientLeft, top: r.top + el.clientTop, width: el.clientWidth, height: el.clientHeight };
+  }, []);
+
+  const star = useSolStar({ onSnap, getRect, reducedMotion, requestDraw });
   starRef.current = star;
 
   const onFrame = useCallback((dt) => {
@@ -244,6 +254,7 @@ const SolTab = () => {
       </div>
 
       <div
+        ref={stageRef}
         data-testid="sol-stage"
         className="relative w-full min-h-[60vh] border border-yellow-200/25 rounded-sm overflow-hidden"
       >

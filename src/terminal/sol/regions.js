@@ -65,13 +65,16 @@ function snapRegion(star, r) {
   return event;
 }
 
-export function stepStar(star, dtSeconds, { selfWind = true } = {}) {
+// selfWind: false stops the star winding itself; turn: false stops the
+// differential rotation (reduced motion: the plasma is frozen, so regions
+// must not slide, and a snap's lon is where the region is drawn).
+export function stepStar(star, dtSeconds, { selfWind = true, turn = true } = {}) {
   const dt = finiteOr0(dtSeconds);
   const events = [];
   if (dt <= 0) return events;
   const decay = Math.exp(-dt / SLIP_TAU_S);
   for (const r of [...star.regions]) {
-    r.lon += omega(r.lat) * dt;
+    if (turn) r.lon += omega(r.lat) * dt;
     if (selfWind) r.starTurns += SELF_WIND_TURNS_PER_S * dt;
     if (!r.held) r.handTurns *= decay;
     if (regionTurns(r) >= TURNS_TO_SNAP) events.push(snapRegion(star, r));
@@ -91,7 +94,15 @@ function angleBetween(latA, lonA, latB, lonB) {
   return Math.acos(Math.max(-1, Math.min(1, c)));
 }
 
+// Holds the region within GRAB_RADIUS_RAD of (lat, lon), else seeds a new
+// hand-born one there. Returns its id, or null for a non-finite point.
+// At the cap the least-wound unheld hand region is evicted; the "take the
+// nearest" fallback is for hand-built states only (a real star has
+// STAR_REGIONS < MAX_REGIONS - 1, so with one hand held there is always a
+// hand region to evict). Snaps and evictions REASSIGN star.regions: callers
+// re-read it every frame.
 export function grab(star, lat, lon) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
   let near = null;
   let nearAngle = Infinity;
   for (const r of star.regions) {

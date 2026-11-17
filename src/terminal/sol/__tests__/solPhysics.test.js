@@ -114,3 +114,28 @@ describe('constants', () => {
     expect(TRANSIT_SLOW_H).toBe(72);
   });
 });
+
+describe('non-finite and edge inputs (review minors)', () => {
+  it('NaN or negative inputs never return NaN', () => {
+    expect(tensionG(NaN)).toBe(TENSION_QUIET_G);
+    expect(energyErg(NaN)).toBe(E_MIN_ERG);
+    expect(strength01(NaN)).toBe(0);
+    expect(strength01(-1)).toBe(0);
+    expect(strength01(0)).toBe(0);
+    expect(Number.isFinite(transitMs(NaN))).toBe(true);
+    expect(Number.isFinite(stormNt(-5))).toBe(true);
+  });
+
+  it('a non-finite latitude passes (ccw), never couples by accident', () => {
+    expect(hemisphereHandedness(NaN)).toBe('ccw');
+    expect(hemisphereHandedness(-0.1)).toBe('cw');
+    expect(hemisphereHandedness(0)).toBe('ccw');
+  });
+
+  it('the Earth cone is 35 degrees either side', () => {
+    const at = (deg) => [Math.sin((deg * Math.PI) / 180), 0, Math.cos((deg * Math.PI) / 180)];
+    expect(facesCamera(at(34.9), [0, 0, 1])).toBe(true);
+    expect(facesCamera(at(35.1), [0, 0, 1])).toBe(false);
+    expect(facesCamera(at(-34.9), [0, 0, 1])).toBe(true);
+  });
+});

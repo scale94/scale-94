@@ -221,6 +221,7 @@ describe('SolCanvas mount', () => {
       let t = performance.now();
       for (const ms of frameMs) {
         t += ms;
+        rec.log.push(['frame']);   // marker: each rAF callback's GL calls follow it
         const cbs = q.splice(0);
         for (const cb of cbs) cb(t);
       }
@@ -242,6 +243,19 @@ describe('SolCanvas mount', () => {
           expect([canvas.width, canvas.height]).toEqual([711, 344]);
           const res = uRes(rec.log);
           expect(res[res.length - 1]).toEqual([711, 344]);
+          // No frame ends with a resize after its paint (a resize clears the
+          // buffer; the loop has nothing to repaint it with until next frame).
+          let frame = [];
+          const frames = [];
+          for (const e of rec.log) {
+            if (e[0] === 'frame') { frames.push(frame); frame = []; } else frame.push(e[0]);
+          }
+          frames.push(frame);
+          const resized = frames.filter((f) => f.includes('viewport') && f.includes('drawArrays'));
+          expect(resized.length).toBeGreaterThan(0);
+          for (const f of frames) {
+            if (f.includes('viewport')) expect(f.lastIndexOf('viewport')).toBeLessThan(f.lastIndexOf('drawArrays'));
+          }
           unmount();
         } finally {
           rec.restore();

@@ -176,8 +176,10 @@ export default function SolCanvas({ star, effects, onFrame, reducedMotion = fals
       // star just emitted, and before the effects are uploaded.
       onFrameRef.current?.(step);
       timeRef.current += step;
+      // Measure BEFORE painting: a quality drop resizes (and so clears) the
+      // canvas, which must happen before this frame's paint, not after it.
+      measure(host, step, hidden);
       paint(host.gl, host.U, s.uniforms(), effectsRef.current, timeRef.current, stillRef.current, qualityRef.current);
-      measure(step, hidden);
     },
 
     // Reduced motion: the loop never starts; repaint the still star on demand.
@@ -214,7 +216,7 @@ export default function SolCanvas({ star, effects, onFrame, reducedMotion = fals
   // is ready are discarded (tab fade, React commit, link jank), the next
   // MEASURE_S are reduced to a typical frame time. Hidden or zero-dt frames
   // are not counted (a hidden page's timers lie).
-  function measure(step, hidden) {
+  function measure(host, step, hidden) {
     const m = measureRef.current;
     if (m.done || hidden || !(step > 0)) return;
     m.t += step;
@@ -226,7 +228,7 @@ export default function SolCanvas({ star, effects, onFrame, reducedMotion = fals
     m.samples = [];
     if (q < qualityRef.current) {
       qualityRef.current = q;
-      applySize();
+      sizeTo(host);   // inside draw: the paint that follows fills the new buffer
     }
   }
 

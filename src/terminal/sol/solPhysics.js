@@ -22,7 +22,8 @@ export const STORM_LONG_H = 12;
 
 const HOUR_MS = 3600e3;
 
-const clamp01 = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x);
+// NaN (a bad energy, a log of a negative) reads as 0, never propagates.
+const clamp01 = (x) => (!(x > 0) ? 0 : x >= 1 ? 1 : x);
 
 // Written as (1-s)*a + s*b so that s=0 returns a and s=1 returns b exactly.
 const lerp = (a, b, s) => (1 - s) * a + s * b;
@@ -43,30 +44,30 @@ export function energyErg(turns) {
 }
 
 /** Position of log10(E) between E_MIN and E_MAX, clamped to 0..1. */
-export function strength01(energyErg) {
+export function strength01(erg) {
   const lo = Math.log10(E_MIN_ERG);
   const hi = Math.log10(E_MAX_ERG);
-  return clamp01((Math.log10(energyErg) - lo) / (hi - lo));
+  return clamp01((Math.log10(erg) - lo) / (hi - lo));
 }
 
 /** Transit time in ms: slow at weak strength, fast at strong. */
-export function transitMs(energyErg) {
-  return lerp(TRANSIT_SLOW_H, TRANSIT_FAST_H, strength01(energyErg)) * HOUR_MS;
+export function transitMs(erg) {
+  return lerp(TRANSIT_SLOW_H, TRANSIT_FAST_H, strength01(erg)) * HOUR_MS;
 }
 
 /** Mean speed in km/s for a transit time in ms. */
-export function speedKmS(transitMs) {
-  return AU_KM / (transitMs / 1000);
+export function speedKmS(ms) {
+  return AU_KM / (ms / 1000);
 }
 
 /** Peak Dst in nT: weak to strong with strength. */
-export function stormNt(energyErg) {
-  return lerp(DST_WEAK_NT, DST_STRONG_NT, strength01(energyErg));
+export function stormNt(erg) {
+  return lerp(DST_WEAK_NT, DST_STRONG_NT, strength01(erg));
 }
 
 /** Storm duration in ms: short to long with strength. */
-export function stormMs(energyErg) {
-  return lerp(STORM_SHORT_H, STORM_LONG_H, strength01(energyErg)) * HOUR_MS;
+export function stormMs(erg) {
+  return lerp(STORM_SHORT_H, STORM_LONG_H, strength01(erg)) * HOUR_MS;
 }
 
 /** A 'cw' handedness couples; 'ccw' does not. */
@@ -74,9 +75,9 @@ export function couples(handedness) {
   return handedness === 'cw';
 }
 
-/** Northern hemisphere (lat >= 0) is 'ccw'; southern is 'cw'. */
+/** Northern hemisphere (lat >= 0) is 'ccw'; southern is 'cw'. A non-finite latitude passes ('ccw'). */
 export function hemisphereHandedness(latRad) {
-  return latRad >= 0 ? 'ccw' : 'cw';
+  return latRad < 0 ? 'cw' : 'ccw';
 }
 
 const CONE_COS = Math.cos((EARTH_CONE_DEG * Math.PI) / 180);

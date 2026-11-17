@@ -41,9 +41,11 @@ export function createCamera() {
 export function orbitDrag(cam, dxPx, dyPx, shortSidePx, dtSeconds) {
   if (!Number.isFinite(dxPx) || !Number.isFinite(dyPx) || !(shortSidePx > 0)) return
   const dYaw = (-dxPx / shortSidePx) * Math.PI
-  const dPitch = (dyPx / shortSidePx) * Math.PI
+  const pitch0 = fin(cam.pitch)
   cam.yaw = fin(cam.yaw) + dYaw
-  cam.pitch = Math.max(-PITCH_MAX, Math.min(PITCH_MAX, fin(cam.pitch) + dPitch))
+  cam.pitch = Math.max(-PITCH_MAX, Math.min(PITCH_MAX, pitch0 + (dyPx / shortSidePx) * Math.PI))
+  // the pitch actually moved: dragging into the clamp builds no fling against it
+  const dPitch = cam.pitch - pitch0
   const clampV = (v) => Math.max(-VEL_MAX, Math.min(VEL_MAX, v))
   if (Number.isFinite(dtSeconds) && dtSeconds > 0) {
     const dt = Math.max(dtSeconds, EVENT_DT_MIN)
@@ -80,7 +82,9 @@ export function stepCamera(cam, dtSeconds) {
   }
 }
 
+/** The view-space normal at (lat, lon); [0, 0, 0] (faces nothing) for any non-finite input. */
 export function viewNormal(cam, lat, lon, rotLon) {
+  if (![lat, lon, rotLon, cam.yaw, cam.pitch].every(Number.isFinite)) return [0, 0, 0]
   const cl = Math.cos(lat)
   let x = cl * Math.sin(lon)
   let y = Math.sin(lat)

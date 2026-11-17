@@ -45,10 +45,12 @@ describe('orbitDrag', () => {
     orbitDrag(cam, 0, 10, 600)
     expect(viewNormal(cam, 0, 0, 0)[1]).toBeLessThan(0)
   })
-  it('a full short side is PI radians', () => {
+  it('half a short side is PI/2 radians, a full short side PI', () => {
     const cam = createCamera()
     orbitDrag(cam, 300, 0, 600)
-    close(Math.abs(cam.yaw), Math.PI / 2)
+    close(cam.yaw, -Math.PI / 2)
+    orbitDrag(cam, 300, 0, 600)
+    close(cam.yaw, -Math.PI)
   })
   it('sets velocities as the delta over 1/60 s, clamped to 6 rad/s', () => {
     const cam = createCamera()
@@ -195,5 +197,37 @@ describe('orbit fling speed and coast', () => {
     expect(Math.abs(cam.pitchVel)).toBeLessThan(0.2)
     holdCamera(cam, NaN)
     expect(Number.isFinite(cam.yawVel)).toBe(true)
+  })
+})
+
+describe('review minors', () => {
+  it('dragging into the pitch clamp builds no fling against it', () => {
+    const cam = { yaw: 0, pitch: 1.2, yawVel: 0, pitchVel: 0 }
+    orbitDrag(cam, 0, 50, 600)
+    expect(cam.pitch).toBe(1.2)
+    expect(cam.pitchVel).toBe(0)
+    orbitDrag(cam, 0, 50, 600, 1 / 120)
+    expect(cam.pitchVel).toBe(0)
+  })
+
+  it('viewNormal of a non-finite point faces nothing', () => {
+    expect(viewNormal(createCamera(), NaN, 0, 0)).toEqual([0, 0, 0])
+    expect(viewNormal({ yaw: Infinity, pitch: 0 }, 0, 0, 0)).toEqual([0, 0, 0])
+  })
+
+  it('pick at the visible pole: lat PI/2, lon finite', () => {
+    const cam = { yaw: 0, pitch: Math.PI / 2, yawVel: 0, pitchVel: 0 }  // north pole toward the viewer
+    const p = pick(cam, 300, 300, 600, 600, 0)
+    close(p.lat, Math.PI / 2, 1e-6)
+    expect(Number.isFinite(p.lon)).toBe(true)
+  })
+
+  it('lon wraps to (-PI, PI] across the back seam', () => {
+    for (const yaw of [Math.PI - 1e-3, Math.PI, -Math.PI, Math.PI + 1e-3]) {
+      const p = pick({ yaw, pitch: 0, yawVel: 0, pitchVel: 0 }, 300, 300, 600, 600, 0)
+      expect(p.lon).toBeGreaterThan(-Math.PI)
+      expect(p.lon).toBeLessThanOrEqual(Math.PI)
+      close(Math.abs(p.lon), Math.PI, 2e-3)
+    }
   })
 })

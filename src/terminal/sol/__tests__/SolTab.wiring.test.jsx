@@ -6,8 +6,9 @@ import { render, cleanup, act, screen } from '@testing-library/react';
 const captured = {};
 
 vi.mock('../useSolStar', () => ({
-  useSolStar: ({ onSnap, reducedMotion, requestDraw } = {}) => {
+  useSolStar: ({ onSnap, getRect, reducedMotion, requestDraw } = {}) => {
     captured.onSnap = onSnap;
+    captured.getRect = getRect;
     captured.hookReducedMotion = reducedMotion;
     captured.hookRequestDraw = requestDraw;
     if (!captured.star) {
@@ -192,4 +193,31 @@ describe('SolTab wiring', () => {
       if (desc) Object.defineProperty(Document.prototype, 'hidden', desc);
     }
   });
+
+  it('the pointer maps against the stage padding box, never the shaken canvas', () => {
+    render(<SolTab />);
+    const stage = screen.getByTestId('sol-stage');
+    stage.getBoundingClientRect = () => ({ left: 100, top: 50, width: 602, height: 402 });
+    Object.defineProperty(stage, 'clientLeft', { configurable: true, value: 1 });
+    Object.defineProperty(stage, 'clientTop', { configurable: true, value: 1 });
+    Object.defineProperty(stage, 'clientWidth', { configurable: true, value: 600 });
+    Object.defineProperty(stage, 'clientHeight', { configurable: true, value: 400 });
+    act(() => { captured.onSnap({ ...SNAP, facing: true }); });
+    act(() => { captured.onFrame(0.05); });
+    expect(screen.getByTestId('sol-canvas').parentElement.style.transform).toContain('translate3d');
+    expect(captured.getRect()).toEqual({ left: 101, top: 51, width: 600, height: 400 });
+  });
+
+  it('a second snap inside 20 s restarts the light line', () => {
+    render(<SolTab />);
+    const hud = screen.getByTestId('sol-hud');
+    act(() => { captured.onSnap({ ...SNAP, facing: false }); });
+    act(() => { vi.advanceTimersByTime(15000); });
+    act(() => { captured.onSnap({ ...SNAP, facing: false }); });
+    act(() => { vi.advanceTimersByTime(15000); });   // 30 s after the first, 15 s after the second
+    expect(hud.textContent).toContain('8 min 19 s');
+    act(() => { vi.advanceTimersByTime(5100); });
+    expect(hud.textContent).not.toContain('8 min 19 s');
+  });
 });
+

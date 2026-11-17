@@ -170,3 +170,65 @@ describe('grab cap', () => {
     expect(id).toBe(7);
   });
 });
+
+describe('review minors', () => {
+  it('grab at a non-finite point holds nothing and changes nothing', () => {
+    const star = makeStar([reg({ id: 1 })]);
+    expect(grab(star, NaN, 0)).toBeNull();
+    expect(grab(star, 0, Infinity)).toBeNull();
+    expect(star.regions).toHaveLength(1);
+    expect(star.regions[0].held).toBe(false);
+  });
+
+  it('a real star always has a hand region to evict at the cap', () => {
+    expect(STAR_REGIONS).toBeLessThan(MAX_REGIONS - 1);
+    const star = createStar(seqRng(3));
+    // seed hand regions far from each other and from the star's regions
+    for (let i = 0; i < 10; i++) {
+      const id = grab(star, -1.4 + i * 0.3, 2 + i);
+      release(star, id);
+      expect(star.regions.length).toBeLessThanOrEqual(MAX_REGIONS);
+      expect(star.regions.filter((r) => r.born === 'star')).toHaveLength(STAR_REGIONS);
+    }
+  });
+
+  it('a hand-born region whose winding slipped away is wound by the star, and snaps as the star', () => {
+    const star = makeStar([reg({ id: 1, lat: -0.3, born: 'hand', handTurns: 0.4 })]);
+    let ev = [];
+    for (let i = 0; i < 20000 && !ev.length; i++) ev = stepStar(star, 0.1);
+    expect(ev).toHaveLength(1);
+    expect(ev[0]).toMatchObject({ regionId: 1, origin: 'star', handedness: 'cw' });
+    expect(star.regions).toHaveLength(0);   // hand-born: removed after its snap
+  });
+
+  it('a held region still self-snaps in stepStar, and is released by it', () => {
+    const star = makeStar([reg({ id: 1, held: true, born: 'star', starTurns: TURNS_TO_SNAP - 1e-4, handTurns: 0 })]);
+    const ev = stepStar(star, 1);
+    expect(ev).toHaveLength(1);
+    expect(star.regions[0].held).toBe(false);
+    expect(regionTurns(star.regions[0])).toBe(0);
+  });
+
+  it('the same gesture gives the same handedness whatever the prior star winding', () => {
+    for (const starTurns of [0, 2, 4.5]) {
+      const star = makeStar([reg({ id: 1, lat: 0.5, starTurns })]);
+      grab(star, 0.5, 0);
+      const ev = applyStir(star, 1, -1.5) ?? release(star, 1);   // a wound region snaps inside the stir
+      expect(ev).toMatchObject({ handedness: 'ccw', origin: 'hand' });
+    }
+  });
+});
+
+describe('turn: false (reduced motion)', () => {
+  it('regions do not slide, and a snap reports where its region is', () => {
+    const star = makeStar([reg({ id: 1, lon: 0.7, held: true, handTurns: TURNS_TO_SNAP - 1e-3 })]);
+    star.regions[0].handTurns = 0;
+    star.regions[0].starTurns = TURNS_TO_SNAP - 1e-3;
+    const ev = stepStar(star, 1, { selfWind: false, turn: false });
+    expect(ev).toEqual([]);
+    expect(star.regions[0].lon).toBe(0.7);
+    star.regions[0].starTurns = TURNS_TO_SNAP;
+    const [snap] = stepStar(star, 0.05, { selfWind: false, turn: false });
+    expect(snap.lon).toBe(0.7);
+  });
+});

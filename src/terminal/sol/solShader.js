@@ -754,7 +754,8 @@ void main() {
     float a = dot(w, dl);
     float c = dot(w, vec2(-dl.y, dl.x));
     float sgn = c < 0.0 ? -1.0 : 1.0;
-    float u = clamp(a / plD, 0.0, 1.0);
+    float plDs = max(plD, 1e-3);   // plD is 0 unless the plume branch ran; never divide by it
+    float u = clamp(a / plDs, 0.0, 1.0);
     float lw = 0.025 + 0.06 * ejR;
     float lnA = gnoise(vec3(a * 2.6 - gT * 0.30, sgn * 4.0, 5.0) + uFlashPos * 19.0);
     float gap = 0.92 * ejR * pow(u, 0.6) * (1.0 + 0.30 * lnA);
@@ -762,7 +763,7 @@ void main() {
     float lnB = gnoise(vec3(a * 5.0 - gT * 0.55, xl * 0.8 + sgn * 9.0, 2.0) + uFlashPos * 19.0);
     float legs = (exp(-xl * xl) * (0.50 + 0.80 * smoothstep(-0.35, 0.40, lnB))
                 + exp(-xl * xl / 9.0) * smoothstep(0.0, 0.5, lnB) * 0.30)
-               * smoothstep(0.0, 0.25, u) * (1.0 - smoothstep(0.80, 1.10, a / plD)) * 0.85;
+               * smoothstep(0.0, 0.25, u) * (1.0 - smoothstep(0.80, 1.10, a / plDs)) * 0.85;
     float dens = shell + spray + wisps + coreB + legs;
     dens *= mix(1.0 - disc, 1.0, smoothstep(-0.05, 0.05, fv.z));
     vec3 hot = vec3(1.0, 0.76, 0.34);

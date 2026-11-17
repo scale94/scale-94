@@ -92,19 +92,12 @@ function createSolStar(onSnapRef, getRectRef, optsRef) {
     return true;
   }
 
-  // One simulation step. Under reduced motion the star does not wind itself
-  // and does not turn: regions.js always moves lon by omega(lat) dt, so that
-  // rotation is undone here (the shader's plasma is frozen too).
+  // One simulation step. Under reduced motion the star neither winds itself
+  // nor turns (the shader's plasma is frozen too), so a snap's lon is exactly
+  // where its region is drawn.
   function step(dt) {
-    let events;
-    if (reduced()) {
-      const regs = star.regions.slice();
-      const lons = regs.map((r) => r.lon);
-      events = stepStar(star, dt, { selfWind: false });
-      for (let i = 0; i < regs.length; i++) regs[i].lon = lons[i];
-    } else {
-      events = stepStar(star, dt);
-    }
+    const still = reduced();
+    const events = stepStar(star, dt, { selfWind: !still, turn: !still });
     for (const ev of events) {
       if (ev.regionId === heldId) endHoldBySnap();
       emit(ev);

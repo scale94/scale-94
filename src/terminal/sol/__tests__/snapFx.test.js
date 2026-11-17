@@ -197,3 +197,19 @@ describe('snapFx', () => {
     });
   });
 });
+
+// The shader reads the snap's strength back as length(uPlumeDir) (no uSnapGain
+// uniform): pin the contract on both paths, for any direction and strength.
+describe('snap strength rides on |uPlumeDir| (review minor)', () => {
+  const dir = [0.6, -0.48, 0.64];   // unit
+  it.each([0, 0.3, 0.77, 1])('strength %s: |uPlumeDir| = 0.35 + 0.65 s and its direction is the footpoint normal', (s) => {
+    const fx = createSnapFx();
+    triggerSnap(fx, { posStar: [0, 0, 1], dirView: dir, strength01: s, facing: false });
+    stepSnapFx(fx, 0.1);
+    for (const u of [snapUniforms(fx), stillSnapUniforms({ posStar: [0, 0, 1], dirView: dir, strength01: s, facing: false })]) {
+      const len = Math.hypot(...u.uPlumeDir);
+      expect(len).toBeCloseTo(0.35 + 0.65 * s, 9);
+      for (let i = 0; i < 3; i++) expect(u.uPlumeDir[i] / len).toBeCloseTo(dir[i], 9);
+    }
+  });
+});

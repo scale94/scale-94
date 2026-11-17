@@ -65,3 +65,12 @@ describe('typicalFrameMs (the robust first-second statistic)', () => {
     expect(MEASURE_S).toBeGreaterThanOrEqual(1);
   });
 });
+
+describe('narrow screens (review minor: the cap is live)', () => {
+  it('a narrow dpr-3 phone at the reduced quality renders at 1.5 x 0.75', () => {
+    expect(chooseQuality({ viewportWidth: 390 })).toBeLessThan(1);
+    expect(pixelRatioFor({ quality: chooseQuality({ viewportWidth: 390 }), viewportWidth: 390, dpr: 3 })).toBeCloseTo(1.125, 12);
+    // without the narrow cap it would be min(2, 3) x 0.75 = 1.5
+    expect(pixelRatioFor({ quality: 0.5, viewportWidth: 1280, dpr: 3 })).toBeCloseTo(1.5, 12);
+  });
+});
