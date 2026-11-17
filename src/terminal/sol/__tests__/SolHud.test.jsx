@@ -43,8 +43,57 @@ describe('SolHud', () => {
     expect(container.textContent).not.toContain('LAST RELEASE');
   });
 
+  it('a cloud in flight shows its time to arrival and unread', () => {
+    const eta = (17 * 3600 + 36 * 60) * 1000;
+    const { getAllByTestId } = hud({ clouds: [{ id: 'a', etaMs: eta, orientation: null }] });
+    const rows = getAllByTestId('sol-cloud');
+    expect(rows).toHaveLength(1);
+    expect(rows[0].textContent).toContain('17:36:00');
+    expect(rows[0].textContent).toContain('unread');
+  });
+
+  it('a read cloud shows its orientation; seconds round up, never 00:00:00 in flight', () => {
+    const { getAllByTestId } = hud({
+      clouds: [
+        { id: 'a', etaMs: 5 * 60e3, orientation: 'southward' },
+        { id: 'b', etaMs: 1, orientation: 'northward' },
+      ],
+    });
+    const rows = getAllByTestId('sol-cloud');
+    expect(rows[0].textContent).toContain('00:05:00');
+    expect(rows[0].textContent).toContain('southward');
+    expect(rows[0].textContent).not.toContain('unread');
+    expect(rows[1].textContent).toContain('00:00:01');
+    expect(rows[1].textContent).toContain('northward');
+  });
+
+  it('landings are one line each, exactly', () => {
+    const { getAllByTestId } = hud({
+      landings: [
+        { id: 'p', fate: 'passed', nT: null },
+        { id: 'c', fate: 'coupled', nT: -850.4 },
+        { id: 'u', fate: 'unwitnessed', nT: -300 },
+      ],
+    });
+    expect(getAllByTestId('sol-landing').map((n) => n.textContent)).toEqual([
+      'arrived · northward · passed',
+      'arrived · southward · coupled · −850 nT',
+      'arrived · unwitnessed',
+    ]);
+  });
+
+  it('no cloud rows and no landing lines when there are none', () => {
+    const { queryAllByTestId } = hud({});
+    expect(queryAllByTestId('sol-cloud')).toHaveLength(0);
+    expect(queryAllByTestId('sol-landing')).toHaveLength(0);
+  });
+
   it('never explains itself', () => {
-    const { container } = hud({ tensionG: 4000, lastReleaseErg: 5e32, lightDelayVisible: true });
+    const { container } = hud({
+      tensionG: 4000, lastReleaseErg: 5e32, lightDelayVisible: true,
+      clouds: [{ id: 'a', etaMs: 1000, orientation: 'southward' }],
+      landings: [{ id: 'p', fate: 'passed', nT: null }, { id: 'c', fate: 'coupled', nT: -900 }],
+    });
     const text = container.textContent.toLowerCase();
     for (const w of ['civilization', 'grid', 'infrastructure']) expect(text).not.toContain(w);
   });

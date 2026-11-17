@@ -37,6 +37,17 @@ vi.mock('../SolCanvas', () => {
   return { default: MockSolCanvas };
 });
 
+// Clouds are covered by SolTab.clouds.test.jsx. Here the store is inert:
+// jsdom's localStorage schedules its own storage-event timer on every write,
+// which the unmount test below would count as a leak.
+vi.mock('../cloudStore', () => ({
+  launchCloud: () => {},
+  getClouds: () => [],
+  sweep: () => {},
+  markWitnessed: () => {},
+  subscribeClouds: () => () => {},
+}));
+
 const { default: SolTab } = await import('../../views/SolTab');
 
 // A controllable prefers-reduced-motion query with change listeners.

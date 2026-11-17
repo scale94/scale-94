@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import SolGlyph from '../components/icons/SolGlyph';
 import SolCanvas from '../sol/SolCanvas';
 import SolHud from '../sol/SolHud';
@@ -7,11 +7,17 @@ import {
   createSnapFx, triggerSnap, stepSnapFx, snapUniforms, snapGeometry, stillSnapUniforms,
 } from '../sol/snapFx';
 import { strength01 } from '../sol/solPhysics';
+import { cloudStatus } from '../sol/cloudClock';
+import { launchCloud, getClouds, sweep, subscribeClouds } from '../sol/cloudStore';
 
 const LIGHT_LINE_MS = 20000;   // the light line holds for 20 s after each snap
 const HUD_POLL_MS = 100;       // tension readout; React state only when the integer changes
 const STILL_SNAP_MS = 1200;     // reduced motion: how long the still snap frame holds
-const NO_CLOUDS = [];
+const CLOCK_TICK_MS = 1000;    // cloud statuses are re-read from the wall clock this often
+const MAX_LANDING_LINES = 3;   // newest landings shown under the star
+
+/** Every stored cloud with its status at `now`. */
+const readClouds = (now) => getClouds().map((c) => ({ ...cloudStatus(c, now), id: c.id }));
 const RM_QUERY = '(prefers-reduced-motion: reduce)';
 
 const reducedMotionQuery = () =>
@@ -86,6 +92,10 @@ const SolTab = () => {
       triggerSnap(fx, snap);
     }
     if (Number.isFinite(ev.energyErg)) setLastReleaseErg(ev.energyErg);
+    // Only a snap aimed at the viewer sends a cloud this way.
+    if (ev.facing && Number.isFinite(ev.energyErg) && ev.energyErg > 0) {
+      launchCloud({ energyErg: ev.energyErg, handedness: ev.handedness, origin: ev.origin }, Date.now());
+    }
     setLightOn(true);
     clearTimeout(lightTimerRef.current);
     lightTimerRef.current = setTimeout(() => setLightOn(false), LIGHT_LINE_MS);
@@ -146,6 +156,40 @@ const SolTab = () => {
     requestDraw();
   }, [reducedMotion, clearShake, requestDraw]);
 
+  // The clouds: statuses come from the wall clock, never from elapsed frames,
+  // so a page hidden for hours shows each cloud where it truly is on return.
+  const [statuses, setStatuses] = useState(() => readClouds(Date.now()));
+  const refreshClouds = useCallback(() => {
+    const now = Date.now();
+    sweep(now);
+    setStatuses(readClouds(now));
+  }, []);
+
+  useEffect(() => {
+    const off = subscribeClouds(refreshClouds);
+    refreshClouds();
+    const id = setInterval(refreshClouds, CLOCK_TICK_MS);
+    const onVis = () => { if (typeof document !== 'undefined' && !document.hidden) refreshClouds(); };
+    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVis);
+    return () => {
+      off();
+      clearInterval(id);
+      if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVis);
+    };
+  }, [refreshClouds]);
+
+  const hudClouds = useMemo(() => statuses
+    .filter((s) => s.phase === 'flight')
+    .sort((a, b) => a.etaMs - b.etaMs)
+    .map((s) => ({ id: s.id, etaMs: s.etaMs, orientation: s.orientation })), [statuses]);
+
+  // A passed landing is its line and nothing else.
+  const hudLandings = useMemo(() => statuses
+    .filter((s) => s.phase !== 'flight')
+    .sort((a, b) => b.arrivalAt - a.arrivalAt)
+    .slice(0, MAX_LANDING_LINES)
+    .map((s) => ({ id: s.id, fate: s.fate, nT: s.stormNt })), [statuses]);
+
   useEffect(() => {
     const read = () => {
       const g = Math.round(star.hud().tensionG);
@@ -193,8 +237,8 @@ const SolTab = () => {
         tensionG={tensionG}
         lastReleaseErg={lastReleaseErg}
         lightDelayVisible={lightOn}
-        clouds={NO_CLOUDS}
-        landings={NO_CLOUDS}
+        clouds={hudClouds}
+        landings={hudLandings}
       />
     </div>
   );
