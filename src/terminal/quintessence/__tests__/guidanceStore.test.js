@@ -26,7 +26,7 @@ describe('guidanceStore — the element curriculum', () => {
   it('exports the four element houses and a tint for every nav tab', () => {
     expect(ELEMENT_HOUSES).toEqual(['art', 'transmission', 'ledger', 'ecocide']);
     for (const t of [...ELEMENT_HOUSES, 'kernel', 'bsky', 'manifesto', 'scaling',
-                     'privacy', 'surveillance', 'cryptography', 'lunar', 'ledger', 'mercury']) {
+                     'privacy', 'surveillance', 'cryptography', 'lunar', 'ledger', 'mercury', 'sol']) {
       expect(NAV_TINTS[t], t).toHaveLength(3);
     }
   });

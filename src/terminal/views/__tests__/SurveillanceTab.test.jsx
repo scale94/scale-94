@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import laws from '../../lib/__tests__/fixtures/legislation-sealed-2026-03-09.json';
 import SurveillanceTab from '../SurveillanceTab';
 import { setPanopticonCorpus } from '../../lib/panopticon';
@@ -135,7 +135,9 @@ describe('SurveillanceTab privacy drawer', () => {
   });
   it('renders the privacy panel inside the drawer when open', async () => {
     renderTab({ privacyOpen: true, systemArticles: { 'PRIVACY-PROTOCOL': { content: 'x' } } });
-    expect(await screen.findByTestId('privacy-drawer')).toBeTruthy();
+    const drawer = await screen.findByTestId('privacy-drawer');
+    // the lazy panel itself, not only the wrapper
+    await waitFor(() => expect(drawer.textContent).toContain('LOG: PRIVACY-PROTOCOL'));
   });
 });
 
@@ -155,6 +157,22 @@ describe('SurveillanceTab privacy focus token', () => {
     expect(spy.mock.instances[0]).toBe(btn());
     expect(spy.mock.calls[0][0]).toMatchObject({ block: 'start' });
     expect(onHandled).toHaveBeenCalledTimes(1);
+  });
+  it('scrolls smoothly, or instantly under reduced motion', () => {
+    const spy = vi.fn();
+    Element.prototype.scrollIntoView = spy;
+    const original = window.matchMedia;
+    try {
+      window.matchMedia = (q) => ({ matches: q.includes('reduce'), media: q });
+      renderTab({ privacyFocusToken: 1 });
+      expect(spy.mock.calls[0][0]).toMatchObject({ behavior: 'auto' });
+      cleanup();
+      window.matchMedia = (q) => ({ matches: false, media: q });
+      renderTab({ privacyFocusToken: 2 });
+      expect(spy.mock.calls[1][0]).toMatchObject({ behavior: 'smooth' });
+    } finally {
+      window.matchMedia = original;
+    }
   });
   it('scrolls on mount when the token is already set (tab mounted by the nav change)', () => {
     const spy = vi.fn();

@@ -13,7 +13,7 @@ export const NAV_TINTS = {
   transmission: [168, 85, 247], scaling: [217, 70, 239], privacy: [244, 63, 94],
   surveillance: [239, 68, 68], cryptography: [249, 115, 22], art: [255, 176, 32],
   ecocide: [122, 184, 0],   lunar: [139, 92, 246],    ledger: [20, 184, 166],
-  mercury: [192, 192, 192],
+  mercury: [192, 192, 192], sol: [254, 249, 195],   // sol: yellow-100, the nav's own /SOL hue
 };
 
 // The element curriculum (keystone): FIRE=art, AIR=transmission, WATER=ledger, EARTH=ecocide.

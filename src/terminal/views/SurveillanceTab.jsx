@@ -40,9 +40,10 @@ const REGIONS = [
 // `categories` — spec §2).
 const CATS = [['ALL', 'All Categories'], ...TAPS.map((t) => [t.tag, t.tag])];
 
-// ── Component ──────────────────────────────────────────────────────────────
+// The privacy protocol's drawer content, loaded only when first opened.
 const PrivacyTab = lazy(() => import('./PrivacyTab'));
 
+// ── Component ──────────────────────────────────────────────────────────────
 const SurveillanceTab = ({
   legislationArticles = [], onOpenLaw, systemArticles = {},
   privacyOpen = false, onPrivacyOpenChange,

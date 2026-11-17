@@ -53,6 +53,7 @@ import useReadingWitness    from './mercury/useReadingWitness';
 import { pinnedKernelArticleIds } from './mercury/pinnedKernels';
 import KuramotoVisualizer   from './components/KuramotoVisualizer';
 import { emit as emitObs } from '../observatory/observatoryBus';
+import { usePrivacyDrawer } from './hooks/usePrivacyDrawer';
 import { notifyNav, getGuidance as getEyeGuidance, subscribeGuidance } from './quintessence/guidanceStore';
 import { getSpine as getSpineSnap, subscribeSpine as subscribeSpineSnap } from './quintessence/spineStore';
 import { pulseTabFor } from './components/resolveEyeState';
@@ -639,26 +640,11 @@ const App = () => {
     setSearchFilter('');
   }, []);
 
-  // Privacy protocol lives in a drawer on /SURVEILLANCE. Opening it (button,
-  // `g p`, or the `privacy` command) still counts as a 'privacy' visit — the
-  // compiled house_privacy kernel reads tabsVisited.privacy. The emit is
-  // deferred for the same reason as in handleNav.
-  const [privacyOpen, setPrivacyOpen] = useState(false);
-  const [privacyFocusToken, setPrivacyFocusToken] = useState(0);
-  const clearPrivacyFocus = useCallback(() => setPrivacyFocusToken(0), []);
-  const openPrivacy = useCallback(() => {
-    handleNav('~/system/surveillance', 'surveillance');
-    setPrivacyOpen(true);
-    setPrivacyFocusToken(t => t + 1);
-    setTimeout(() => emitObs('gaze', 'tab_navigated', { tab: 'privacy' }), 0);
-  }, [handleNav]);
-  const handlePrivacyOpenChange = useCallback((next) => {
-    setPrivacyOpen(next);
-    if (next) setTimeout(() => emitObs('gaze', 'tab_navigated', { tab: 'privacy' }), 0);
-  }, []);
-  useEffect(() => {
-    if (activeTab !== 'surveillance') setPrivacyOpen(false);
-  }, [activeTab]);
+  // Privacy protocol lives in a drawer on /SURVEILLANCE (hooks/usePrivacyDrawer).
+  const {
+    privacyOpen, privacyFocusToken, openPrivacy,
+    onPrivacyOpenChange: handlePrivacyOpenChange, clearPrivacyFocus,
+  } = usePrivacyDrawer({ handleNav, activeTab });
 
   // g-leader navigation (Colemak-DH home-row optimised)
   const G_NAV = {
