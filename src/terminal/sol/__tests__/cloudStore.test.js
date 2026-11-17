@@ -162,3 +162,26 @@ describe('cloudStore', () => {
     });
   });
 });
+
+describe('another tab writes the store', () => {
+  it('re-reads it, notifies, and a later launch here keeps the other tab\'s clouds', () => {
+    const mine = launchCloud(cw(), t0);
+    const theirs = { ...mine, id: 'other-tab-cloud', launchedAt: t0 + 5 };
+    const raw = JSON.stringify({ clouds: [mine, theirs] });
+    localStorage.setItem(STORAGE_KEY, raw);
+    const fn = vi.fn();
+    subscribeClouds(fn);
+    window.dispatchEvent(new StorageEvent('storage', { key: STORAGE_KEY, newValue: raw }));
+    expect(fn).toHaveBeenCalledTimes(1);
+    expect(getClouds().map((c) => c.id)).toEqual([mine.id, 'other-tab-cloud']);
+    launchCloud(cw(), t0 + 10);
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY)).clouds).toHaveLength(3);
+  });
+
+  it('ignores other keys', () => {
+    const fn = vi.fn();
+    subscribeClouds(fn);
+    window.dispatchEvent(new StorageEvent('storage', { key: 'something_else', newValue: '1' }));
+    expect(fn).not.toHaveBeenCalled();
+  });
+});

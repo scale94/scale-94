@@ -145,6 +145,18 @@ export function _resetCloudsForTests(opts = {}) {
   listeners.clear();
 }
 
+// Another tab of the site wrote the store: take its version (it already
+// holds this tab's earlier writes, since every write is of the whole list),
+// so a later launch here does not overwrite that tab's clouds.
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+  window.addEventListener('storage', (e) => {
+    if (e.key !== STORAGE_KEY && e.key !== null) return;   // null: storage cleared
+    clouds = restore();
+    const copy = getClouds();
+    listeners.forEach((fn) => { try { fn(copy); } catch (_) { /* isolated per listener */ } });
+  });
+}
+
 // DEV escape hatch: without it a landing cannot be seen without waiting a
 // day. Stripped from production builds.
 if (import.meta.env?.DEV && typeof window !== 'undefined') {
