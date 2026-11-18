@@ -60,7 +60,7 @@ From default geometry to complex systems.
 `;
 
 export const privacyContent = `# Privacy Protocol
-**Last Updated:** 2025-12-08
+**Last Updated:** 2026-11-19
 
 This repository and the deployed site are strictly personal projects. The source code is transparent, and the data practices are minimal.
 

@@ -2,12 +2,12 @@
 id: PRIVACY-PROTOCOL
 title: PRIVACY_PROTOCOL
 subtitle: Data Practices & Infrastructure
-date: 2025-12-08
+date: 2026-11-19
 ---
 
 # Privacy Protocol
 
-**Last Updated:** 2025-12-08
+**Last Updated:** 2026-11-19
 
 This repository and the deployed site are strictly personal projects. The source code is transparent, and the data practices are minimal.
 
