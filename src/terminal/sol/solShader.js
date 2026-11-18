@@ -154,6 +154,9 @@ const float EJ_WARP = 0.15;         // rad of angular warp per disc radius: stre
 const float EJ_JAG = 0.24;          // the front's radius is torn by this share of itself
 const float FLASH_CORE = 0.022;     // disc radii, the white core's gaussian width
 const float FLASH_DIP = 0.42;       // exposure dip of everything but the flash at its peak
+const float AURORA_CLEAR = 1.18;    // disc radii: no aurora at all inside this (disc, limb, inner corona)
+const float AURORA_FULL = 1.50;     // disc radii: the aurora's full (faint) strength from here out
+const float AURORA_GAIN = 0.55;     // it only shimmers faintly in the surround
 
 // Never white: white is the reconnection flash's alone.
 const vec3 CAP = vec3(1.0, 0.93, 0.78);
@@ -818,7 +821,11 @@ void main() {
   // sits higher and only for strong storms (uAuroraRed). Composited after
   // CAP as a veil then a screen blend: smooth (no clip plateau) and never
   // white. Every term is continuous; the dither below breaks any banding.
-  if (uAurora > 0.0) {
+  // Masked by distance from the star centre: zero over the disc and a buffer
+  // past the limb, so the star itself stays untouched and sharp; it only
+  // shimmers in the deep-space surround and toward the viewport edges.
+  float auroraMask = smoothstep(AURORA_CLEAR, AURORA_FULL, r) * AURORA_GAIN;
+  if (uAurora > 0.0 && auroraMask > 0.0) {
     vec2 s = vScreen * uRes / minRes;             // short axis spans -1..1
     float A = min(uAurora, 1.0);
     float reach = mix(0.55, -0.05, A);            // stronger storms hang lower
@@ -847,8 +854,8 @@ void main() {
       float top = up - tall * 1.1;
       rSum += smoothstep(-0.08, 0.06, top) * exp(-max(top, 0.0) / 0.32) * rays * hem * depth;
     }
-    float g = (1.0 - exp(-gSum * 1.3)) * A;
-    float rd = (1.0 - exp(-rSum * 1.2)) * uAuroraRed;
+    float g = (1.0 - exp(-gSum * 1.3)) * A * auroraMask;
+    float rd = (1.0 - exp(-rSum * 1.2)) * uAuroraRed * auroraMask;
     col *= 1.0 - min(0.3 * g + 0.2 * rd, 0.35);
     vec3 em = vec3(0.16, 0.95, 0.40) * g + vec3(0.85, 0.05, 0.16) * rd * 0.8;
     col = 1.0 - (1.0 - col) * (1.0 - min(em, vec3(0.9)));
