@@ -5,12 +5,13 @@ import {
   _resetCloudsForTests,
 } from '../cloudStore';
 import { cloudStatus } from '../cloudClock';
+import { getForgeArchive, _resetForgeArchiveForTests } from '../forgeArchive';
 
 const H = 3600e3;
 const t0 = Date.UTC(2026, 10, 17, 12, 0, 0);
 const cw = (energyErg = 5e32, origin = 'hand') => ({ energyErg, handedness: 'cw', origin });
 
-beforeEach(() => _resetCloudsForTests());
+beforeEach(() => { _resetCloudsForTests(); _resetForgeArchiveForTests(); });
 afterEach(() => vi.restoreAllMocks());
 
 describe('cloudStore', () => {
@@ -183,5 +184,20 @@ describe('another tab writes the store', () => {
     subscribeClouds(fn);
     window.dispatchEvent(new StorageEvent('storage', { key: 'something_else', newValue: '1' }));
     expect(fn).not.toHaveBeenCalled();
+  });
+
+  it('sweep folds each removed landed cloud into the forge archive', () => {
+    for (let i = 0; i < 40; i++) launchCloud(cw(), t0 + i * 40 * H);
+    sweep(t0 + 2000 * H);
+    expect(getForgeArchive().foldedIds).toHaveLength(8);
+    expect(getForgeArchive().He).toBeGreaterThan(0);
+  });
+
+  it('a cap-dropped cloud folds C/O, and He only if its protons had arrived', () => {
+    for (let i = 0; i < 16; i++) launchCloud(cw(1e31 + i * 1e30), t0);
+    launchCloud(cw(5e32), t0 + 20);
+    const a = getForgeArchive();
+    expect(a.C).toBeGreaterThan(0);
+    expect(a.He).toBe(0);
   });
 });

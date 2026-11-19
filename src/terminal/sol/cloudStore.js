@@ -6,6 +6,7 @@
 // by cloudClock.cloudStatus.
 
 import { makeCloud, cloudStatus } from './cloudClock';
+import { foldIntoArchive } from './forgeArchive';
 
 export const STORAGE_KEY = 'sol_clouds_v1';
 export const MAX_IN_FLIGHT = 16;
@@ -80,6 +81,7 @@ export function launchCloud({ energyErg, handedness, origin, transitMs }, now = 
   if (flying.length > MAX_IN_FLIGHT) {
     let weakest = flying[0];
     for (const c of flying) if (c.energyErg < weakest.energyErg) weakest = c;
+    foldIntoArchive(weakest, now);
     next = next.filter((c) => c !== weakest);
   }
   commit(next);
@@ -101,6 +103,8 @@ export function sweep(now = Date.now()) {
   if (done.length <= MAX_LOG) return;
   const arrival = (c) => c.launchedAt + c.transitMs;
   const keep = new Set(done.sort((a, b) => arrival(b) - arrival(a)).slice(0, MAX_LOG));
+  const removed = done.filter((c) => !keep.has(c));
+  removed.forEach((c) => foldIntoArchive(c, now));
   commit(clouds.filter((c) => !landed(c, now) || keep.has(c)));
 }
 
