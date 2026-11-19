@@ -18,12 +18,12 @@ export function formatEta(ms) {
   return `${pad2(h)}:${pad2(m)}:${pad2(total % 60)}`;
 }
 
-/** One line per fate. U+2212 for the minus sign. */
+/** One line per fate. U+2212 for the minus sign; U+00A0 binds the value to its unit, so a narrow HUD never wraps "nT" alone. */
 export function landingLine({ fate, nT }) {
   if (fate === 'passed') return 'arrived · northward · passed';
   if (fate === 'unwitnessed') return 'arrived · unwitnessed';
   const n = Math.round(Math.abs(Number.isFinite(nT) ? nT : 0));
-  return `arrived · southward · coupled · −${n} nT`;
+  return `arrived · southward · coupled · −${n}\u00a0nT`;
 }
 
 export const MESSENGER_LABEL = {

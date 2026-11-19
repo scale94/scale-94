@@ -172,7 +172,7 @@ describe('SolTab clouds', () => {
     setVisibility('visible');
     render(<SolTab />);
     expect(getClouds()[0].witnessed).toBe(true);
-    expect(screen.getAllByTestId('sol-stack-row')[3].textContent).toBe('CLOUD' + 'arrived · southward · coupled · −1200 nT');
+    expect(screen.getAllByTestId('sol-stack-row')[3].textContent).toBe('CLOUD' + 'arrived · southward · coupled · −1200\u00a0nT');
     act(() => { captured.onFrame(1 / 60); });
     const early = captured.effects.uAurora;
     expect(early).toBeGreaterThan(0);

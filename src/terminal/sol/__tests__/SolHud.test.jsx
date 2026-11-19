@@ -108,7 +108,7 @@ describe('SolHud', () => {
     });
     expect(getAllByTestId('sol-landing').map((n) => n.textContent)).toEqual([
       'arrived · northward · passed',
-      'arrived · southward · coupled · −850 nT',
+      'arrived · southward · coupled · −850\u00a0nT',
       'arrived · unwitnessed',
     ]);
   });
@@ -216,6 +216,13 @@ describe('SolHud', () => {
     expect(stack.getAttribute('aria-current')).toBe('true');
     expect(stack.firstChild.textContent.startsWith('▸')).toBe(true);
     expect(getAllByTestId('sol-cloud')[0].getAttribute('aria-current')).toBeNull();
+  });
+
+  it('a landing value never wraps away from its unit', () => {
+    const [line] = hud({ landings: [{ id: 'c', fate: 'coupled', nT: -1200 }] })
+      .getAllByTestId('sol-landing').map((n) => n.textContent);
+    expect(line.endsWith('−1200\u00a0nT')).toBe(true);
+    expect(line).not.toMatch(/−1200 nT/);
   });
 
   it('wrapped rows keep vertical breathing room', () => {
