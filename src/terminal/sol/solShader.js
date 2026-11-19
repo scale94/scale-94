@@ -136,10 +136,14 @@ const float LANE_PX_OK = 2.8;       // lane spacing (px) at full contrast
 // so the granules stay resolved), and its fibril whorl winds with ALL its
 // turns, saturating. Inside the whorl the granules give way to the fibres.
 const float WIND_VIS = 0.05;
-const float FIB_R0 = 0.03;          // rad; fibrils start at the pore
-const float FIB_ARMS = 5.0;         // radius of the noise circle the azimuth runs on (~30 irregular fibres; a finer octave joins further out)
-const float FIB_WRAPS = 1.3;        // turns of whorl per turn of field at small winding
-const float FIB_SAT = 0.45;         // saturation: at most FIB_WRAPS / FIB_SAT turns of whorl
+const float FIB_RC = 0.06;          // rad; the vortex core: rigid inside, angle ~ 1/r outside
+const float FIB_F = 26.0;           // strands per radian (base octave; two finer ones join where a pixel holds them)
+const float FIB_WARP = 0.9;         // domain-warp amplitude, in strand widths: turbulent breakup
+const float FIB_WRAPS = 0.9;        // turns of core rotation per turn of field at small winding
+const float FIB_SAT = 0.9;          // saturation: at most FIB_WRAPS / FIB_SAT turns (bounded shear)
+const float FIB_BASE = 0.3;         // turns every whorl carries at rest, so strands are always drawn out
+const float FIB_SPIN = 0.08;        // rad/s the core keeps turning on its own, in its winding's sense
+const float FIB_LAYER_T = 32.0;     // s; two-phase reseed period of the spin, bounds its shear
 const float RIPPLE_K = 70.0;        // rad^-1 along the surface
 const float RIPPLE_W = 2.2;         // rad/s phase rate: crests travel outward
 const int ARCH_N = 12;              // arch polyline points
@@ -155,11 +159,16 @@ const float EJ_JAG = 0.24;          // the front's radius is torn by this share 
 const float FLASH_CORE = 0.022;     // disc radii, the white core's gaussian width
 const float FLASH_DIP = 0.42;       // exposure dip of everything but the flash at its peak
 const float AURORA_CLEAR = 1.18;    // disc radii: no aurora at all inside this (disc, limb, inner corona)
-const float AURORA_FULL = 1.50;     // disc radii: the aurora's full (faint) strength from here out
+const float AURORA_FULL = 1.80;     // disc radii: the aurora's full (faint) strength from here out
+const float AURORA_CRISP = 2.30;    // disc radii: rays reach full contrast only out here (soft behind the corona)
 const float AURORA_GAIN = 0.55;     // it only shimmers faintly in the surround
 
 // Never white: white is the reconnection flash's alone.
 const vec3 CAP = vec3(1.0, 0.93, 0.78);
+// The one exception below the flash: white-hot cores (#FFFDF5 toward,
+// never reaching, the flash's 1.0). Only hotMask pixels may approach it.
+const vec3 WHITE_HOT = vec3(1.0, 0.99, 0.96);
+const vec3 HOT_CAP = vec3(1.0, 0.975, 0.92);
 
 vec3 rotY(vec3 p, float c, float s) { return vec3(p.x * c + p.z * s, p.y, -p.x * s + p.z * c); }
 vec3 rotX(vec3 p, float c, float s) { return vec3(p.x, p.y * c - p.z * s, p.y * s + p.z * c); }
@@ -285,18 +294,19 @@ vec2 granulation(vec3 q) {
 // plateau at each stop and band). The top stop sits just under CAP, and the
 // clamp to CAP comes after everything: no white.
 vec3 heatRamp(float t) {
-  vec3 c0 = vec3(0.028, 0.006, 0.002);
-  vec3 c1 = vec3(0.30, 0.042, 0.004);
-  vec3 c2 = vec3(0.74, 0.165, 0.012);
-  vec3 c3 = vec3(0.98, 0.42, 0.05);
-  vec3 c4 = vec3(1.0, 0.66, 0.20);
-  vec3 c5 = vec3(1.0, 0.84, 0.46);
+  // stops: near-black, #2A0800 umbra, ember, #E85D04, amber, #FFD27D, pale gold
+  vec3 c0 = vec3(0.018, 0.003, 0.001);
+  vec3 c1 = vec3(0.165, 0.031, 0.0);
+  vec3 c2 = vec3(0.56, 0.115, 0.006);
+  vec3 c3 = vec3(0.91, 0.365, 0.016);
+  vec3 c4 = vec3(1.0, 0.62, 0.17);
+  vec3 c5 = vec3(1.0, 0.82, 0.49);
   vec3 c6 = vec3(1.0, 0.92, 0.70);
-  vec3 c = mix(c0, c1, clamp(t / 0.18, 0.0, 1.0));
-  c = mix(c, c2, clamp((t - 0.18) / 0.22, 0.0, 1.0));
-  c = mix(c, c3, clamp((t - 0.40) / 0.20, 0.0, 1.0));
-  c = mix(c, c4, clamp((t - 0.60) / 0.18, 0.0, 1.0));
-  c = mix(c, c5, clamp((t - 0.78) / 0.12, 0.0, 1.0));
+  vec3 c = mix(c0, c1, clamp(t / 0.16, 0.0, 1.0));
+  c = mix(c, c2, clamp((t - 0.16) / 0.20, 0.0, 1.0));
+  c = mix(c, c3, clamp((t - 0.36) / 0.22, 0.0, 1.0));
+  c = mix(c, c4, clamp((t - 0.58) / 0.18, 0.0, 1.0));
+  c = mix(c, c5, clamp((t - 0.76) / 0.14, 0.0, 1.0));
   return mix(c, c6, clamp((t - 0.90) / 0.10, 0.0, 1.0));
 }
 
@@ -353,6 +363,7 @@ void main() {
   vec3 col = vec3(0.0);
   float disc = 1.0 - smoothstep(1.0 - aa, 1.0 + aa, r);
   vec3 pSurf = vec3(0.0);   // star-frame surface point under this pixel (disc only)
+  float hotMask = 0.0;      // where the photosphere may burn past CAP (to HOT_CAP)
 
   // ---- photosphere ----
   if (r < 1.0 + aa) {
@@ -389,12 +400,16 @@ void main() {
       vec3 c = uRegionPos[i];
       float T = uRegionTension[i];
       float d = length(p - c);
-      if (T > 0.01 && d < 0.9) {
+      // no rings inside the whorl: there the strands carry the motion, and
+      // concentric crests over a spiral read as a counter-rotating web
+      float rReach = mix(0.20, 0.44, T);
+      if (T > 0.01 && d < 0.9 && d > 0.45 * rReach) {
         vec3 rad = p - c * dot(p, c);
         float rl = length(rad);
         vec3 dir = rl > 1e-5 ? rad / rl : vec3(0.0);
         float env = T * T * exp(-d / 0.32) * smoothstep(0.0, 0.06, d) * (1.0 - smoothstep(0.55, 0.9, d));
         env *= 0.65 + 0.35 * sin(d * 9.0 - gT * 0.45);   // wave groups, not a stamp
+        env *= smoothstep(0.45 * rReach, 1.1 * rReach, d);
         float ph = d * RIPPLE_K - gT * RIPPLE_W;
         q += dir * (sin(ph) * env * 0.010);
         shade += cos(ph) * env * 0.07;
@@ -441,47 +456,97 @@ void main() {
       }
     }
     float fibK = 0.0;
-    float fibN = 0.0;
+    float fibS = 0.5;          // strand field: 1 on a strand's spine, 0 in the gaps
+    float fibCore = 0.0;       // the reconnection kernel between the pores (0..1)
 
-    // (3b) the fibril whorl: around a tense region the granules give way to
-    // long fibres (bright strands, crisp dark lanes between them), radial at
-    // rest, wound into a spiral by the field's turns. Azimuth runs on a noise
-    // circle, log-radius along the third axis, so fibres are long, uneven
-    // and never a regular comb; a finer octave joins where a pixel holds it.
+    // (3b) the fibril whorl: plasma filaments CARRIED by the vortex. There
+    // are no polar coordinates here (they made radial spokes at the core):
+    // a turbulent, domain-warped ridged field is painted on the material and
+    // the material is turned about the region by an angle that is rigid in
+    // the core and falls off as 1/r outside it. The differential rotation
+    // itself shears the ridges into a spiral, so the strands advect WITH the
+    // vortex, at its own angular velocity, in its own direction: nothing in
+    // the whorl can turn against it. The vortex keeps turning on its own
+    // (FIB_SPIN, signed by its winding) through two half-period-offset
+    // layers reseeded at zero weight, so the winding (and the shear) stays
+    // bounded, exactly as the granulation does it.
     if (fibI >= 0 && fibW > 0.002) {
       vec3 c = uRegionPos[fibI];
       float T = uRegionTension[fibI];
+      float d = length(p - c);
+      float E = uRegionTwist[fibI] + uRegionWind[fibI];
+      float sg = E < 0.0 ? -1.0 : 1.0;
+      float Wt = FIB_WRAPS * E / (1.0 + FIB_SAT * abs(E)) + sg * FIB_BASE;
+      float ex = exp(-d / FIB_RC);
+      float k = FIB_RC / max(d, 1e-4) * (1.0 - ex);      // 1 in the core, ~rc/d outside
+      float kS = abs(k - ex);                            // r |dk/dr|: the shear per radian of turn
+      float pxS = radiusPx * (0.25 + 0.75 * mu) / FIB_F; // px across one strand, before shear
+      float acc = 0.0;
+      float wSum = 0.0;
+      for (int L = 0; L < 2; L++) {
+        float ph = gT / FIB_LAYER_T + 0.5 * float(L);
+        float tau = fract(ph) * FIB_LAYER_T;
+        float wgt = sin(PI * fract(ph));
+        wgt *= wgt;
+        if (uQuality < Q_REDUCED) {
+          wgt = smoothstep(0.25, 0.75, wgt);
+          if (wgt <= 0.0) continue;
+        }
+        float A = TAU * Wt + sg * FIB_SPIN * tau;
+        // strands are squeezed across by the shear: fade octaves (and at the
+        // last, the contrast) where a pixel can no longer hold them
+        float px = pxS / (1.0 + abs(A) * kS);
+        vec3 m = rotAxis(p, c, A * k);
+        vec3 seed = hash33(vec3(floor(ph), float(L) * 5.0 + float(fibI) * 3.0, 11.0)) * 37.0;
+        vec3 x = (m - c) * FIB_F + seed;
+        // turbulent breakup: the domain is warped by a slower, larger field
+        vec3 xw = x * 0.42;
+        vec3 wv = vec3(gnoise(xw + vec3(0.0, 0.0, gT * 0.06)),
+                       gnoise(xw + vec3(4.1, 2.7, -gT * 0.05)),
+                       gnoise(xw + vec3(8.3, 5.9, gT * 0.04)));
+        x += FIB_WARP * wv;
+        // the same slow field, sheared with everything else, gathers the
+        // strands into bundles: the spiral still reads where a pixel cannot
+        // hold a single strand (the full-disc view)
+        float bundle = 0.25 + 1.50 * smoothstep(-0.35, 0.40, wv.z);
+        float f2 = smoothstep(2.4, 5.0, px * 0.5);
+        float f3 = smoothstep(2.4, 5.0, px * 0.25);
+        float n = gnoise(x) + 0.50 * f2 * gnoise(x * 2.07 + vec3(3.3, 1.1, 7.7))
+                + 0.25 * f3 * gnoise(x * 4.31 + vec3(9.1, 6.2, 2.4));
+        // ridged: a strand is where the warped field crosses zero, so strands
+        // are long, branching, uneven threads and never a lattice or a comb
+        float rdg = 1.0 - min(abs(n) * 2.3 / (1.0 + 0.5 * f2 + 0.25 * f3), 1.0);
+        rdg = rdg * rdg * rdg;
+        acc += wgt * bundle * mix(0.20, rdg, smoothstep(1.3, 2.8, px));
+        wSum += wgt;
+      }
+      fibS = acc / max(wSum, 1e-4);
+      fibK = fibW * smoothstep(0.0, 0.35, (fibW - fibW2) / fibW);
+      // the reconnection kernel: the inversion line between the pore pair
+      // heats toward white as the field pulls taut
+      // (a thin, threaded ribbon along the pair's axis, never a round glow)
+      float sep = 0.06 + 0.10 * T;
       vec3 east, north;
       frameAt(c, east, north);
-      vec3 rad = p - c * dot(p, c);
-      float d = length(p - c);
-      float phi = atan(dot(rad, north), dot(rad, east) + 1e-6);
-      float E = uRegionTwist[fibI] + uRegionWind[fibI];
-      float wraps = FIB_WRAPS * E / (1.0 + FIB_SAT * abs(E));
-      float reach = mix(0.20, 0.44, T);
-      float u = clamp(log(max(d, FIB_R0) / FIB_R0) / log(reach / FIB_R0), 0.0, 1.0);
-      float phiT = phi + TAU * wraps * pow(1.0 - u, 1.5);
-      float lr = log(max(d, FIB_R0));
-      vec3 fd = vec3(cos(phiT), sin(phiT), 0.0) * FIB_ARMS
-              + vec3(0.0, 0.0, lr * 1.1 + float(fibI) * 7.3 - gT * 0.015);
-      float fine = smoothstep(4.0, 9.0, d * radiusPx * mu * 0.19);   // px per fine fibre
-      float n = gnoise(fd) + 0.55 * fine * gnoise(fd * 2.6 + vec3(11.0, 4.0, lr * 0.6));
-      fibK = fibW * smoothstep(0.0, 0.35, (fibW - fibW2) / fibW);
-      fibN = n;
+      float beta = -TAU * effTwist(fibI);
+      vec3 axis = east * cos(beta) + north * sin(beta);
+      float along = dot(p - c, axis) / (0.55 * sep);
+      float across = dot(p - c, cross(c, axis)) / (0.16 * sep);
+      fibCore = exp(-along * along - across * across) * (0.30 + 0.70 * fibS) * smoothstep(0.45, 1.0, T);
     }
-    // fibres: dark lanes on the noise's zero crossings, strands between them
-    float fibLane = smoothstep(0.015, 0.13, abs(fibN));
-    float fibre = (0.10 + 0.90 * fibLane) * (0.30 + 1.30 * smoothstep(-0.55, 0.65, fibN));
-    // the whorl's edge is frayed by its own fibres: strands run out into the
+    // strands burn, the gaps between them are dark
+    float fibre = 0.16 + 1.75 * fibS;
+    // the whorl's edge is frayed by its own strands: they run out into the
     // granulation unevenly, so there is no disc-shaped boundary
-    float fibMix = smoothstep(0.22, 0.78, fibK + 0.50 * fibN) * smoothstep(0.0, 0.12, fibK);
+    float fibMix = smoothstep(0.22, 0.78, fibK + 0.55 * (fibS - 0.30)) * smoothstep(0.0, 0.12, fibK);
     float lum = (0.21 + 1.55 * mix(g, gUn * fibre * 0.80, fibMix * 0.92)) * (1.0 + shade);
-    float fibHot = fibK * fibLane * max(fibN, 0.0) * max(fibN, 0.0);
+    float fibHot = fibK * fibS * fibS * 1.6;
 
     // (4) pores: a charred umbra and a thin incandescent rim. The rim takes
     // the granules' own structure, so it is a ring of bright filaments and
     // never a smooth pale halo.
     float rim = 0.0;
+    float umb = 1.0;           // what the umbrae leave: nothing burns inside a pore
     for (int i = 0; i < 6; i++) {
       if (i >= uRegionCount) break;
       float T = uRegionTension[i];
@@ -500,6 +565,7 @@ void main() {
         float dd = length(p - pc);
         float umbra = 1.0 - smoothstep(rp * 0.50, rp * 1.00, dd);
         lum *= mix(1.0, 0.012, D * umbra);
+        umb *= 1.0 - D * umbra;
         float e = (dd - rp * 1.16) / (rp * 0.20);
         rim += D * exp(-e * e);
       }
@@ -507,9 +573,16 @@ void main() {
 
     // (5) limb darkening acting on heat, so the colour falls through gold,
     // orange and ember red to near-black at the very edge
-    float limbI = 0.04 + 0.96 * pow(mu, 1.25);
-    float heat = limbI * (lum + (rim * 0.85 + fibHot * 0.55) * (0.25 + 1.5 * g));
+    // Deeper than a textbook law on purpose: the sphere has to read as mass.
+    float limbI = 0.022 + 0.978 * pow(mu, 1.6);
+    float heat = limbI * (lum + (rim * 0.85 + fibHot * 0.55) * (0.25 + 1.5 * g) + fibCore * umb * 1.4);
     col = heatRamp(1.0 - exp(-1.30 * heat)) * disc;
+    // incandescence: strand spines near a taut core, the pores' rims and the
+    // reconnection kernel itself burn past gold toward white-hot (still
+    // short of the flash's pure white; see HOT_CAP)
+    float hotT = fibK * fibS * fibS * smoothstep(0.55, 1.0, fibK) * 0.6 + rim * 0.30 + fibCore;
+    hotMask = clamp(hotT * umb * pow(mu, 0.8), 0.0, 1.0) * disc;
+    col = mix(col, WHITE_HOT, hotMask * hotMask * 0.85);
   }
 
   // (6) the corona: three layers of glow, so the star bleeds into the dark
@@ -665,6 +738,7 @@ void main() {
   float ejNear = 0.0;
   float nLow = 0.0;
   float nMid = 0.0;
+  float ejHi = 0.0;            // fine streaks, 0 where a pixel cannot hold them
   if (ejS > 0.0) {
     vec2 e = uv - ejC;
     float ed = length(e);
@@ -691,17 +765,26 @@ void main() {
     float s3 = gnoise(vec3(euw * (angF * 5.3), rf * 2.4 + 4.1) + sd);
     ejN = s1 * smoothstep(2.0, 10.0, px) + 0.55 * s2 * smoothstep(8.0, 30.0, px) + 0.30 * s3 * smoothstep(25.0, 70.0, px);
     ejNear = smoothstep(0.0, 0.45 * max(isHalo ? ejR : plD, 1e-3), ed2);
+    // high-frequency directional streaks: very fine across, long along the
+    // flow (low radial frequency, riding out with the front), domain-nudged
+    // by the coarse streaks so they braid instead of combing
+    float s4 = gnoise(vec3(euw * (angF * 12.0) + 0.9 * vec2(s1, s2), rf * 0.7 - gT * 0.25 + 2.9) + sd);
+    ejHi = s4 * smoothstep(40.0, 120.0, px);
   }
   float tear = 1.0 + EJ_JAG * 1.6 * (0.62 * nLow + 0.38 * nMid);   // the front's radius, torn
   float thick = 0.50 + 1.10 * smoothstep(-0.5, 0.5, nMid);         // and its thickness
   // brightness along the front: a few long arcs of uneven length (the low
   // samples) under a light striation, never a row of even knots
-  float knot = (0.20 + 1.15 * smoothstep(-0.32, 0.36, 0.85 * nLow + 0.50 * nMid))
-             * (0.80 + 0.40 * smoothstep(-0.40, 0.40, ejN));
+  // The front is fragmented into separate arches: real gaps between them
+  // (floor near zero), each striated along the flow by the fine streaks.
+  float knot = (0.06 + 1.30 * smoothstep(-0.20, 0.36, 0.85 * nLow + 0.50 * nMid))
+             * (0.80 + 0.40 * smoothstep(-0.40, 0.40, ejN))
+             * (0.70 + 0.60 * smoothstep(-0.30, 0.30, ejHi));
   float fing = smoothstep(0.05, 0.60, ejN);                        // where spray is thrown ahead
   // filament contrast in the body, mean ~0.9; neutral at the streaks' origin,
-  // where polar coordinates are singular
-  float fil = mix(0.9, 0.18 + 1.50 * smoothstep(-0.40, 0.55, ejN), ejNear);
+  // where polar coordinates are singular. The fine streaks split every
+  // coarse filament into fibres.
+  float fil = mix(0.9, (0.18 + 1.50 * smoothstep(-0.40, 0.55, ejN)) * (0.45 + 1.10 * smoothstep(-0.25, 0.35, ejHi)), ejNear);
 
   // (9a) shock: a ring crossing the SURFACE from the footpoint (angular
   // distance in the star frame), decelerating; soft leading edge, longer
@@ -746,9 +829,9 @@ void main() {
     float Rb = ejR * tear;
     float sw = (0.035 + 0.10 * ejR) * thick;                      // shell width
     float xs = (ed - Rb) / sw;
-    float shell = exp(-xs * xs) * front * knot;
+    float shell = exp(-xs * xs) * front * knot * (0.55 + 0.90 * smoothstep(-0.30, 0.40, ejHi));
     float spray = ed > Rb ? exp(-(ed - Rb) / (0.03 + 0.55 * ejR * fing)) * fing * front * 0.40 : 0.0;
-    float wisps = (1.0 - smoothstep(0.55, 1.0, ed / max(Rb, 1e-3))) * smoothstep(0.15, 0.75, ejN) * 0.20;
+    float wisps = (1.0 - smoothstep(0.55, 1.0, ed / max(Rb, 1e-3))) * smoothstep(0.15, 0.75, ejN + 0.45 * ejHi) * 0.22;
     float coreB = exp(-pow(length(e + dl * ejR * 0.45) / (0.24 * ejR), 2.0)) * 0.42 * (0.35 + 0.85 * fil);
     // legs, in the anchor's frame: along a, across c; half-gap grows with a
     // as a concave curve, meeting the bubble's flanks near its centre. Their
@@ -791,11 +874,19 @@ void main() {
     float wb = 0.20 + 0.30 * ejR;
     float fr0 = exp(-(x * x) / (wf * wf));
     float fr = fr0 * knot;
-    float body = x < 0.0 ? 0.45 * exp(x / wb) * (1.0 - fr0) : 0.0;
-    // streak contrast grows with depth behind the front, zero at it
-    float deep = x < 0.0 ? 1.0 - exp(x / (3.0 * wf)) : 0.0;
+    float body = x < 0.0 ? 0.40 * exp(x / wb) * (1.0 - fr0) : 0.0;
+    // streak contrast grows with depth behind the front, but is never smooth:
+    // even just behind it the body is already split into fibres
+    float deep = x < 0.0 ? 0.55 + 0.45 * (1.0 - exp(x / (3.0 * wf))) : 0.0;
     float spray = x > 0.0 ? exp(-x / (0.03 + 0.50 * ejR * fing)) * fing * 0.32 : 0.0;
-    float dens = (fr + body * mix(0.9, fil, deep) + spray) / (1.0 + 0.10 * ejR);
+    // a second, inner set of arches trailing the first, torn the other way
+    // round (same samples, other weights), so the shell reads as nested
+    // magnetic loops breaking apart rather than one curtain
+    float tear2 = 1.0 + EJ_JAG * 1.6 * (0.30 * nLow - 0.70 * nMid);
+    float x2 = dh - 0.80 * ejR * tear2;
+    float knot2 = smoothstep(0.0, 0.40, 0.6 * nMid - 0.5 * nLow) * (0.70 + 0.60 * smoothstep(-0.30, 0.30, ejHi));
+    float fr2 = exp(-(x2 * x2) / (2.2 * wf * wf)) * knot2 * 0.50 * (x < 0.0 ? 1.0 : 0.0);
+    float dens = (fr + fr2 + body * mix(0.9, fil, deep) + spray) / (1.0 + 0.10 * ejR);
     // over the bright disc a thin shade just inside the front draws its edge
     float xin = (x + 2.2 * wf) / wf;
     col *= 1.0 - 0.22 * disc * exp(-xin * xin) * I;
@@ -812,7 +903,7 @@ void main() {
   col *= 1.0 - FLASH_DIP * min(uFlash, 1.0);
 
   // (8) never white, dither, premultiplied alpha
-  col = min(col, CAP);
+  col = min(col, mix(CAP, HOT_CAP, hotMask));
 
   // (11) the aurora: in front of everything, in screen space, the star still
   // visible through it. Three folding curtains (nearest brightest, lowest,
@@ -824,7 +915,11 @@ void main() {
   // Masked by distance from the star centre: zero over the disc and a buffer
   // past the limb, so the star itself stays untouched and sharp; it only
   // shimmers in the deep-space surround and toward the viewport edges.
-  float auroraMask = smoothstep(AURORA_CLEAR, AURORA_FULL, r) * AURORA_GAIN;
+  // It rises slowly (squared ramp) and its rays only sharpen far from the
+  // limb, so it sits recessed BEHIND the corona: the star keeps the focal plane.
+  float auroraRise = smoothstep(AURORA_CLEAR, AURORA_FULL, r);
+  float auroraMask = auroraRise * auroraRise * AURORA_GAIN;
+  float auroraCrisp = 0.35 + 0.65 * smoothstep(AURORA_CLEAR, AURORA_CRISP, r);
   if (uAurora > 0.0 && auroraMask > 0.0) {
     vec2 s = vScreen * uRes / minRes;             // short axis spans -1..1
     float A = min(uAurora, 1.0);
@@ -844,7 +939,7 @@ void main() {
       // rays: tall vertical streaks drifting along the curtain, high contrast
       float rx = x * 8.0 + 1.6 * gnoise(vec3(x * 1.3, fk + 7.0, gT * 0.06)) - gT * 0.12 * (1.0 + 0.5 * fk);
       float rn = clamp(0.5 + 0.95 * gnoise(vec3(rx, dy * 0.25, gT * 0.10 + fk * 4.0)), 0.0, 1.0);
-      float rays = rn * rn;
+      float rays = mix(0.45, rn * rn, auroraCrisp);
       float hem = smoothstep(-0.012, 0.02, dy);
       float up = max(dy, 0.0);
       float body = exp(-up / (tall * (0.6 + 0.8 * rn)));   // rays reach higher than the gaps
