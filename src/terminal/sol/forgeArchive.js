@@ -13,10 +13,12 @@ const yearOrNull = (x) => x === null || (typeof x === 'number' && Number.isFinit
 
 const fresh = () => ({ ...EMPTY_ARCHIVE, foldedIds: [] });
 
-function restore() {
+// The stored archive when storage yields a valid payload, else null
+// (absent, unreadable, refused or invalid).
+function readStored() {
   try {
     const raw = globalThis.localStorage?.getItem(FORGE_STORAGE_KEY);
-    if (!raw) return fresh();
+    if (typeof raw !== 'string' || !raw) return null;
     const p = JSON.parse(raw);
     if (p && typeof p === 'object'
       && mass(p.H) && mass(p.He) && mass(p.C) && mass(p.O)
@@ -27,9 +29,11 @@ function restore() {
         foldedIds: p.foldedIds.slice(-MAX_FOLDED_IDS),
       };
     }
-  } catch (_) { /* corrupt or unavailable: start empty */ }
-  return fresh();
+  } catch (_) { /* corrupt or unavailable */ }
+  return null;
 }
+
+const restore = () => readStored() ?? fresh();
 
 let archive = restore();
 const listeners = new Set();
@@ -55,6 +59,10 @@ const later = (a, b) => (a === null ? b : Math.max(a, b));
  * and H only once its protons had arrived. Idempotent per cloud id.
  */
 export function foldIntoArchive(cloud, now = Date.now()) {
+  // Another tab may have written since our last read (the storage event is
+  // async): adopt a valid stored archive; otherwise keep the in-memory one.
+  const stored = readStored();
+  if (stored) archive = stored;
   if (archive.foldedIds.includes(cloud.id)) return;
   const o = offerings(cloud);
   const delivered = Number.isFinite(now) && now >= o.He.deliveredAt;

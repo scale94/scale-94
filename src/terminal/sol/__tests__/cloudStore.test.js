@@ -185,7 +185,9 @@ describe('another tab writes the store', () => {
     window.dispatchEvent(new StorageEvent('storage', { key: 'something_else', newValue: '1' }));
     expect(fn).not.toHaveBeenCalled();
   });
+});
 
+describe('cloudStore forge folds', () => {
   it('sweep folds each removed landed cloud into the forge archive', () => {
     for (let i = 0; i < 40; i++) launchCloud(cw(), t0 + i * 40 * H);
     sweep(t0 + 2000 * H);

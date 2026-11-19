@@ -81,4 +81,36 @@ describe('forgeArchive', () => {
     window.dispatchEvent(new StorageEvent('storage', { key: FORGE_STORAGE_KEY }));
     expect(getForgeArchive().He).toBe(2);
   });
+
+  it('stale tab: re-reads storage, counts A once and keeps the other tab B', () => {
+    const A = mk(5e32, t0, 'A');
+    const now = t0 + 3 * 3600e3;
+    foldIntoArchive(A, now);
+    const mine = getForgeArchive();
+    const bKg = 7;
+    // another tab folded A too, and B, with no storage event delivered here
+    localStorage.setItem(FORGE_STORAGE_KEY, JSON.stringify({
+      ...mine, He: mine.He + bKg, foldedIds: ['A', 'B'],
+    }));
+    foldIntoArchive(A, now);
+    const a = getForgeArchive();
+    expect(a.He).toBeCloseTo(mine.He + bKg, -3);
+    expect(a.foldedIds).toEqual(['A', 'B']);
+  });
+  it('stale tab: B from another tab and C folded here both persist', () => {
+    localStorage.setItem(FORGE_STORAGE_KEY, JSON.stringify({
+      H: 0, He: 0, C: 11, O: 0, cYear: 5, oYear: null, foldedIds: ['B'],
+    }));
+    foldIntoArchive(mk(5e32, t0, 'C'), t0);
+    const stored = JSON.parse(localStorage.getItem(FORGE_STORAGE_KEY));
+    expect(stored.foldedIds).toEqual(['B', 'C']);
+    expect(stored.C).toBeGreaterThan(11);
+  });
+  it('refused getItem does not wipe a volatile fold', () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('quota'); });
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('denied'); });
+    foldIntoArchive(mk(5e32, t0, 'x'), t0);
+    foldIntoArchive(mk(5e32, t0, 'y'), t0);
+    expect(getForgeArchive().foldedIds).toEqual(['x', 'y']);
+  });
 });
