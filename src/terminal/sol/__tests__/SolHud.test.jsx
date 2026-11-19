@@ -1,12 +1,13 @@
 import React from 'react';
 import { describe, it, expect, afterEach } from 'vitest';
-import { render, cleanup } from '@testing-library/react';
+import { render, cleanup, fireEvent } from '@testing-library/react';
 import SolHud from '../SolHud';
+import { formatClock } from '../hudFormat';
 
 afterEach(cleanup);
 
 const hud = (props) =>
-  render(<SolHud tensionG={300} lastReleaseErg={null} lightDelayVisible={false} clouds={[]} landings={[]} {...props} />);
+  render(<SolHud tensionG={300} lastReleaseErg={null} clouds={[]} landings={[]} {...props} />);
 
 describe('SolHud', () => {
   it('renders tension as an integer in G', () => {
@@ -31,10 +32,40 @@ describe('SolHud', () => {
     expect(container.textContent).toContain('1.2e29 erg');
   });
 
-  it('shows the light line only while visible', () => {
-    expect(hud({ lightDelayVisible: true }).container.textContent).toContain('LIGHT · 8 min 19 s OLD');
-    cleanup();
-    expect(hud({ lightDelayVisible: false }).container.textContent).not.toContain('8 min 19 s');
+  const ROWS = [
+    { key: 'neutrinos', arrived: false, etaMs: 499e3, arrivesYear: 2026, reading: null },
+    { key: 'light', arrived: false, etaMs: 499e3, arrivesYear: 2026, reading: null },
+    { key: 'protons', arrived: false, etaMs: 3600e3, arrivesYear: 2026, reading: null },
+    { key: 'cloud', arrived: false, etaMs: 17 * 3600e3, arrivesYear: 2026, reading: { phase: 'flight', orientation: null } },
+    { key: 'core', arrived: false, etaMs: null, arrivesYear: 172026, reading: null },
+  ];
+
+  it('a stack renders five labelled rows and the launch clock in its header', () => {
+    const launchedAt = new Date(2026, 10, 17, 9, 5, 7).getTime();
+    const { getAllByTestId, container } = hud({ stack: { launchedAt, rows: ROWS } });
+    const rows = getAllByTestId('sol-stack-row');
+    expect(rows).toHaveLength(5);
+    const labels = ['NEUTRINOS', 'LIGHT', 'PROTONS', 'CLOUD', 'CORE LIGHT'];
+    labels.forEach((l, i) => expect(rows[i].textContent).toContain(l));
+    expect(rows[0].textContent).toContain('00:08:19');
+    expect(container.textContent).toContain(formatClock(launchedAt));
+    expect(container.textContent).not.toContain('OLD');
+  });
+
+  it('stack null renders no stack rows', () => {
+    expect(hud({ stack: null }).queryAllByTestId('sol-stack-row')).toHaveLength(0);
+  });
+
+  it('clicking a compact row selects it; rows are buttons', () => {
+    const calls = [];
+    const { getAllByTestId } = hud({
+      clouds: [{ id: 'a', etaMs: 5e3, orientation: null }, { id: 'b', etaMs: 9e3, orientation: null }],
+      onSelect: (id) => calls.push(id),
+    });
+    const rows = getAllByTestId('sol-cloud');
+    expect(rows[1].tagName).toBe('BUTTON');
+    fireEvent.click(rows[1]);
+    expect(calls).toEqual(['b']);
   });
 
   it('has no release row before the first snap', () => {
@@ -90,7 +121,7 @@ describe('SolHud', () => {
 
   it('never explains itself', () => {
     const { container } = hud({
-      tensionG: 4000, lastReleaseErg: 5e32, lightDelayVisible: true,
+      tensionG: 4000, lastReleaseErg: 5e32, stack: { launchedAt: 0, rows: ROWS },
       clouds: [{ id: 'a', etaMs: 1000, orientation: 'southward' }],
       landings: [{ id: 'p', fate: 'passed', nT: null }, { id: 'c', fate: 'coupled', nT: -900 }],
     });

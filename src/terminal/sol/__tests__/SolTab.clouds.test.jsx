@@ -1,7 +1,7 @@
 // SolTab and the cloud store: facing snaps launch clouds; statuses follow the wall clock.
 import React from 'react';
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
-import { render, cleanup, act, screen } from '@testing-library/react';
+import { render, cleanup, act, screen, fireEvent } from '@testing-library/react';
 import { getClouds, launchCloud, _resetCloudsForTests } from '../cloudStore';
 
 const captured = {};
@@ -56,29 +56,59 @@ afterEach(() => {
 });
 
 describe('SolTab clouds', () => {
-  it('a facing snap launches one cloud and shows it in flight, unread', () => {
+  it('a facing snap launches one cloud and shows its stack: neutrinos and light at 00:08:19', () => {
     render(<SolTab />);
     act(() => { captured.onSnap({ ...SNAP, facing: true }); });
     expect(getClouds()).toHaveLength(1);
     expect(getClouds()[0]).toMatchObject({ energyErg: 5e32, handedness: 'cw', origin: 'hand', launchedAt: T0 });
-    const rows = screen.getAllByTestId('sol-cloud');
-    expect(rows).toHaveLength(1);
-    expect(rows[0].textContent).toContain('17:36:00');
-    expect(rows[0].textContent).toContain('unread');
+    const rows = screen.getAllByTestId('sol-stack-row');
+    expect(rows).toHaveLength(5);
+    expect(rows[0].textContent).toContain('NEUTRINOS');
+    expect(rows[0].textContent).toContain('00:08:19');
+    expect(rows[1].textContent).toContain('LIGHT');
+    expect(rows[1].textContent).toContain('00:08:19');
+    expect(rows[3].textContent).toContain('17:36:00');
+    expect(rows[3].textContent).toContain('unread');
+    expect(screen.queryAllByTestId('sol-cloud')).toHaveLength(0);   // the stacked cloud is not also a compact row
   });
 
-  it('a snap that does not face the viewer launches nothing', () => {
+  it('after 499 s the light has arrived', () => {
+    render(<SolTab />);
+    act(() => { captured.onSnap({ ...SNAP, facing: true }); });
+    act(() => { vi.advanceTimersByTime(499000); });
+    const rows = screen.getAllByTestId('sol-stack-row');
+    expect(rows[1].textContent).toContain('arrived · 8 min 19 s old');
+  });
+
+  it('a snap that does not face the viewer launches nothing and shows no stack', () => {
     render(<SolTab />);
     act(() => { captured.onSnap({ ...SNAP, facing: false }); });
     expect(getClouds()).toHaveLength(0);
     expect(screen.queryAllByTestId('sol-cloud')).toHaveLength(0);
+    expect(screen.queryAllByTestId('sol-stack-row')).toHaveLength(0);
   });
 
   it('the eta counts down once a second', () => {
     render(<SolTab />);
     act(() => { captured.onSnap({ ...SNAP, facing: true }); });
     act(() => { vi.advanceTimersByTime(3000); });
-    expect(screen.getByTestId('sol-cloud').textContent).toContain('17:35:57');
+    expect(screen.getAllByTestId('sol-stack-row')[3].textContent).toContain('17:35:57');
+  });
+
+  it('other clouds in flight are compact rows; clicking one stacks it', () => {
+    render(<SolTab />);
+    act(() => { captured.onSnap({ ...SNAP, facing: true }); });
+    act(() => { vi.advanceTimersByTime(60000); });
+    act(() => { captured.onSnap({ ...SNAP, handedness: 'ccw', facing: true }); });
+    // the newest is stacked, the older one is a compact row
+    expect(screen.getAllByTestId('sol-stack-row')[3].textContent).toContain('17:36:00');
+    const compact = screen.getAllByTestId('sol-cloud');
+    expect(compact).toHaveLength(1);
+    expect(compact[0].tagName).toBe('BUTTON');
+    expect(compact[0].textContent).toContain('17:35:00');
+    act(() => { fireEvent.click(compact[0]); });
+    expect(screen.getAllByTestId('sol-stack-row')[3].textContent).toContain('17:35:00');
+    expect(screen.getAllByTestId('sol-cloud')[0].textContent).toContain('17:36:00');
   });
 
   it('returning to the page re-reads the wall clock: 20 h later the cloud has landed', () => {

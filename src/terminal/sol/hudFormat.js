@@ -1,12 +1,6 @@
 // hudFormat.js — the HUD's words and numbers (kept out of SolHud.jsx so the
 // component file exports only the component).
 
-import { LIGHT_DELAY_S } from './solPhysics';
-
-const LIGHT_MIN = Math.floor(LIGHT_DELAY_S / 60);
-const LIGHT_SEC = LIGHT_DELAY_S - LIGHT_MIN * 60;
-export const LIGHT_LINE = `LIGHT · ${LIGHT_MIN} min ${LIGHT_SEC} s OLD`;
-
 /** 5e32 -> "5.0e32"; one decimal of mantissa, rounding carried into the exponent. */
 export function formatErg(erg) {
   return Number(erg).toExponential(1).replace('e+', 'e');
@@ -28,4 +22,45 @@ export function landingLine({ fate, nT }) {
   if (fate === 'unwitnessed') return 'arrived · unwitnessed';
   const n = Math.round(Math.abs(Number.isFinite(nT) ? nT : 0));
   return `arrived · southward · coupled · −${n} nT`;
+}
+
+export const MESSENGER_LABEL = {
+  neutrinos: 'NEUTRINOS', light: 'LIGHT', protons: 'PROTONS', cloud: 'CLOUD', core: 'CORE LIGHT',
+};
+
+/** 172026 -> "CE 172 026" (groups of three joined by U+2009). */
+export function formatYear(y) {
+  const digits = String(Math.round(Number.isFinite(y) ? y : 0));
+  return `CE ${digits.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}`;
+}
+
+/** Local wall-clock HH:MM:SS. */
+export function formatClock(ms) {
+  const d = new Date(ms);
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+}
+
+/** One messenger's value, one line. A reading exists only once it has arrived. */
+export function messengerValue(m) {
+  const r = m.reading;
+  if (m.key === 'core') return `surfaces ${formatYear(m.arrivesYear)}`;
+  if (m.key === 'cloud') {
+    if (!m.arrived) return `${formatEta(m.etaMs)} · ${r?.orientation || 'unread'}`;
+    return landingLine({ fate: r?.fate, nT: r?.nT });
+  }
+  if (!m.arrived) return formatEta(m.etaMs);
+  if (m.key === 'neutrinos') return 'arrived · undetected';
+  if (m.key === 'light') {
+    const s = Math.round(r?.ageS ?? 0);
+    return `arrived · ${Math.floor(s / 60)} min ${s % 60} s old · ${r?.xray}`;
+  }
+  return `arrived · ${r?.s}`;
+}
+
+/** The selected id if it still exists, else the newest cloud's id, else null. */
+export function pickStackId(clouds, selectedId) {
+  if (selectedId != null && clouds.some((c) => c.id === selectedId)) return selectedId;
+  let best = null;
+  for (const c of clouds) if (best === null || c.launchedAt > best.launchedAt) best = c;
+  return best ? best.id : null;
 }

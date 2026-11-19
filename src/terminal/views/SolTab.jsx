@@ -7,11 +7,12 @@ import {
   createSnapFx, triggerSnap, stepSnapFx, snapUniforms, snapGeometry, stillSnapUniforms,
 } from '../sol/snapFx';
 import { strength01 } from '../sol/solPhysics';
+import { messengers } from '../sol/delayStack';
+import { pickStackId } from '../sol/hudFormat';
 import { cloudStatus } from '../sol/cloudClock';
 import { launchCloud, getClouds, sweep, subscribeClouds, markWitnessed } from '../sol/cloudStore';
 import { auroraUniforms } from '../sol/aurora';
 
-const LIGHT_LINE_MS = 20000;   // the light line holds for 20 s after each snap
 const HUD_POLL_MS = 100;       // tension readout; React state only when the integer changes
 const STILL_SNAP_MS = 1200;     // reduced motion: how long the still snap frame holds
 const CLOCK_TICK_MS = 1000;    // cloud statuses are re-read from the wall clock this often
@@ -20,8 +21,11 @@ const AURORA_TAU_S = 2;        // the curtain eases toward its storm value: neve
 
 const pageVisible = () => typeof document === 'undefined' || document.visibilityState !== 'hidden';
 
-/** Every stored cloud with its status at `now`. */
-const readClouds = (now) => getClouds().map((c) => ({ ...cloudStatus(c, now), id: c.id }));
+/** Every stored cloud next to its status at `now`. */
+const readClouds = (now) => ({
+  now,
+  items: getClouds().map((c) => ({ cloud: c, status: { ...cloudStatus(c, now), id: c.id } })),
+});
 const RM_QUERY = '(prefers-reduced-motion: reduce)';
 
 const reducedMotionQuery = () =>
@@ -61,7 +65,6 @@ const SolTab = () => {
   const starRef = useRef(null);
   const wrapRef = useRef(null);
   const shakeRef = useRef('');
-  const lightTimerRef = useRef(0);
   const stillTimerRef = useRef(0);
   const requestDrawRef = useRef(null);
 
@@ -79,7 +82,6 @@ const SolTab = () => {
 
   const [tensionG, setTensionG] = useState(0);
   const [lastReleaseErg, setLastReleaseErg] = useState(null);
-  const [lightOn, setLightOn] = useState(false);
 
   const onSnap = useCallback((ev) => {
     const u = starRef.current?.uniforms();
@@ -104,9 +106,6 @@ const SolTab = () => {
     if (ev.facing && Number.isFinite(ev.energyErg) && ev.energyErg > 0) {
       launchCloud({ energyErg: ev.energyErg, handedness: ev.handedness, origin: ev.origin }, Date.now());
     }
-    setLightOn(true);
-    clearTimeout(lightTimerRef.current);
-    lightTimerRef.current = setTimeout(() => setLightOn(false), LIGHT_LINE_MS);
   }, [requestDraw]);
 
   // The pointer maps against the stage's padding box: the canvas fills it,
@@ -187,9 +186,9 @@ const SolTab = () => {
   const refreshClouds = useCallback(() => {
     const now = Date.now();
     sweep(now);
-    const list = readClouds(now);
-    setStatuses(list);
-    const a = auroraUniforms(list);
+    const read = readClouds(now);
+    setStatuses(read);
+    const a = auroraUniforms(read.items.map((i) => i.status));
     auroraRef.current = { uAurora: a.uAurora, uAuroraRed: a.uAuroraRed };
     const out = fxRef.current.out;
     if (stillRef.current && (out.uAurora !== a.uAurora || out.uAuroraRed !== a.uAuroraRed)) {
@@ -213,13 +212,26 @@ const SolTab = () => {
     };
   }, [refreshClouds]);
 
-  const hudClouds = useMemo(() => statuses
-    .filter((s) => s.phase === 'flight')
+  // The stacked cloud: the selected one, or the newest when the selection is gone.
+  const [selectedId, setSelectedId] = useState(null);
+  const stackId = useMemo(
+    () => pickStackId(statuses.items.map((i) => ({ id: i.cloud.id, launchedAt: i.cloud.launchedAt })), selectedId),
+    [statuses, selectedId],
+  );
+  const stack = useMemo(() => {
+    const it = statuses.items.find((i) => i.cloud.id === stackId);
+    return it ? { launchedAt: it.cloud.launchedAt, rows: messengers(it.cloud, statuses.now) } : null;
+  }, [statuses, stackId]);
+
+  const hudClouds = useMemo(() => statuses.items
+    .map((i) => i.status)
+    .filter((s) => s.phase === 'flight' && s.id !== stackId)
     .sort((a, b) => a.etaMs - b.etaMs)
-    .map((s) => ({ id: s.id, etaMs: s.etaMs, orientation: s.orientation })), [statuses]);
+    .map((s) => ({ id: s.id, etaMs: s.etaMs, orientation: s.orientation })), [statuses, stackId]);
 
   // A passed landing is its line and nothing else.
-  const hudLandings = useMemo(() => statuses
+  const hudLandings = useMemo(() => statuses.items
+    .map((i) => i.status)
     .filter((s) => s.phase !== 'flight')
     .sort((a, b) => b.arrivalAt - a.arrivalAt)
     .slice(0, MAX_LANDING_LINES)
@@ -234,7 +246,6 @@ const SolTab = () => {
     const id = setInterval(read, HUD_POLL_MS);
     return () => {
       clearInterval(id);
-      clearTimeout(lightTimerRef.current);
       clearTimeout(stillTimerRef.current);
     };
   }, [star]);
@@ -272,7 +283,9 @@ const SolTab = () => {
       <SolHud
         tensionG={tensionG}
         lastReleaseErg={lastReleaseErg}
-        lightDelayVisible={lightOn}
+        stack={stack}
+        selectedId={stackId}
+        onSelect={setSelectedId}
         clouds={hudClouds}
         landings={hudLandings}
       />
