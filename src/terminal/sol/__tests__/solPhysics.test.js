@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   tensionG, energyErg, strength01, transitMs, speedKmS, stormNt, stormMs,
   couples, hemisphereHandedness, facesCamera,
+  xrayFluxWm2, goesClass, xrayClass, protonOnsetMs, protonPeakPfu, sScale,
+  NEUTRINO_DELAY_S, LIGHT_DELAY_S, CORE_PHOTON_YEARS, HELIUM_FLASH_YEARS, HE_BURN_END_YEARS,
   TENSION_QUIET_G, TENSION_SNAP_G, TURNS_TO_SNAP, MIN_SNAP_TURNS,
   E_MIN_ERG, E_MAX_ERG, TRANSIT_FAST_H, TRANSIT_SLOW_H, AU_KM,
   DST_WEAK_NT, DST_STRONG_NT, STORM_SHORT_H, STORM_LONG_H,
@@ -137,5 +139,45 @@ describe('non-finite and edge inputs (review minors)', () => {
     expect(facesCamera(at(34.9), [0, 0, 1])).toBe(true);
     expect(facesCamera(at(35.1), [0, 0, 1])).toBe(false);
     expect(facesCamera(at(-34.9), [0, 0, 1])).toBe(true);
+  });
+});
+
+describe('messengers physics', () => {
+  it('X-ray flux spans C1.0 at E_MIN to X45 at E_MAX', () => {
+    expect(xrayClass(1e29)).toBe('C1.0');
+    expect(xrayClass(5e32)).toBe('X45');
+    expect(xrayClass(3.1e32)).toBe('X28');
+    expect(xrayFluxWm2(1e29)).toBeCloseTo(1e-6, 12);
+  });
+  it('goesClass picks the letter after rounding, so nothing reads C10.0', () => {
+    expect(goesClass(3.2e-5)).toBe('M3.2');
+    expect(goesClass(9.96e-6)).toBe('M1.0');
+    expect(goesClass(1.2e-3)).toBe('X12');
+    expect(goesClass(4.0e-4)).toBe('X4.0');
+    expect(goesClass(2e-7)).toBe('B2.0');
+  });
+  it('proton onset runs 2 h (weak) to 15 min (strong), log-interpolated', () => {
+    expect(protonOnsetMs(1e29)).toBeCloseTo(2 * 3600e3, 3);
+    expect(protonOnsetMs(5e32)).toBeCloseTo(15 * 60e3, 3);
+    const mid = protonOnsetMs(10 ** ((29 + Math.log10(5e32)) / 2));
+    expect(mid).toBeCloseTo(Math.sqrt(2 * 3600e3 * 15 * 60e3), 0);
+  });
+  it('S-scale from peak pfu', () => {
+    expect(protonPeakPfu(1e29)).toBeCloseTo(1, 9);
+    expect(protonPeakPfu(5e32)).toBeCloseTo(1e5, 3);
+    expect(sScale(9.99)).toBe('below S1');
+    expect(sScale(10)).toBe('S1');
+    expect(sScale(1e3)).toBe('S3');
+    expect(sScale(1e5)).toBe('S5');
+  });
+  it('bad energy reads as the weakest, never NaN', () => {
+    expect(xrayClass(NaN)).toBe('C1.0');
+    expect(Number.isFinite(protonOnsetMs(-1))).toBe(true);
+  });
+  it('deep-time constants', () => {
+    expect(NEUTRINO_DELAY_S).toBe(LIGHT_DELAY_S);
+    expect(CORE_PHOTON_YEARS).toBe(170000);
+    expect(HELIUM_FLASH_YEARS).toBe(7.59e9);
+    expect(HE_BURN_END_YEARS).toBe(7.70e9);
   });
 });
