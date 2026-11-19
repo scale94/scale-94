@@ -183,11 +183,19 @@ const SolTab = () => {
   // A storm in progress raises the aurora; seen on a visible page, it is witnessed.
   const auroraRef = useRef({ uAurora: 0, uAuroraRed: 0 });
   const [statuses, setStatuses] = useState(() => readClouds(Date.now()));
+  // A cloud newer than any seen so far takes the stack: a manual selection holds only until the next launch.
+  const [selectedId, setSelectedId] = useState(null);
+  const newestSeenRef = useRef(-Infinity);
   const refreshClouds = useCallback(() => {
     const now = Date.now();
     sweep(now);
     const read = readClouds(now);
     setStatuses(read);
+    const newest = read.items.reduce((m, i) => Math.max(m, i.cloud.launchedAt), -Infinity);
+    if (newest > newestSeenRef.current) {
+      newestSeenRef.current = newest;
+      setSelectedId(null);
+    }
     const a = auroraUniforms(read.items.map((i) => i.status));
     auroraRef.current = { uAurora: a.uAurora, uAuroraRed: a.uAuroraRed };
     const out = fxRef.current.out;
@@ -213,7 +221,6 @@ const SolTab = () => {
   }, [refreshClouds]);
 
   // The stacked cloud: the selected one, or the newest when the selection is gone.
-  const [selectedId, setSelectedId] = useState(null);
   const stackId = useMemo(
     () => pickStackId(statuses.items.map((i) => ({ id: i.cloud.id, launchedAt: i.cloud.launchedAt })), selectedId),
     [statuses, selectedId],

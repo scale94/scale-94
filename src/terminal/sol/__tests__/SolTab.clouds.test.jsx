@@ -2,7 +2,8 @@
 import React from 'react';
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { render, cleanup, act, screen, fireEvent } from '@testing-library/react';
-import { getClouds, launchCloud, _resetCloudsForTests } from '../cloudStore';
+import { getClouds, launchCloud, _resetCloudsForTests, STORAGE_KEY } from '../cloudStore';
+import { formatClock } from '../hudFormat';
 
 const captured = {};
 
@@ -109,6 +110,40 @@ describe('SolTab clouds', () => {
     act(() => { fireEvent.click(compact[0]); });
     expect(screen.getAllByTestId('sol-stack-row')[3].textContent).toContain('17:35:00');
     expect(screen.getAllByTestId('sol-cloud')[0].textContent).toContain('17:36:00');
+  });
+
+  it('a manual selection holds until the next launch, which takes the stack', () => {
+    render(<SolTab />);
+    const header = () => screen.getByTestId('sol-stack').firstChild.textContent;
+    const clock = (t) => formatClock(t);
+    act(() => { captured.onSnap({ ...SNAP, facing: true }); });                       // A at T0
+    act(() => { vi.advanceTimersByTime(60000); });
+    act(() => { captured.onSnap({ ...SNAP, handedness: 'ccw', facing: true }); });    // B at T0+60 s
+    expect(header()).toContain(clock(T0 + 60000));
+    act(() => { fireEvent.click(screen.getAllByTestId('sol-cloud')[0]); });           // select A
+    expect(header()).toContain(clock(T0));
+    act(() => { vi.advanceTimersByTime(60000); });
+    expect(header()).toContain(clock(T0));                                            // still A
+    act(() => { captured.onSnap({ ...SNAP, facing: true }); });                       // C at T0+120 s
+    expect(header()).toContain(clock(T0 + 120000));
+  });
+
+  it('a selected cloud that vanishes from the store falls back to the newest, no crash', () => {
+    render(<SolTab />);
+    const header = () => screen.getByTestId('sol-stack').firstChild.textContent;
+    act(() => { captured.onSnap({ ...SNAP, facing: true }); });                       // A
+    act(() => { vi.advanceTimersByTime(60000); });
+    act(() => { captured.onSnap({ ...SNAP, facing: true }); });                       // B
+    act(() => { fireEvent.click(screen.getAllByTestId('sol-cloud')[0]); });           // select A
+    expect(header()).toContain(formatClock(T0));
+    const onlyB = getClouds().filter((c) => c.launchedAt !== T0);
+    act(() => {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ clouds: onlyB }));
+      window.dispatchEvent(new StorageEvent('storage', { key: STORAGE_KEY }));       // another tab dropped A
+    });
+    expect(screen.getAllByTestId('sol-stack-row')).toHaveLength(5);
+    expect(header()).toContain(formatClock(T0 + 60000));
+    expect(screen.queryAllByTestId('sol-cloud')).toHaveLength(0);
   });
 
   it('returning to the page re-reads the wall clock: 20 h later the cloud has landed', () => {
