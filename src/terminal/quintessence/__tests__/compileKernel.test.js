@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { yearOf } from '../../sol/delayStack';
+import { CORE_PHOTON_YEARS } from '../../sol/solPhysics';
 import { compileKernel, ELEMENT_MAP, countFilledHouses } from '../compileKernel';
 
 const FULL_SPINE = {
@@ -247,9 +249,9 @@ describe('compileKernel — house_sol and sol_telemetry', () => {
 
   it('an unread cloud compiles orientation None and leaks no direction anywhere', async () => {
     const { source } = await compileKernel(FULL_SPINE, { ...FULL_PERIPHERY, sol: FLYING_UNREAD }, ENGINE, OPTS);
-    expect(source).toContain('struct SolCloud {');
+    expect(source).toContain("struct SolCloud { launched: u64, arrives: u64, erg: f64, origin: &'static str, crossed_mercury: bool, orientation: Option<&'static str>, fate: Option<&'static str>, nt: Option<i32>, neutrinos: Option<&'static str>, xray: Option<&'static str>, protons: Option<&'static str>, core_light_year: i64 }");
     expect(source).toContain('const SOL_TELEMETRY: &[SolCloud] = &[');
-    expect(source).toContain(`SolCloud { launched: ${L}, arrives: ${L + 63360000}, erg: 5.00e32, origin: "hand", crossed_mercury: false, orientation: None, fate: None, nt: None },`);
+    expect(source).toContain(`SolCloud { launched: ${L}, arrives: ${L + 63360000}, erg: 5.00e32, origin: "hand", crossed_mercury: false, orientation: None, fate: None, nt: None, neutrinos: None, xray: None, protons: None, core_light_year: ${yearOf(L) + CORE_PHOTON_YEARS} },`);
     expect(source).toContain('house_sol: Some("1 in flight · last release 5.0e32 erg"),');
     expect(source).not.toMatch(/southward|northward/);
   });
@@ -265,13 +267,47 @@ describe('compileKernel — house_sol and sol_telemetry', () => {
       lastReleaseErg: 5e32,
     };
     const { source } = await compileKernel(FULL_SPINE, { ...FULL_PERIPHERY, sol }, ENGINE, OPTS);
-    expect(source).toContain('crossed_mercury: true, orientation: Some("southward"), fate: None, nt: None },');
-    expect(source).toContain('fate: Some("coupled"), nt: Some(-850) },');
-    expect(source).toContain('fate: Some("passed"), nt: None },');
-    expect(source).toContain('fate: Some("unwitnessed"), nt: Some(-400) },');
+    expect(source).toContain('crossed_mercury: true, orientation: Some("southward"), fate: None, nt: None, ');
+    expect(source).toContain('fate: Some("coupled"), nt: Some(-850), ');
+    expect(source).toContain('fate: Some("passed"), nt: None, ');
+    expect(source).toContain('fate: Some("unwitnessed"), nt: Some(-400), ');
     expect(source).toContain('house_sol: Some("1 in flight · 1 coupled · 1 passed · 1 unwitnessed · last release 5.0e32 erg"),');
     // in flight first, then landings
     expect(source.indexOf('fate: None')).toBeLessThan(source.indexOf('fate: Some("coupled")'));
+  });
+
+  it('messenger readings compile as Some once present', async () => {
+    const sol = { ...FLYING_UNREAD, inFlight: [{ ...FLYING_UNREAD.inFlight[0], neutrinos: 'undetected', xray: 'X45', protons: 'S5' }] };
+    const { source } = await compileKernel(FULL_SPINE, { ...FULL_PERIPHERY, sol }, ENGINE, OPTS);
+    expect(source).toContain('nt: None, neutrinos: Some("undetected"), xray: Some("X45"), protons: Some("S5"), core_light_year: ');
+  });
+
+  it('forge: He delivered, C/O dated, AU None, and the house line', async () => {
+    const forge = { H: 7.82e10, He: 7.76e10, heOwed: 0, C: 8.55e11, O: 1.16e12, cYear: 7590002026, oYear: 7700002026, any: true };
+    const { source } = await compileKernel(FULL_SPINE, { ...FULL_PERIPHERY, sol: { ...FLYING_UNREAD, forge } }, ENGINE, OPTS);
+    expect(source).toContain("struct Offering { symbol: &'static str, z: u8, kg: f64, delivered: bool, year: Option<i64> }");
+    expect(source).toContain('    Offering { symbol: "He", z: 2, kg: 7.76e10, delivered: true, year: None },');
+    expect(source).toContain('    Offering { symbol: "C", z: 6, kg: 8.55e11, delivered: false, year: Some(7590002026) },');
+    expect(source).toContain('    Offering { symbol: "O", z: 8, kg: 1.16e12, delivered: false, year: Some(7700002026) },');
+    expect(source).toContain('const AU: Option<Offering> = None;');
+    expect(source).not.toMatch(/AU: Option<Offering> = None;[ \t]*\/\//);   // same line only
+    expect(source).toContain('house_sol: Some("1 in flight · last release 5.0e32 erg · He 7.8e10 kg delivered · C, O dated 7.59 Gyr"),');
+  });
+  it('helium still owed compiles delivered: false and the house says owed', async () => {
+    const forge = { H: 0, He: 0, heOwed: 7.76e10, C: 8.55e11, O: 1.16e12, cYear: 7590002026, oYear: 7700002026, any: true };
+    const { source } = await compileKernel(FULL_SPINE, { ...FULL_PERIPHERY, sol: { ...FLYING_UNREAD, forge } }, ENGINE, OPTS);
+    expect(source).toContain('Offering { symbol: "He", z: 2, kg: 7.76e10, delivered: false, year: None },');
+    expect(source).toContain('· He owed · C, O dated 7.59 Gyr');
+  });
+  it('visits-only compiles no forge and no AU', async () => {
+    const { source } = await compileKernel(FULL_SPINE, { ...FULL_PERIPHERY, sol: { visits: 3 } }, ENGINE, OPTS);
+    expect(source).not.toContain('SOL_FORGE');
+    expect(source).not.toContain('const AU');
+  });
+  it('null sol compiles no forge and no AU', async () => {
+    const { source } = await compileKernel(FULL_SPINE, { ...FULL_PERIPHERY, sol: null }, ENGINE, OPTS);
+    expect(source).not.toContain('SOL_FORGE');
+    expect(source).not.toContain('const AU');
   });
 
   it('sol fills one more house', () => {

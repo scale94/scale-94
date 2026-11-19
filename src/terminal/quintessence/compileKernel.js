@@ -9,6 +9,8 @@ import { trendToPressure, pressureToBpm } from './engineWitness';
 import { lensFor } from './taxonomyRegistry';
 import { doctrineFor } from '../data/kernelDoctrines';
 import kernelBuilds from '../data/kernelBuilds';
+import { yearOf } from '../sol/delayStack';
+import { CORE_PHOTON_YEARS, HELIUM_FLASH_YEARS } from '../sol/solPhysics';
 
 export const ELEMENT_MAP = {
   FIRE:  { atom: 'Boson',   daemon: 'TheDevil' },
@@ -67,31 +69,66 @@ function solDescribe(sol) {
     sol.inFlight.length ? `${sol.inFlight.length} in flight` : null,
     ...Object.entries(fates).map(([k, n]) => (n ? `${n} ${k}` : null)),
     `last release ${Number(sol.lastReleaseErg).toExponential(1).replace('e+', 'e')} erg`,
+    ...forgeDescribe(sol.forge),
   ].filter(Boolean).join(' · ');
+}
+
+// The forge's one house-line clause pair: helium (delivered or owed), then the
+// dated C and O. Absent when the snapshot carries no forge.
+function forgeDescribe(forge) {
+  if (!forge) return [];
+  const gyr = (HELIUM_FLASH_YEARS / 1e9).toFixed(2);
+  return [
+    forge.He > 0 ? `He ${Number(forge.He).toExponential(1).replace('e+', 'e')} kg delivered` : null,
+    forge.heOwed > 0 ? 'He owed' : null,
+    `C, O dated ${gyr} Gyr`,
+  ];
+}
+
+const NL = String.fromCharCode(10);
+function forgeBlock(forge) {
+  const offering = (symbol, z, kg, delivered, year) =>
+    `    Offering { symbol: ${JSON.stringify(symbol)}, z: ${z}, kg: ${rustErg(kg)}, delivered: ${delivered}, year: ${year == null ? 'None' : `Some(${Math.round(year)})`} },`;
+  const rows = [
+    forge.He > 0 ? offering('He', 2, forge.He, true, null) : null,
+    forge.heOwed > 0 ? offering('He', 2, forge.heOwed, false, null) : null,
+    offering('C', 6, forge.C, false, forge.cYear),
+    offering('O', 8, forge.O, false, forge.oYear),
+  ].filter(Boolean);
+  return `/// FORGE — what the core paid.
+struct Offering { symbol: &'static str, z: u8, kg: f64, delivered: bool, year: Option<i64> }
+const SOL_FORGE: &[Offering] = &[
+${rows.join(NL)}
+];
+const AU: Option<Offering> = None;`;
 }
 
 function solTelemetryBlock(sol) {
   if (!sol) return 'mod sol_telemetry { /* never witnessed */ }';
   if (sol.visits != null) return `mod sol_telemetry { /* entered ${sol.visits}×, nothing left the star */ }`;
-  const row = ({ launched, arrives, erg, origin, crossed, orientation, fate, nt }) =>
+  const row = ({ launched, arrives, erg, origin, crossed, orientation, fate, nt, neutrinos, xray, protons }) =>
     `    SolCloud { launched: ${Math.round(launched)}, arrives: ${Math.round(arrives)}, erg: ${rustErg(erg)}, `
     + `origin: ${JSON.stringify(origin)}, crossed_mercury: ${crossed}, orientation: ${optStr(orientation)}, `
-    + `fate: ${optStr(fate)}, nt: ${Number.isFinite(nt) ? `Some(${Math.round(nt)})` : 'None'} },`;
+    + `fate: ${optStr(fate)}, nt: ${Number.isFinite(nt) ? `Some(${Math.round(nt)})` : 'None'}, `
+    + `neutrinos: ${optStr(neutrinos)}, xray: ${optStr(xray)}, protons: ${optStr(protons)}, `
+    + `core_light_year: ${yearOf(launched) + CORE_PHOTON_YEARS} },`;
   const rows = [
     ...sol.inFlight.map((c) => row({
       launched: c.launchedAt, arrives: c.arrivalAt, erg: c.energyErg, origin: c.origin,
       crossed: !!c.mercuryPassed, orientation: c.orientation, fate: null, nt: null,
+      neutrinos: c.neutrinos, xray: c.xray, protons: c.protons,
     })),
     ...sol.landings.map((l) => row({
       launched: l.launchedAt, arrives: l.arrivedAt, erg: l.energyErg, origin: l.origin,
       crossed: true, orientation: l.orientation, fate: l.fate, nt: l.nT,
+      neutrinos: l.neutrinos, xray: l.xray, protons: l.protons,
     })),
   ];
   return `/// SOL — what left the star, and what became of it.
-struct SolCloud { launched: u64, arrives: u64, erg: f64, origin: &'static str, crossed_mercury: bool, orientation: Option<&'static str>, fate: Option<&'static str>, nt: Option<i32> }
+struct SolCloud { launched: u64, arrives: u64, erg: f64, origin: &'static str, crossed_mercury: bool, orientation: Option<&'static str>, fate: Option<&'static str>, nt: Option<i32>, neutrinos: Option<&'static str>, xray: Option<&'static str>, protons: Option<&'static str>, core_light_year: i64 }
 const SOL_TELEMETRY: &[SolCloud] = &[
 ${rows.join('\n')}
-];`;
+];${sol.forge ? `${NL}${NL}${forgeBlock(sol.forge)}` : ''}`;
 }
 
 // ── THE LINKER (spec 2026-07-17) ─────────────────────────────────────────────

@@ -139,11 +139,21 @@ describe('cloudStore', () => {
       const before = snapshotSol(s.readAt - 1);
       expect(before.inFlight).toEqual([{
         launchedAt: t0, arrivalAt: s.arrivalAt, energyErg: 5e32, origin: 'hand',
-        mercuryPassed: true, orientation: null,
+        mercuryPassed: true, orientation: null, neutrinos: 'undetected', xray: 'X45', protons: 'S5',
       }]);
       expect(before.landings).toEqual([]);
       expect(before.lastReleaseErg).toBe(5e32);
       expect(snapshotSol(s.readAt + 1).inFlight[0].orientation).toBe('southward');
+    });
+
+    it('snapshot carries messenger readings only after arrival, and the forge', () => {
+      launchCloud(cw(5e32), t0);
+      const early = snapshotSol(t0 + 1);
+      expect(early.inFlight[0]).toMatchObject({ neutrinos: null, xray: null, protons: null });
+      expect(early.forge.He).toBe(0);
+      const later = snapshotSol(t0 + 3 * H);
+      expect(later.inFlight[0]).toMatchObject({ neutrinos: 'undetected', xray: 'X45', protons: 'S5' });
+      expect(later.forge.He).toBeGreaterThan(0);
     });
 
     it('reports landings with their fate and nT', () => {
@@ -156,6 +166,7 @@ describe('cloudStore', () => {
         {
           launchedAt: t0, arrivedAt: cloudStatus(coupled, t0).arrivalAt, energyErg: 5e32, origin: 'hand',
           orientation: 'southward', fate: 'coupled', nT: -1200,
+          neutrinos: 'undetected', xray: 'X45', protons: 'S5',
         },
         expect.objectContaining({ energyErg: 1e31, origin: 'star', orientation: 'northward', fate: 'passed', nT: null }),
       ]);

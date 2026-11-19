@@ -6,7 +6,9 @@
 // by cloudClock.cloudStatus.
 
 import { makeCloud, cloudStatus } from './cloudClock';
-import { foldIntoArchive } from './forgeArchive';
+import { foldIntoArchive, getForgeArchive } from './forgeArchive';
+import { messengers } from './delayStack';
+import { forgeLedger } from './forge';
 
 export const STORAGE_KEY = 'sol_clouds_v1';
 export const MAX_IN_FLIGHT = 16;
@@ -118,19 +120,29 @@ export function snapshotSol(now = Date.now()) {
   const landings = [];
   for (const c of clouds) {
     const s = cloudStatus(c, now);
+    // A messenger's reading exists only once it has arrived (null before).
+    const [nu, light, pr] = messengers(c, now);
+    const read = {
+      neutrinos: nu.arrived ? 'undetected' : null,
+      xray: light.arrived ? light.reading.xray : null,
+      protons: pr.arrived ? pr.reading.s : null,
+    };
     if (s.phase === 'flight') {
       inFlight.push({
         launchedAt: c.launchedAt, arrivalAt: s.arrivalAt, energyErg: c.energyErg,
-        origin: c.origin, mercuryPassed: s.mercuryPassed, orientation: s.orientation,
+        origin: c.origin, mercuryPassed: s.mercuryPassed, orientation: s.orientation, ...read,
       });
     } else {
       landings.push({
         launchedAt: c.launchedAt, arrivedAt: s.arrivalAt, energyErg: c.energyErg, origin: c.origin,
-        orientation: s.orientation, fate: s.fate, nT: s.fate === 'passed' ? null : s.stormNt,
+        orientation: s.orientation, fate: s.fate, nT: s.fate === 'passed' ? null : s.stormNt, ...read,
       });
     }
   }
-  return { inFlight, landings, lastReleaseErg: clouds[clouds.length - 1].energyErg };
+  return {
+    inFlight, landings, lastReleaseErg: clouds[clouds.length - 1].energyErg,
+    forge: forgeLedger(clouds, getForgeArchive(), now),
+  };
 }
 
 export function subscribeClouds(fn) {
