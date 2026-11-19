@@ -10,14 +10,17 @@ import {
   MESSENGER_LABEL, forgeRows, formatClock, formatErg, formatEta, landingLine, messengerValue,
 } from './hudFormat';
 
-const ROW = 'flex flex-wrap items-baseline justify-between gap-x-6';
+// gap-y / leading: a row that wraps onto two lines never lets them collide
+const ROW = 'flex flex-wrap items-baseline justify-between gap-x-6 gap-y-0.5';
 const LABEL = 'text-[9px] sm:text-[10px] text-yellow-100/55 uppercase tracking-widest';
-const VALUE = 'min-w-0 break-words text-xs sm:text-sm font-bold text-yellow-100 tabular-nums';
+const VALUE = 'min-w-0 break-words leading-snug text-xs sm:text-sm font-bold text-yellow-100 tabular-nums';
 const LINE = 'text-[9px] sm:text-[10px] text-yellow-100/80 tracking-widest';
 const NONE = [];
 const YEAR = 'whitespace-nowrap';
 const SYMBOL = 'text-[9px] sm:text-[10px] text-yellow-100/55 tracking-widest';
-const TOGGLE = 'bg-transparent border-0 p-0 m-0 font-mono cursor-pointer text-[9px] sm:text-[10px] uppercase tracking-widest focus-visible:outline focus-visible:outline-1 focus-visible:outline-yellow-100/60';
+// The hit area is 44 px tall (min-h) but the row only takes the text's
+// height: the extra 30 px is cancelled by the negative block margin.
+const TOGGLE = 'inline-flex items-center justify-center min-h-[44px] -my-[15px] bg-transparent border-0 px-0 font-mono cursor-pointer text-[9px] sm:text-[10px] uppercase tracking-widest focus-visible:outline focus-visible:outline-1 focus-visible:outline-yellow-100/60';
 
 function ViewButton({ id, label, view, onView }) {
   const on = view === id;
@@ -27,6 +30,9 @@ function ViewButton({ id, label, view, onView }) {
       aria-pressed={on}
       onClick={() => onView?.(id)}
       className={`${TOGGLE} ${on ? 'text-yellow-100' : 'text-yellow-100/55'}`}
+      // Monospace: reserve the bracketed width ("[ " + label + " ]") either
+      // way and centre the label, so the brackets come and go in place.
+      style={{ minWidth: `calc(${label.length + 4}ch + ${(label.length + 4) * 0.1}em)` }}
     >
       {on ? `[ ${label} ]` : label}
     </button>
@@ -51,7 +57,7 @@ function SolHud({ tensionG, lastReleaseErg, view = 'clocks', onView, forge = nul
           <span className={VALUE}>{formatErg(lastReleaseErg)} erg</span>
         </div>
       )}
-      <div className="flex gap-4">
+      <div className="relative z-10 flex gap-2">
         <ViewButton id="clocks" label="CLOCKS" view={view} onView={onView} />
         <ViewButton id="forge" label="FORGE" view={view} onView={onView} />
       </div>
@@ -76,9 +82,15 @@ function SolHud({ tensionG, lastReleaseErg, view = 'clocks', onView, forge = nul
         </div>
       ))}
       {view !== 'forge' && stack && (
-        <div data-testid="sol-stack" data-selected={selectedId ?? undefined} className="space-y-1">
+        <div
+          data-testid="sol-stack"
+          data-selected={selectedId ?? undefined}
+          aria-current="true"
+          className="space-y-1 border-l border-yellow-200/45 pl-2 -ml-[9px]"
+        >
+          {/* the selected cloud: a thin rule down its side and a caret on its clock */}
           <div className={`${LINE} border-t border-yellow-200/20 pt-1`}>
-            ── {formatClock(stack.launchedAt)} ──
+            ▸ ── {formatClock(stack.launchedAt)} ──
           </div>
           {stack.rows.map((m) => (
             <div key={m.key} data-testid="sol-stack-row" className={ROW}>

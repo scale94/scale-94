@@ -68,7 +68,7 @@ This repository and the deployed site are strictly personal projects. The source
 This site is hosted on **Vercel**.
 
 * **Analytics:** This site does use Vercel Analytics.
-* **Local Storage (On-Device Only):** This site does not set cookies for tracking. It does use your browser's local storage strictly for functional site state: the navigation spine that carries your place between tabs, sealed Quintessence kernels, and the solar transit clocks and cloud telemetry on /SOL. This data stays in your browser, is never transmitted off your device, and is never used for behavioral tracking. Clearing your site data erases it.
+* **Local Storage (On-Device Only):** This site does not set cookies for tracking. It does use your browser's local storage strictly for functional site state: the navigation spine that carries your place between tabs, sealed Quintessence kernels, and the solar transit clocks, cloud telemetry, forge totals, and view preference on /SOL. This data stays in your browser, is never transmitted off your device, and is never used for behavioral tracking. Clearing your site data erases it.
 * **Server Logs:** As the infrastructure provider, Vercel may process and store standard server logs (including your IP address and User Agent) to handle requests, prevent DDoS attacks, and ensure system integrity.
 
 For details on infrastructure data handling, refer to Vercel's [Privacy Policy](https://vercel.com/legal/privacy-policy).

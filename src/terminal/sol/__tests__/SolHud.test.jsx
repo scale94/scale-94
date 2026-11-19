@@ -189,4 +189,38 @@ describe('SolHud', () => {
     fireEvent.click(forge);
     expect(calls).toEqual(['forge']);
   });
+
+  it('toggle: each button reserves its bracketed width, so switching never shifts layout', () => {
+    const a = hud({ view: 'clocks' });
+    const widthsOn = ['[ CLOCKS ]', 'FORGE'].map((t) => a.getByText(t).style.minWidth);
+    cleanup();
+    const b = hud({ view: 'forge' });
+    const widthsOff = ['CLOCKS', '[ FORGE ]'].map((t) => b.getByText(t).style.minWidth);
+    expect(widthsOn).toEqual(widthsOff);
+    expect(widthsOn[0]).toContain('10ch');   // '[ CLOCKS ]'
+    expect(widthsOn[1]).toContain('9ch');    // '[ FORGE ]'
+  });
+
+  it('toggle: a 44 px hit area without growing the row', () => {
+    const btn = hud({ view: 'clocks' }).getByText('[ CLOCKS ]');
+    expect(btn.className).toContain('min-h-[44px]');
+    expect(btn.className).toContain('-my-[15px]');
+  });
+
+  it('the stacked (selected) cloud carries a marker; compact rows do not', () => {
+    const { getByTestId, getAllByTestId } = hud({
+      stack: { launchedAt: 0, rows: ROWS }, selectedId: 'a',
+      clouds: [{ id: 'b', etaMs: 3600e3, orientation: null }],
+    });
+    const stack = getByTestId('sol-stack');
+    expect(stack.getAttribute('aria-current')).toBe('true');
+    expect(stack.firstChild.textContent.startsWith('▸')).toBe(true);
+    expect(getAllByTestId('sol-cloud')[0].getAttribute('aria-current')).toBeNull();
+  });
+
+  it('wrapped rows keep vertical breathing room', () => {
+    const row = hud({ stack: { launchedAt: 0, rows: ROWS } }).getAllByTestId('sol-stack-row')[0];
+    expect(row.className).toContain('gap-y-0.5');
+    expect(row.lastChild.className).toContain('leading-snug');
+  });
 });
