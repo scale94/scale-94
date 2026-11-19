@@ -1101,7 +1101,7 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
         <button
           onClick={() => setProtocolOpen(o => !o)}
           className="flex items-center gap-2 tracking-widest uppercase"
-          style={{ color: '#4a6a10', fontSize: '10px', fontWeight: 800 }}
+          style={{ color: '#4a78ab', fontSize: '10px', fontWeight: 800 }}
         >
           <ChevronRight className="w-3 h-3" style={{ transform: protocolOpen ? 'rotate(90deg)' : 'none', transition: 'transform 0.25s' }} />
           PROTECTION_PROTOCOL {protocolOpen ? '' : '— [ expand ]'}
