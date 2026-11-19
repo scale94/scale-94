@@ -128,4 +128,42 @@ describe('SolHud', () => {
     const text = container.textContent.toLowerCase();
     for (const w of ['civilization', 'grid', 'infrastructure']) expect(text).not.toContain(w);
   });
+
+  it('forge view: five rows, Au dark with no title and only symbol and Z', () => {
+    const { getAllByTestId, queryAllByTestId } = hud({
+      view: 'forge', forge: null,
+      stack: { launchedAt: 0, rows: ROWS }, clouds: [{ id: 'a', etaMs: 1000, orientation: null }],
+    });
+    const rows = getAllByTestId('sol-forge-row');
+    expect(rows).toHaveLength(5);
+    const au = rows[4];
+    expect(au.hasAttribute('title')).toBe(false);
+    expect(au.querySelector('[title],[aria-label]')).toBeNull();
+    expect(au.textContent.replace(/\s/g, '')).toBe('Au79');
+    expect(au.className).toContain('text-yellow-100/20');
+    expect(queryAllByTestId('sol-stack-row')).toHaveLength(0);
+    expect(queryAllByTestId('sol-cloud')).toHaveLength(0);
+  });
+
+  it('forge view keeps tension and release; shows ledger values', () => {
+    const { container } = hud({
+      view: 'forge', lastReleaseErg: 5e32,
+      forge: { H: 7.82e10, He: 7.76e10, heOwed: 0, C: 8.55e11, O: 1.16e12, cYear: 7590002026, oYear: 7700002026, any: true },
+    });
+    expect(container.textContent).toContain('MAGNETIC TENSION');
+    expect(container.textContent).toContain('LAST RELEASE');
+    expect(container.textContent).toContain('7.8e10 kg');
+    expect(container.textContent).toContain('CE 7 590 002 026');
+  });
+
+  it('toggle: aria-pressed, bracketed active, click calls onView', () => {
+    const calls = [];
+    const { getByText } = hud({ view: 'clocks', onView: (v) => calls.push(v) });
+    const clocks = getByText('[ CLOCKS ]');
+    expect(clocks.getAttribute('aria-pressed')).toBe('true');
+    const forge = getByText('FORGE');
+    expect(forge.getAttribute('aria-pressed')).toBe('false');
+    fireEvent.click(forge);
+    expect(calls).toEqual(['forge']);
+  });
 });

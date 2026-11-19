@@ -7,16 +7,31 @@
 
 import React from 'react';
 import {
-  MESSENGER_LABEL, formatClock, formatErg, formatEta, landingLine, messengerValue,
+  MESSENGER_LABEL, forgeRows, formatClock, formatErg, formatEta, landingLine, messengerValue,
 } from './hudFormat';
 
-const ROW = 'flex items-baseline justify-between gap-6';
+const ROW = 'flex flex-wrap items-baseline justify-between gap-x-6';
 const LABEL = 'text-[9px] sm:text-[10px] text-yellow-100/55 uppercase tracking-widest';
-const VALUE = 'text-xs sm:text-sm font-bold text-yellow-100 tabular-nums';
+const VALUE = 'min-w-0 break-words text-xs sm:text-sm font-bold text-yellow-100 tabular-nums';
 const LINE = 'text-[9px] sm:text-[10px] text-yellow-100/80 tracking-widest';
 const NONE = [];
+const TOGGLE = 'bg-transparent border-0 p-0 m-0 font-mono cursor-pointer text-[9px] sm:text-[10px] uppercase tracking-widest focus-visible:outline focus-visible:outline-1 focus-visible:outline-yellow-100/60';
 
-function SolHud({ tensionG, lastReleaseErg, stack = null, selectedId = null, onSelect, clouds = NONE, landings = NONE }) {
+function ViewButton({ id, label, view, onView }) {
+  const on = view === id;
+  return (
+    <button
+      type="button"
+      aria-pressed={on}
+      onClick={() => onView?.(id)}
+      className={`${TOGGLE} ${on ? 'text-yellow-100' : 'text-yellow-100/55'}`}
+    >
+      {on ? `[ ${label} ]` : label}
+    </button>
+  );
+}
+
+function SolHud({ tensionG, lastReleaseErg, view = 'clocks', onView, forge = null, stack = null, selectedId = null, onSelect, clouds = NONE, landings = NONE }) {
   const g = Number.isFinite(tensionG) ? Math.round(tensionG) : 0;
   const hasRelease = Number.isFinite(lastReleaseErg) && lastReleaseErg > 0;
   return (
@@ -34,7 +49,28 @@ function SolHud({ tensionG, lastReleaseErg, stack = null, selectedId = null, onS
           <span className={VALUE}>{formatErg(lastReleaseErg)} erg</span>
         </div>
       )}
-      {stack && (
+      <div className="flex gap-4">
+        <ViewButton id="clocks" label="CLOCKS" view={view} onView={onView} />
+        <ViewButton id="forge" label="FORGE" view={view} onView={onView} />
+      </div>
+      {view === 'forge' && forgeRows(forge).map((r) => (
+        <div
+          key={r.symbol}
+          data-testid="sol-forge-row"
+          className={`${ROW} ${r.dark ? 'text-yellow-100/20' : ''}`}
+        >
+          <span className={r.dark ? 'text-[9px] sm:text-[10px] tracking-widest' : LABEL}>
+            {r.symbol} <span className="tabular-nums">{r.z}</span>
+          </span>
+          {!r.dark && (
+            <span className={VALUE}>
+              {r.value}
+              {r.year && <span className="font-normal text-yellow-100/60"> · {r.year}</span>}
+            </span>
+          )}
+        </div>
+      ))}
+      {view !== 'forge' && stack && (
         <div data-testid="sol-stack" data-selected={selectedId ?? undefined} className="space-y-1">
           <div className={`${LINE} border-t border-yellow-200/20 pt-1`}>
             ── {formatClock(stack.launchedAt)} ──
@@ -47,7 +83,7 @@ function SolHud({ tensionG, lastReleaseErg, stack = null, selectedId = null, onS
           ))}
         </div>
       )}
-      {clouds.map((c) => (
+      {view !== 'forge' && clouds.map((c) => (
         <button
           key={c.id}
           type="button"
@@ -62,7 +98,7 @@ function SolHud({ tensionG, lastReleaseErg, stack = null, selectedId = null, onS
           </span>
         </button>
       ))}
-      {landings.map((l) => (
+      {view !== 'forge' && landings.map((l) => (
         <div key={l.id} data-testid="sol-landing" className={LINE}>{landingLine(l)}</div>
       ))}
     </div>

@@ -1,6 +1,8 @@
 // hudFormat.js — the HUD's words and numbers (kept out of SolHud.jsx so the
 // component file exports only the component).
 
+import { FORGE_TABLE } from './forge';
+
 /** 5e32 -> "5.0e32"; one decimal of mantissa, rounding carried into the exponent. */
 export function formatErg(erg) {
   return Number(erg).toExponential(1).replace('e+', 'e');
@@ -63,4 +65,38 @@ export function pickStackId(clouds, selectedId) {
   let best = null;
   for (const c of clouds) if (best === null || c.launchedAt > best.launchedAt) best = c;
   return best ? best.id : null;
+}
+
+/** 7.82e10 -> "7.8e10 kg" (2 significant figures); non-positive or non-finite -> "—". */
+export function formatKg(kg) {
+  if (!Number.isFinite(kg) || kg <= 0) return '—';
+  return `${formatErg(kg)} kg`;
+}
+
+/** The five FORGE rows in table order. Au is symbol and Z only: dark, empty, forever. */
+export function forgeRows(ledger) {
+  return FORGE_TABLE.map(({ symbol, z, role }) => {
+    if (role === null) return { symbol, z, value: '', year: null, dark: true };
+    const kg = ledger ? ledger[symbol] : undefined;
+    const yearOf = symbol === 'C' ? ledger?.cYear : symbol === 'O' ? ledger?.oYear : null;
+    return {
+      symbol, z, value: formatKg(kg),
+      year: role === 'dated' && Number.isFinite(yearOf) ? formatYear(yearOf) : null,
+      dark: false,
+    };
+  });
+}
+
+export const HUD_VIEW_KEY = 'sol_hud_view_v1';
+
+export function readHudView() {
+  try {
+    return localStorage.getItem(HUD_VIEW_KEY) === 'forge' ? 'forge' : 'clocks';
+  } catch {
+    return 'clocks';
+  }
+}
+
+export function writeHudView(v) {
+  try { localStorage.setItem(HUD_VIEW_KEY, v === 'forge' ? 'forge' : 'clocks'); } catch { /* volatile */ }
 }

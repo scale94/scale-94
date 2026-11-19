@@ -8,7 +8,9 @@ import {
 } from '../sol/snapFx';
 import { strength01 } from '../sol/solPhysics';
 import { messengers } from '../sol/delayStack';
-import { pickStackId } from '../sol/hudFormat';
+import { pickStackId, readHudView, writeHudView } from '../sol/hudFormat';
+import { forgeLedger } from '../sol/forge';
+import { getForgeArchive, subscribeForgeArchive } from '../sol/forgeArchive';
 import { cloudStatus } from '../sol/cloudClock';
 import { launchCloud, getClouds, sweep, subscribeClouds, markWitnessed } from '../sol/cloudStore';
 import { auroraUniforms } from '../sol/aurora';
@@ -186,11 +188,15 @@ const SolTab = () => {
   // A cloud newer than any seen so far takes the stack: a manual selection holds only until the next launch.
   const [selectedId, setSelectedId] = useState(null);
   const newestSeenRef = useRef(-Infinity);
+  const [hudView, setHudView] = useState(readHudView);
+  const onHudView = useCallback((v) => { setHudView(v); writeHudView(v); }, []);
+  const [forge, setForge] = useState(() => forgeLedger(getClouds(), getForgeArchive(), Date.now()));
   const refreshClouds = useCallback(() => {
     const now = Date.now();
     sweep(now);
     const read = readClouds(now);
     setStatuses(read);
+    setForge(forgeLedger(getClouds(), getForgeArchive(), now));
     const newest = read.items.reduce((m, i) => Math.max(m, i.cloud.launchedAt), -Infinity);
     if (newest > newestSeenRef.current) {
       newestSeenRef.current = newest;
@@ -209,12 +215,14 @@ const SolTab = () => {
 
   useEffect(() => {
     const off = subscribeClouds(refreshClouds);
+    const offForge = subscribeForgeArchive(refreshClouds);
     refreshClouds();
     const id = setInterval(refreshClouds, CLOCK_TICK_MS);
     const onVis = () => { if (typeof document !== 'undefined' && !document.hidden) refreshClouds(); };
     if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVis);
     return () => {
       off();
+      offForge();
       clearInterval(id);
       if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVis);
     };
@@ -290,6 +298,9 @@ const SolTab = () => {
       <SolHud
         tensionG={tensionG}
         lastReleaseErg={lastReleaseErg}
+        view={hudView}
+        onView={onHudView}
+        forge={forge}
         stack={stack}
         selectedId={stackId}
         onSelect={setSelectedId}

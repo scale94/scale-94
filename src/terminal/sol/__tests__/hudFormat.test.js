@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { formatYear, formatClock, messengerValue, pickStackId, MESSENGER_LABEL } from '../hudFormat';
+import { describe, it, expect, vi } from 'vitest';
+import { formatKg, forgeRows, readHudView, writeHudView, HUD_VIEW_KEY, formatYear, formatClock, messengerValue, pickStackId, MESSENGER_LABEL } from '../hudFormat';
 
 describe('hudFormat CLOCKS', () => {
   it('labels', () => {
@@ -31,5 +31,40 @@ describe('hudFormat CLOCKS', () => {
     expect(pickStackId(cs, 'gone')).toBe('b');
     expect(pickStackId(cs, null)).toBe('b');
     expect(pickStackId([], 'gone')).toBeNull();
+  });
+});
+
+describe('hudFormat FORGE', () => {
+  it('formatKg', () => {
+    expect(formatKg(7.82e10)).toBe('7.8e10 kg');
+    expect(formatKg(0)).toBe('—');
+    expect(formatKg(NaN)).toBe('—');
+    expect(formatKg(-3)).toBe('—');
+  });
+  it('forgeRows before any snap: five rows, dashes, Au dark and empty', () => {
+    const rows = forgeRows(null);
+    expect(rows.map((r) => r.symbol)).toEqual(['H', 'He', 'C', 'O', 'Au']);
+    expect(rows[1].value).toBe('—');
+    expect(rows[4]).toEqual({ symbol: 'Au', z: 79, value: '', year: null, dark: true });
+  });
+  it('forgeRows with a ledger', () => {
+    const rows = forgeRows({ H: 7.82e10, He: 7.76e10, heOwed: 0, C: 8.55e11, O: 1.16e12, cYear: 7590002026, oYear: 7700002026, any: true });
+    expect(rows[1].value).toBe('7.8e10 kg');
+    expect(rows[2]).toMatchObject({ value: '8.6e11 kg', year: 'CE 7 590 002 026' });
+  });
+  it('hud view storage: default clocks, round trip, unknown, throwing', () => {
+    localStorage.removeItem(HUD_VIEW_KEY);
+    expect(readHudView()).toBe('clocks');
+    writeHudView('forge');
+    expect(readHudView()).toBe('forge');
+    localStorage.setItem(HUD_VIEW_KEY, 'bogus');
+    expect(readHudView()).toBe('clocks');
+    const spy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('x'); });
+    expect(readHudView()).toBe('clocks');
+    spy.mockRestore();
+    const spy2 = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('x'); });
+    expect(() => writeHudView('forge')).not.toThrow();
+    spy2.mockRestore();
+    localStorage.removeItem(HUD_VIEW_KEY);
   });
 });
