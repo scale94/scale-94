@@ -45,11 +45,13 @@ describe('hudFormat FORGE', () => {
     const rows = forgeRows(null);
     expect(rows.map((r) => r.symbol)).toEqual(['H', 'He', 'C', 'O', 'Au']);
     expect(rows[1].value).toBe('—');
-    expect(rows[4]).toEqual({ symbol: 'Au', z: 79, value: '', year: null, dark: true });
+    expect(rows[4]).toEqual({ symbol: 'Au', z: 79, label: '79', value: '', year: null, dark: true });
   });
   it('forgeRows with a ledger', () => {
     const rows = forgeRows({ H: 7.82e10, He: 7.76e10, heOwed: 0, C: 8.55e11, O: 1.16e12, cYear: 7590002026, oYear: 7700002026, any: true });
-    expect(rows[1].value).toBe('7.8e10 kg');
+    expect(rows[0]).toMatchObject({ label: 'spent', value: '7.8e10 kg' });
+    expect(rows[1]).toMatchObject({ label: '2', value: '7.8e10 kg' });
+    expect(rows[3]).toMatchObject({ label: '8', value: '1.2e12 kg', year: formatYear(7700002026) });
     expect(rows[2]).toMatchObject({ value: '8.6e11 kg', year: 'CE 7 590 002 026' });
   });
   it('hud view storage: default clocks, round trip, unknown, throwing', () => {

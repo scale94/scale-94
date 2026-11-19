@@ -2,7 +2,7 @@ import React from 'react';
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, cleanup, fireEvent } from '@testing-library/react';
 import SolHud from '../SolHud';
-import { formatClock } from '../hudFormat';
+import { formatClock, formatYear } from '../hudFormat';
 
 afterEach(cleanup);
 
@@ -154,6 +154,29 @@ describe('SolHud', () => {
     expect(container.textContent).toContain('LAST RELEASE');
     expect(container.textContent).toContain('7.8e10 kg');
     expect(container.textContent).toContain('CE 7 590 002 026');
+  });
+
+  it('forge view: symbols keep their case, H reads spent, years never wrap', () => {
+    const { getAllByTestId } = hud({
+      view: 'forge',
+      forge: { H: 7.82e10, He: 7.76e10, heOwed: 0, C: 8.55e11, O: 1.16e12, cYear: 7590002026, oYear: 7700002026, any: true },
+    });
+    const rows = getAllByTestId('sol-forge-row');
+    const sym = rows[1].querySelector('[data-testid="sol-forge-symbol"]');
+    expect(sym.textContent).toBe('He');
+    expect(sym.className).not.toContain('uppercase');
+    expect(rows[1].textContent).not.toContain('HE');
+    expect(rows[0].textContent).toContain('spent');
+    expect(rows[0].textContent).not.toMatch(/H\s*1/);
+    const yr = rows[2].querySelector('[data-testid="sol-year"]');
+    expect(yr.textContent).toBe(formatYear(7590002026));
+    expect(yr.className).toContain('whitespace-nowrap');
+  });
+
+  it('core light year is nowrap', () => {
+    const { getAllByTestId } = hud({ stack: { launchedAt: 0, rows: ROWS } });
+    const core = getAllByTestId('sol-stack-row')[4];
+    expect(core.querySelector('[data-testid="sol-year"]').className).toContain('whitespace-nowrap');
   });
 
   it('toggle: aria-pressed, bracketed active, click calls onView', () => {

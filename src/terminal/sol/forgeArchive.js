@@ -76,7 +76,8 @@ export function foldIntoArchive(cloud, now = Date.now()) {
     foldedIds: [...archive.foldedIds, cloud.id].slice(-MAX_FOLDED_IDS),
   };
   persist();
-  notify();
+  // No notify: a local fold is always followed by a cloudStore commit, which
+  // notifies. Listeners fire only on cross-tab storage reloads (below).
 }
 
 export function subscribeForgeArchive(fn) {

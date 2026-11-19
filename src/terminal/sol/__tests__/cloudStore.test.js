@@ -5,6 +5,7 @@ import {
   _resetCloudsForTests,
 } from '../cloudStore';
 import { cloudStatus } from '../cloudClock';
+import { forgeLedger, offerings } from '../forge';
 import { getForgeArchive, _resetForgeArchiveForTests } from '../forgeArchive';
 
 const H = 3600e3;
@@ -212,5 +213,38 @@ describe('cloudStore forge folds', () => {
     const a = getForgeArchive();
     expect(a.C).toBeGreaterThan(0);
     expect(a.He).toBe(0);
+  });
+
+  describe('archive conservation', () => {
+    const ledger = (now) => forgeLedger(getClouds(), getForgeArchive(), now);
+    const close = (a, b) => (a === 0 ? expect(b).toBe(0) : expect(Math.abs(a - b) / a).toBeLessThan(1e-9));
+
+    it('sweep removing landed clouds leaves the ledger unchanged', () => {
+      for (let i = 0; i < 40; i++) {
+        launchCloud(cw(1e32 + i * 1e30), t0 + i * 1000);
+      }
+      const now = t0 + 100 * H;
+      const before = ledger(now);
+      sweep(now);
+      expect(getClouds().length).toBeLessThan(40);
+      const after = ledger(now);
+      for (const k of ['H', 'He', 'heOwed', 'C', 'O']) close(before[k], after[k]);
+    });
+
+    it('a cap drop keeps C and O and releases the dropped cloud owed helium', () => {
+      for (let i = 0; i < 16; i++) launchCloud(cw(2e32 + i * 1e30), t0 + i);
+      const now = t0 + 20;
+      const before = ledger(now);
+      const weakest = getClouds().reduce((w, c) => (c.energyErg < w.energyErg ? c : w));
+      const owed = offerings(weakest).He.kg;
+      const mid = launchCloud(cw(5e32), now);
+      const added = offerings(mid);
+      const after = ledger(now);
+      expect(getClouds().some((c) => c.id === weakest.id)).toBe(false);
+      close(before.C + added.C.kg, after.C);
+      close(before.O + added.O.kg, after.O);
+      close(before.He + before.heOwed + added.He.kg - owed, after.He + after.heOwed);
+      close(before.H, after.H);
+    });
   });
 });

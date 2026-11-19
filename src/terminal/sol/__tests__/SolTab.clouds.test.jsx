@@ -155,14 +155,14 @@ describe('SolTab clouds', () => {
       setVisibility('visible');
     });
     expect(screen.queryAllByTestId('sol-cloud')).toHaveLength(0);
-    expect(screen.getAllByTestId('sol-landing').map((n) => n.textContent))
-      .toEqual(['arrived · northward · passed']);
+    expect(screen.queryAllByTestId('sol-landing')).toHaveLength(0);
+    expect(screen.getAllByTestId('sol-stack-row')[3].textContent).toContain('arrived · northward · passed');
   });
 
   it('clouds already in the store show on mount, and a passed landing adds no aurora', () => {
     launchCloud({ energyErg: 5e32, handedness: 'ccw', origin: 'star' }, T0 - 100 * H);
     render(<SolTab />);
-    expect(screen.getAllByTestId('sol-landing')).toHaveLength(1);
+    expect(screen.getAllByTestId('sol-stack-row')[3].textContent).toContain('arrived');
     expect(captured.effects.uAurora || 0).toBe(0);
   });
 
@@ -172,7 +172,7 @@ describe('SolTab clouds', () => {
     setVisibility('visible');
     render(<SolTab />);
     expect(getClouds()[0].witnessed).toBe(true);
-    expect(screen.getAllByTestId('sol-landing')[0].textContent).toBe('arrived · southward · coupled · −1200 nT');
+    expect(screen.getAllByTestId('sol-stack-row')[3].textContent).toBe('CLOUD' + 'arrived · southward · coupled · −1200 nT');
     act(() => { captured.onFrame(1 / 60); });
     const early = captured.effects.uAurora;
     expect(early).toBeGreaterThan(0);
@@ -198,7 +198,16 @@ describe('SolTab clouds', () => {
     render(<SolTab />);
     act(() => { for (let i = 0; i < 600; i++) captured.onFrame(1 / 60); });
     expect(captured.effects.uAurora).toBe(0);
-    expect(screen.getByTestId('sol-landing').textContent).toBe('arrived · unwitnessed');
+    expect(screen.getAllByTestId('sol-stack-row')[3].textContent).toBe('CLOUD' + 'arrived · unwitnessed');
+  });
+
+  it('the stacked landed cloud is not also listed as a landing line', () => {
+    launchCloud({ energyErg: 5e32, handedness: 'ccw', origin: 'hand' }, T0 - 200 * H);
+    launchCloud({ energyErg: 5e32, handedness: 'ccw', origin: 'hand' }, T0 - 100 * H);
+    render(<SolTab />);
+    // the newest (stacked) lands in the CLOUD row; only the older one is a line
+    expect(screen.getAllByTestId('sol-landing')).toHaveLength(1);
+    expect(screen.getAllByTestId('sol-stack-row')[3].textContent).toContain('arrived');
   });
 
   it('shows at most the three newest landings', () => {

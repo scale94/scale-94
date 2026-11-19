@@ -67,11 +67,17 @@ describe('forgeArchive', () => {
     expect(getForgeArchive().foldedIds).toEqual(['x', 'y']);
     expect(getForgeArchive().C).toBeGreaterThan(0);
   });
-  it('notifies listeners, isolating a throwing one', () => {
+  it('a local fold does not notify (cloudStore commits and notifies)', () => {
+    const seen = vi.fn();
+    subscribeForgeArchive(seen);
+    foldIntoArchive(mk(5e32), t0);
+    expect(seen).not.toHaveBeenCalled();
+  });
+  it('a cross-tab storage event notifies, isolating a throwing listener', () => {
     const seen = vi.fn();
     subscribeForgeArchive(() => { throw new Error('boom'); });
     subscribeForgeArchive(seen);
-    foldIntoArchive(mk(5e32), t0);
+    window.dispatchEvent(new StorageEvent('storage', { key: FORGE_STORAGE_KEY }));
     expect(seen).toHaveBeenCalledTimes(1);
   });
   it('reloads on a storage event for its key', () => {

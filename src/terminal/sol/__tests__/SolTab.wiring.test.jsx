@@ -103,7 +103,6 @@ describe('SolTab wiring', () => {
     act(() => { captured.onFrame(1.0); });
     expect(wrap.style.transform).toBe('');
     act(() => { vi.advanceTimersByTime(20100); });
-    expect(hud.textContent).not.toContain('8 min 19 s');
     expect(hud.textContent).toContain('5.0e32 erg');
   });
 

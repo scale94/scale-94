@@ -15,6 +15,8 @@ const LABEL = 'text-[9px] sm:text-[10px] text-yellow-100/55 uppercase tracking-w
 const VALUE = 'min-w-0 break-words text-xs sm:text-sm font-bold text-yellow-100 tabular-nums';
 const LINE = 'text-[9px] sm:text-[10px] text-yellow-100/80 tracking-widest';
 const NONE = [];
+const YEAR = 'whitespace-nowrap';
+const SYMBOL = 'text-[9px] sm:text-[10px] text-yellow-100/55 tracking-widest';
 const TOGGLE = 'bg-transparent border-0 p-0 m-0 font-mono cursor-pointer text-[9px] sm:text-[10px] uppercase tracking-widest focus-visible:outline focus-visible:outline-1 focus-visible:outline-yellow-100/60';
 
 function ViewButton({ id, label, view, onView }) {
@@ -37,7 +39,7 @@ function SolHud({ tensionG, lastReleaseErg, view = 'clocks', onView, forge = nul
   return (
     <div
       data-testid="sol-hud"
-      className="mt-3 w-full sm:w-80 border border-yellow-200/25 rounded-sm px-3 py-2 font-mono space-y-1"
+      className="mt-3 w-full sm:w-[22rem] border border-yellow-200/25 rounded-sm px-3 py-2 font-mono space-y-1"
     >
       <div className={ROW}>
         <span className={LABEL}>MAGNETIC TENSION</span>
@@ -59,13 +61,16 @@ function SolHud({ tensionG, lastReleaseErg, view = 'clocks', onView, forge = nul
           data-testid="sol-forge-row"
           className={`${ROW} ${r.dark ? 'text-yellow-100/20' : ''}`}
         >
-          <span className={r.dark ? 'text-[9px] sm:text-[10px] tracking-widest' : LABEL}>
-            {r.symbol} <span className="tabular-nums">{r.z}</span>
+          <span className={r.dark ? 'text-[9px] sm:text-[10px] tracking-widest' : SYMBOL}>
+            <span data-testid="sol-forge-symbol">{r.symbol}</span>{' '}
+            <span className="tabular-nums">{r.label}</span>
           </span>
           {!r.dark && (
             <span className={VALUE}>
               {r.value}
-              {r.year && <span className="font-normal text-yellow-100/60"> · {r.year}</span>}
+              {r.year && (
+                <span className="font-normal text-yellow-100/60"> · <span data-testid="sol-year" className={YEAR}>{r.year}</span></span>
+              )}
             </span>
           )}
         </div>
@@ -78,7 +83,11 @@ function SolHud({ tensionG, lastReleaseErg, view = 'clocks', onView, forge = nul
           {stack.rows.map((m) => (
             <div key={m.key} data-testid="sol-stack-row" className={ROW}>
               <span className={LABEL}>{MESSENGER_LABEL[m.key]}</span>
-              <span className={VALUE}>{messengerValue(m)}</span>
+              <span className={VALUE}>
+                {m.key === 'core'
+                  ? <span data-testid="sol-year" className={YEAR}>{messengerValue(m)}</span>
+                  : messengerValue(m)}
+              </span>
             </div>
           ))}
         </div>

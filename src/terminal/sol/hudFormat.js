@@ -76,11 +76,12 @@ export function formatKg(kg) {
 /** The five FORGE rows in table order. Au is symbol and Z only: dark, empty, forever. */
 export function forgeRows(ledger) {
   return FORGE_TABLE.map(({ symbol, z, role }) => {
-    if (role === null) return { symbol, z, value: '', year: null, dark: true };
+    const label = role === 'spent' ? 'spent' : String(z);
+    if (role === null) return { symbol, z, label, value: '', year: null, dark: true };
     const kg = ledger ? ledger[symbol] : undefined;
     const yearOf = symbol === 'C' ? ledger?.cYear : symbol === 'O' ? ledger?.oYear : null;
     return {
-      symbol, z, value: formatKg(kg),
+      symbol, z, label, value: formatKg(kg),
       year: role === 'dated' && Number.isFinite(yearOf) ? formatYear(yearOf) : null,
       dark: false,
     };

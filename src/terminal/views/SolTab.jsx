@@ -247,10 +247,10 @@ const SolTab = () => {
   // A passed landing is its line and nothing else.
   const hudLandings = useMemo(() => statuses.items
     .map((i) => i.status)
-    .filter((s) => s.phase !== 'flight')
+    .filter((s) => s.phase !== 'flight' && s.id !== stackId)
     .sort((a, b) => b.arrivalAt - a.arrivalAt)
     .slice(0, MAX_LANDING_LINES)
-    .map((s) => ({ id: s.id, fate: s.fate, nT: s.stormNt })), [statuses]);
+    .map((s) => ({ id: s.id, fate: s.fate, nT: s.stormNt })), [statuses, stackId]);
 
   useEffect(() => {
     const read = () => {
