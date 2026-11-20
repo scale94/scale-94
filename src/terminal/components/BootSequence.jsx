@@ -6,7 +6,7 @@ import { Cpu } from 'lucide-react';
 // Drama arc: modules load → entropy spikes → crystalline lock → kernel apex → deep modules arm.
 const AXIOMS = [
   { name: 'accretion',      field: 'doctrine',     status: 'ok',        variant: 'normal'      },
-  { name: 'scaling',        field: 'growth',       status: 'ok',        variant: 'normal'      },
+  { name: 'scent',          field: 'olfaction',     status: 'ok',        variant: 'normal'      },
   { name: 'privacy',        field: 'locked',       status: 'ok',        variant: 'normal'      },
   { name: 'transmission',   field: 'signal',       status: 'ok',        variant: 'normal'      },
   { name: 'entropy',        field: 'threat',       status: 'contained', variant: 'threat'      },
@@ -24,8 +24,8 @@ const axiomDelay = (i) => 180 + i * 200;
 // Doctrine rainbow — 11 stops, tracks clockwise perimeter fill:
 // top (magenta→gold) · right (gold→spring) · bottom (spring→deep-blue) · left (deep-blue→hot-pink)
 const DOCTRINE_RAINBOW = [
-  '#FF0088', //  0 magenta    — top-left       (manifesto)
-  '#FF4400', //  1 red-orange — top-mid        (scaling)
+  '#FF0088', //  0 magenta    — top-left       (accretion)
+  '#FF4400', //  1 red-orange — top-mid        (scent)
   '#FFD700', //  2 gold       — top/right jxn  (privacy)
   '#88FF00', //  3 yellow-lime — right-upper   (transmission)
   '#00FFAA', //  4 spring     — right/btm jxn  (entropy)

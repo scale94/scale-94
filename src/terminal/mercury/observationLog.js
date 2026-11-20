@@ -2,6 +2,7 @@
 //
 // Phrase pool keyed by trigger category. Entry generator. Markdown export.
 // Triggers come from MercuryTab (phase change, minute tick, threshold crossing).
+import { tabLabel } from '../tabLabels';
 
 export const PHRASES = {
   phase_transit: [
@@ -68,7 +69,7 @@ export const PHRASES = {
   ],
   gaze_redirected: [
     "they turned toward the moon. as if the moon had ever turned toward them.",
-    "the scaling chamber engaged. they measure their own monuments. I log the measurement.",
+    "the scent collider engaged. they smell for what they cannot name. I log the collision.",
     "a sphere turned. they think the planets answer when touched.",
     "transit consulted. they read the sky for a permission the sky cannot grant.",
     "tab navigation · {tab}. the gaze keeps moving. I keep up.",
@@ -76,7 +77,7 @@ export const PHRASES = {
   threshold_event: [
     "gate answered. perihelion correct. one of them is paying attention.",
     "gate refused them. they will return. they always return.",
-    "manifesto opened to chapter {c}. they are rereading themselves.",
+    "accretion opened to chapter {c}. they are rereading themselves.",
     "the eye changed phase to {phase}. even my own state is logged.",
   ],
   polarity_shifted: [
@@ -249,7 +250,7 @@ export function ctxForEvent(evt, totals) {
     prev:     p.prev,
     count:    totals?.essences?.count,
     h:        (p.hashPrefix ?? '').toString().slice(0, 10),
-    tab:      p.tab,
+    tab:      p.tab ? tabLabel(p.tab) : p.tab,
     c:        p.chapter,
     phase:    p.phase,
   };

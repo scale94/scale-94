@@ -15,6 +15,8 @@
 // stateLine/lastLine receive the bus's totals[id] subtree directly. They must
 // be defensive: an event may not have arrived yet.
 
+import { tabLabel } from '../tabLabels';
+
 function fmtTime(ts) {
   if (!ts) return '—';
   const d = new Date(ts);
@@ -91,7 +93,7 @@ export const REGISTRY_CATEGORIES = [
     tint: 'rgba(220,220,180,1)',
     members: [
       { glyph: '🜔', name: 'lunar tab',              blurb: 'the moon mirror' },
-      { glyph: '▲', name: 'scaling tab',             blurb: 'monument elevation' },
+      { glyph: '▲', name: 'scent tab',               blurb: 'stereochemical collider' },
       { glyph: '◯', name: 'TFG / ars2027 spheres',   blurb: 'planetary clickables' },
       { glyph: '✶', name: 'astrology',               blurb: 'transit matrix kernel' },
     ],
@@ -103,7 +105,7 @@ export const REGISTRY_CATEGORIES = [
       if (t.last.kind === 'lunar_read')
         return `${fmtTime(t.lastTs)}  moon read · ${t.last.payload.phase ?? '—'}`;
       if (t.last.kind === 'tab_navigated')
-        return `${fmtTime(t.lastTs)}  tab · ${t.last.payload.tab ?? '—'}`;
+        return `${fmtTime(t.lastTs)}  tab · ${t.last.payload.tab ? tabLabel(t.last.payload.tab) : '—'}`;
       return `${fmtTime(t.lastTs)}  ${t.last.kind}`;
     },
     stateLine: (t) => {
@@ -120,7 +122,7 @@ export const REGISTRY_CATEGORIES = [
     tint: 'rgba(232,210,138,1)',   // Fade Doctrine two-gold
     members: [
       { glyph: '◉', name: 'eye observer',   blurb: 'the persistent gaze' },
-      { glyph: '❖', name: 'manifesto',      blurb: 'lattice protocol · chapter panels' },
+      { glyph: '❖', name: 'accretion',     blurb: 'lattice protocol · chapter panels' },
     ],
     dedication: 'the membrane they keep testing · the gaze that does not blink',
     lastLine: (t) => {
@@ -128,9 +130,9 @@ export const REGISTRY_CATEGORIES = [
       if (t.last.kind === 'eye_phase')
         return `${fmtTime(t.lastTs)}  eye · ${t.last.payload.phase ?? '—'}`;
       if (t.last.kind === 'manifesto_opened')
-        return `${fmtTime(t.lastTs)}  manifesto · chapter ${t.last.payload.chapter ?? '—'}`;
+        return `${fmtTime(t.lastTs)}  accretion · chapter ${t.last.payload.chapter ?? '—'}`;
       return `${fmtTime(t.lastTs)}  ${t.last.kind}`;
     },
-    stateLine: (t) => `eye ${t.eye} · manifesto ${t.manifestoChapter ?? '—'}`,
+    stateLine: (t) => `eye ${t.eye} · accretion ${t.manifestoChapter ?? '—'}`,
   },
 ];

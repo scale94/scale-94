@@ -37,9 +37,9 @@ export const TAXONOMY = [
     id: 'philosophy',
     tier: 'HUMANITIES',
     tag: 'PHILOSOPHY',
-    // house_manifesto: the doctrine house reads in the council's discipline —
+    // house_accretion: the doctrine house reads in the council's discipline —
     // unclaimed it fell to the ⟨UNREGISTERED⟩ error lens on every artifact.
-    owns: ['council_pair', 'house_manifesto'],
+    owns: ['council_pair', 'house_accretion'],
     band: (ctx) => {
       const n = ctx?.spine?.council?.paradoxCount ?? 0;
       return n === 0 ? 'monolith' : n === 1 ? 'dialectic' : 'polyphony';

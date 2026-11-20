@@ -73,3 +73,13 @@ describe('truncate — the mirror is a row, not a paragraph', () => {
     expect(truncate(exact)).toBe(exact);
   });
 });
+
+describe('tabLabels — renamed tabs never leak their old names', () => {
+  it('maps internal ids to current names and passes the rest through', async () => {
+    const { tabLabel } = await import('../../tabLabels');
+    expect(tabLabel('manifesto')).toBe('accretion');
+    expect(tabLabel('scaling')).toBe('scent');
+    expect(tabLabel('art')).toBe('chaos');
+    expect(tabLabel('bsky')).toBe('bsky');
+  });
+});

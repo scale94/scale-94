@@ -6,6 +6,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { generateEntry, detectThresholds, buildMarkdownLog,
          PHRASES, categoryForEvent, ctxForEvent, renderPhrase } from './observationLog';
 import { subscribe, getTotals } from '../../observatory/observatoryBus';
+import { tabLabel } from '../tabLabels';
 
 const PHASE_GLYPHS = { fluid: '🜍', thermal: '🜂', earth: '🜃', air: '🜁' };
 const MAX_ENTRIES  = 24;
@@ -25,7 +26,7 @@ function shortTail(evt) {
     case 'cipher_sealed':    return `hash ${(p.hashPrefix ?? '').slice(0, 8)}…`;
     case 'sphere_clicked':   return p.sphere ?? '—';
     case 'lunar_read':       return `${p.phase ?? '—'} ${p.illum != null ? Math.round(p.illum * 100) + '%' : ''}`.trim();
-    case 'tab_navigated':    return p.tab ?? '—';
+    case 'tab_navigated':    return p.tab ? tabLabel(p.tab) : '—';
     case 'eye_phase':        return p.phase ?? '—';
     case 'manifesto_opened': return `chapter ${p.chapter ?? '—'}`;
     default: return evt.kind;
@@ -40,7 +41,7 @@ function buildRegistryMarkdownBlock(totals) {
     ['BOTTLED VOWS',         fmtTs(t.essences.lastTs),      `${t.essences.count} essences · ${t.essences.crystallized} crystallized · ${t.essences.polarity ?? '—'}`],
     ['SEALED VOLUMES',       fmtTs(t.ciphers.lastTs),       `${t.ciphers.sealed} sealed · ${t.ciphers.unlocks} unlocks`],
     ['BACKWARD GAZE',        fmtTs(t.gaze.lastTs),          `moon ${t.gaze.lastLunar?.phase ?? '—'} · ${t.gaze.sphereClicks} spheres`],
-    ['PERMEABLE EDGE',       fmtTs(t.edge.lastTs),          `eye ${t.edge.eye} · manifesto ${t.edge.manifestoChapter ?? '—'}`],
+    ['PERMEABLE EDGE',       fmtTs(t.edge.lastTs),          `eye ${t.edge.eye} · accretion ${t.edge.manifestoChapter ?? '—'}`],
   ];
   const header = `## COSMOS REGISTRY — session totals\n| category | last event | totals |\n| :--- | :--- | :--- |\n`;
   const body   = rows.map(([cat, ts, totalsLine]) => `| ${cat} | ${ts} | ${totalsLine} |`).join('\n');

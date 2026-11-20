@@ -372,7 +372,7 @@ struct PeripheralWitness {
     transmissions: Option<&'static str>,
     house_ledger: Option<&'static str>,
     essences: Option<&'static str>,
-    house_manifesto: Option<&'static str>,
+    house_accretion: Option<&'static str>,
     house_chaos: Option<&'static str>,
     house_ecocide: Option<&'static str>,
     house_privacy: Option<&'static str>,
@@ -387,8 +387,8 @@ ${houseLine('transmissions', periphery.transmissions, transmissionsDesc)}
 ${houseLine('house_ledger', ledgerValue, ledgerDesc)}
     // ${lensFor('house_essences', ctx, rng)}
 ${houseLine('essences', periphery.essences, essencesDesc)}
-    // ${lensFor('house_manifesto', ctx, rng)}
-${houseLine('house_manifesto', periphery.manifestoFragment, manifestoDesc)}
+    // ${lensFor('house_accretion', ctx, rng)}
+${houseLine('house_accretion', periphery.manifestoFragment, manifestoDesc)}
 ${houseLine('house_chaos', periphery.art, artDesc)}
     // ${twinCascade}
     // ${lensFor('house_ecocide', ctx, rng)}
