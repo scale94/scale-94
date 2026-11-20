@@ -21,6 +21,13 @@ describe('VERTEBRAE — the table', () => {
     for (const v of VERTEBRAE) expect(NAV_TINTS[v.tab]).toBeDefined();
   });
 
+  it('user-facing label is the renamed tab; internal route id is untouched', () => {
+    const council = VERTEBRAE.find(v => v.key === 'council');
+    expect(council.tab).toBe('manifesto');   // App.jsx activeTab / NAV_TINTS key
+    expect(council.label).toBe('accretion'); // what the altar prints
+    for (const v of VERTEBRAE) expect(v.label).toBeTruthy();
+  });
+
   it('previews are null on an empty spine', () => {
     for (const v of VERTEBRAE) expect(v.preview(EMPTY)).toBeNull();
   });

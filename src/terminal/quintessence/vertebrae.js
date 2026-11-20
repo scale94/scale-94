@@ -15,14 +15,16 @@ export function truncate(s, max = PREVIEW_MAX) {
 
 export const VERTEBRAE = [
   {
-    key: 'trend', tab: 'bsky', tint: [56, 189, 248],   // sky-400 — /BSKY
+    key: 'trend', tab: 'bsky', label: 'bsky', tint: [56, 189, 248],   // sky-400 — /BSKY
     field: 'narcos payload', house: 'the bsky house',
     quoted: true,                                       // a trend label is a string literal
     preview: s => s.trend?.label ?? null,
   },
   {
-    key: 'council', tab: 'manifesto', tint: [167, 139, 250],  // violet-400 — /MANIFESTO
-    field: 'friction pair', house: 'the manifesto house',
+    // `tab` is the INTERNAL route id (App.jsx activeTab, NAV_TINTS) and stays
+    // 'manifesto'; `label` is what the user reads. Never render `tab` directly.
+    key: 'council', tab: 'manifesto', label: 'accretion', tint: [167, 139, 250],  // violet-400 — /ACCRETION
+    field: 'friction pair', house: 'the accretion house',
     preview: s => (s.council?.pair?.length ? s.council.pair.join(' × ') : null),
   },
   {
@@ -30,7 +32,7 @@ export const VERTEBRAE = [
     // (App.jsx:1151), in NAV_TINTS, and in its own tab body (LunarTab.jsx:987).
     // [217,70,239] is fuchsia-500 = NAV_TINTS.scaling — the eye leaned at the
     // wrong house for as long as no test pinned this value. Task 2 pins it.
-    key: 'phase', tab: 'lunar', tint: [167, 139, 250],  // violet-400 — /LUNAR
+    key: 'phase', tab: 'lunar', label: 'lunar', tint: [167, 139, 250],  // violet-400 — /LUNAR
     field: 'dryness', house: 'the lunar house',
     preview: s => s.phase ?? null,
   },

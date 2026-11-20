@@ -65,7 +65,7 @@ describe('QuintessenceAltar — the living altar', () => {
     expect(text).toContain('friction pair');
     expect(text).toContain('dryness');
     expect(text).toContain('→ the bsky house holds it');
-    expect(text).toContain('→ the manifesto house holds it');
+    expect(text).toContain('→ the accretion house holds it');
     expect(text).toContain('→ the lunar house holds it');
     const seals = sealButtons();
     expect(seals).toHaveLength(4);
@@ -86,7 +86,7 @@ describe('QuintessenceAltar — the living altar', () => {
     const text = container.textContent;
     expect(text).toContain('Some("gaza ceasefire")');
     expect(text).toContain('✦ marked at /BSKY');
-    expect(text).toContain('→ the manifesto house holds it');
+    expect(text).toContain('→ the accretion house holds it');
     expect(text).toContain('→ the lunar house holds it');
   });
 

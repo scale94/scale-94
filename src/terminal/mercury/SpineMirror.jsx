@@ -27,7 +27,7 @@ export default function SpineMirror({ spine, armed = false, onNavigate }) {
         // The label carries every fact the hue does — if the mirror stops
         // working in greyscale, the words are not doing their job (spec §3).
         const label = marked
-          ? `${v.field} — ${raw} · marked at ${v.tab} · walk there`
+          ? `${v.field} — ${raw} · marked at ${v.label} · walk there`
           : `${v.field} — unmarked · walk to ${v.house}`;
         // An unmarked row can never be armed (armed ⇔ all three marked), so the
         // house hue is the only tail colour absence ever wears.
@@ -54,7 +54,7 @@ export default function SpineMirror({ spine, armed = false, onNavigate }) {
               <span aria-hidden="true" className="text-zinc-600">{`// ${v.field}`}</span>
               {marked ? (
                 <span aria-hidden="true" className="ml-auto whitespace-nowrap" style={{ color: lit, ...sweep }}>
-                  {`✦ marked at /${v.tab.toUpperCase()}`}
+                  {`✦ marked at /${v.label.toUpperCase()}`}
                 </span>
               ) : (
                 <span
