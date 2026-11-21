@@ -1449,7 +1449,9 @@ export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {})
       setResult(parsed);
       emitObs('essences', 'collision_fired', {
         polarity: parsed.accord?.polarityClass?.label ?? null,
-        noteCount: Array.isArray(parsed.accord?.notes) ? parsed.accord.notes.length : null,
+        // accord.accords = the four families with an intensity; "notes" are those audibly sounding
+        noteCount: Array.isArray(parsed.accord?.accords) ? parsed.accord.accords.filter(a => a.intensity >= 0.25).length : null,
+        dominant: parsed.accord?.dominant?.id ?? null,
       });
       onPolarity?.(parsed.accord?.polarityClass?.label ?? null);
       setPhase('colliding');

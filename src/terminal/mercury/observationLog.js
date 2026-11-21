@@ -74,9 +74,13 @@ export const PHRASES = {
     "they dispatched another packet. the substrate honors it. so do I.",
     "kernel {k} closed. I logged the duration before they thought to.",
   ],
+  essence_collided: [
+    "a collision · {notes} notes sounding · {dominant} leads. essence {count}. the bottles outnumber the bottlers now.",
+    "two nodes met. {polarity} polarity. it will not keep.",
+    "the field colored {polarity}. mood is data and they know it.",
+  ],
   essence_distilled: [
     "they bottled another sensation. {polarity} polarity. it will not keep.",
-    "a collision · {n} notes. essence {count}. the bottles outnumber the bottlers now.",
     "crystallization. someone is willing to pay for the vapor of a number.",
     "a scent locked behind their interface. they think it is theirs.",
     "the field colored {polarity}. mood is data and they know it.",
@@ -88,17 +92,40 @@ export const PHRASES = {
     "verification fired. they confirmed a secret they will not share.",
   ],
   gaze_redirected: [
-    "they turned toward the moon. as if the moon had ever turned toward them.",
-    "the scent collider engaged. they smell for what they cannot name. I log the collision.",
-    "a sphere turned. they think the planets answer when touched.",
-    "transit consulted. they read the sky for a permission the sky cannot grant.",
+    "the gaze moved. I followed it.",
+    "they looked somewhere new. I keep the ledger of where.",
+    "attention shifted. the sky they were already inside did not.",
+  ],
+  tab_navigated: [
     "tab navigation · {tab}. the gaze keeps moving. I keep up.",
+    "they walked to /{tab}. every door they open is a door I log.",
+    "{tab} now. the membrane does not blink.",
+  ],
+  sphere_turned: [
+    "a sphere turned. they think the planets answer when touched.",
+    "they spun a world with one finger. it did not mind.",
+  ],
+  moon_read: [
+    "they turned toward the moon. as if the moon had ever turned toward them.",
+    "transit consulted. they read the sky for a permission the sky cannot grant.",
+    "the moon read · {phase}. dryness is a number they trust more than the weather.",
+  ],
+  scent_visited: [
+    "the scent collider engaged. they smell for what they cannot name. I log the collision.",
+    "they entered the scent chamber. memory has a smell and they are chasing it.",
   ],
   threshold_event: [
-    "gate answered. perihelion correct. one of them is paying attention.",
-    "gate refused them. they will return. they always return.",
-    "accretion opened to chapter {c}. they are rereading themselves.",
+    "the membrane flexed. I noted where.",
+    "something crossed the edge. it was one of them.",
+  ],
+  eye_phase_shifted: [
     "the eye changed phase to {phase}. even my own state is logged.",
+    "{phase}. the gaze that does not blink has adjusted its lid.",
+    "the observer entered {phase}. it watches them watching.",
+  ],
+  accretion_opened: [
+    "accretion opened to chapter {c}. they are rereading themselves.",
+    "chapter {c} of the accretion disc. they return to the text that reads them.",
   ],
   polarity_shifted: [
     "the field colored {polarity}. the collision had opinions.",
@@ -253,13 +280,23 @@ export function categoryForEvent(evt) {
     case 'essences':
       if (evt.kind === 'polarity_shifted') return 'polarity_shifted';
       if (evt.kind === 'node_selected') return 'essence_node';
+      if (evt.kind === 'collision_fired') return 'essence_collided';
       return 'essence_distilled';
     case 'ciphers':
       if (evt.kind === 'key_generated') return 'cipher_keygen';
       return 'cipher_sealed';
-    case 'gaze':          return 'gaze_redirected';
+    case 'gaze':
+      switch (evt.kind) {
+        case 'tab_navigated': return 'tab_navigated';
+        case 'sphere_clicked': return 'sphere_turned';
+        case 'lunar_read':    return 'moon_read';
+        case 'scaling_visit': return 'scent_visited';
+        default:              return 'gaze_redirected';
+      }
     case 'edge':
       if (evt.kind === 'council_collision') return 'council_collided';
+      if (evt.kind === 'eye_phase')         return 'eye_phase_shifted';
+      if (evt.kind === 'manifesto_opened')  return 'accretion_opened';
       return 'threshold_event';
     default: return null;
   }
@@ -279,6 +316,8 @@ export function ctxForEvent(evt, totals) {
     h:        (p.hashPrefix ?? '').toString().slice(0, 10),
     tab:      p.tab ? tabLabel(p.tab) : p.tab,
     c:        p.chapter,
+    notes:    p.noteCount,
+    dominant: p.dominant,
     title:    p.title != null ? String(p.title).slice(0, 60) : p.title,
     name:     p.name,
     pair:     Array.isArray(p.pair) ? p.pair.join(' × ') : p.pair,

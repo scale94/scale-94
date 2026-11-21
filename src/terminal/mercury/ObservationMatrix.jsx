@@ -21,7 +21,7 @@ function shortTail(evt) {
   switch (evt.kind) {
     case 'kernel_completed': return `${p.kernelId ?? '—'} · ${p.durationMs ?? '—'}ms`;
     case 'ledger_appended':  return `depth ${p.depth ?? '—'}`;
-    case 'collision_fired':  return `${p.polarity ?? '—'} · ${p.noteCount ?? '—'} notes`;
+    case 'collision_fired':  return `${p.polarity ?? '—'} · ${p.noteCount ?? '—'} notes${p.dominant ? ` · ${p.dominant}` : ''}`;
     case 'polarity_shifted': return `→ ${p.polarity ?? '—'}`;
     case 'cipher_sealed':    return `hash ${(p.hashPrefix ?? '').slice(0, 8)}…`;
     case 'sphere_clicked':   return p.sphere ?? '—';
@@ -30,6 +30,7 @@ function shortTail(evt) {
     case 'eye_phase':        return p.phase ?? '—';
     case 'manifesto_opened': return `chapter ${p.chapter ?? '—'}`;
     case 'transmission_selected': return p.title ?? p.id ?? '—';
+    case 'scaling_visit':    return 'scent collider';
     case 'node_selected':    return p.name ?? '—';
     case 'key_generated':    return `${p.scheme ?? 'keypair'} · ek ${p.ekBytes ?? '—'}B · dk ${p.dkBytes ?? '—'}B`;
     case 'council_collision': return Array.isArray(p.pair) ? p.pair.join(' × ') : '—';

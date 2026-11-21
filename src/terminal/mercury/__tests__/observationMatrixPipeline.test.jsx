@@ -88,6 +88,58 @@ describe('Observation Matrix pipeline', () => {
   });
 });
 
+describe('wording matches the event (no cross-wired phrases)', () => {
+  beforeEach(() => _resetForTests());
+  afterEach(cleanup);
+
+  const lines = (container, name) => {
+    fireEvent.click(chip(container, name));
+    return container.textContent;
+  };
+
+  it('every gaze kind gets its own pool; tab navigation never claims a sphere turned', () => {
+    const cat = (kind) => categoryForEvent({ category: 'gaze', kind, payload: {} });
+    expect(cat('tab_navigated')).toBe('tab_navigated');
+    expect(cat('sphere_clicked')).toBe('sphere_turned');
+    expect(cat('lunar_read')).toBe('moon_read');
+    expect(cat('scaling_visit')).toBe('scent_visited');
+    // the nav pool is the only place a tab name is promised, and none mention spheres/moon
+    for (const l of PHRASES.tab_navigated) expect(l).not.toMatch(/sphere|moon|planet/);
+    for (const l of PHRASES.gaze_redirected) expect(l).not.toMatch(/sphere|moon|planet|monument|scent/);
+  });
+
+  it('scaling_visit logs as the scent collider, not its raw event name', () => {
+    const { container } = mount();
+    act(() => { emit('gaze', 'scaling_visit', {}); });
+    const text = lines(container, 'GAZE');
+    expect(text).toContain('gaze/scaling_visit');
+    expect(text).toContain('scent collider');
+    expect(text).not.toMatch(/scaling_visit\s*$/m);
+    expect(PHRASES.scent_visited.join(' ')).toMatch(/scent/);
+  });
+
+  it('eye_phase gets an eye line carrying the phase, not a gate line', () => {
+    const { container } = mount();
+    act(() => { emit('edge', 'eye_phase', { phase: 'deep-watch' }); });
+    const text = lines(container, 'EDGE');
+    expect(text).toContain('deep-watch');
+    expect(text).not.toMatch(/gate answered|gate refused|perihelion correct/);
+    expect(categoryForEvent({ category: 'edge', kind: 'eye_phase', payload: {} })).toBe('eye_phase_shifted');
+    expect(categoryForEvent({ category: 'edge', kind: 'manifesto_opened', payload: {} })).toBe('accretion_opened');
+  });
+
+  it('collision notes come from the collision, not the transmission counter', () => {
+    const { container } = mount();
+    act(() => { emit('transmissions', 'kernel_completed', { kernelId: 'k', durationMs: 5 }); });
+    act(() => { emit('essences', 'collision_fired', { polarity: 'CHAOTIC', noteCount: 3, dominant: 'aromatic' }); });
+    const text = lines(container, 'ESSENCES');
+    expect(text).toContain('CHAOTIC · 3 notes · aromatic');
+    expect(text).not.toContain('— notes');
+    // the phrase itself must never read the transmission count
+    for (const l of PHRASES.essence_collided) expect(l).not.toContain('{n}');
+  });
+});
+
 // The matrix can only show what the tabs emit. Pin each emitter at its call
 // site so deleting one fails here instead of silently emptying a chip.
 describe('emitters stay wired at the action sites', () => {
