@@ -11,3 +11,13 @@ export const TAB_LABELS = {
 export function tabLabel(id) {
   return TAB_LABELS[id] ?? id;
 }
+
+// Observation Matrix filter chip -> internal tab id its empty state links to.
+// ALL has no home and MERCURY is the tab you are already on: neither navigates.
+export const CATEGORY_TABS = {
+  TRANSMISSIONS: 'transmission',
+  ESSENCES:      'scaling',        // the /SCENT collider
+  CIPHERS:       'cryptography',
+  GAZE:          'lunar',
+  EDGE:          'manifesto',      // /ACCRETION
+};

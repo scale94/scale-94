@@ -248,6 +248,7 @@ export default function MercuryTab({ onNavigateTab }) {
         mercury={mercuryState}
         instruments={instruments}
         activePhase={activePhase}
+        onNavigate={onNavigateTab}
       />
 
       {/* Footer — mock-discipline citations */}

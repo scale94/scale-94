@@ -11,6 +11,7 @@ const fmtTime = (d = new Date()) =>
 
 import CascadeIcon from './components/CascadeIcon';
 import AccretionIcon from './components/AccretionIcon';
+import { tabLabel } from './tabLabels';
 import AmbientParticles from './components/AmbientParticles';
 import ScentGlyph from './components/icons/ScentGlyph';
 import SolGlyph from './components/icons/SolGlyph';
@@ -1375,7 +1376,7 @@ const App = () => {
 
           {/* Mercury — unified elemental phase simulation */}
           {activeTab === 'mercury' && !selectedArticle && !architectThesis && (
-            <MercuryTab onNavigateTab={(tab) => handleNav('~/system/' + tab, tab)} />
+            <MercuryTab onNavigateTab={(tab) => handleNav('~/system/' + tabLabel(tab), tab)} />
           )}
 
           {/* Ledger Tab — The Open Ledger · Thermodynamic Audit Infrastructure */}

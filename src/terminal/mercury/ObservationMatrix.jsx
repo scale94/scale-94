@@ -6,7 +6,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { generateEntry, detectThresholds, buildMarkdownLog,
          PHRASES, categoryForEvent, ctxForEvent, renderPhrase } from './observationLog';
 import { subscribe, getTotals } from '../../observatory/observatoryBus';
-import { tabLabel } from '../tabLabels';
+import { tabLabel, CATEGORY_TABS } from '../tabLabels';
 
 const PHASE_GLYPHS = { fluid: '🜍', thermal: '🜂', earth: '🜃', air: '🜁' };
 const MAX_ENTRIES  = 24;
@@ -48,7 +48,7 @@ function buildRegistryMarkdownBlock(totals) {
   return header + body + '\n';
 }
 
-export default function ObservationMatrix({ mercury, instruments, activePhase }) {
+export default function ObservationMatrix({ mercury, instruments, activePhase, onNavigate }) {
   const [entries, setEntries] = useState([]);
   const [copied, setCopied] = useState(false);
   const [filter, setFilter] = useState('ALL');
@@ -176,6 +176,10 @@ export default function ObservationMatrix({ mercury, instruments, activePhase })
     return e.category === filter;
   });
 
+  const emptyText  = `// observation log empty · interact with the canvas to begin`;
+  const emptyTab   = CATEGORY_TABS[filter] ?? null;
+  const emptyLabel = emptyTab ? `/${tabLabel(emptyTab).toUpperCase()}` : null;
+
   const sessionTs = sessionStartRef.current.toLocaleTimeString('en-GB', {
     hour: '2-digit', minute: '2-digit', second: '2-digit',
   });
@@ -248,9 +252,23 @@ export default function ObservationMatrix({ mercury, instruments, activePhase })
       {/* Entries */}
       <div className="divide-y divide-zinc-700/[0.06] max-h-96 overflow-y-auto">
         {visibleEntries.length === 0 && (
-          <div className="px-4 py-6 text-[8px] font-mono text-zinc-600 italic text-center">
-            {`// observation log empty · interact with the canvas to begin`}
-          </div>
+          emptyTab && onNavigate ? (
+            <button
+              type="button"
+              onClick={() => onNavigate(emptyTab)}
+              aria-label={`${emptyText} — open ${emptyLabel}`}
+              className="group block w-full px-4 py-6 text-[8px] font-mono text-zinc-600 italic text-center cursor-pointer transition-colors duration-200 hover:text-zinc-400 focus-visible:text-zinc-400 focus-visible:outline-none"
+            >
+              {emptyText}
+              <span className="not-italic ml-2 text-zinc-700 transition-colors duration-200 group-hover:text-amber-200/70 group-focus-visible:text-amber-200/70">
+                <span className="inline-block transition-transform duration-200 group-hover:translate-x-0.5">→</span> open {emptyLabel}
+              </span>
+            </button>
+          ) : (
+            <div className="px-4 py-6 text-[8px] font-mono text-zinc-600 italic text-center">
+              {emptyText}
+            </div>
+          )
         )}
         {visibleEntries.map((e, i) => (
           <div key={i} className="px-4 py-3">
