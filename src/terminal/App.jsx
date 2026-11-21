@@ -12,6 +12,7 @@ const fmtTime = (d = new Date()) =>
 import CascadeIcon from './components/CascadeIcon';
 import AccretionIcon from './components/AccretionIcon';
 import { tabLabel } from './tabLabels';
+import { LANDING_TAB, LANDING_PATH } from './landing';
 import AmbientParticles from './components/AmbientParticles';
 import ScentGlyph from './components/icons/ScentGlyph';
 import SolGlyph from './components/icons/SolGlyph';
@@ -111,8 +112,8 @@ const POLARITY_GLOW = {
 };
 
 const App = () => {
-  const [currentPath, setCurrentPath] = useState('~/system/kernel');
-  const [activeTab, setActiveTab] = useState('kernel');
+  const [currentPath, setCurrentPath] = useState(LANDING_PATH);
+  const [activeTab, setActiveTab] = useState(LANDING_TAB);
   const [selectedArticle, setSelectedArticle] = useState(null);
   const [retrograde, setRetrograde] = useState(null);
   const [bootSequence, setBootSequence] = useState(true);
@@ -351,6 +352,10 @@ const App = () => {
 
   // Boot completion is signalled by BootSequence itself via onDone — App.jsx no
   // longer needs to know the duration. Memoised so the ref is stable across renders.
+  // Warm the landing tab's chunk while the boot card plays so the reveal never
+  // lands on a Suspense fallback. Import only — nothing mounts.
+  useEffect(() => { import('./views/MercuryTab'); }, []);
+
   const handleBootDone = useCallback(() => {
     setBootSequence(false);
     setBootRevealed(true);
@@ -1376,7 +1381,9 @@ const App = () => {
           )}
 
           {/* Mercury — unified elemental phase simulation */}
-          {activeTab === 'mercury' && !selectedArticle && !architectThesis && (
+          {/* bootRevealed: the planet's WebGL must not spin up behind the boot overlay;
+              it mounts in the same commit that unmounts BootSequence. */}
+          {activeTab === 'mercury' && bootRevealed && !selectedArticle && !architectThesis && (
             <MercuryTab onNavigateTab={(tab) => handleNav('~/system/' + tabLabel(tab), tab)} />
           )}
 
