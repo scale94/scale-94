@@ -11,6 +11,7 @@ import { councilLedger } from './councilLedger';
 import { initialCouncilState, councilReducer } from './councilStateMachine';
 import { mindEntry, synthesize } from './councilSynthesis';
 import { setCouncil } from '../../quintessence/spineStore';
+import { emit as emitObs } from '../../../observatory/observatoryBus';
 
 const CX = 320, CY = 320;
 const R_FOUNDATION = 150, R_SEAT = 220, R_CEILING = 290;
@@ -200,6 +201,14 @@ export function useCouncilCollider({ seated, enabled }) {
         paradoxCount: record.sections.openQuestions.length,
       });
     } catch (_) { /* the spine is ancillary — synthesis must not fail on it */ }
+    // Observatory witness (EDGE): the council collision is what /ACCRETION does.
+    try {
+      emitObs('edge', 'council_collision', {
+        pair: record.pair.map(p => p.kind === 'mind' ? p.anchorName : p.label),
+        trajectory: record.metrics.trajectory,
+        paradoxCount: record.sections.openQuestions.length,
+      });
+    } catch (_) { /* the bus is ancillary — synthesis must not fail on it */ }
   }, [seated]);
 
   // Reduced motion runs no rAF loop (see Gate), so nothing would ever fly the

@@ -15,9 +15,9 @@ function makeTotals() {
   return {
     transmissions: { count: 0, ledgerDepth: 0, verdict: null, lastSignal: null, kernelsLoaded: {}, ranAliases: {}, last: null, lastTs: 0 },
     essences:      { count: 0, crystallized: 0, polarity: null, lastAccord: null, last: null, lastTs: 0 },
-    ciphers:       { sealed: 0, verifies: 0, unlocks: 0, last: null, lastTs: 0 },
+    ciphers:       { sealed: 0, verifies: 0, unlocks: 0, keysGenerated: 0, last: null, lastTs: 0 },
     gaze:          { sphereClicks: 0, lastLunar: null, lastScaling: null, tabsVisited: {}, kernelsConsulted: {}, art: null, lastEcocide: null, lastManifestoFragment: null, last: null, lastTs: 0 },
-    edge:          { eye: 'idle', manifestoChapter: null, last: null, lastTs: 0 },
+    edge:          { eye: 'idle', manifestoChapter: null, councilCollisions: 0, lastCouncil: null, last: null, lastTs: 0 },
   };
 }
 let totals = makeTotals();
@@ -98,6 +98,7 @@ function updateTotals(evt) {
       if (evt.kind === 'cipher_sealed') t.sealed++;
       if (evt.kind === 'verify')        t.verifies++;
       if (evt.kind === 'unlock')        t.unlocks++;
+      if (evt.kind === 'key_generated') t.keysGenerated++;
       break;
     case 'gaze':
       if (evt.kind === 'sphere_clicked') t.sphereClicks++;
@@ -131,6 +132,7 @@ function updateTotals(evt) {
     case 'edge':
       if (evt.kind === 'eye_phase')        t.eye              = evt.payload.phase;
       if (evt.kind === 'manifesto_opened') t.manifestoChapter = evt.payload.chapter;
+      if (evt.kind === 'council_collision') { t.councilCollisions++; t.lastCouncil = evt.payload; }
       break;
   }
 }

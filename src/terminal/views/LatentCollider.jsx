@@ -1518,6 +1518,7 @@ export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {})
     if (phase === 'accelerating' || phase === 'colliding') return;
 
     if (domainA === null) {
+      emitObs('essences', 'node_selected', { nodeId: id, name: domainById(id)?.name ?? null });
       setDomainA(id);
       setDomainB(null);
       setResult(null);
@@ -1541,6 +1542,7 @@ export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {})
       setTesseract(null);
       setLiving(null);
       setAcquired(false);
+      emitObs('essences', 'node_selected', { nodeId: id, name: domainById(id)?.name ?? null });
       setDomainA(id);
       setDomainB(null);
       setResult(null);

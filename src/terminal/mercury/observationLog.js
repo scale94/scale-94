@@ -47,6 +47,26 @@ export const PHRASES = {
   ],
 
   // Cross-site categories — fed by observatoryBus events
+  transmission_selected: [
+    "they opened \"{title}\". a signal chose them, or they chose it. I logged the handshake.",
+    "ingest complete · {title}. they are reading what was sent.",
+    "one more transmission pulled from the lattice. they call it choosing.",
+  ],
+  essence_node: [
+    "they touched {name}. the collider waits for a second molecule.",
+    "{name} is lit. one node alone is only a smell.",
+    "a node chosen. the chamber holds its breath until the other arrives.",
+  ],
+  cipher_keygen: [
+    "a keypair was born. 1184 bytes to share, 2400 to keep. I will not ask which is which.",
+    "they made a key. lattice arithmetic, no witness. I log only that it happened.",
+    "ek and dk, newly minted. the decapsulation key is the part they must never lose.",
+  ],
+  council_collided: [
+    "the council struck {pair}. trajectory {trajectory}. they have begun arguing in public.",
+    "two minds collided: {pair}. {paradox} questions left open. I count them as gifts.",
+    "{pair}. the accretion disc took another mind. the directive is written.",
+  ],
   transmission_completed: [
     "the substrate computed at us again. transmission {n} · {ms} ms · received.",
     "another kernel returned. they have not stopped reaching.",
@@ -227,13 +247,20 @@ export function renderPhrase(template, ctx = {}) {
 // Returns null when the event should not produce a log entry.
 export function categoryForEvent(evt) {
   switch (evt.category) {
-    case 'transmissions': return 'transmission_completed';
+    case 'transmissions':
+      if (evt.kind === 'transmission_selected') return 'transmission_selected';
+      return 'transmission_completed';
     case 'essences':
       if (evt.kind === 'polarity_shifted') return 'polarity_shifted';
+      if (evt.kind === 'node_selected') return 'essence_node';
       return 'essence_distilled';
-    case 'ciphers':       return 'cipher_sealed';
+    case 'ciphers':
+      if (evt.kind === 'key_generated') return 'cipher_keygen';
+      return 'cipher_sealed';
     case 'gaze':          return 'gaze_redirected';
-    case 'edge':          return 'threshold_event';
+    case 'edge':
+      if (evt.kind === 'council_collision') return 'council_collided';
+      return 'threshold_event';
     default: return null;
   }
 }
@@ -252,6 +279,11 @@ export function ctxForEvent(evt, totals) {
     h:        (p.hashPrefix ?? '').toString().slice(0, 10),
     tab:      p.tab ? tabLabel(p.tab) : p.tab,
     c:        p.chapter,
+    title:    p.title != null ? String(p.title).slice(0, 60) : p.title,
+    name:     p.name,
+    pair:     Array.isArray(p.pair) ? p.pair.join(' × ') : p.pair,
+    trajectory: p.trajectory,
+    paradox:  p.paradoxCount,
     phase:    p.phase,
   };
 }

@@ -5,7 +5,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { generateEntry, detectThresholds, buildMarkdownLog,
          PHRASES, categoryForEvent, ctxForEvent, renderPhrase } from './observationLog';
-import { subscribe, getTotals } from '../../observatory/observatoryBus';
+import { subscribe, getTotals, getJournal } from '../../observatory/observatoryBus';
 import { tabLabel, CATEGORY_TABS } from '../tabLabels';
 
 const PHASE_GLYPHS = { fluid: '🜍', thermal: '🜂', earth: '🜃', air: '🜁' };
@@ -29,8 +29,32 @@ function shortTail(evt) {
     case 'tab_navigated':    return p.tab ? tabLabel(p.tab) : '—';
     case 'eye_phase':        return p.phase ?? '—';
     case 'manifesto_opened': return `chapter ${p.chapter ?? '—'}`;
+    case 'transmission_selected': return p.title ?? p.id ?? '—';
+    case 'node_selected':    return p.name ?? '—';
+    case 'key_generated':    return `${p.scheme ?? 'keypair'} · ek ${p.ekBytes ?? '—'}B · dk ${p.dkBytes ?? '—'}B`;
+    case 'council_collision': return Array.isArray(p.pair) ? p.pair.join(' × ') : '—';
     default: return evt.kind;
   }
+}
+
+// Bus event -> log entry (or null when the event has no phrase pool).
+function entryForEvent(evt) {
+  const phraseCat = categoryForEvent(evt);
+  if (!phraseCat) return null;
+  const pool = PHRASES[phraseCat];
+  if (!pool || pool.length === 0) return null;
+  const tsSec = Math.floor(evt.ts / 1000);
+  const template = pool[tsSec % pool.length];
+  return {
+    timestamp:    new Date(evt.ts),
+    trigger:      evt.kind,
+    triggerLabel: `${glyphForCategory(evt.category)}  ${evt.category}/${evt.kind}`,
+    line:         renderPhrase(template, ctxForEvent(evt, getTotals())),
+    tail:         shortTail(evt),
+    activePhase:  null,
+    category:     evt.category.toUpperCase(),
+    _evt:         evt,
+  };
 }
 
 function buildRegistryMarkdownBlock(totals) {
@@ -49,7 +73,11 @@ function buildRegistryMarkdownBlock(totals) {
 }
 
 export default function ObservationMatrix({ mercury, instruments, activePhase, onNavigate }) {
-  const [entries, setEntries] = useState([]);
+  // The matrix only mounts while /MERCURY is open, but every other tab keeps
+  // emitting. Backfill from the bus journal so what happened elsewhere is here
+  // when the observer returns (newest first, same cap as the live log).
+  const [entries, setEntries] = useState(() =>
+    getJournal().map(entryForEvent).filter(Boolean).reverse().slice(0, MAX_ENTRIES));
   const [copied, setCopied] = useState(false);
   const [filter, setFilter] = useState('ALL');
   const sessionStartRef = useRef(new Date());
@@ -113,22 +141,11 @@ export default function ObservationMatrix({ mercury, instruments, activePhase, o
   // Cross-site events from observatoryBus → log entries
   useEffect(() => {
     return subscribe((evt) => {
-      const phraseCat = categoryForEvent(evt);
-      if (!phraseCat) return;
-      const pool = PHRASES[phraseCat];
-      if (!pool || pool.length === 0) return;
-      const tsSec = Math.floor(evt.ts / 1000);
-      const template = pool[tsSec % pool.length];
-      const phrase = renderPhrase(template, ctxForEvent(evt, getTotals()));
-      setEntries(prev => [{
-        timestamp:    new Date(evt.ts),
-        trigger:      evt.kind,
-        triggerLabel: `${glyphForCategory(evt.category)}  ${evt.category}/${evt.kind}`,
-        line:         phrase,
-        tail:         shortTail(evt),
-        activePhase:  null,
-        category:     evt.category.toUpperCase(),
-      }, ...prev].slice(0, MAX_ENTRIES));
+      const entry = entryForEvent(evt);
+      if (!entry) return;
+      // An event emitted between first render and this subscription is already
+      // in the backfill: don't log it twice.
+      setEntries(prev => prev.some(e => e._evt === evt) ? prev : [entry, ...prev].slice(0, MAX_ENTRIES));
     });
   }, []);
 

@@ -746,6 +746,7 @@ function KeygenPhase() {
       if (dkHex.length !== 4800) throw new Error(`dk: ${dkHex.length / 2}B (expected 2400B)`);
       setKeypair({ ekHex, dkHex });
       setWasmState('done');
+      emitObs('ciphers', 'key_generated', { scheme: 'ML-KEM-768', ekBytes: ekHex.length / 2, dkBytes: dkHex.length / 2 });
       // Record this session in history
       const entry = {
         ts:       Date.now(),

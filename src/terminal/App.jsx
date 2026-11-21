@@ -581,6 +581,7 @@ const App = () => {
 
       const t2 = fmtTime();
       appendSystemLog({ time: t2, msg: `SIGNAL_INGEST_SUCCESS: ${story.id}` });
+      emitObs('transmissions', 'transmission_selected', { id: story.id, title: story.title ?? story.id });
       setLoadingSignal(null);
       setOriginTab('transmission');
       setSelectedArticle(article);
