@@ -24,7 +24,7 @@ describe('Hg beads wiring', () => {
   it('beads land on the live surface and a landing pearl ripples it without evicting a stronger ring', () => {
     expect(planetSrc).toContain('beadCtx.planetRadiusAt = drop.env.planetRadiusAt;');
     expect(planetSrc.indexOf('beadCtx.planetRadiusAt')).toBeLessThan(planetSrc.indexOf('stepBeads(beads.sim'));
-    expect(planetSrc).toContain('if (!kind || (kind === HIT_TRICKLE && !trickleOk)) continue;'); // homing never; trickle on budget
+    expect(planetSrc).toContain('if (!kind) continue;'); // homing never
     expect(planetSrc).toContain('const s = pearlStrike(sim.hits[h + 3], sim.hits[h + 4]);');
     expect(planetSrc).not.toContain('pearlRipple');
     expect(planetSrc).toContain('beadCtx.pxPerUnit = drop.env.pxPerUnit;');
@@ -32,7 +32,7 @@ describe('Hg beads wiring', () => {
     expect(planetSrc.indexOf('beadCtx.q[3] = body.q.w')).toBeLessThan(planetSrc.indexOf('stepBeads(beads.sim'));
     // a pearl rings the surface locally only: no body modes, whose even P2/P4 dent the antipode as hard as the hit
     // the ring carries the live pearlWaveGain (author dials it by eye), never past a full drop's splash
-    expect(planetSrc).toContain('const pearlWave = Math.min(IMPACT_WAVE_AMP.splash, IMPACT_WAVE_AMP.splash * bestS * PLANET_TUNE.pearlWaveGain);');
+    expect(planetSrc).toContain('const pearlWave = Math.min(IMPACT_WAVE_AMP.splash, IMPACT_WAVE_AMP.splash * bestS * gain);');
     expect(planetSrc).toContain("addImpulseIfRoom(surf.impulses, { dirBody: surf.b, tS: t, mode: 0, wave: pearlWave, kind: 'splash' })");
     expect(planetSrc).toContain('if (added && bestKind === HIT_TRICKLE) takeRipple(beadCtx.rip);');
     expect(planetSrc).toContain('refillRippleBudget(beadCtx.rip, stepS);');
@@ -69,7 +69,7 @@ describe('hidden-tab catch-up wiring (fix/mercury-motion)', () => {
 });
 
 describe('pearl ring gain (fix/mercury-motion)', () => {
-  it('PLANET_TUNE.pearlWaveGain defaults to 3: a typical idle pearl rings like the drag wake (~0.12), the antipode untouched', async () => {
+  it('PLANET_TUNE.pearlWaveGain (flung pearls) defaults to 3: a mid-strength pearl rings like the drag wake (~0.12)', async () => {
     const { PLANET_TUNE } = await import('../planet/planetLook');
     const { IMPACT_WAVE_AMP } = await import('../planet/mercuryImpacts');
     const { WAKE_WAVE_AMP } = await import('../planet/mercuryWaves');
@@ -86,5 +86,14 @@ describe('hyper landing ring gain (fix/mercury-motion)', () => {
     expect(planetSrc).toContain('addImpulse(surf.impulses, { dirBody: surf.b, tS: t, mode: ev.mode, wave: evWave, kind: ev.kind });');
     const { PLANET_TUNE } = await import('../planet/planetLook');
     expect(PLANET_TUNE.hyperWaveGain).toBe(3);
+  });
+});
+
+describe('trickle pearl ripples (fix/mercury-motion)', () => {
+  it('a trickle pearl must be drawn whole to ripple, and rings at trickleWaveGain (1.5); a flung one at pearlWaveGain', async () => {
+    expect(planetSrc).toContain('if (kind === HIT_TRICKLE && (!trickleOk || !trickleRipplesAt(sim.hits[h + 3], beadCtx.pxPerUnit))) continue;');
+    expect(planetSrc).toContain('const gain = bestKind === HIT_FLUNG ? PLANET_TUNE.pearlWaveGain : PLANET_TUNE.trickleWaveGain;');
+    const { PLANET_TUNE } = await import('../planet/planetLook');
+    expect(PLANET_TUNE.trickleWaveGain).toBe(1.5);
   });
 });

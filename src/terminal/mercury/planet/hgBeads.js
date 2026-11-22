@@ -86,6 +86,10 @@ export const HIT_SILENT = 0, HIT_TRICKLE = 1, HIT_FLUNG = 2;
 // this rate, holding at most this many. At rest (~0.8/s) it barely bites.
 export const TRICKLE_RIPPLES_PER_S = 1.2;
 export const TRICKLE_RIPPLE_BURST = 2;
+// A trickle pearl ripples only when the bead shader draws it whole (≥ this many drawing-buffer px across: its kPearl
+// reaches 1 at vPx 4); smaller, its ring reads larger than the bead, a ripple from nothing. Flung pearls are exempt.
+export const TRICKLE_RIPPLE_MIN_PX = 4;
+export const trickleRipplesAt = (r, pxPerUnit) => 2 * r * pxPerUnit >= TRICKLE_RIPPLE_MIN_PX;
 export const createRippleBudget = () => ({ tokens: TRICKLE_RIPPLE_BURST });
 export function refillRippleBudget(bud, dt) {
   bud.tokens = Math.min(TRICKLE_RIPPLE_BURST, bud.tokens + TRICKLE_RIPPLES_PER_S * dt);

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   createBeads, spawnBead, spawnFling, spawnSplash, stepBeads, beadRadius, wobbleHz, wobbleGate, WOBBLE_HZ_MIN, WOBBLE_HZ_MAX,
-  AMBIENT_RATE, BEAD_ESCAPE_R, BEAD_SHAPE_MARGIN, pearlStrike, HIT_STRIDE, HIT_TRICKLE, HIT_FLUNG, createRippleBudget, refillRippleBudget, takeRipple, TRICKLE_RIPPLES_PER_S, TRICKLE_RIPPLE_BURST, FREEZE_FADE_S, FLING_LIFE, FLING_RETURN_V, BEAD_LIFE, DUST_R, PEARL_R, PEARL_P, EVAP_RATE, FLING_N, FLING_V_MAX, FLING_RADIAL, G_BEAD,
+  AMBIENT_RATE, BEAD_ESCAPE_R, BEAD_SHAPE_MARGIN, pearlStrike, TRICKLE_RIPPLE_MIN_PX, trickleRipplesAt, HIT_STRIDE, HIT_TRICKLE, HIT_FLUNG, createRippleBudget, refillRippleBudget, takeRipple, TRICKLE_RIPPLES_PER_S, TRICKLE_RIPPLE_BURST, FREEZE_FADE_S, FLING_LIFE, FLING_RETURN_V, BEAD_LIFE, DUST_R, PEARL_R, PEARL_P, EVAP_RATE, FLING_N, FLING_V_MAX, FLING_RADIAL, G_BEAD,
 } from '../hgBeads';
 import { mulberry32 } from '../prng';
 import { MAX_OMEGA } from '../mercuryBody';
@@ -514,5 +514,18 @@ describe('freeze guard: airborne beads settle or clear as the planet refreezes (
     run(b, 2, base);
     expect(b.n).toBe(1);
     expect(b.outBead[1]).toBe(1);
+  });
+});
+
+// Author 2026-11-23: at the flung gain a trickle pearl's ring read larger than the pearl (a ripple from nothing). A
+// trickle pearl ripples only when the shader draws it whole (≥ TRICKLE_RIPPLE_MIN_PX across, its kPearl = 1), and at
+// its own gentler gain (PLANET_TUNE.trickleWaveGain); flung pearls keep pearlWaveGain.
+describe('trickle ripples only from pearls drawn whole (fix/mercury-motion)', () => {
+  it('the gate is the bead shader\'s full-body size, in drawing-buffer px', () => {
+    expect(TRICKLE_RIPPLE_MIN_PX).toBe(4);
+    expect(trickleRipplesAt(PEARL_R[0], 140)).toBe(false); // 3.4 px across on a 534 px-tall dpr-1 canvas
+    expect(trickleRipplesAt(PEARL_R[1], 140)).toBe(true);  // 5.6 px
+    expect(trickleRipplesAt(PEARL_R[0], 140 * 3)).toBe(true); // a dpr-3 phone draws every pearl whole
+    expect(trickleRipplesAt(DUST_R[1], 300)).toBe(false); // dust never: pearlStrike gates it by class anyway
   });
 });

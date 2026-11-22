@@ -54,7 +54,7 @@ import { createVisitorFrame, packVisitors } from './planet/visitorFrame';
 import useVisitorField from './useVisitorField';
 import useHgBeads from './useHgBeads';
 import {
-  spawnFling, spawnSplash, stepBeads, pearlStrike, HIT_STRIDE, HIT_TRICKLE, createRippleBudget, refillRippleBudget, takeRipple,
+  spawnFling, spawnSplash, stepBeads, pearlStrike, trickleRipplesAt, HIT_STRIDE, HIT_TRICKLE, HIT_FLUNG, createRippleBudget, refillRippleBudget, takeRipple,
   FLING_N, SPLASH_N,
 } from './planet/hgBeads';
 import { CALORIS_DIR_BODY, stepOverlay } from './planet/slowNoon';
@@ -782,7 +782,9 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
       for (let k = 0; k < sim.nHits; k++) {
         const h = HIT_STRIDE * k;
         const kind = sim.hits[h + 5];
-        if (!kind || (kind === HIT_TRICKLE && !trickleOk)) continue;
+        if (!kind) continue;
+        // a trickle pearl rings only when drawn whole, and only on budget (its ring at the flung gain read as a ghost)
+        if (kind === HIT_TRICKLE && (!trickleOk || !trickleRipplesAt(sim.hits[h + 3], beadCtx.pxPerUnit))) continue;
         const s = pearlStrike(sim.hits[h + 3], sim.hits[h + 4]);
         if (s > bestS) { bestS = s; best = k; bestKind = kind; }
       }
@@ -790,8 +792,10 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
         const h = HIT_STRIDE * best;
         beadCtx.dirW[0] = sim.hits[h]; beadCtx.dirW[1] = sim.hits[h + 1]; beadCtx.dirW[2] = sim.hits[h + 2];
         worldToBody(beadCtx.dirW, body.q, surf.b);
-        // ring only, so it is all the pearl has: PLANET_TUNE.pearlWaveGain lifts it to read (live knob), capped at a drop's splash
-        const pearlWave = Math.min(IMPACT_WAVE_AMP.splash, IMPACT_WAVE_AMP.splash * bestS * PLANET_TUNE.pearlWaveGain);
+        // ring only, so it is all the pearl has: a live gain lifts it to read (flung pearlWaveGain, trickle the gentler
+        // trickleWaveGain), capped at a drop's splash
+        const gain = bestKind === HIT_FLUNG ? PLANET_TUNE.pearlWaveGain : PLANET_TUNE.trickleWaveGain;
+        const pearlWave = Math.min(IMPACT_WAVE_AMP.splash, IMPACT_WAVE_AMP.splash * bestS * gain);
         const added = addImpulseIfRoom(surf.impulses, { dirBody: surf.b, tS: t, mode: 0, wave: pearlWave, kind: 'splash' });
         if (added && bestKind === HIT_TRICKLE) takeRipple(beadCtx.rip);
       }
