@@ -24,13 +24,16 @@ describe('Hg beads wiring', () => {
   it('beads land on the live surface and a landing pearl ripples it without evicting a stronger ring', () => {
     expect(planetSrc).toContain('beadCtx.planetRadiusAt = drop.env.planetRadiusAt;');
     expect(planetSrc.indexOf('beadCtx.planetRadiusAt')).toBeLessThan(planetSrc.indexOf('stepBeads(beads.sim'));
-    expect(planetSrc).toContain('if (!sim.hits[h + 5]) continue;'); // refreeze-homing landings never ripple
+    expect(planetSrc).toContain('if (!kind || (kind === HIT_TRICKLE && !trickleOk)) continue;'); // homing never; trickle on budget
     expect(planetSrc).toContain('const s = pearlStrike(sim.hits[h + 3], sim.hits[h + 4]);');
     expect(planetSrc).not.toContain('pearlRipple');
     expect(planetSrc).toContain('beadCtx.pxPerUnit = drop.env.pxPerUnit;');
     expect(planetSrc).toContain('beadCtx.freezeIn = body.liquid ? Infinity : Math.max(0, (body.tau - LIQUID_TAU) * TRANSMUTE_S);');
     expect(planetSrc.indexOf('beadCtx.q[3] = body.q.w')).toBeLessThan(planetSrc.indexOf('stepBeads(beads.sim'));
-    expect(planetSrc).toMatch(/addImpulseIfRoom\(surf\.impulses, \{ dirBody: surf\.b, tS: t, mode: IMPACT_MODE_AMP\.splash \* bestS/);
+    // a pearl rings the surface locally only: no body modes, whose even P2/P4 dent the antipode as hard as the hit
+    expect(planetSrc).toContain("addImpulseIfRoom(surf.impulses, { dirBody: surf.b, tS: t, mode: 0, wave: IMPACT_WAVE_AMP.splash * bestS, kind: 'splash' })");
+    expect(planetSrc).toContain('if (added && bestKind === HIT_TRICKLE) takeRipple(beadCtx.rip);');
+    expect(planetSrc).toContain('refillRippleBudget(beadCtx.rip, stepS);');
   });
   it('the canvas tells the planet which element is active', () => {
     const planetTag = canvasSrc.slice(canvasSrc.indexOf('<MercuryPlanet'), canvasSrc.indexOf('<MercurySphere'));

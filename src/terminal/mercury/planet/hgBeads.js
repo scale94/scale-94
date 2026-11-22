@@ -79,6 +79,23 @@ const SPLASH_V = 0.35;
 const SUN_MIN = 0.2;              // ambient sources: dot(normal, Sun) above this
 
 export const HIT_STRIDE = 6;
+// hits[h + 5]: how a touchdown may ripple. 0 a refreeze-homing landing (never), 1 a trickle / splash bead (under the
+// ripple budget), 2 a flung bead (always: it is the author's gesture)
+export const HIT_SILENT = 0, HIT_TRICKLE = 1, HIT_FLUNG = 2;
+// A light cap on trickle ripples (a full boil sheds 5x the trickle, ~4.5 pearl ripples/s): a token bucket refilled at
+// this rate, holding at most this many. At rest (~0.8/s) it barely bites.
+export const TRICKLE_RIPPLES_PER_S = 1.2;
+export const TRICKLE_RIPPLE_BURST = 2;
+export const createRippleBudget = () => ({ tokens: TRICKLE_RIPPLE_BURST });
+export function refillRippleBudget(bud, dt) {
+  bud.tokens = Math.min(TRICKLE_RIPPLE_BURST, bud.tokens + TRICKLE_RIPPLES_PER_S * dt);
+  return bud;
+}
+export function takeRipple(bud) {
+  if (bud.tokens < 1) return false;
+  bud.tokens -= 1;
+  return true;
+}
 export function createBeads(cap, seed = 0x6867) {
   return {
     cap, n: 0, acc: 0, rng: mulberry32(seed),
@@ -256,7 +273,7 @@ export function stepBeads(b, dt, ctx) {
       if (landed) {
         const h = HIT_STRIDE * b.nHits++;
         b.hits[h] = ux; b.hits[h + 1] = uy; b.hits[h + 2] = uz; b.hits[h + 3] = b.r[i]; b.hits[h + 4] = Math.max(vn, 0);
-        b.hits[h + 5] = homing ? 0 : 1;
+        b.hits[h + 5] = homing ? HIT_SILENT : b.free[i] ? HIT_FLUNG : HIT_TRICKLE;
         if (b.r[i] * pxPerUnit >= BEAD_BODY_PX) {
           _dir[0] = ux; _dir[1] = uy; _dir[2] = uz;
           qRotateInv(q, _dir, _dB);

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   createBeads, spawnBead, spawnFling, spawnSplash, stepBeads, beadRadius, wobbleHz, wobbleGate, WOBBLE_HZ_MIN, WOBBLE_HZ_MAX,
-  AMBIENT_RATE, BEAD_ESCAPE_R, BEAD_SHAPE_MARGIN, pearlStrike, HIT_STRIDE, FREEZE_FADE_S, FLING_LIFE, FLING_RETURN_V, BEAD_LIFE, DUST_R, PEARL_R, PEARL_P, EVAP_RATE, FLING_N, FLING_V_MAX, FLING_RADIAL, G_BEAD,
+  AMBIENT_RATE, BEAD_ESCAPE_R, BEAD_SHAPE_MARGIN, pearlStrike, HIT_STRIDE, HIT_TRICKLE, HIT_FLUNG, createRippleBudget, refillRippleBudget, takeRipple, TRICKLE_RIPPLES_PER_S, TRICKLE_RIPPLE_BURST, FREEZE_FADE_S, FLING_LIFE, FLING_RETURN_V, BEAD_LIFE, DUST_R, PEARL_R, PEARL_P, EVAP_RATE, FLING_N, FLING_V_MAX, FLING_RADIAL, G_BEAD,
 } from '../hgBeads';
 import { mulberry32 } from '../prng';
 import { MAX_OMEGA } from '../mercuryBody';
@@ -335,36 +335,56 @@ describe('pearlStrike: a landing pearl ripples like a small drop (no floor)', ()
   // Author 2026-11-22 (round 2): an idle trickle pearl has visible mass, so it ripples like a flung one; only beads
   // brought home by the refreeze guard stay silent (a ripple burst while the planet settles). pearlStrike keeps dust and
   // sub-pearl beads silent by class.
-  it('each hit says whether it may ripple: flung or trickle alike, but never a refreeze-homing landing', () => {
+  it('each hit says how it may ripple: flung (2), trickle (1, budgeted), never a refreeze-homing landing (0)', () => {
     const b = createBeads(8);
     const i = spawnBead(b, 0.77, 0, 0, -1, 0, 0, PEARL_R[1]); b.age[i] = 1; b.free[i] = 1;
     const j = spawnBead(b, 0, 0.77, 0, 0, -1, 0, PEARL_R[1]); b.age[j] = 1;
     stepBeads(b, 1 / 60, { ...CTX, liquid: false });
     expect(b.nHits).toBe(2);
-    expect([b.hits[5], b.hits[HIT_STRIDE + 5]]).toEqual([1, 1]);
+    expect([b.hits[5], b.hits[HIT_STRIDE + 5]].sort()).toEqual([HIT_TRICKLE, HIT_FLUNG]);
     const k = spawnBead(b, 0, 0, 0.77, 0, 0, -1, PEARL_R[1]); b.age[k] = 1;
     stepBeads(b, 1 / 60, { ...CTX, liquid: false, freezeIn: 1 });
     expect(b.nHits).toBe(1);
     expect(b.hits[5]).toBe(0);
   });
-  it('at rest the trickle ripples gently: ~1 proportional pearl ripple a second, never the old buzz', () => {
+  // The planet's per-frame pick, mirrored: the strongest eligible touchdown, a trickle one only while the budget allows.
+  const trickleRipples = (boil, T = 120) => {
     const b = createBeads(256);
-    const ctx = { ...CTX, phase: 'neutral', liquid: true, boil: 0, rateScale: 1 };
+    const ctx = { ...CTX, phase: 'neutral', liquid: true, boil, rateScale: 1 };
+    const bud = createRippleBudget();
     let n = 0, sMin = Infinity, sMax = 0;
-    const T = 60;
     for (let t = 0; t < T; t += 1 / 60) {
       stepBeads(b, 1 / 60, ctx);
+      refillRippleBudget(bud, 1 / 60);
+      let best = 0;
       for (let k = 0; k < b.nHits; k++) {
         const h = HIT_STRIDE * k;
-        if (!b.hits[h + 5]) continue;
-        const s = pearlStrike(b.hits[h + 3], b.hits[h + 4]);
-        if (s > 0) { n++; sMin = Math.min(sMin, s); sMax = Math.max(sMax, s); }
+        if (b.hits[h + 5] !== HIT_TRICKLE || bud.tokens < 1) continue;
+        best = Math.max(best, pearlStrike(b.hits[h + 3], b.hits[h + 4]));
       }
+      if (best > 0 && takeRipple(bud)) { n++; sMin = Math.min(sMin, best); sMax = Math.max(sMax, best); }
     }
-    expect(n / T).toBeGreaterThan(0.5);
-    expect(n / T).toBeLessThan(1.5); // the px-gated floor version was ~6/s
+    return { rate: n / T, sMin, sMax };
+  };
+  it('at rest the trickle ripples gently: ~1 proportional pearl ripple a second, never the old buzz', () => {
+    const { rate, sMin, sMax } = trickleRipples(0);
+    expect(rate).toBeGreaterThan(0.5);
+    expect(rate).toBeLessThan(1.3); // the px-gated floor version was ~6/s
     expect(sMin).toBeGreaterThan(0.05); // proportional, no floor: the smallest pearl landing slowly
     expect(sMax).toBeLessThan(0.3); // well under a drop's splash
+  });
+  it('a full boil sheds 5x the trickle, but its ripples stay under the budget (was ~4.5/s)', () => {
+    expect(trickleRipples(1).rate).toBeLessThanOrEqual(TRICKLE_RIPPLES_PER_S + 0.05);
+  });
+  it('the ripple budget: refills at TRICKLE_RIPPLES_PER_S up to a burst of TRICKLE_RIPPLE_BURST, one token a ripple', () => {
+    const bud = createRippleBudget();
+    expect(bud.tokens).toBe(TRICKLE_RIPPLE_BURST);
+    for (let k = 0; k < TRICKLE_RIPPLE_BURST; k++) expect(takeRipple(bud)).toBe(true);
+    expect(takeRipple(bud)).toBe(false);
+    refillRippleBudget(bud, 1 / TRICKLE_RIPPLES_PER_S);
+    expect(takeRipple(bud)).toBe(true);
+    refillRippleBudget(bud, 100);
+    expect(bud.tokens).toBe(TRICKLE_RIPPLE_BURST);
   });
 });
 

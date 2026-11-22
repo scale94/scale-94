@@ -53,7 +53,10 @@ import {
 import { createVisitorFrame, packVisitors } from './planet/visitorFrame';
 import useVisitorField from './useVisitorField';
 import useHgBeads from './useHgBeads';
-import { spawnFling, spawnSplash, stepBeads, pearlStrike, HIT_STRIDE, FLING_N, SPLASH_N } from './planet/hgBeads';
+import {
+  spawnFling, spawnSplash, stepBeads, pearlStrike, HIT_STRIDE, HIT_TRICKLE, createRippleBudget, refillRippleBudget, takeRipple,
+  FLING_N, SPLASH_N,
+} from './planet/hgBeads';
 import { CALORIS_DIR_BODY, stepOverlay } from './planet/slowNoon';
 import { nebulaRotation } from './planet/nebulaSky';
 import { canBakeNebula, bakeNebula } from './nebulaBake';
@@ -462,7 +465,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
 
   // Hg beads: the trickle, flings and splash bursts, carried by the active element. beadCtx is written in place per frame.
   const beads = useHgBeads({ tier, planetMaterial: material });
-  const beadCtx = useMemo(() => ({ phase: 'fluid', coreR: R_SCENE, calm: false, liquid: true, boil: 0, rateScale: 1, lastFam: 'idle', dirW: [0, 0, 0], omega: [0, 0, 0], q: [0, 0, 0, 1], pxPerUnit: 0, freezeIn: Infinity }), []);
+  const beadCtx = useMemo(() => ({ phase: 'fluid', coreR: R_SCENE, calm: false, liquid: true, boil: 0, rateScale: 1, lastFam: 'idle', dirW: [0, 0, 0], omega: [0, 0, 0], q: [0, 0, 0, 1], pxPerUnit: 0, freezeIn: Infinity, rip: createRippleBudget() }), []);
 
   // The maps outlive the material: a live CALM toggle swaps the shader variant (a new
   // material) without reloading them or flashing the flat fallback (planetMaps.js).
@@ -760,23 +763,30 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     beadCtx.pxPerUnit = drop.env.pxPerUnit; // what is drawn as a body coalesces (hgBeads BEAD_BODY_PX)
     beadCtx.q[0] = body.q.x; beadCtx.q[1] = body.q.y; beadCtx.q[2] = body.q.z; beadCtx.q[3] = body.q.w; // coalescence rides the planet
     stepBeads(beads.sim, stepS, beadCtx);
-    // A landing pearl ripples the liquid, flung or trickle (~1 gentle ripple a second at rest); dust and sub-pearl beads
-    // coalesce silently, and refreeze-homing landings never ripple (hits flag). The strongest such touchdown this frame,
-    // one minor impulse that yields its slot to any stronger live ring (addImpulseIfRoom). Crust and calm take none.
+    // A landing pearl ripples the liquid, flung or trickle (~0.8 gentle ripples a second at rest); dust and sub-pearl
+    // beads coalesce silently, refreeze-homing landings never ripple, and trickle ripples spend a light budget (a full
+    // boil sheds 5x the trickle). The strongest such touchdown this frame, one minor impulse that yields its slot to any
+    // stronger live ring (addImpulseIfRoom). A pearl rings the surface locally only (mode 0): the body modes are even
+    // Legendre terms that dent the antipode about as hard as the hit, so a pearl's ripple read on the opposite limb.
+    // Crust and calm take none.
+    refillRippleBudget(beadCtx.rip, stepS);
     if (!calm && beadCtx.liquid) {
       const sim = beads.sim;
-      let best = -1, bestS = 0;
+      const trickleOk = beadCtx.rip.tokens >= 1;
+      let best = -1, bestS = 0, bestKind = 0;
       for (let k = 0; k < sim.nHits; k++) {
         const h = HIT_STRIDE * k;
-        if (!sim.hits[h + 5]) continue;
+        const kind = sim.hits[h + 5];
+        if (!kind || (kind === HIT_TRICKLE && !trickleOk)) continue;
         const s = pearlStrike(sim.hits[h + 3], sim.hits[h + 4]);
-        if (s > bestS) { bestS = s; best = k; }
+        if (s > bestS) { bestS = s; best = k; bestKind = kind; }
       }
       if (best >= 0) {
         const h = HIT_STRIDE * best;
         beadCtx.dirW[0] = sim.hits[h]; beadCtx.dirW[1] = sim.hits[h + 1]; beadCtx.dirW[2] = sim.hits[h + 2];
         worldToBody(beadCtx.dirW, body.q, surf.b);
-        addImpulseIfRoom(surf.impulses, { dirBody: surf.b, tS: t, mode: IMPACT_MODE_AMP.splash * bestS, wave: IMPACT_WAVE_AMP.splash * bestS, kind: 'splash' });
+        const added = addImpulseIfRoom(surf.impulses, { dirBody: surf.b, tS: t, mode: 0, wave: IMPACT_WAVE_AMP.splash * bestS, kind: 'splash' });
+        if (added && bestKind === HIT_TRICKLE) takeRipple(beadCtx.rip);
       }
     }
     beads.upload(gl, beadCtx.coreR);

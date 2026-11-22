@@ -157,6 +157,25 @@ describe('impulse ring buffer', () => {
     expect(kept[0].t0).toBe(0.5);
   });
 
+  // fix/mercury-motion: the body modes are Legendre P2/P3/P4 of dot(x, d); P2 and P4 are even, so a mode impulse dents
+  // the antipode about as hard as the hit (a pearl's ripple seemed to land on the opposite limb). A ring-only impulse
+  // (mode 0, the pearls) leaves the shape untouched everywhere: the ring term is centred on d.
+  it('a ring-only impulse (mode 0) moves no body mode: the antipode stays still', () => {
+    const buf = createImpulses();
+    addImpulse(buf, { dirBody: [0, 0, 1], tS: 0, mode: 0, wave: 0.04, kind: 'splash' });
+    const out = createImpulseFrame();
+    const dirs = Array.from({ length: IMPULSE_SLOTS }, () => [0, 0, 1]);
+    for (const age of [0.1, 0.5, 1]) {
+      impulseFrame(buf, age, {}, out);
+      expect(shapeHeight([0, 0, -1], dirs, out.mode, [0, 1, 0, 0])).toBe(0);
+      expect(out.wave[1]).toBeGreaterThan(0);
+    }
+    const modal = createImpulses();
+    addImpulse(modal, { dirBody: [0, 0, 1], tS: 0, mode: 0.004, wave: 0.04, kind: 'splash' });
+    impulseFrame(modal, 0.5, {}, out);
+    expect(Math.abs(shapeHeight([0, 0, -1], dirs, out.mode, [0, 1, 0, 0]))).toBeGreaterThan(1e-4); // why pearls drop it
+  });
+
   it('addImpulseIfRoom takes a free slot, but never evicts a stronger live impulse', () => {
     const buf = createImpulses();
     expect(addImpulseIfRoom(buf, { dirBody: [0, 0, 1], tS: 0, mode: 0.001, wave: 0.01, kind: 'splash' })).not.toBeNull();
