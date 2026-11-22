@@ -30,9 +30,9 @@ import {
 import { pickSphereDir } from './planet/pickSphere';
 import { popZoom, subsolarPxArc } from './planet/mercuryRoil';
 import { createBody, stepBody, coolBody, targetFromYaw, MAX_OMEGA, TRANSMUTE_S } from './planet/mercuryBody';
-import { ORBIT_NODES, orbitPrecessionAngle, nodeWorldPosition } from './orbitNodes';
+import { ORBIT_NODES, orbitPrecessionAngle, nodePosition } from './orbitNodes';
 import useMercuryDrag from './useMercuryDrag';
-import useStageCameraDist from './useStageCameraDist';
+import { useStageLayout } from './useStageCameraDist';
 import { registerTuningRig, DEV_OVERRIDES } from './mercuryTuning';
 import MercuryExosphere from './MercuryExosphere';
 import { tailBrightness, tailLength, boilCoverage } from './planet/mercuryExosphere';
@@ -290,7 +290,10 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
   // The drawing buffer's height in device px: the pops are sized from it (mercuryRoil.popZoom).
   const bufferH = useThree((s) => s.size.height * s.viewport.dpr);
   const bufferW = useThree((s) => s.size.width * s.viewport.dpr);
-  const camDist = useStageCameraDist(isMobile);
+  const { dist: camDist, layout: stageLayout } = useStageLayout(isMobile);
+  // where the element nodes sit (ring, or a portrait phone's corners): the visitors launch and the mirror reflects there
+  const stageLayoutRef = useRef(stageLayout);
+  stageLayoutRef.current = stageLayout;
   const drag = useMercuryDrag(gl.domElement);
   const geometry = useMemo(() => new THREE.PlaneGeometry(2, 2), []);
 
@@ -593,7 +596,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
       const phase = queue && queue.length > 0 ? queue.shift() : devQ.shift();
       const node = ORBIT_NODES.find((n) => n.phase === phase);
       if (!node) continue;
-      const p = nodeWorldPosition(node.angle, precession);
+      const p = nodePosition(node, precession, stageLayoutRef.current);
       vc.nodePos[0] = p[0]; vc.nodePos[1] = p[1]; vc.nodePos[2] = p[2];
       launchVisitor(vis.buf, phase, vc);
     }
@@ -730,7 +733,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     }
 
     ORBIT_NODES.forEach((node, i) => {
-      const [x, y, z] = nodeWorldPosition(node.angle, precession);
+      const [x, y, z] = nodePosition(node, precession, stageLayoutRef.current);
       u.uEmitPos.value[i].set(x, y, z);
       const o = emitRef.current[node.phase] ?? 0;
       const c = EMIT_COLORS[i];
