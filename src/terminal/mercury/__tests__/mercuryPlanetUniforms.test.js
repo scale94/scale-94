@@ -169,7 +169,8 @@ describe('the shared mirror uniforms are all created on the planet material (dro
     expect(planetSrc).toContain('uStudioLook2: { value: new THREE.Vector4(PLANET_TUNE.studioShoulder, PLANET_TUNE.studioFalloff, PLANET_TUNE.studioSeams, PLANET_TUNE.studioCard) },');
     expect(planetSrc).toContain('u.uStudioLook2.value.set(PLANET_TUNE.studioShoulder, PLANET_TUNE.studioFalloff, PLANET_TUNE.studioSeams, PLANET_TUNE.studioCard);');
   });
-  it('uStudioMean follows every studio knob that shapes the tent (structure included)', () => {
-    expect(planetSrc).toContain('u.uStudioMean.value = studioMeanCached(PLANET_TUNE.studioCrisp, PLANET_TUNE.studioKey, PLANET_TUNE.studioSoftbox, PLANET_TUNE.studioFloor, PLANET_TUNE.studioDome, PLANET_TUNE.studioFalloff, PLANET_TUNE.studioSeams, PLANET_TUNE.studioCard);');
+  it('uStudioMean (ruled mirrors) follows the base tent knobs only; uStudioMeanLiquid follows the structure too', () => {
+    expect(planetSrc).toContain('u.uStudioMean.value = studioMeanCached(PLANET_TUNE.studioCrisp, PLANET_TUNE.studioKey, PLANET_TUNE.studioSoftbox, PLANET_TUNE.studioFloor, PLANET_TUNE.studioDome);');
+    expect(planetSrc).toContain('u.uStudioMeanLiquid.value = studioMeanLiquidCached(PLANET_TUNE.studioCrisp, PLANET_TUNE.studioKey, PLANET_TUNE.studioSoftbox, PLANET_TUNE.studioFloor, PLANET_TUNE.studioDome, PLANET_TUNE.studioFalloff, PLANET_TUNE.studioSeams, PLANET_TUNE.studioCard);');
   });
 });

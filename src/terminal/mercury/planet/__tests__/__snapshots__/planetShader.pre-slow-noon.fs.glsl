@@ -37,6 +37,7 @@ uniform float uStudioDome;
 uniform vec4 uStudioLook;
 uniform vec4 uStudioLook2;
 uniform float uStudioMean;
+uniform float uStudioMeanLiquid;
 uniform float uNeutralNebula;
 uniform mat3 uNebulaRot;
 uniform samplerCube uNebulaMap;
@@ -346,10 +347,11 @@ const float NEUTRAL_DOME_NADIR = 0.0500000000;
 const float NEUTRAL_DOME_POW = 1.50000000;
 const float NEUTRAL_SKY_DRIFT = 0.0200000000;
 const float TENT_FALLOFF_POW = 2.00000000;
-const float TENT_SEAM_COUNT = 6.00000000;
+const int TENT_SEAM_COUNT = 6;
+const float TENT_SEAM_AZ[6] = float[6](0.470000000, -0.310000000, 1.83000000, 2.64000000, -1.66000000, -2.83000000);
+const float TENT_SEAM_AMP[6] = float[6](1.00000000, 0.550000000, 0.800000000, 0.400000000, 0.700000000, 0.500000000);
 const float TENT_SEAM_W = 0.00600000000;
-const float TENT_SEAM_LUM = 0.0200000000;
-const float TENT_SEAM_AZ0 = 0.300000000;
+const float TENT_SEAM_LUM = 0.00600000000;
 const float TENT_CARD_AZ = -0.700000000;
 const float TENT_CARD_Y = -0.400000000;
 const float TENT_CARD_HW = 0.180000000;
@@ -371,16 +373,18 @@ float studioBand(float d, float hw, float w) {
   float a = abs(d);
   return smoothstep(hw + w, hw - w, a) - smoothstep(w - hw, -w - hw, a);
 }
-// Softbox falloff (uStudioLook2.y): 1 on the centre line, 1 - falloff at the edge. Knob 0 = exactly 1.
-float studioFall(float d, float hw) {
-  return 1.0 - uStudioLook2.y * pow(min(abs(d) / hw, 1.0), TENT_FALLOFF_POW);
+// Softbox falloff f (uStudioLook2.y on the liquid): 1 on the centre line, 1 - f at the edge. f = 0: exactly 1.
+float studioFall(float d, float hw, float f) {
+  return 1.0 - f * pow(min(abs(d) / hw, 1.0), TENT_FALLOFF_POW);
 }
 
 // The neutral studio: the macro tabletop tent (header; studioRadiance is its JS replica). Camera-fixed, no noise.
-// k: the rough-blur weight (0 = the sharp tent): every edge widens by STUDIO_ROUGH_BLUR * k.
-vec3 skyStudio(vec3 R, float k) {
+// k: the rough-blur weight (0 = the sharp tent): every edge widens by STUDIO_ROUGH_BLUR * k. liq: 1 = the liquid (structure
+// on), 0 = the ruled mirrors (structure exactly off, at any knob value).
+vec3 skyStudio(vec3 R, float k, float liq) {
   float c = uStudioLook.x;
   float b = STUDIO_ROUGH_BLUR * k;
+  vec3 st = liq * uStudioLook2.yzw; // (falloff, seams, card): the liquid only
   float L = NEUTRAL_SKY_FLOOR;
   if (R.y > 0.02) { // canopy: a rectangle on the plane y = 1
     vec2 p = R.xz / R.y;
@@ -389,7 +393,7 @@ vec3 skyStudio(vec3 R, float k) {
     float inZ = smoothstep(TENT_CANOPY_Z0 - cf, TENT_CANOPY_Z0 + cf, p.y) * smoothstep(TENT_CANOPY_Z1 + ef, TENT_CANOPY_Z1 - ef, p.y);
     float u = p.x / TENT_CANOPY_HX;
     float fall = mix(1.0, TENT_CANOPY_BACK, smoothstep(TENT_CANOPY_Z1, TENT_CANOPY_Z0, p.y)) * (1.0 - TENT_CANOPY_SIDE * min(u * u, 1.0))
-      * studioFall(p.x, TENT_CANOPY_HX) * studioFall(p.y - 0.5 * (TENT_CANOPY_Z0 + TENT_CANOPY_Z1), 0.5 * (TENT_CANOPY_Z1 - TENT_CANOPY_Z0));
+      * studioFall(p.x, TENT_CANOPY_HX, st.x) * studioFall(p.y - 0.5 * (TENT_CANOPY_Z0 + TENT_CANOPY_Z1), 0.5 * (TENT_CANOPY_Z1 - TENT_CANOPY_Z0), st.x);
     L += uStudioLook.z * inX * inZ * fall;
   }
   float az = atan(R.x, R.z); // 0 = toward the camera
@@ -397,19 +401,23 @@ vec3 skyStudio(vec3 R, float k) {
   float span = smoothstep(TENT_STRIP_Y0 - ys, TENT_STRIP_Y0 + ys, R.y) * smoothstep(TENT_STRIP_Y1 + ys, TENT_STRIP_Y1 - ys, R.y);
   float dL = az + TENT_STRIP_AZ.x, dR = az - TENT_STRIP_AZ.y;
   float sL = studioBand(dL, TENT_STRIP_HW, se), sR = studioBand(dR, TENT_STRIP_HW, se);
-  L += TENT_STRIP_LUM * uStudioLook.y * span * (TENT_STRIP_GAIN.x * sL * studioFall(dL, TENT_STRIP_HW) + TENT_STRIP_GAIN.y * sR * studioFall(dR, TENT_STRIP_HW));
-  // seams (uStudioLook2.z): one periodic band to the nearest join; widened by the pixel footprint past one texel
-  // (skyPxLod, 0 off the planet and in the JS replica) so a grazing limb sees a dimmer, wider line, not a sparkle.
-  float sp = 6.28318530718 / TENT_SEAM_COUNT;
-  float dS = mod(az - TENT_SEAM_AZ0 + 0.5 * sp, sp) - 0.5 * sp;
-  float sw = TENT_SEAM_W + b + 0.5 * NEBULA_TEXEL_RAD * (exp2(skyPxLod) - 1.0);
-  L += uStudioLook2.z * TENT_SEAM_LUM * uStudioLook.y * studioBand(dS, TENT_SEAM_W, sw) * smoothstep(TENT_STRIP_Y1 + ys, TENT_STRIP_Y1 - ys, abs(R.y)) * max(1.0 - sL - sR, 0.0);
+  L += TENT_STRIP_LUM * uStudioLook.y * span * (TENT_STRIP_GAIN.x * sL * studioFall(dL, TENT_STRIP_HW, st.x) + TENT_STRIP_GAIN.y * sR * studioFall(dR, TENT_STRIP_HW, st.x));
+  // seams (st.y): the table's joins over the strips' own height, behind the strips; widened by the pixel footprint past one
+  // texel (skyPxLod, 0 off the planet and in the JS replica) so a grazing limb sees a dimmer, wider line, not a sparkle.
+  if (st.y > 0.0) {
+    float sw = TENT_SEAM_W + b + 0.5 * NEBULA_TEXEL_RAD * (exp2(skyPxLod) - 1.0);
+    float sm = 0.0;
+    for (int i = 0; i < TENT_SEAM_COUNT; i++) {
+      sm += TENT_SEAM_AMP[i] * studioBand(mod(az - TENT_SEAM_AZ[i] + 3.14159265359, 6.28318530718) - 3.14159265359, TENT_SEAM_W, sw);
+    }
+    L += st.y * TENT_SEAM_LUM * uStudioLook.y * sm * span * max(1.0 - sL - sR, 0.0);
+  }
   float fe = mix(TENT_FLOOR_SOFT, TENT_EDGE_CRISP, c) + b;
   L += uStudioLook.w * smoothstep(-TENT_GAP + fe, -TENT_GAP - fe, R.y) * (0.5 + 0.5 * smoothstep(-0.9, -0.15, R.y))
      * mix(TENT_FLOOR_FRONT, 1.0, smoothstep(0.0, -0.8, R.z)); // floor sweep, lit behind: a lower rim
   L += uStudioDome * (NEUTRAL_DOME_NADIR + (1.0 - NEUTRAL_DOME_NADIR) * pow(0.5 + 0.5 * R.y, NEUTRAL_DOME_POW));
-  float cw = TENT_EDGE_CRISP + b; // the warm card (uStudioLook2.w): crisp-edged, low on the Sun side
-  float cd = uStudioLook2.w * TENT_CARD_LUM * studioBand(az - TENT_CARD_AZ, TENT_CARD_HW, cw) * studioBand(R.y - TENT_CARD_Y, TENT_CARD_HW, cw);
+  float cw = TENT_EDGE_CRISP + b; // the warm card (st.z): crisp-edged, low on the Sun side
+  float cd = st.z * TENT_CARD_LUM * studioBand(az - TENT_CARD_AZ, TENT_CARD_HW, cw) * studioBand(R.y - TENT_CARD_Y, TENT_CARD_HW, cw);
   return vec3(L) + cd * TENT_CARD_COL;
 }
 
@@ -439,12 +447,12 @@ vec3 aetherSkySplit(vec3 R, float rough, float blur, out vec3 neutral) {
   float wN = uNeutralSky * clamp(1.0 - wE, 0.0, 1.0);
   vec3 mean = uSkyW.x * SKY_MEAN_FLUID + uSkyW.y * SKY_MEAN_THERMAL + uSkyW.z * SKY_MEAN_EARTH + uSkyW.w * SKY_MEAN_AIR;
   float wStudio = wN * (1.0 - uNeutralNebula), wNeb = wN * uNeutralNebula;
-  vec3 meanN = vec3(wStudio * uStudioMean); // studioMeanCached (JS) at the live knobs (a float: the studio is grey)
+  vec3 meanN = vec3(wStudio * (blur > 0.5 ? uStudioMeanLiquid : uStudioMean)); // studioMeanCached / studioMeanLiquidCached (JS) at the live knobs (floats: the studio is grey)
   vec3 neb = wNeb > SKY_W_MIN ? wNeb * skyNebula(R, k) : vec3(0.0);
   if (k >= 1.0) { neutral = meanN + neb; return mean; } // the nebula blurs by its own mips, never to a mean
   vec3 s = vec3(0.0), sN = vec3(0.0);
   if (wE > SKY_W_MIN) s += skyElements(R, k); // the cube already carries the weights
-  if (wStudio > SKY_W_MIN) sN += wStudio * skyStudio(R, blur * k);
+  if (wStudio > SKY_W_MIN) sN += wStudio * skyStudio(R, blur * k, blur);
   neutral = mix(sN, meanN, mix(k, smoothstep(STUDIO_MEAN_K0, 1.0, k), blur)) + neb;
   return mix(s, mean, k);
 }

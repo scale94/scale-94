@@ -8,8 +8,8 @@ import {
   TENT_EDGE_CRISP, TENT_CANOPY_HX, TENT_CANOPY_Z0, TENT_CANOPY_Z1, TENT_CANOPY_FADE, TENT_CANOPY_FRONT_SOFT, TENT_CANOPY_BACK,
   TENT_CANOPY_SIDE, TENT_STRIP_AZ, TENT_STRIP_HW, TENT_STRIP_SOFT, TENT_STRIP_Y0, TENT_STRIP_Y1, TENT_STRIP_YSOFT, TENT_STRIP_LUM,
   TENT_STRIP_GAIN, TENT_GAP, TENT_FLOOR_SOFT, TENT_FLOOR_FRONT, TENT_STRIP_FEATHER, STUDIO_DEFAULTS, studioMean, studioMeanCached, studioRadiance,
-  TENT_FALLOFF_POW, TENT_SEAM_COUNT, TENT_SEAM_W, TENT_SEAM_LUM, TENT_SEAM_AZ0, TENT_CARD_AZ, TENT_CARD_Y, TENT_CARD_HW, TENT_CARD_COL, TENT_CARD_LUM,
-  STUDIO_ROUGH_BLUR, STUDIO_MEAN_K0,
+  TENT_FALLOFF_POW, TENT_SEAM_COUNT, TENT_SEAM_W, TENT_SEAM_LUM, TENT_SEAM_AZ, TENT_SEAM_AMP, TENT_CARD_AZ, TENT_CARD_Y, TENT_CARD_HW, TENT_CARD_COL, TENT_CARD_LUM,
+  STUDIO_ROUGH_BLUR, STUDIO_MEAN_K0, studioMeanLiquidCached,
 } from '../aetherSky';
 import { NA_COL } from '../mercuryExosphere';
 import { SUN_DIR_WORLD } from '../planetFrame';
@@ -113,7 +113,7 @@ describe('aetherSky', () => {
     const SCALARS = { NEUTRAL_SKY_FLOOR, NEUTRAL_SKY_DRIFT, NEUTRAL_DOME_NADIR, NEUTRAL_DOME_POW, TENT_EDGE_CRISP, TENT_CANOPY_HX,
       TENT_CANOPY_Z0, TENT_CANOPY_Z1, TENT_CANOPY_FADE, TENT_CANOPY_FRONT_SOFT, TENT_CANOPY_BACK, TENT_CANOPY_SIDE, TENT_STRIP_HW,
       TENT_STRIP_SOFT, TENT_STRIP_Y0, TENT_STRIP_Y1, TENT_STRIP_YSOFT, TENT_STRIP_LUM, TENT_GAP, TENT_FLOOR_SOFT, TENT_FLOOR_FRONT,
-      TENT_STRIP_FEATHER, TENT_FALLOFF_POW, TENT_SEAM_COUNT, TENT_SEAM_W, TENT_SEAM_LUM, TENT_SEAM_AZ0, TENT_CARD_AZ, TENT_CARD_Y, TENT_CARD_HW,
+      TENT_STRIP_FEATHER, TENT_FALLOFF_POW, TENT_SEAM_W, TENT_SEAM_LUM, TENT_CARD_AZ, TENT_CARD_Y, TENT_CARD_HW,
       TENT_CARD_LUM, STUDIO_ROUGH_BLUR, STUDIO_MEAN_K0 };
     const K = STUDIO_DEFAULTS;
     const dir = (azDeg, elDeg) => { const a = azDeg * Math.PI / 180, e = elDeg * Math.PI / 180; return [Math.cos(e) * Math.sin(a), Math.sin(e), Math.cos(e) * Math.cos(a)]; };
@@ -124,6 +124,9 @@ describe('aetherSky', () => {
       expect(AETHER_SKY_GLSL).toContain(`const vec2 TENT_STRIP_AZ = vec2(${glf(TENT_STRIP_AZ[0])}, ${glf(TENT_STRIP_AZ[1])});`);
       expect(AETHER_SKY_GLSL).toContain(`const vec2 TENT_STRIP_GAIN = vec2(${glf(TENT_STRIP_GAIN[0])}, ${glf(TENT_STRIP_GAIN[1])});`);
       expect(AETHER_SKY_GLSL).toContain(`const vec3 TENT_CARD_COL = ${v3(TENT_CARD_COL)};`);
+      expect(AETHER_SKY_GLSL).toContain(`const int TENT_SEAM_COUNT = ${TENT_SEAM_COUNT};`);
+      expect(AETHER_SKY_GLSL).toContain(`const float TENT_SEAM_AZ[${TENT_SEAM_COUNT}] = float[${TENT_SEAM_COUNT}](${TENT_SEAM_AZ.map(glf).join(', ')});`);
+      expect(AETHER_SKY_GLSL).toContain(`const float TENT_SEAM_AMP[${TENT_SEAM_COUNT}] = float[${TENT_SEAM_COUNT}](${TENT_SEAM_AMP.map(glf).join(', ')});`);
     });
 
     it('defaults: over-unity key and canopy, a subtle floor, no dome; PLANET_TUNE matches', () => {
@@ -158,7 +161,7 @@ describe('aetherSky', () => {
     });
 
     it('GLSL mirrors the replica: canopy plane, camera-fixed azimuth, staggered strips, floor lit behind, no noise, no drift', () => {
-      const body = AETHER_SKY_GLSL.slice(AETHER_SKY_GLSL.indexOf('vec3 skyStudio(vec3 R, float k) {'), AETHER_SKY_GLSL.indexOf('vec3 skyNebula(vec3 R, float k)'));
+      const body = AETHER_SKY_GLSL.slice(AETHER_SKY_GLSL.indexOf('vec3 skyStudio(vec3 R, float k, float liq) {'), AETHER_SKY_GLSL.indexOf('vec3 skyNebula(vec3 R, float k)'));
       expect(body).toContain('vec2 p = R.xz / R.y;');
       expect(body).toContain('float az = atan(R.x, R.z); // 0 = toward the camera');
       expect(body).toContain('float dL = az + TENT_STRIP_AZ.x, dR = az - TENT_STRIP_AZ.y;');
@@ -168,7 +171,9 @@ describe('aetherSky', () => {
       expect(body).not.toMatch(/skyFbm|skyNoise|skyHash|uSkyT/);
       // uStudioMean is a float (HG_MIRROR_DECLS_GLSL): a bare float into a vec3 failed to compile live (2026-11-22)
       expect(HG_MIRROR_DECLS_GLSL).toContain('uniform float uStudioMean;');
-      expect(AETHER_SKY_GLSL).toContain('vec3 meanN = vec3(wStudio * uStudioMean); // studioMeanCached (JS) at the live knobs (a float: the studio is grey)');
+      expect(AETHER_SKY_GLSL).toContain('vec3 meanN = vec3(wStudio * (blur > 0.5 ? uStudioMeanLiquid : uStudioMean)); // studioMeanCached / studioMeanLiquidCached (JS) at the live knobs (floats: the studio is grey)');
+      expect(HG_MIRROR_DECLS_GLSL).toContain('uniform float uStudioMeanLiquid;');
+      for (const u of ['uStudioMeanLiquid']) { expect(HG_MIRROR_UNIFORMS).toContain(u); expect(PLANET_UNIFORMS).toContain(u); }
     });
 
     it('studioMean: the grid mean converges (finer grid agrees), the cache recomputes only on a knob change', () => {
@@ -184,9 +189,9 @@ describe('aetherSky', () => {
     it('neutral weight fills what the element skies leave; evaluated only above SKY_W_MIN', () => {
       expect(AETHER_SKY_GLSL).toContain('float wE = uSkyW.x + uSkyW.y + uSkyW.z + uSkyW.w;');
       expect(AETHER_SKY_GLSL).toContain('float wN = uNeutralSky * clamp(1.0 - wE, 0.0, 1.0);');
-      expect(AETHER_SKY_GLSL).toContain('vec3 skyStudio(vec3 R, float k) {');
+      expect(AETHER_SKY_GLSL).toContain('vec3 skyStudio(vec3 R, float k, float liq) {');
       expect(AETHER_SKY_GLSL).toContain('float wStudio = wN * (1.0 - uNeutralNebula), wNeb = wN * uNeutralNebula;');
-      expect(AETHER_SKY_GLSL).toContain('if (wStudio > SKY_W_MIN) sN += wStudio * skyStudio(R, blur * k);');
+      expect(AETHER_SKY_GLSL).toContain('if (wStudio > SKY_W_MIN) sN += wStudio * skyStudio(R, blur * k, blur);');
     });
 
     it('studio / nebula switch: each side evaluated only when it has weight; nebula = one rotated textureLod', () => {
@@ -265,12 +270,48 @@ describe('aetherSky', () => {
       grid(64, 4096, (x, y, z) => { const d = studioRadiance(x, y, z, { ...K, ...ZERO, seams: 1 })[1] - studioRadiance(x, y, z, { ...K, ...ZERO })[1];
         mx = Math.max(mx, d); if (d > 1e-9) touched++; n++; });
       expect(touched).toBeGreaterThan(0); // not vacuous
-      expect(mx).toBeLessThanOrEqual(TENT_SEAM_LUM * K.key + 1e-12);
+      expect(mx).toBeLessThanOrEqual(0.03 * TENT_STRIP_LUM * K.key); // ≤ 3 % of the key strip's radiance at knob 1 (spec ~1–3 %)
+      expect(mx).toBeGreaterThan(0.01 * TENT_STRIP_LUM * K.key);      // and visible at all
       expect(touched / n).toBeLessThan(0.05);
-      expect(TENT_SEAM_COUNT).toBe(6);
       expect(TENT_SEAM_W).toBe(0.006);
-      expect(TENT_SEAM_LUM).toBe(0.02);
+      expect(TENT_SEAM_LUM).toBeCloseTo(0.02 * TENT_STRIP_LUM, 12);
     });
+
+    it('seams live on the tent walls only: zero below the strips\' lower end (no meridians into the void)', () => {
+      const yCut = TENT_STRIP_Y0 - TENT_STRIP_FEATHER; // the strips' lower end at crisp 1, feather included
+      let checked = 0;
+      grid(64, 4096, (x, y, z) => { if (y >= yCut) return; checked++;
+        expect(studioRadiance(x, y, z, { ...K, ...ZERO, seams: 2 })[1]).toBe(studioRadiance(x, y, z, { ...K, ...ZERO })[1]); });
+      expect(checked).toBeGreaterThan(0);
+    });
+
+    it('seams break the lattice: non-uniform spacing and per-seam amplitude from a fixed table', () => {
+      expect(TENT_SEAM_AZ).toHaveLength(TENT_SEAM_COUNT);
+      expect(TENT_SEAM_AMP).toHaveLength(TENT_SEAM_COUNT);
+      const az = [...TENT_SEAM_AZ].sort((a, b) => a - b);
+      const gaps = az.map((a, i) => (i + 1 < az.length ? az[i + 1] : az[0] + 2 * Math.PI) - a);
+      expect(Math.max(...gaps) / Math.min(...gaps)).toBeGreaterThan(1.5); // not equal-period
+      expect(new Set(TENT_SEAM_AMP).size).toBeGreaterThan(3);
+      expect(Math.max(...TENT_SEAM_AMP)).toBe(1);
+      for (const a of TENT_SEAM_AZ) expect(a > -Math.PI && a <= Math.PI).toBe(true);
+      // not mirror-symmetric about the camera axis (no visor)
+      for (const a of TENT_SEAM_AZ) expect(TENT_SEAM_AZ.some((b) => Math.abs(a + b) < 0.05)).toBe(false);
+    });
+
+    it('the structure knobs never touch the ruled mirrors: liquid 0 (and the base mean) equal knobs 0 exactly', () => {
+      const ONE = { falloff: 1, seams: 1, card: 1 };
+      for (const kb of [0, 0.6]) {
+        grid(32, 512, (x, y, z) => expect(studioRadiance(x, y, z, { ...K, ...ONE }, kb, 0)).toEqual(studioRadiance(x, y, z, { ...K, ...ZERO }, kb, 0)));
+      }
+      // uStudioMean (crust, frozen Hg, glaze, frost read it) is keyed on the base knobs only; the liquid has its own
+      expect(studioMeanCached(1, 4, 2, 0, 0)).toBe(studioMean({ ...K, ...ZERO }));
+      expect(studioMeanLiquidCached(1, 4, 2, 0, 0, 1, 1, 1)).toBe(studioMean({ ...K, ...ONE }));
+      expect(studioMeanLiquidCached(1, 4, 2, 0, 0, 1, 1, 1)).not.toBe(studioMeanCached(1, 4, 2, 0, 0));
+      // GLSL: the three structures are scaled by the liquid flag; the ruled mirrors pass 0
+      const body = AETHER_SKY_GLSL.slice(AETHER_SKY_GLSL.indexOf('vec3 skyStudio(vec3 R, float k, float liq) {'), AETHER_SKY_GLSL.indexOf('vec3 skyNebula(vec3 R, float k)'));
+      expect(body).toContain('vec3 st = liq * uStudioLook2.yzw;');
+      expect(body).not.toMatch(/uStudioLook2\.[yzw](?!zw)/); // every structure read goes through st
+    }, 60000);
 
     it('the card is warm and sunward only', () => {
       let touched = 0;
@@ -307,10 +348,11 @@ describe('aetherSky', () => {
 
     it('skyStudio mirrors studioRadiance: the three structures in the GLSL, reading uStudioLook2.yzw', () => {
       const body = AETHER_SKY_GLSL.slice(AETHER_SKY_GLSL.indexOf('float studioBand(float d, float hw, float w) {'), AETHER_SKY_GLSL.indexOf('vec3 skyNebula(vec3 R, float k)'));
-      expect(body).toContain('return 1.0 - uStudioLook2.y * pow(min(abs(d) / hw, 1.0), TENT_FALLOFF_POW);');
-      expect(body).toContain('uStudioLook2.y');
-      expect(body).toContain('uStudioLook2.z');
-      expect(body).toContain('uStudioLook2.w');
+      expect(body).toContain('return 1.0 - f * pow(min(abs(d) / hw, 1.0), TENT_FALLOFF_POW);');
+      expect(body).toContain('vec3 st = liq * uStudioLook2.yzw;');
+      expect(body).toContain('st.x');
+      expect(body).toContain('st.y');
+      expect(body).toContain('st.z');
       expect(body).toContain('return vec3(L) + cd * TENT_CARD_COL;');
       expect(body).not.toMatch(/skyFbm|skyNoise|skyHash|uSkyT/); // no noise: no banding source
     });
