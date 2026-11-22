@@ -21,6 +21,12 @@ describe('Hg beads wiring', () => {
     expect(planetSrc).toMatch(/stepBeads\(beads\.sim, stepS, beadCtx\)/); // clamped dt, not raw delta
     expect(planetSrc).toContain('<points geometry={beads.geometry} material={beads.material} renderOrder={beads.renderOrder} frustumCulled={false} />');
   });
+  it('beads land on the live surface and a landing pearl ripples it without evicting a stronger ring', () => {
+    expect(planetSrc).toContain('beadCtx.planetRadiusAt = drop.env.planetRadiusAt;');
+    expect(planetSrc.indexOf('beadCtx.planetRadiusAt')).toBeLessThan(planetSrc.indexOf('stepBeads(beads.sim'));
+    expect(planetSrc).toMatch(/pearlStrike\(sim\.hits\[5 \* k \+ 3\], sim\.hits\[5 \* k \+ 4\]\)/);
+    expect(planetSrc).toMatch(/addImpulseIfRoom\(surf\.impulses, \{ dirBody: surf\.b, tS: t, mode: IMPACT_MODE_AMP\.splash \* bestS/);
+  });
   it('the canvas tells the planet which element is active', () => {
     const planetTag = canvasSrc.slice(canvasSrc.indexOf('<MercuryPlanet'), canvasSrc.indexOf('<MercurySphere'));
     expect(planetTag).toContain('activePhase={activePhase}');

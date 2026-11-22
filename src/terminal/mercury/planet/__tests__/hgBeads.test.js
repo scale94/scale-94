@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   createBeads, spawnBead, spawnFling, spawnSplash, stepBeads, beadRadius, wobbleHz, wobbleGate, WOBBLE_HZ_MIN, WOBBLE_HZ_MAX,
-  AMBIENT_RATE, BEAD_ESCAPE_R, BEAD_LIFE, DUST_R, PEARL_R, PEARL_P, EVAP_RATE, FLING_N, FLING_V_MAX, FLING_RADIAL, G_BEAD,
+  AMBIENT_RATE, BEAD_ESCAPE_R, BEAD_SHAPE_MARGIN, pearlStrike, BEAD_LIFE, DUST_R, PEARL_R, PEARL_P, EVAP_RATE, FLING_N, FLING_V_MAX, FLING_RADIAL, G_BEAD,
 } from '../hgBeads';
 import { mulberry32 } from '../prng';
 import { SUN_DIR_WORLD } from '../planetFrame';
@@ -272,5 +272,60 @@ describe('hgBeads sim', () => {
     stepBeads(b, dt, { ...CTX, liquid: false });
     const r2 = p0[0] ** 2 + p0[1] ** 2 + p0[2] ** 2, g = G_BEAD / (r2 * Math.sqrt(r2));
     for (let c = 0; c < 3; c++) expect(b.vel[c]).toBeCloseTo(v0[c] - g * p0[c] * dt, 3);
+  });
+});
+
+describe('hgBeads touchdown (fix/mercury-motion: beads clipped into the sphere with no ripple)', () => {
+  const old = (b, i) => { b.age[i] = 1; return i; }; // past the spawn guard
+  it('a bead touches down when its surface meets the live planet, not when its centre passes coreR', () => {
+    const b = createBeads(8);
+    old(b, spawnBead(b, 0, 0, 0.815, 0, 0, -0.5, 0.02));
+    const ctx = { ...CTX, liquid: false, planetRadiusAt: () => 0.8 }; // a bulged surface above coreR 0.75
+    stepBeads(b, 1 / 60, ctx); // |p| 0.8067, minus r 0.02 = 0.787 <= 0.8: contact, centre still far outside coreR
+    expect(b.n).toBe(0);
+    expect(b.nHits).toBe(1);
+    expect(b.hits[0]).toBeCloseTo(0, 2); expect(b.hits[1]).toBeCloseTo(0, 2); expect(b.hits[2]).toBeCloseTo(1, 4); // world dir (air drifts x a hair)
+    expect(b.hits[3]).toBeCloseTo(0.02, 6); // radius
+    expect(b.hits[4]).toBeGreaterThan(0.49); // inward normal speed
+  });
+  it('without planetRadiusAt the contact sphere is coreR, still at the bead surface', () => {
+    const b = createBeads(8);
+    old(b, spawnBead(b, 0.765, 0, 0, -0.3, 0, 0, 0.02));
+    stepBeads(b, 1 / 60, { ...CTX, liquid: false });
+    expect(b.nHits).toBe(1);
+  });
+  it('a fresh fling overlapping the surface on its way out is not a touchdown', () => {
+    const b = createBeads(64);
+    spawnFling(b, [0, 9, 0], 0.75);
+    run(b, 0.2, { ...CTX, liquid: false, planetRadiusAt: () => 0.75 });
+    expect(b.n).toBe(FLING_N);
+  });
+  it('hits are this step only; dust and pearls both report (the caller decides what ripples)', () => {
+    const b = createBeads(8);
+    old(b, spawnBead(b, 0, 0.76, 0, 0, -1, 0, DUST_R[0]));
+    old(b, spawnBead(b, 0.77, 0, 0, -1, 0, 0, PEARL_R[1]));
+    stepBeads(b, 1 / 60, { ...CTX, liquid: false });
+    expect(b.nHits).toBe(2);
+    stepBeads(b, 1 / 60, { ...CTX, liquid: false });
+    expect(b.nHits).toBe(0);
+  });
+  it('the live surface is only sampled near the planet (BEAD_SHAPE_MARGIN)', () => {
+    const b = createBeads(8);
+    old(b, spawnBead(b, 0, 0, 0.75 * BEAD_SHAPE_MARGIN + 0.1, 0, 0, 0, PEARL_R[1]));
+    let calls = 0;
+    stepBeads(b, 1 / 60, { ...CTX, liquid: false, planetRadiusAt: () => { calls++; return 0.75; } });
+    expect(calls).toBe(0);
+  });
+});
+
+describe('pearlStrike: a landing pearl ripples like a small drop', () => {
+  it('dust never ripples; a pearl does, more for a bigger or faster one, never past a full splash', () => {
+    expect(pearlStrike(DUST_R[1], 1)).toBe(0);
+    const small = pearlStrike(PEARL_R[0], 0.5), big = pearlStrike(PEARL_R[1], 0.5);
+    expect(small).toBeGreaterThan(0.1); // √(volume share): visible, not the 1.6 % a linear share would give
+    expect(big).toBeGreaterThan(small);
+    expect(big).toBeLessThan(0.35);
+    expect(pearlStrike(PEARL_R[1], 0)).toBeCloseTo(0.5 * pearlStrike(PEARL_R[1], 10), 6); // vnK spans 0.5 → 1
+    expect(pearlStrike(1, 100)).toBe(1);
   });
 });

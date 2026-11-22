@@ -169,6 +169,16 @@ function pickSlot(buf, tS) {
   return best;
 }
 
+// A minor impulse (a pearl's touchdown): it takes a slot only if one is free or the weakest live impulse is weaker
+// than it is at birth. Returns null when it yields, so a hail of small beads never clobbers a splash's ring.
+export function addImpulseIfRoom(buf, args) {
+  const i = pickSlot(buf, args.tS);
+  const s = buf.slots[i];
+  const own = Math.abs(args.mode ?? 0) + (args.wave ?? 0);
+  if (s.active && args.tS - s.t0 <= IMPULSE_LIFE_S && remainingStrength(s, args.tS) >= own) return null;
+  return addImpulse(buf, args);
+}
+
 export function addImpulse(buf, { dirBody, dirWorld = null, tS, mode = 0, wave = 0, kind = 'splash', slip = 0 }) {
   const s = buf.slots[pickSlot(buf, tS)];
   s.active = true;

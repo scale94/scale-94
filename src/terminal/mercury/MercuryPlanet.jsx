@@ -21,7 +21,7 @@ import {
   createScarMap, stampCrater, stampFrost, stampQuench, stampGlaze, stampPit, matureScars, healScars, healMelted, crossMarks, SCAR_TICK_S,
 } from './planet/scarMap';
 import {
-  IMPULSE_SLOTS, createImpulses, addImpulse, createImpulseFrame, impulseFrame, spinBulge, createWake, wakeImpulse, slipDirWorld,
+  IMPULSE_SLOTS, createImpulses, addImpulse, addImpulseIfRoom, createImpulseFrame, impulseFrame, spinBulge, createWake, wakeImpulse, slipDirWorld,
   shapeHeight, LIQUID_TAU,
 } from './planet/mercuryWaves';
 import {
@@ -52,7 +52,7 @@ import {
 import { createVisitorFrame, packVisitors } from './planet/visitorFrame';
 import useVisitorField from './useVisitorField';
 import useHgBeads from './useHgBeads';
-import { spawnFling, spawnSplash, stepBeads, FLING_N, SPLASH_N } from './planet/hgBeads';
+import { spawnFling, spawnSplash, stepBeads, pearlStrike, FLING_N, SPLASH_N } from './planet/hgBeads';
 import { CALORIS_DIR_BODY, stepOverlay } from './planet/slowNoon';
 import { nebulaRotation } from './planet/nebulaSky';
 import { canBakeNebula, bakeNebula } from './nebulaBake';
@@ -745,7 +745,24 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     beadCtx.liquid = body.tau >= LIQUID_TAU;
     beadCtx.boil = exo.coverage;
     beadCtx.rateScale = TIERS[tier].beadRate;
+    beadCtx.planetRadiusAt = drop.env.planetRadiusAt; // touchdown on the live surface (bulge + ripples), as the drops land
     stepBeads(beads.sim, stepS, beadCtx);
+    // A landing pearl ripples the liquid (dust merges silently): the strongest touchdown this frame, one minor impulse
+    // that yields its slot to any stronger live ring (addImpulseIfRoom). Crust and calm take no ripple.
+    if (!calm && beadCtx.liquid) {
+      const sim = beads.sim;
+      let best = -1, bestS = 0;
+      for (let k = 0; k < sim.nHits; k++) {
+        const s = pearlStrike(sim.hits[5 * k + 3], sim.hits[5 * k + 4]);
+        if (s > bestS) { bestS = s; best = k; }
+      }
+      if (best >= 0) {
+        const h = 5 * best;
+        beadCtx.dirW[0] = sim.hits[h]; beadCtx.dirW[1] = sim.hits[h + 1]; beadCtx.dirW[2] = sim.hits[h + 2];
+        worldToBody(beadCtx.dirW, body.q, surf.b);
+        addImpulseIfRoom(surf.impulses, { dirBody: surf.b, tS: t, mode: IMPACT_MODE_AMP.splash * bestS, wave: IMPACT_WAVE_AMP.splash * bestS, kind: 'splash' });
+      }
+    }
     beads.upload(gl, beadCtx.coreR);
   });
 
