@@ -26,6 +26,7 @@ describe('Hg beads wiring', () => {
     expect(planetSrc.indexOf('beadCtx.planetRadiusAt')).toBeLessThan(planetSrc.indexOf('stepBeads(beads.sim'));
     expect(planetSrc).toContain('pearlStrike(sim.hits[5 * k + 3], sim.hits[5 * k + 4], beadCtx.pxPerUnit, PLANET_TUNE.pearlRipple)');
     expect(planetSrc).toContain('beadCtx.pxPerUnit = drop.env.pxPerUnit;');
+    expect(planetSrc).toContain('beadCtx.freezeIn = body.liquid ? Infinity : Math.max(0, (body.tau - LIQUID_TAU) * TRANSMUTE_S);');
     expect(planetSrc.indexOf('beadCtx.q[3] = body.q.w')).toBeLessThan(planetSrc.indexOf('stepBeads(beads.sim'));
     expect(planetSrc).toMatch(/addImpulseIfRoom\(surf\.impulses, \{ dirBody: surf\.b, tS: t, mode: IMPACT_MODE_AMP\.splash \* bestS/);
   });

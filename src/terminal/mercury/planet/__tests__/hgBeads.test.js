@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   createBeads, spawnBead, spawnFling, spawnSplash, stepBeads, beadRadius, wobbleHz, wobbleGate, WOBBLE_HZ_MIN, WOBBLE_HZ_MAX,
-  AMBIENT_RATE, BEAD_ESCAPE_R, BEAD_SHAPE_MARGIN, pearlStrike, BEAD_BODY_PX, FLING_LIFE, FLING_RETURN_V, BEAD_LIFE, DUST_R, PEARL_R, PEARL_P, EVAP_RATE, FLING_N, FLING_V_MAX, FLING_RADIAL, G_BEAD,
+  AMBIENT_RATE, BEAD_ESCAPE_R, BEAD_SHAPE_MARGIN, pearlStrike, BEAD_BODY_PX, FREEZE_FADE_S, FLING_LIFE, FLING_RETURN_V, BEAD_LIFE, DUST_R, PEARL_R, PEARL_P, EVAP_RATE, FLING_N, FLING_V_MAX, FLING_RADIAL, G_BEAD,
 } from '../hgBeads';
 import { mulberry32 } from '../prng';
 import { MAX_OMEGA } from '../mercuryBody';
@@ -422,5 +422,47 @@ describe('flung beads come home (fix/mercury-motion)', () => {
     stepBeads(b, 1 / 60, { ...CTX, calm: true, liquid: false });
     expect(b.outBead[3 * i + 1]).toBe(1);
     expect(b.outBead[3 * j + 1]).toBeLessThan(0.1);
+  });
+});
+
+// While the planet refreezes (visible tab), airborne beads home onto the still-liquid surface before it stops counting as
+// liquid; any still airborne once it has crusted fade out. Liquid beads never orbit a solid crust (fix/mercury-motion).
+describe('freeze guard: airborne beads settle or clear as the planet refreezes (fix/mercury-motion)', () => {
+  const base = { ...CTX, phase: 'neutral', liquid: false };
+  const landBy = (b, ctx, seconds) => {
+    let landed = 0, t = 0;
+    for (; t < seconds && b.n > 0; t += 1 / 60) {
+      const fi = ctx.freezeIn === undefined ? undefined : Math.max(0, ctx.freezeIn - t);
+      stepBeads(b, 1 / 60, { ...ctx, freezeIn: fi }); landed += b.nHits;
+    }
+    return landed;
+  };
+  it('a trickle bead hovering far out lands before the surface stops being liquid', () => {
+    const b = createBeads(8);
+    spawnBead(b, 0, 1.4, 0, 0, 0, 0, 0.004); b.age[0] = 1;
+    expect(landBy(b, { ...base, freezeIn: 1.2 }, 1.2 + 0.1)).toBe(1);
+  });
+  it('a flung bead still heading out turns and lands in the window too', () => {
+    const b = createBeads(8);
+    const i = spawnBead(b, 1.6, 0, 0, 0.5, 0, 0, 0.01); b.free[i] = 1; b.age[i] = 2;
+    expect(landBy(b, { ...base, freezeIn: 1.5 }, 1.5 + 0.1)).toBe(1);
+  });
+  it('on a crust an airborne bead fades out over FREEZE_FADE_S and is removed', () => {
+    const b = createBeads(8);
+    spawnBead(b, 0, 2, 0, 0, 0, 0, 0.01); b.age[0] = 1;
+    const ctx = { ...base, freezeIn: 0, pxPerUnit: 300, q: [0, 0, 0, 1] };
+    stepBeads(b, 1 / 60, ctx);
+    const a0 = b.outBead[1];
+    stepBeads(b, 0.2, ctx);
+    expect(b.outBead[1]).toBeLessThan(a0);
+    for (let t = 0; t < FREEZE_FADE_S; t += 1 / 60) stepBeads(b, 1 / 60, ctx);
+    expect(b.n).toBe(0);
+  });
+  it('a melted planet (freezeIn Infinity, the default) changes nothing: a hovering trickle bead keeps its full life', () => {
+    const b = createBeads(8);
+    spawnBead(b, 0, 1.4, 0, 0, 0, 0, 0.004); b.age[0] = 1;
+    run(b, 2, base);
+    expect(b.n).toBe(1);
+    expect(b.outBead[1]).toBe(1);
   });
 });

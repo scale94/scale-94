@@ -29,7 +29,7 @@ import {
 } from './planet/mercuryImpacts';
 import { pickSphereDir } from './planet/pickSphere';
 import { popZoom, subsolarPxArc } from './planet/mercuryRoil';
-import { createBody, stepBody, coolBody, targetFromYaw, MAX_OMEGA } from './planet/mercuryBody';
+import { createBody, stepBody, coolBody, targetFromYaw, MAX_OMEGA, TRANSMUTE_S } from './planet/mercuryBody';
 import { ORBIT_NODES, orbitPrecessionAngle, nodeWorldPosition } from './orbitNodes';
 import useMercuryDrag from './useMercuryDrag';
 import useStageCameraDist from './useStageCameraDist';
@@ -462,7 +462,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
 
   // Hg beads: the trickle, flings and splash bursts, carried by the active element. beadCtx is written in place per frame.
   const beads = useHgBeads({ tier, planetMaterial: material });
-  const beadCtx = useMemo(() => ({ phase: 'fluid', coreR: R_SCENE, calm: false, liquid: true, boil: 0, rateScale: 1, lastFam: 'idle', dirW: [0, 0, 0], omega: [0, 0, 0], q: [0, 0, 0, 1], pxPerUnit: 0 }), []);
+  const beadCtx = useMemo(() => ({ phase: 'fluid', coreR: R_SCENE, calm: false, liquid: true, boil: 0, rateScale: 1, lastFam: 'idle', dirW: [0, 0, 0], omega: [0, 0, 0], q: [0, 0, 0, 1], pxPerUnit: 0, freezeIn: Infinity }), []);
 
   // The maps outlive the material: a live CALM toggle swaps the shader variant (a new
   // material) without reloading them or flashing the flat fallback (planetMaps.js).
@@ -755,6 +755,8 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     beadCtx.boil = exo.coverage;
     beadCtx.rateScale = TIERS[tier].beadRate;
     beadCtx.planetRadiusAt = drop.env.planetRadiusAt; // touchdown on the live surface (bulge + ripples), as the drops land
+    // refreezing: the time left before the surface stops counting as liquid (the beads home in it, then clear)
+    beadCtx.freezeIn = body.liquid ? Infinity : Math.max(0, (body.tau - LIQUID_TAU) * TRANSMUTE_S);
     beadCtx.pxPerUnit = drop.env.pxPerUnit; // what is drawn as a body ripples and coalesces (hgBeads BEAD_BODY_PX)
     beadCtx.q[0] = body.q.x; beadCtx.q[1] = body.q.y; beadCtx.q[2] = body.q.z; beadCtx.q[3] = body.q.w; // coalescence rides the planet
     stepBeads(beads.sim, stepS, beadCtx);

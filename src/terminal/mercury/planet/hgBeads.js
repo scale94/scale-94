@@ -39,6 +39,14 @@ export const FLING_FREE_T = 0.5;   // s: a flung bead flies free (no drag), then
 // so it arcs out ballistic, then comes home (spiralling with air/fluid), and it is not faded before FLING_LIFE.
 export const FLING_RETURN_V = 0.35; // u/s toward the planet
 export const FLING_LIFE = 16;       // s: the safety cap for a flung bead (≫ its ~3–6 s trip home)
+// The freeze guard (fix/mercury-motion): while the planet refreezes, ctx.freezeIn is the time left before its surface
+// stops counting as liquid. Airborne beads home onto it in that window (a drift planned to arrive at FREEZE_AIM of the
+// time left, less the drag's lag, never planned shorter than FREEZE_MIN_S, under a firmer drag); once it has crusted,
+// any still airborne fade out.
+export const FREEZE_AIM = 0.5;
+export const FREEZE_MIN_S = 0.15;
+export const FREEZE_DRAG = 4;      // 1/s: the homing drift must win over the element's flow
+export const FREEZE_FADE_S = 0.4;
 export const FLING_RADIAL = 0.25;  // outward launch kick (scene units/s): the spray peels off the surface
 // The glint gate (spec §2 + amendment): a free droplet rings in its l=2 and l=3 shape modes
 // (Rayleigh: f ∝ √(l(l−1)(l+2)) · r^−1.5, ratio √(30/8) ≈ 1.94), and an ejected droplet tumbles, so its
@@ -81,6 +89,7 @@ export function createBeads(cap, seed = 0x6867) {
     hits: new Float32Array(cap * 5), nHits: 0,
     // coalescence: time left / total (0 = airborne), radius at contact, contact direction in the body frame
     mt: new Float32Array(cap), mD: new Float32Array(cap), r0: new Float32Array(cap), dB: new Float32Array(cap * 3),
+    cut: new Float32Array(cap), // the age at which a bead caught airborne over a crust is gone (Infinity: not cut)
   };
 }
 
@@ -94,7 +103,7 @@ export function spawnBead(b, x, y, z, vx, vy, vz, r) {
   const i = b.n < b.cap ? b.n++ : oldest(b);
   b.pos[3 * i] = x; b.pos[3 * i + 1] = y; b.pos[3 * i + 2] = z;
   b.vel[3 * i] = vx; b.vel[3 * i + 1] = vy; b.vel[3 * i + 2] = vz;
-  b.r[i] = r; b.age[i] = 0; b.free[i] = 0; b.wph[i] = 0; b.mt[i] = 0; b.mD[i] = 0;
+  b.r[i] = r; b.age[i] = 0; b.free[i] = 0; b.wph[i] = 0; b.mt[i] = 0; b.mD[i] = 0; b.cut[i] = Infinity;
   b.ph2[i] = 2 * Math.PI * b.rng(); b.ph3[i] = 2 * Math.PI * b.rng(); b.ph4[i] = 2 * Math.PI * b.rng();
   b.tumble[i] = TUMBLE_K[0] + (TUMBLE_K[1] - TUMBLE_K[0]) * b.rng();
   return i;
@@ -104,7 +113,7 @@ function remove(b, i) {
   const last = --b.n;
   if (i === last) return;
   for (let c = 0; c < 3; c++) { b.pos[3 * i + c] = b.pos[3 * last + c]; b.vel[3 * i + c] = b.vel[3 * last + c]; b.dB[3 * i + c] = b.dB[3 * last + c]; }
-  b.mt[i] = b.mt[last]; b.mD[i] = b.mD[last]; b.r0[i] = b.r0[last];
+  b.mt[i] = b.mt[last]; b.mD[i] = b.mD[last]; b.r0[i] = b.r0[last]; b.cut[i] = b.cut[last];
   b.r[i] = b.r[last]; b.age[i] = b.age[last]; b.free[i] = b.free[last];
   b.ph2[i] = b.ph2[last]; b.ph3[i] = b.ph3[last]; b.ph4[i] = b.ph4[last]; b.tumble[i] = b.tumble[last]; b.wph[i] = b.wph[last];
 }
@@ -182,7 +191,8 @@ const _dir = [0, 0, 0], _dB = [0, 0, 0];
 const Q_ID = [0, 0, 0, 1];
 export function stepBeads(b, dt, ctx) {
   // pxPerUnit 0 (headless default): every bead merges at contact, as before coalescence
-  const { phase, coreR, calm, liquid, boil, rateScale = 1, planetRadiusAt = null, pxPerUnit = 0, q = Q_ID } = ctx;
+  const { phase, coreR, calm, liquid, boil, rateScale = 1, planetRadiusAt = null, pxPerUnit = 0, q = Q_ID, freezeIn = Infinity } = ctx;
+  const homing = freezeIn > 0 && freezeIn < Infinity, crust = !(freezeIn > 0);
   const ER2 = BEAD_ESCAPE_R * BEAD_ESCAPE_R * coreR * coreR;
   const nearR = BEAD_SHAPE_MARGIN * coreR;
   b.nHits = 0;
@@ -203,12 +213,19 @@ export function stepBeads(b, dt, ctx) {
       for (let c = 0; c < 3; c++) { b.pos[3 * i + c] = _dir[c] * R; b.vel[3 * i + c] = 0; }
       continue;
     }
+    if (crust && b.cut[i] > b.age[i] + FREEZE_FADE_S) b.cut[i] = b.age[i] + FREEZE_FADE_S;
     if (!calm) {
       const x = b.pos[3 * i], y = b.pos[3 * i + 1], z = b.pos[3 * i + 2];
       const r2 = x * x + y * y + z * z, rl = Math.sqrt(r2) || 1, g = G_BEAD / (r2 * rl);
       flowVel(phase, x, y, z, b.age[i]);
-      if (b.free[i]) { const k = FLING_RETURN_V / rl; f[0] -= k * x; f[1] -= k * y; f[2] -= k * z; }
-      const drag = b.free[i] ? DRAG * (1 - Math.exp(-b.age[i] / FLING_FREE_T)) : DRAG;
+      let ret = b.free[i] ? FLING_RETURN_V : 0;
+      let drag = b.free[i] ? DRAG * (1 - Math.exp(-b.age[i] / FLING_FREE_T)) : DRAG;
+      if (homing) {
+        const need = Math.max(0, rl - b.r[i] - coreR) / Math.max(FREEZE_AIM * freezeIn - 1 / FREEZE_DRAG, FREEZE_MIN_S);
+        if (need > ret) ret = need;
+        if (drag < FREEZE_DRAG) drag = FREEZE_DRAG;
+      }
+      if (ret > 0) { const k = ret / rl; f[0] -= k * x; f[1] -= k * y; f[2] -= k * z; }
       for (let c = 0; c < 3; c++) {
         const p = b.pos[3 * i + c];
         b.vel[3 * i + c] += (-g * p + drag * (f[c] - b.vel[3 * i + c])) * dt;
@@ -244,11 +261,14 @@ export function stepBeads(b, dt, ctx) {
         }
       }
     }
-    if (landed || b.age[i] > (b.free[i] ? FLING_LIFE : BEAD_LIFE) || b.r[i] <= 0 || escaped) remove(b, i);
+    if (landed || b.age[i] > Math.min(b.free[i] ? FLING_LIFE : BEAD_LIFE, b.cut[i]) || b.r[i] <= 0 || escaped) remove(b, i);
   }
   for (let i = 0; i < b.n; i++) {
     b.outPos[3 * i] = b.pos[3 * i]; b.outPos[3 * i + 1] = b.pos[3 * i + 1]; b.outPos[3 * i + 2] = b.pos[3 * i + 2];
-    const a = Math.min(1, b.age[i] / 0.15, ((b.free[i] ? FLING_LIFE : BEAD_LIFE) - b.age[i]) / BEAD_FADE);
+    const life = b.free[i] ? FLING_LIFE : BEAD_LIFE;
+    const a = b.cut[i] < life
+      ? Math.min(1, b.age[i] / 0.15, (b.cut[i] - b.age[i]) / FREEZE_FADE_S)
+      : Math.min(1, b.age[i] / 0.15, (life - b.age[i]) / BEAD_FADE);
     b.outBead[3 * i] = b.r[i]; b.outBead[3 * i + 1] = Math.max(0, a);
     b.outBead[3 * i + 2] = calm ? 0 : wobbleGate(b.wph[i], b.ph2[i], b.ph3[i], b.ph4[i], b.tumble[i]);
   }
