@@ -31,7 +31,9 @@ describe('Hg beads wiring', () => {
     expect(planetSrc).toContain('beadCtx.freezeIn = body.liquid ? Infinity : Math.max(0, (body.tau - LIQUID_TAU) * TRANSMUTE_S);');
     expect(planetSrc.indexOf('beadCtx.q[3] = body.q.w')).toBeLessThan(planetSrc.indexOf('stepBeads(beads.sim'));
     // a pearl rings the surface locally only: no body modes, whose even P2/P4 dent the antipode as hard as the hit
-    expect(planetSrc).toContain("addImpulseIfRoom(surf.impulses, { dirBody: surf.b, tS: t, mode: 0, wave: IMPACT_WAVE_AMP.splash * bestS, kind: 'splash' })");
+    // the ring carries the live pearlWaveGain (author dials it by eye), never past a full drop's splash
+    expect(planetSrc).toContain('const pearlWave = Math.min(IMPACT_WAVE_AMP.splash, IMPACT_WAVE_AMP.splash * bestS * PLANET_TUNE.pearlWaveGain);');
+    expect(planetSrc).toContain("addImpulseIfRoom(surf.impulses, { dirBody: surf.b, tS: t, mode: 0, wave: pearlWave, kind: 'splash' })");
     expect(planetSrc).toContain('if (added && bestKind === HIT_TRICKLE) takeRipple(beadCtx.rip);');
     expect(planetSrc).toContain('refillRippleBudget(beadCtx.rip, stepS);');
   });
@@ -63,5 +65,17 @@ describe('hidden-tab catch-up wiring (fix/mercury-motion)', () => {
     expect(bds).toBeGreaterThan(fam);
     expect(step).toBeGreaterThan(bds);
     expect(planetSrc).toContain('if (!calm && skippedS > CATCHUP_MIN_S) {');
+  });
+});
+
+describe('pearl ring gain (fix/mercury-motion)', () => {
+  it('PLANET_TUNE.pearlWaveGain defaults to 3: a typical idle pearl rings like the drag wake (~0.12), the antipode untouched', async () => {
+    const { PLANET_TUNE } = await import('../planet/planetLook');
+    const { IMPACT_WAVE_AMP } = await import('../planet/mercuryImpacts');
+    const { WAKE_WAVE_AMP } = await import('../planet/mercuryWaves');
+    expect(PLANET_TUNE.pearlWaveGain).toBe(3);
+    const typical = IMPACT_WAVE_AMP.splash * 0.12 * PLANET_TUNE.pearlWaveGain; // measured idle mean strike 0.12
+    expect(typical / WAKE_WAVE_AMP).toBeGreaterThan(0.9);
+    expect(typical / WAKE_WAVE_AMP).toBeLessThan(1.25);
   });
 });

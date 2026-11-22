@@ -788,7 +788,9 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
         const h = HIT_STRIDE * best;
         beadCtx.dirW[0] = sim.hits[h]; beadCtx.dirW[1] = sim.hits[h + 1]; beadCtx.dirW[2] = sim.hits[h + 2];
         worldToBody(beadCtx.dirW, body.q, surf.b);
-        const added = addImpulseIfRoom(surf.impulses, { dirBody: surf.b, tS: t, mode: 0, wave: IMPACT_WAVE_AMP.splash * bestS, kind: 'splash' });
+        // ring only, so it is all the pearl has: PLANET_TUNE.pearlWaveGain lifts it to read (live knob), capped at a drop's splash
+        const pearlWave = Math.min(IMPACT_WAVE_AMP.splash, IMPACT_WAVE_AMP.splash * bestS * PLANET_TUNE.pearlWaveGain);
+        const added = addImpulseIfRoom(surf.impulses, { dirBody: surf.b, tS: t, mode: 0, wave: pearlWave, kind: 'splash' });
         if (added && bestKind === HIT_TRICKLE) takeRipple(beadCtx.rip);
       }
     }
