@@ -376,7 +376,7 @@ const vec3 TENT_CARD_COL = vec3(1.00000000, 0.550000000, 0.120000000);
 const float TENT_CARD_LUM = 0.150000000;
 const float STUDIO_ROUGH_BLUR = 0.400000000;
 const float STUDIO_MEAN_K0 = 0.750000000;
-const vec3 SKY_MEAN_NEUTRAL = vec3(0.208443441, 0.208443441, 0.208443441); // documents the default studio; the mirror uses uStudioMean (live)
+const vec3 SKY_MEAN_NEUTRAL = vec3(0.208443441, 0.208443441, 0.208443441); // documents the default base tent (structure knobs 0); the mirrors use uStudioMean / uStudioMeanLiquid (live)
 const vec3 SKY_MEAN_NEBULA = vec3(0.0179200000, 0.0179200000, 0.0179200000);
 const float NEBULA_MAX_LOD = 6.00000000;
 const float NEBULA_TEXEL_RAD = 0.00613592315;
@@ -396,12 +396,38 @@ float studioFall(float d, float hw, float f) {
 }
 
 // The neutral studio: the macro tabletop tent (header; studioRadiance is its JS replica). Camera-fixed, no noise.
-// k: the rough-blur weight (0 = the sharp tent): every edge widens by STUDIO_ROUGH_BLUR * k. liq: 1 = the liquid (structure
-// on), 0 = the ruled mirrors (structure exactly off, at any knob value).
-vec3 skyStudio(vec3 R, float k, float liq) {
+// skyStudio: the ruled mirrors (the 8255e4c0 text); skyStudioLiquid: the liquid (studioFn).
+vec3 skyStudio(vec3 R) {
+  float c = uStudioLook.x;
+  float L = NEUTRAL_SKY_FLOOR;
+  if (R.y > 0.02) { // canopy: a rectangle on the plane y = 1
+    vec2 p = R.xz / R.y;
+    float ef = mix(TENT_CANOPY_FRONT_SOFT, TENT_EDGE_CRISP, c);
+    float inX = smoothstep(TENT_CANOPY_HX + TENT_CANOPY_FADE, TENT_CANOPY_HX - TENT_CANOPY_FADE, abs(p.x));
+    float inZ = smoothstep(TENT_CANOPY_Z0 - TENT_CANOPY_FADE, TENT_CANOPY_Z0 + TENT_CANOPY_FADE, p.y) * smoothstep(TENT_CANOPY_Z1 + ef, TENT_CANOPY_Z1 - ef, p.y);
+    float u = p.x / TENT_CANOPY_HX;
+    float fall = mix(1.0, TENT_CANOPY_BACK, smoothstep(TENT_CANOPY_Z1, TENT_CANOPY_Z0, p.y)) * (1.0 - TENT_CANOPY_SIDE * min(u * u, 1.0));
+    L += uStudioLook.z * inX * inZ * fall;
+  }
+  float az = atan(R.x, R.z); // 0 = toward the camera
+  float ys = mix(TENT_STRIP_YSOFT, TENT_STRIP_FEATHER, c), se = mix(TENT_STRIP_SOFT, TENT_EDGE_CRISP, c);
+  float span = smoothstep(TENT_STRIP_Y0 - ys, TENT_STRIP_Y0 + ys, R.y) * smoothstep(TENT_STRIP_Y1 + ys, TENT_STRIP_Y1 - ys, R.y);
+  float sL = smoothstep(TENT_STRIP_HW + se, TENT_STRIP_HW - se, abs(az + TENT_STRIP_AZ.x));
+  float sR = smoothstep(TENT_STRIP_HW + se, TENT_STRIP_HW - se, abs(az - TENT_STRIP_AZ.y));
+  L += TENT_STRIP_LUM * uStudioLook.y * span * (TENT_STRIP_GAIN.x * sL + TENT_STRIP_GAIN.y * sR);
+  float fe = mix(TENT_FLOOR_SOFT, TENT_EDGE_CRISP, c);
+  L += uStudioLook.w * smoothstep(-TENT_GAP + fe, -TENT_GAP - fe, R.y) * (0.5 + 0.5 * smoothstep(-0.9, -0.15, R.y))
+     * mix(TENT_FLOOR_FRONT, 1.0, smoothstep(0.0, -0.8, R.z)); // floor sweep, lit behind: a lower rim
+  L += uStudioDome * (NEUTRAL_DOME_NADIR + (1.0 - NEUTRAL_DOME_NADIR) * pow(0.5 + 0.5 * R.y, NEUTRAL_DOME_POW));
+  return vec3(L);
+}
+
+// k: the rough-blur weight (0 = the sharp tent): every edge widens by STUDIO_ROUGH_BLUR * k. Structure (falloff, seams,
+// card) from uStudioLook2.yzw.
+vec3 skyStudioLiquid(vec3 R, float k) {
   float c = uStudioLook.x;
   float b = STUDIO_ROUGH_BLUR * k;
-  vec3 st = liq * uStudioLook2.yzw; // (falloff, seams, card): the liquid only
+  vec3 st = uStudioLook2.yzw; // (falloff, seams, card)
   float L = NEUTRAL_SKY_FLOOR;
   if (R.y > 0.02) { // canopy: a rectangle on the plane y = 1
     vec2 p = R.xz / R.y;
@@ -456,28 +482,43 @@ vec3 skyElements(vec3 R, float k) {
 // Split (lighting polish Step 1): returns the element part; neutral gets the studio + nebula part. Each part keeps today's
 // SKY_W_MIN gating and k-mix toward its own mean (the nebula stays outside the mix: its mips are its blur), so the two sum
 // to the unsplit sky. The liquid mirror night-tints only the element part (hgMirrorGlsl aetherMirrorLiquid).
-// blur (0 or 1): 1 = the liquid: a rough mirror sees the studio blurred (skyStudio(R, k)) and fades to its mean only from
-// STUDIO_MEAN_K0 (the boil, k ~ 0.6, keeps the tent's structure, not a flat grey); 0 = the ruled mirrors, exactly as before.
-vec3 aetherSkySplit(vec3 R, float rough, float blur, out vec3 neutral) {
+// aetherSkySplit: the ruled mirrors, exactly as before; aetherSkySplitLiquid: the liquid (splitFn).
+vec3 aetherSkySplit(vec3 R, float rough, out vec3 neutral) {
   float k = smoothstep(SKY_ROUGH_SHARP, SKY_ROUGH_FLAT, rough);
   float wE = uSkyW.x + uSkyW.y + uSkyW.z + uSkyW.w;
   float wN = uNeutralSky * clamp(1.0 - wE, 0.0, 1.0);
   vec3 mean = uSkyW.x * SKY_MEAN_FLUID + uSkyW.y * SKY_MEAN_THERMAL + uSkyW.z * SKY_MEAN_EARTH + uSkyW.w * SKY_MEAN_AIR;
   float wStudio = wN * (1.0 - uNeutralNebula), wNeb = wN * uNeutralNebula;
-  vec3 meanN = vec3(wStudio * (blur > 0.5 ? uStudioMeanLiquid : uStudioMean)); // studioMeanCached / studioMeanLiquidCached (JS) at the live knobs (floats: the studio is grey)
+  vec3 meanN = vec3(wStudio * uStudioMean); // studioMeanCached (JS) at the live knobs (a float: the studio is grey)
   vec3 neb = wNeb > SKY_W_MIN ? wNeb * skyNebula(R, k) : vec3(0.0);
   if (k >= 1.0) { neutral = meanN + neb; return mean; } // the nebula blurs by its own mips, never to a mean
   vec3 s = vec3(0.0), sN = vec3(0.0);
   if (wE > SKY_W_MIN) s += skyElements(R, k); // the cube already carries the weights
-  if (wStudio > SKY_W_MIN) sN += wStudio * skyStudio(R, blur * k, blur);
-  neutral = mix(sN, meanN, mix(k, smoothstep(STUDIO_MEAN_K0, 1.0, k), blur)) + neb;
+  if (wStudio > SKY_W_MIN) sN += wStudio * skyStudio(R);
+  neutral = mix(sN, meanN, k) + neb;
+  return mix(s, mean, k);
+}
+
+vec3 aetherSkySplitLiquid(vec3 R, float rough, out vec3 neutral) {
+  float k = smoothstep(SKY_ROUGH_SHARP, SKY_ROUGH_FLAT, rough);
+  float wE = uSkyW.x + uSkyW.y + uSkyW.z + uSkyW.w;
+  float wN = uNeutralSky * clamp(1.0 - wE, 0.0, 1.0);
+  vec3 mean = uSkyW.x * SKY_MEAN_FLUID + uSkyW.y * SKY_MEAN_THERMAL + uSkyW.z * SKY_MEAN_EARTH + uSkyW.w * SKY_MEAN_AIR;
+  float wStudio = wN * (1.0 - uNeutralNebula), wNeb = wN * uNeutralNebula;
+  vec3 meanN = vec3(wStudio * uStudioMeanLiquid); // studioMeanLiquidCached (JS) at the live knobs (a float: the studio is grey)
+  vec3 neb = wNeb > SKY_W_MIN ? wNeb * skyNebula(R, k) : vec3(0.0);
+  if (k >= 1.0) { neutral = meanN + neb; return mean; } // the nebula blurs by its own mips, never to a mean
+  vec3 s = vec3(0.0), sN = vec3(0.0);
+  if (wE > SKY_W_MIN) s += skyElements(R, k); // the cube already carries the weights
+  if (wStudio > SKY_W_MIN) sN += wStudio * skyStudioLiquid(R, k);
+  neutral = mix(sN, meanN, smoothstep(STUDIO_MEAN_K0, 1.0, k)) + neb;
   return mix(s, mean, k);
 }
 
 // The whole sky: element + neutral (every frozen / ruled caller, through aetherMirror).
 vec3 aetherSky(vec3 R, float rough) {
   vec3 neutral;
-  vec3 elem = aetherSkySplit(R, rough, 0.0, neutral); // the ruled mirrors: the studio mixes toward its mean, as before
+  vec3 elem = aetherSkySplit(R, rough, neutral); // the ruled mirrors: the studio mixes toward its mean, as before
   return elem + neutral;
 }
 
@@ -521,7 +562,7 @@ vec3 envLights(vec3 R, float rough, vec3 P, vec3 nW) {
 // too (aetherTint painted a terminator on a mirror). Each part rolls off on its own shoulder.
 vec3 aetherMirrorLiquid(vec3 R, float rough, vec3 nW) {
   vec3 neutral;
-  vec3 elem = aetherSkySplit(R, rough, 1.0, neutral); // the liquid sees a rough studio blurred, not flattened
+  vec3 elem = aetherSkySplitLiquid(R, rough, neutral); // the liquid sees a rough studio blurred, not flattened
   return aetherTint(nW) * aetherShoulder(uAetherGain * aetherHue(elem)) + studioShoulder(uAetherGain * aetherHue(neutral));
 }
 

@@ -18,6 +18,37 @@ import { PLANET_UNIFORMS } from '../mercuryPlanetShader';
 import { FLUID_SKY_RAD, AIR_SKY_RAD, AIR_LOWER_DIR, FIRE_SKY_RISE, EARTH_SKY_SINK } from '../aetherClock';
 import { ROUGH_LIQUID, ROUGH_SOLID, PLANET_TUNE } from '../planetLook';
 
+// One GLSL function, from its signature line to its closing brace at column 0.
+const fnText = (src, sig) => { const i = src.indexOf(sig); if (i < 0) return null; const j = src.indexOf('\n}', i); return src.slice(i, j + 2); };
+// Captured from 8255e4c0 (before the lighting polish): the ruled mirrors (crust, glaze, frost, quench, rock, frozen Hg)
+// compile this exact skyStudio; the structure and the rough blur live in skyStudioLiquid only.
+const SKY_STUDIO_8255 = [
+  'vec3 skyStudio(vec3 R) {',
+  '  float c = uStudioLook.x;',
+  '  float L = NEUTRAL_SKY_FLOOR;',
+  '  if (R.y > 0.02) { // canopy: a rectangle on the plane y = 1',
+  '    vec2 p = R.xz / R.y;',
+  '    float ef = mix(TENT_CANOPY_FRONT_SOFT, TENT_EDGE_CRISP, c);',
+  '    float inX = smoothstep(TENT_CANOPY_HX + TENT_CANOPY_FADE, TENT_CANOPY_HX - TENT_CANOPY_FADE, abs(p.x));',
+  '    float inZ = smoothstep(TENT_CANOPY_Z0 - TENT_CANOPY_FADE, TENT_CANOPY_Z0 + TENT_CANOPY_FADE, p.y) * smoothstep(TENT_CANOPY_Z1 + ef, TENT_CANOPY_Z1 - ef, p.y);',
+  '    float u = p.x / TENT_CANOPY_HX;',
+  '    float fall = mix(1.0, TENT_CANOPY_BACK, smoothstep(TENT_CANOPY_Z1, TENT_CANOPY_Z0, p.y)) * (1.0 - TENT_CANOPY_SIDE * min(u * u, 1.0));',
+  '    L += uStudioLook.z * inX * inZ * fall;',
+  '  }',
+  '  float az = atan(R.x, R.z); // 0 = toward the camera',
+  '  float ys = mix(TENT_STRIP_YSOFT, TENT_STRIP_FEATHER, c), se = mix(TENT_STRIP_SOFT, TENT_EDGE_CRISP, c);',
+  '  float span = smoothstep(TENT_STRIP_Y0 - ys, TENT_STRIP_Y0 + ys, R.y) * smoothstep(TENT_STRIP_Y1 + ys, TENT_STRIP_Y1 - ys, R.y);',
+  '  float sL = smoothstep(TENT_STRIP_HW + se, TENT_STRIP_HW - se, abs(az + TENT_STRIP_AZ.x));',
+  '  float sR = smoothstep(TENT_STRIP_HW + se, TENT_STRIP_HW - se, abs(az - TENT_STRIP_AZ.y));',
+  '  L += TENT_STRIP_LUM * uStudioLook.y * span * (TENT_STRIP_GAIN.x * sL + TENT_STRIP_GAIN.y * sR);',
+  '  float fe = mix(TENT_FLOOR_SOFT, TENT_EDGE_CRISP, c);',
+  '  L += uStudioLook.w * smoothstep(-TENT_GAP + fe, -TENT_GAP - fe, R.y) * (0.5 + 0.5 * smoothstep(-0.9, -0.15, R.y))',
+  '     * mix(TENT_FLOOR_FRONT, 1.0, smoothstep(0.0, -0.8, R.z)); // floor sweep, lit behind: a lower rim',
+  '  L += uStudioDome * (NEUTRAL_DOME_NADIR + (1.0 - NEUTRAL_DOME_NADIR) * pow(0.5 + 0.5 * R.y, NEUTRAL_DOME_POW));',
+  '  return vec3(L);',
+  '}',
+].join('\n');
+
 describe('aetherSky', () => {
   it('interpolates every constant from its owner', () => {
     for (const [n, v] of Object.entries({ FLUID_SKY_RAD, AIR_SKY_RAD, AIR_LOWER_DIR, FIRE_SKY_RISE, EARTH_SKY_SINK,
@@ -79,12 +110,13 @@ describe('aetherSky', () => {
   });
 
   it('aetherSkySplit separates the neutral sky and aetherSky is their sum', () => {
-    expect(AETHER_SKY_GLSL).toContain('vec3 aetherSkySplit(vec3 R, float rough, float blur, out vec3 neutral) {');
+    expect(AETHER_SKY_GLSL).toContain('vec3 aetherSkySplit(vec3 R, float rough, out vec3 neutral) {');
+    expect(AETHER_SKY_GLSL).toContain('vec3 aetherSkySplitLiquid(vec3 R, float rough, out vec3 neutral) {');
     const body = AETHER_SKY_GLSL.slice(AETHER_SKY_GLSL.indexOf('vec3 aetherSky(vec3 R, float rough) {'));
     expect(body.slice(0, body.indexOf('\n}') + 2)).toBe([
       'vec3 aetherSky(vec3 R, float rough) {',
       '  vec3 neutral;',
-      '  vec3 elem = aetherSkySplit(R, rough, 0.0, neutral); // the ruled mirrors: the studio mixes toward its mean, as before',
+      '  vec3 elem = aetherSkySplit(R, rough, neutral); // the ruled mirrors: the studio mixes toward its mean, as before',
       '  return elem + neutral;',
       '}',
     ].join('\n'));
@@ -161,7 +193,7 @@ describe('aetherSky', () => {
     });
 
     it('GLSL mirrors the replica: canopy plane, camera-fixed azimuth, staggered strips, floor lit behind, no noise, no drift', () => {
-      const body = AETHER_SKY_GLSL.slice(AETHER_SKY_GLSL.indexOf('vec3 skyStudio(vec3 R, float k, float liq) {'), AETHER_SKY_GLSL.indexOf('vec3 skyNebula(vec3 R, float k)'));
+      const body = AETHER_SKY_GLSL.slice(AETHER_SKY_GLSL.indexOf('vec3 skyStudioLiquid(vec3 R, float k) {'), AETHER_SKY_GLSL.indexOf('vec3 skyNebula(vec3 R, float k)'));
       expect(body).toContain('vec2 p = R.xz / R.y;');
       expect(body).toContain('float az = atan(R.x, R.z); // 0 = toward the camera');
       expect(body).toContain('float dL = az + TENT_STRIP_AZ.x, dR = az - TENT_STRIP_AZ.y;');
@@ -171,7 +203,8 @@ describe('aetherSky', () => {
       expect(body).not.toMatch(/skyFbm|skyNoise|skyHash|uSkyT/);
       // uStudioMean is a float (HG_MIRROR_DECLS_GLSL): a bare float into a vec3 failed to compile live (2026-11-22)
       expect(HG_MIRROR_DECLS_GLSL).toContain('uniform float uStudioMean;');
-      expect(AETHER_SKY_GLSL).toContain('vec3 meanN = vec3(wStudio * (blur > 0.5 ? uStudioMeanLiquid : uStudioMean)); // studioMeanCached / studioMeanLiquidCached (JS) at the live knobs (floats: the studio is grey)');
+      expect(fnText(AETHER_SKY_GLSL, 'vec3 aetherSkySplit(')).toContain('vec3 meanN = vec3(wStudio * uStudioMean); // studioMeanCached (JS) at the live knobs (a float: the studio is grey)');
+      expect(fnText(AETHER_SKY_GLSL, 'vec3 aetherSkySplitLiquid(')).toContain('vec3 meanN = vec3(wStudio * uStudioMeanLiquid); // studioMeanLiquidCached (JS) at the live knobs (a float: the studio is grey)');
       expect(HG_MIRROR_DECLS_GLSL).toContain('uniform float uStudioMeanLiquid;');
       for (const u of ['uStudioMeanLiquid']) { expect(HG_MIRROR_UNIFORMS).toContain(u); expect(PLANET_UNIFORMS).toContain(u); }
     });
@@ -189,16 +222,19 @@ describe('aetherSky', () => {
     it('neutral weight fills what the element skies leave; evaluated only above SKY_W_MIN', () => {
       expect(AETHER_SKY_GLSL).toContain('float wE = uSkyW.x + uSkyW.y + uSkyW.z + uSkyW.w;');
       expect(AETHER_SKY_GLSL).toContain('float wN = uNeutralSky * clamp(1.0 - wE, 0.0, 1.0);');
-      expect(AETHER_SKY_GLSL).toContain('vec3 skyStudio(vec3 R, float k, float liq) {');
+      expect(AETHER_SKY_GLSL).toContain('vec3 skyStudio(vec3 R) {');
+      expect(AETHER_SKY_GLSL).toContain('vec3 skyStudioLiquid(vec3 R, float k) {');
       expect(AETHER_SKY_GLSL).toContain('float wStudio = wN * (1.0 - uNeutralNebula), wNeb = wN * uNeutralNebula;');
-      expect(AETHER_SKY_GLSL).toContain('if (wStudio > SKY_W_MIN) sN += wStudio * skyStudio(R, blur * k, blur);');
+      expect(fnText(AETHER_SKY_GLSL, 'vec3 aetherSkySplit(')).toContain('if (wStudio > SKY_W_MIN) sN += wStudio * skyStudio(R);');
+      expect(fnText(AETHER_SKY_GLSL, 'vec3 aetherSkySplitLiquid(')).toContain('if (wStudio > SKY_W_MIN) sN += wStudio * skyStudioLiquid(R, k);');
     });
 
     it('studio / nebula switch: each side evaluated only when it has weight; nebula = one rotated textureLod', () => {
       expect(AETHER_SKY_GLSL).toContain('vec3 neb = wNeb > SKY_W_MIN ? wNeb * skyNebula(R, k) : vec3(0.0);');
       expect(AETHER_SKY_GLSL).toContain('return textureLod(uNebulaMap, uNebulaRot * R, max(k * NEBULA_MAX_LOD, skyPxLod)).rgb;');
       // rough mirrors: the mip chain is the blur, added AFTER the element/studio mix toward the mean (no double flattening)
-      expect(AETHER_SKY_GLSL).toContain('neutral = mix(sN, meanN, mix(k, smoothstep(STUDIO_MEAN_K0, 1.0, k), blur)) + neb;');
+      expect(fnText(AETHER_SKY_GLSL, 'vec3 aetherSkySplit(')).toContain('neutral = mix(sN, meanN, k) + neb;');
+      expect(fnText(AETHER_SKY_GLSL, 'vec3 aetherSkySplitLiquid(')).toContain('neutral = mix(sN, meanN, smoothstep(STUDIO_MEAN_K0, 1.0, k)) + neb;');
       expect(AETHER_SKY_GLSL).toContain('return mix(s, mean, k);');
       // limb: a pixel-footprint mip floor, set by shaders that have screen derivatives, 0 elsewhere
       expect(AETHER_SKY_GLSL).toContain('float skyPxLod = 0.0;');
@@ -307,9 +343,10 @@ describe('aetherSky', () => {
       expect(studioMeanCached(1, 4, 2, 0, 0)).toBe(studioMean({ ...K, ...ZERO }));
       expect(studioMeanLiquidCached(1, 4, 2, 0, 0, 1, 1, 1)).toBe(studioMean({ ...K, ...ONE }));
       expect(studioMeanLiquidCached(1, 4, 2, 0, 0, 1, 1, 1)).not.toBe(studioMeanCached(1, 4, 2, 0, 0));
-      // GLSL: the three structures are scaled by the liquid flag; the ruled mirrors pass 0
-      const body = AETHER_SKY_GLSL.slice(AETHER_SKY_GLSL.indexOf('vec3 skyStudio(vec3 R, float k, float liq) {'), AETHER_SKY_GLSL.indexOf('vec3 skyNebula(vec3 R, float k)'));
-      expect(body).toContain('vec3 st = liq * uStudioLook2.yzw;');
+      // GLSL: structure off is structural. The ruled skyStudio is the 8255e4c0 text; only skyStudioLiquid reads the knobs
+      expect(fnText(AETHER_SKY_GLSL, 'vec3 skyStudio(vec3 R) {')).not.toMatch(/uStudioLook2|studioFall|studioBand|STUDIO_ROUGH_BLUR/);
+      const body = AETHER_SKY_GLSL.slice(AETHER_SKY_GLSL.indexOf('vec3 skyStudioLiquid(vec3 R, float k) {'), AETHER_SKY_GLSL.indexOf('vec3 skyNebula(vec3 R, float k)'));
+      expect(body).toContain('vec3 st = uStudioLook2.yzw;');
       expect(body).not.toMatch(/uStudioLook2\.[yzw](?!zw)/); // every structure read goes through st
     }, 60000);
 
@@ -349,7 +386,7 @@ describe('aetherSky', () => {
     it('skyStudio mirrors studioRadiance: the three structures in the GLSL, reading uStudioLook2.yzw', () => {
       const body = AETHER_SKY_GLSL.slice(AETHER_SKY_GLSL.indexOf('float studioBand(float d, float hw, float w) {'), AETHER_SKY_GLSL.indexOf('vec3 skyNebula(vec3 R, float k)'));
       expect(body).toContain('return 1.0 - f * pow(min(abs(d) / hw, 1.0), TENT_FALLOFF_POW);');
-      expect(body).toContain('vec3 st = liq * uStudioLook2.yzw;');
+      expect(body).toContain('vec3 st = uStudioLook2.yzw;');
       expect(body).toContain('st.x');
       expect(body).toContain('st.y');
       expect(body).toContain('st.z');
@@ -357,11 +394,23 @@ describe('aetherSky', () => {
       expect(body).not.toMatch(/skyFbm|skyNoise|skyHash|uSkyT/); // no noise: no banding source
     });
 
+    it('the ruled skyStudio compiles the 8255e4c0 text exactly; no ruled path reaches skyStudioLiquid', () => {
+      expect(fnText(AETHER_SKY_GLSL, 'vec3 skyStudio(vec3 R) {')).toBe(SKY_STUDIO_8255);
+      for (const sig of ['vec3 skyStudio(vec3 R) {', 'vec3 aetherSkySplit(vec3 R, float rough, out vec3 neutral) {', 'vec3 aetherSky(vec3 R, float rough) {']) {
+        expect(fnText(AETHER_SKY_GLSL, sig), sig).not.toMatch(/skyStudioLiquid|aetherSkySplitLiquid|uStudioMeanLiquid|uStudioLook2/);
+      }
+      // skyStudioLiquid: defined once, called once, from the liquid split only
+      expect(AETHER_SKY_GLSL.match(/skyStudioLiquid\(/g)).toHaveLength(2);
+      expect(fnText(AETHER_SKY_GLSL, 'vec3 aetherSkySplitLiquid(')).toContain('skyStudioLiquid(R, k)');
+      expect(AETHER_SKY_GLSL.match(/\bskyStudio\(/g)).toHaveLength(2); // the ruled one: defined once, called once (aetherSkySplit)
+      expect(AETHER_SKY_GLSL.match(/aetherSkySplitLiquid\(/g)).toHaveLength(1); // defined here, called by hgMirrorGlsl only
+    });
+
     describe('boil blur (controller ruling 1): a rough liquid mirror sees the tent blurred, not its flat mean', () => {
       it('blur 0 is the sharp tent; the ruled mirrors pass blur 0, the liquid 1', () => {
         grid(16, 32, (x, y, z) => expect(studioRadiance(x, y, z, K, 0)).toEqual(studioRadiance(x, y, z, K)));
         expect(AETHER_SKY_GLSL).toContain('if (k >= 1.0) { neutral = meanN + neb; return mean; } // the nebula blurs by its own mips, never to a mean');
-        expect(AETHER_SKY_GLSL).toContain('float b = STUDIO_ROUGH_BLUR * k;');
+        expect(fnText(AETHER_SKY_GLSL, 'vec3 skyStudioLiquid(vec3 R, float k) {')).toContain('float b = STUDIO_ROUGH_BLUR * k;');
       });
       it('at boil k the day half is structured, not constant, and keeps the tent\'s energy', () => {
         const kBoil = 0.6;
