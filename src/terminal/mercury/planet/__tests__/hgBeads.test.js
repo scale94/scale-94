@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
   createBeads, spawnBead, spawnFling, spawnSplash, stepBeads, beadRadius, wobbleHz, wobbleGate, WOBBLE_HZ_MIN, WOBBLE_HZ_MAX,
-  AMBIENT_RATE, BEAD_ESCAPE_R, BEAD_SHAPE_MARGIN, pearlStrike, BEAD_LIFE, DUST_R, PEARL_R, PEARL_P, EVAP_RATE, FLING_N, FLING_V_MAX, FLING_RADIAL, G_BEAD,
+  AMBIENT_RATE, BEAD_ESCAPE_R, BEAD_SHAPE_MARGIN, pearlStrike, FLING_LIFE, FLING_RETURN_V, BEAD_LIFE, DUST_R, PEARL_R, PEARL_P, EVAP_RATE, FLING_N, FLING_V_MAX, FLING_RADIAL, G_BEAD,
 } from '../hgBeads';
 import { mulberry32 } from '../prng';
+import { MAX_OMEGA } from '../mercuryBody';
 import { SUN_DIR_WORLD } from '../planetFrame';
 
 const CTX = { phase: 'air', coreR: 0.75, calm: false, liquid: true, boil: 0 };
@@ -327,5 +328,48 @@ describe('pearlStrike: a landing pearl ripples like a small drop', () => {
     expect(big).toBeLessThan(0.35);
     expect(pearlStrike(PEARL_R[1], 0)).toBeCloseTo(0.5 * pearlStrike(PEARL_R[1], 10), 6); // vnK spans 0.5 → 1
     expect(pearlStrike(1, 100)).toBe(1);
+  });
+});
+
+// fix/mercury-motion: in a still aether (no element active) the drag braked a flung bead to rest far out, where G_BEAD
+// barely pulls (terminal ≈ 0.01–0.03 u/s), and BEAD_LIFE faded it out in space. Flung beads now ease into an inward
+// return drift after their free flight, and live until they land (FLING_LIFE is only the safety cap).
+describe('flung beads come home (fix/mercury-motion)', () => {
+  const landAll = (phase, omega = [0, MAX_OMEGA, 0], seconds = FLING_LIFE) => {
+    const b = createBeads(64);
+    spawnFling(b, omega, 0.75, FLING_N);
+    let landed = 0;
+    const ctx = { ...CTX, phase, liquid: false };
+    for (let t = 0; t < seconds && b.n > 0; t += 1 / 60) { stepBeads(b, 1 / 60, ctx); landed += b.nHits; }
+    return { landed, left: b.n };
+  };
+  it('a hyper-strength fling in a still aether: ≥ 95 % of the beads land on the planet', () => {
+    const { landed } = landAll('neutral');
+    expect(landed / FLING_N).toBeGreaterThanOrEqual(0.95);
+  });
+  it('carried by fluid or earth they still come home (the flow turns them; the drift brings them in)', () => {
+    for (const phase of ['fluid', 'earth']) {
+      const { landed } = landAll(phase);
+      expect(landed / FLING_N, phase).toBeGreaterThanOrEqual(0.9);
+    }
+  });
+  it('air (a rigid rotation) carries them off centrifugally: each one lands or leaves the scene, none fades in view', () => {
+    const { landed, left } = landAll('air', [0, MAX_OMEGA, 0], FLING_LIFE - 1); // stop before the cap could fire
+    // gone before FLING_LIFE: at hyper strength every one leaves past BEAD_ESCAPE_R · coreR (off frame), none faded
+    expect(left).toBe(0);
+    expect(landed).toBeLessThan(FLING_N / 2);
+  });
+  it('a flung bead does not hover: in a still aether most of the swarm is home within 8 s', () => {
+    const { landed } = landAll('neutral', [0, MAX_OMEGA, 0], 8);
+    expect(landed / FLING_N).toBeGreaterThanOrEqual(0.8);
+    expect(FLING_RETURN_V).toBeGreaterThan(0);
+  });
+  it('a flung bead keeps full alpha past BEAD_LIFE (it fades only at the FLING_LIFE cap); ambient beads still fade', () => {
+    const b = createBeads(8);
+    const i = spawnBead(b, 0, 2.5, 0, 0, 0, 0, 0.01); b.free[i] = 1; b.age[i] = BEAD_LIFE - 0.1;
+    const j = spawnBead(b, 0, -2.5, 0, 0, 0, 0, 0.01); b.age[j] = BEAD_LIFE - 0.1;
+    stepBeads(b, 1 / 60, { ...CTX, calm: true, liquid: false });
+    expect(b.outBead[3 * i + 1]).toBe(1);
+    expect(b.outBead[3 * j + 1]).toBeLessThan(0.1);
   });
 });

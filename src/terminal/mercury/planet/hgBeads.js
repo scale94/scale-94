@@ -1,7 +1,8 @@
 // src/terminal/mercury/planet/hgBeads.js — liquid Hg beads in the aether (aether spec §3): sources, motion, sinks.
 // Pure (no three). Sources: an ambient trickle off the sunlit liquid surface (the planet's slow loss to space,
 // × boiling), fling bursts tangential to the spin, splashes at liquid visitor impacts. Motion: gravity toward
-// the planet + drag toward the ACTIVE element's flow velocity (flung beads fly free first, FLING_FREE_T).
+// the planet + drag toward the ACTIVE element's flow velocity (flung beads fly free first, FLING_FREE_T, then the
+// flow they ease into also drifts them home at FLING_RETURN_V, and they live until they land: FLING_LIFE is a cap).
 // Sinks: life (fade), fire (evaporation), re-entry (merge at surface contact, reported in hits), the cap (oldest first; only flings and splashes
 // evict, the ambient trickle waits for room). Preallocated typed arrays; nothing allocates per frame.
 // Upload: position + (radius, alpha, glint gate).
@@ -29,6 +30,11 @@ export const SPLASH_N = 6;
 export const FLING_GAIN = 1.1;    // × (ω × r) at release
 export const FLING_V_MAX = 2.25;  // launch speed cap (scene units/s): readable arcs, not instant escapes
 export const FLING_FREE_T = 0.5;   // s: a flung bead flies free (no drag), then eases into the flow: drag × (1 − e^(−age/T))
+// fix/mercury-motion: in a still aether the drag braked a flung bead to rest far out (G_BEAD's terminal speed there is
+// ≈ 0.01–0.03 u/s) and BEAD_LIFE faded it in space. A flung bead's flow carries this inward drift on top of the element's,
+// so it arcs out ballistic, then comes home (spiralling with air/fluid), and it is not faded before FLING_LIFE.
+export const FLING_RETURN_V = 0.35; // u/s toward the planet
+export const FLING_LIFE = 16;       // s: the safety cap for a flung bead (≫ its ~3–6 s trip home)
 export const FLING_RADIAL = 0.25;  // outward launch kick (scene units/s): the spray peels off the surface
 // The glint gate (spec §2 + amendment): a free droplet rings in its l=2 and l=3 shape modes
 // (Rayleigh: f ∝ √(l(l−1)(l+2)) · r^−1.5, ratio √(30/8) ≈ 1.94), and an ejected droplet tumbles, so its
@@ -179,6 +185,7 @@ export function stepBeads(b, dt, ctx) {
       const x = b.pos[3 * i], y = b.pos[3 * i + 1], z = b.pos[3 * i + 2];
       const r2 = x * x + y * y + z * z, rl = Math.sqrt(r2) || 1, g = G_BEAD / (r2 * rl);
       flowVel(phase, x, y, z, b.age[i]);
+      if (b.free[i]) { const k = FLING_RETURN_V / rl; f[0] -= k * x; f[1] -= k * y; f[2] -= k * z; }
       const drag = b.free[i] ? DRAG * (1 - Math.exp(-b.age[i] / FLING_FREE_T)) : DRAG;
       for (let c = 0; c < 3; c++) {
         const p = b.pos[3 * i + c];
@@ -208,11 +215,11 @@ export function stepBeads(b, dt, ctx) {
         b.hits[h] = ux; b.hits[h + 1] = uy; b.hits[h + 2] = uz; b.hits[h + 3] = b.r[i]; b.hits[h + 4] = Math.max(vn, 0);
       }
     }
-    if (landed || b.age[i] > BEAD_LIFE || b.r[i] <= 0 || escaped) remove(b, i);
+    if (landed || b.age[i] > (b.free[i] ? FLING_LIFE : BEAD_LIFE) || b.r[i] <= 0 || escaped) remove(b, i);
   }
   for (let i = 0; i < b.n; i++) {
     b.outPos[3 * i] = b.pos[3 * i]; b.outPos[3 * i + 1] = b.pos[3 * i + 1]; b.outPos[3 * i + 2] = b.pos[3 * i + 2];
-    const a = Math.min(1, b.age[i] / 0.15, (BEAD_LIFE - b.age[i]) / BEAD_FADE);
+    const a = Math.min(1, b.age[i] / 0.15, ((b.free[i] ? FLING_LIFE : BEAD_LIFE) - b.age[i]) / BEAD_FADE);
     b.outBead[3 * i] = b.r[i]; b.outBead[3 * i + 1] = Math.max(0, a);
     b.outBead[3 * i + 2] = calm ? 0 : wobbleGate(b.wph[i], b.ph2[i], b.ph3[i], b.ph4[i], b.tumble[i]);
   }
