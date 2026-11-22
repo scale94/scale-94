@@ -21,8 +21,8 @@ export const AMBIENT_RATE = 18;   // beads/s off the sunlit surface → ~AMBIENT
 export const BOIL_GAIN = 4;       // boiling multiplies the trickle by (1 + BOIL_GAIN · coverage)
 export const BEAD_LIFE = 8;       // s
 export const BEAD_FADE = 1.5;     // s of fade-OUT before BEAD_LIFE (the fade-in is the 0.15 s ramp in stepBeads)
-// A bead is drawn as a mirror body from 2 px across (hgBeadShader kPearl); below that it is a glint only. Ripples and
-// coalescence follow what is drawn, not the spawn class (dust renders as visible pearls on a large or high-dpr canvas).
+// A bead is drawn as a mirror body from 2 px across (hgBeadShader kPearl); below that it is a glint only. Coalescence
+// follows what is drawn, not the spawn class (dust renders as visible pearls on a large or high-dpr canvas).
 export const BEAD_BODY_PX = 1;     // rendered radius, px
 export const BEAD_SHAPE_MARGIN = 1.12; // × coreR: past this (|p| − r) the live surface (SHAPE_MAX + BULGE_MAX) can't reach a bead
 export const BEAD_ESCAPE_R = 4;   // × coreR: beyond this a bead has left the scene for good (flings never return)
@@ -78,6 +78,7 @@ const AMBIENT_V = [0.15, 0.35];   // launch speed range (scene units/s), along t
 const SPLASH_V = 0.35;
 const SUN_MIN = 0.2;              // ambient sources: dot(normal, Sun) above this
 
+export const HIT_STRIDE = 6;
 export function createBeads(cap, seed = 0x6867) {
   return {
     cap, n: 0, acc: 0, rng: mulberry32(seed),
@@ -85,8 +86,9 @@ export function createBeads(cap, seed = 0x6867) {
     r: new Float32Array(cap), age: new Float32Array(cap), free: new Uint8Array(cap),
     ph2: new Float32Array(cap), ph3: new Float32Array(cap), ph4: new Float32Array(cap), tumble: new Float32Array(cap), wph: new Float32Array(cap),
     outPos: new Float32Array(cap * 3), outBead: new Float32Array(cap * 3),
-    // this step's touchdowns: (world dir xyz, radius, inward normal speed) × nHits; the caller turns pearls into ripples
-    hits: new Float32Array(cap * 5), nHits: 0,
+    // this step's touchdowns: (world dir xyz, radius, inward normal speed, flung 0/1) × nHits, HIT_STRIDE apart; the
+    // caller ripples flung pearls only
+    hits: new Float32Array(cap * HIT_STRIDE), nHits: 0,
     // coalescence: time left / total (0 = airborne), radius at contact, contact direction in the body frame
     mt: new Float32Array(cap), mD: new Float32Array(cap), r0: new Float32Array(cap), dB: new Float32Array(cap * 3),
     cut: new Float32Array(cap), // the age at which a bead caught airborne over a crust is gone (Infinity: not cut)
@@ -176,13 +178,14 @@ function flowVel(phase, x, y, z, age) {
   else if (phase === 'thermal') { f[1] = 0.4; }                                    // updraft
 }
 
-// A touchdown's ripple strength on the phase-5 splash scale (0..1). Only a bead drawn as a body ripples (its rendered
-// radius r · pxPerUnit ≥ BEAD_BODY_PX); a glint-only speck is silent. Energy share, not volume share: amplitude ∝ √(m v²),
-// as the hyper swarm's strike splits one splash (breakupStep.strike); `floor` keeps the tiniest visible bead a micro-ripple.
-export function pearlStrike(r, vn, pxPerUnit, floor = 0) {
-  if (!(r * pxPerUnit >= BEAD_BODY_PX)) return 0;
+// A touchdown's ripple strength on the phase-5 splash scale (0..1): pearls only (dust merges silently). Energy share,
+// not volume share: amplitude ∝ √(m v²), as the hyper swarm's strike splits one splash (breakupStep.strike). A pearl is
+// 1.6–7 % of a phase-5 drop by volume, so a linear share would be an invisible ring. No floor: a floor on every visible
+// bead buzzed the liquid nonstop (author 2026-11-22); the caller also ripples only flung pearls.
+export function pearlStrike(r, vn) {
+  if (r < PEARL_R[0]) return 0;
   const vnK = 0.5 + 0.5 * Math.min(1, Math.max(vn, 0) / STRIKE_V_REF);
-  return Math.min(1, Math.max(floor, Math.sqrt(sphereVol(r) / DROP_V_REF) * vnK));
+  return Math.min(1, Math.sqrt(sphereVol(r) / DROP_V_REF) * vnK);
 }
 
 const smooth = (u) => u * u * (3 - 2 * u);
@@ -250,8 +253,9 @@ export function stepBeads(b, dt, ctx) {
         landed = rl < R || (vn > 0 && rl - b.r[i] <= R);
       }
       if (landed) {
-        const h = 5 * b.nHits++;
+        const h = HIT_STRIDE * b.nHits++;
         b.hits[h] = ux; b.hits[h + 1] = uy; b.hits[h + 2] = uz; b.hits[h + 3] = b.r[i]; b.hits[h + 4] = Math.max(vn, 0);
+        b.hits[h + 5] = b.free[i];
         if (b.r[i] * pxPerUnit >= BEAD_BODY_PX) {
           _dir[0] = ux; _dir[1] = uy; _dir[2] = uz;
           qRotateInv(q, _dir, _dB);

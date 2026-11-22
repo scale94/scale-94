@@ -53,7 +53,7 @@ import {
 import { createVisitorFrame, packVisitors } from './planet/visitorFrame';
 import useVisitorField from './useVisitorField';
 import useHgBeads from './useHgBeads';
-import { spawnFling, spawnSplash, stepBeads, pearlStrike, FLING_N, SPLASH_N } from './planet/hgBeads';
+import { spawnFling, spawnSplash, stepBeads, pearlStrike, HIT_STRIDE, FLING_N, SPLASH_N } from './planet/hgBeads';
 import { CALORIS_DIR_BODY, stepOverlay } from './planet/slowNoon';
 import { nebulaRotation } from './planet/nebulaSky';
 import { canBakeNebula, bakeNebula } from './nebulaBake';
@@ -757,20 +757,23 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     beadCtx.planetRadiusAt = drop.env.planetRadiusAt; // touchdown on the live surface (bulge + ripples), as the drops land
     // refreezing: the time left before the surface stops counting as liquid (the beads home in it, then clear)
     beadCtx.freezeIn = body.liquid ? Infinity : Math.max(0, (body.tau - LIQUID_TAU) * TRANSMUTE_S);
-    beadCtx.pxPerUnit = drop.env.pxPerUnit; // what is drawn as a body ripples and coalesces (hgBeads BEAD_BODY_PX)
+    beadCtx.pxPerUnit = drop.env.pxPerUnit; // what is drawn as a body coalesces (hgBeads BEAD_BODY_PX)
     beadCtx.q[0] = body.q.x; beadCtx.q[1] = body.q.y; beadCtx.q[2] = body.q.z; beadCtx.q[3] = body.q.w; // coalescence rides the planet
     stepBeads(beads.sim, stepS, beadCtx);
-    // A landing pearl ripples the liquid (dust merges silently): the strongest touchdown this frame, one minor impulse
-    // that yields its slot to any stronger live ring (addImpulseIfRoom). Crust and calm take no ripple.
+    // A flung pearl landing ripples the liquid (the trickle, splash beads and dust coalesce silently, so the mirror stays
+    // still at rest): the strongest such touchdown this frame, one minor impulse that yields its slot to any stronger
+    // live ring (addImpulseIfRoom). Crust and calm take no ripple.
     if (!calm && beadCtx.liquid) {
       const sim = beads.sim;
       let best = -1, bestS = 0;
       for (let k = 0; k < sim.nHits; k++) {
-        const s = pearlStrike(sim.hits[5 * k + 3], sim.hits[5 * k + 4], beadCtx.pxPerUnit, PLANET_TUNE.pearlRipple);
+        const h = HIT_STRIDE * k;
+        if (!sim.hits[h + 5]) continue;
+        const s = pearlStrike(sim.hits[h + 3], sim.hits[h + 4]);
         if (s > bestS) { bestS = s; best = k; }
       }
       if (best >= 0) {
-        const h = 5 * best;
+        const h = HIT_STRIDE * best;
         beadCtx.dirW[0] = sim.hits[h]; beadCtx.dirW[1] = sim.hits[h + 1]; beadCtx.dirW[2] = sim.hits[h + 2];
         worldToBody(beadCtx.dirW, body.q, surf.b);
         addImpulseIfRoom(surf.impulses, { dirBody: surf.b, tS: t, mode: IMPACT_MODE_AMP.splash * bestS, wave: IMPACT_WAVE_AMP.splash * bestS, kind: 'splash' });
