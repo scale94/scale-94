@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  ORBIT_RADIUS, ORBIT_NODES, PRECESSION_RATE, PRECESSION_DRIFT, orbitPrecessionAngle, nodeWorldPosition,
+  ORBIT_RADIUS, ORBIT_NODES, PRECESSION_RATE, PRECESSION_DRIFT, orbitPrecessionAngle, nodeWorldPosition, nodePosition,
 } from '../orbitNodes';
 import { ELEMENTS } from '../elements';
 
@@ -24,5 +24,15 @@ describe('orbitNodes', () => {
     expect(x).toBeCloseTo(0, 12);
     expect(y).toBeCloseTo(ORBIT_RADIUS, 12);
     expect(z).toBe(0);
+  });
+});
+
+describe('nodePosition: one source for where a node sits (ring, or a portrait phone\'s corner)', () => {
+  it('on the ring it is nodeWorldPosition (precessing); with a corner layout it is the corner, still', () => {
+    const air = ORBIT_NODES.find((n) => n.phase === 'air');
+    expect(nodePosition(air, 0.3, null)).toEqual(nodeWorldPosition(air.angle, 0.3));
+    const layout = { nodes: { air: [0.9, 1.2, 0], thermal: [0.9, -1.4, 0], earth: [-0.9, -1.4, 0], fluid: [-0.9, 1.2, 0] } };
+    expect(nodePosition(air, 0.3, layout)).toEqual([0.9, 1.2, 0]);
+    expect(nodePosition(air, 2.0, layout)).toEqual([0.9, 1.2, 0]); // corners do not precess
   });
 });
