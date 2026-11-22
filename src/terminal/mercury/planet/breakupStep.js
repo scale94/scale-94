@@ -34,16 +34,21 @@ const flies = (b) => b.state === 'free' || (b.state === 'merging' && b.lead);
 const _acc = [0, 0, 0];
 
 // The hyper acceleration (phase-6 spec §3.5, V1): gravity plus drag toward an aether vortex about L̂ that turns a
-// little slower than orbital speed, u = (1 − η) √(μ/r) (L̂ × x)/r. Inside the core radius rC gravity is linear,
+// little slower than orbital speed and drains into the core, u = √(μ/r) [(1 − η) (L̂ × x)/r − η K x/r] with
+// K = HYPER_INFLOW_K (fix/mercury-motion: a draining whirlpool). The headwind η both slows the turn and opens the drain,
+// so the drag-locked beads ride spiral streamlines home; without the drain the overdamped infall (≈ g/γ) was too slow to
+// land a desktop-reach swarm at any η, and the fallback η = 1 stopped the vortex dead (the beads sank straight down). Inside the core radius rC gravity is linear,
 // as for a uniform ball (−μ x / rC³): a bead passing the centre gets no 1/r² kick. Scalars in, `out` written: the
 // live flight and the solver's test particles share it, so their paths agree.
+export const HYPER_INFLOW_K = 1; // the drain's speed per unit headwind, × the local orbital speed
 export function hyperAccel(mu, eta, gamma, L, x, y, z, vx, vy, vz, rC, h, out) {
   const r2 = x * x + y * y + z * z;
   const r = Math.max(Math.sqrt(r2), 1e-6);
   const rg = Math.max(r, rC);
   const r3 = rg * rg * rg;
-  const k = ((1 - eta) * Math.sqrt(mu / r)) / r;
-  const ux = k * (L[1] * z - L[2] * y), uy = k * (L[2] * x - L[0] * z), uz = k * (L[0] * y - L[1] * x);
+  const vo = Math.sqrt(mu / r) / r;
+  const k = (1 - eta) * vo, d = eta * HYPER_INFLOW_K * vo;
+  const ux = k * (L[1] * z - L[2] * y) - d * x, uy = k * (L[2] * x - L[0] * z) - d * y, uz = k * (L[0] * y - L[1] * x) - d * z;
   const gx = (-mu * x) / r3, gy = (-mu * y) / r3, gz = (-mu * z) / r3;
   // drag acts on v at the position's time (w = v + g h/2), not the stored half-step v: without it the symplectic
   // step adds a hidden headwind proportional to gamma * Omega * h
@@ -51,6 +56,13 @@ export function hyperAccel(mu, eta, gamma, L, x, y, z, vx, vy, vz, rC, h, out) {
   out[1] = gy - gamma * (vy + 0.5 * h * gy - uy);
   out[2] = gz - gamma * (vz + 0.5 * h * gz - uz);
   return out;
+}
+
+// The hyper headwind schedule (V4 §10.3): none while the disc hangs, then eased in over `ramp` s from tHang so the
+// gather has no kink (fix/mercury-motion). ramp 0 is the original step. Live flight and test particles share it.
+export function hyperEta(t, tHang, eta, ramp) {
+  if (ramp > 0) return eta * Math.min(1, Math.max(0, (t - tHang) / ramp));
+  return t < tHang ? 0 : eta;
 }
 
 // How long a bead of radius r takes from first touching the planet to gone: the cascadeStep stage sequence
@@ -144,7 +156,7 @@ function flight(fam, h, env) {
   const vRef = fam.hyper ? fam.vRefH : env.vRef;
   // V4 §10.3: a hyper family orbits as a disc until tHang (no headwind, no cohesion), then gathers
   const hang = fam.hyper && fam.t < fam.tHang;
-  const eta = hang ? 0 : fam.eta;
+  const eta = fam.hyper ? hyperEta(fam.t, fam.tHang, fam.eta, fam.rampG || 0) : 0;
   const kappa = hang ? 0 : env.kappa;
   for (let i = 0; i < B.length; i++) {
     const b = B[i];
