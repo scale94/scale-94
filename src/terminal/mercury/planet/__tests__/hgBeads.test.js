@@ -332,14 +332,39 @@ describe('pearlStrike: a landing pearl ripples like a small drop (no floor)', ()
     expect(pearlStrike(PEARL_R[1], 0)).toBeCloseTo(0.5 * pearlStrike(PEARL_R[1], 10), 6); // vnK spans 0.5 → 1
     expect(pearlStrike(1, 100)).toBe(1);
   });
-  it('each hit says whether the bead was flung (the planet ripples only those)', () => {
+  // Author 2026-11-22 (round 2): an idle trickle pearl has visible mass, so it ripples like a flung one; only beads
+  // brought home by the refreeze guard stay silent (a ripple burst while the planet settles). pearlStrike keeps dust and
+  // sub-pearl beads silent by class.
+  it('each hit says whether it may ripple: flung or trickle alike, but never a refreeze-homing landing', () => {
     const b = createBeads(8);
     const i = spawnBead(b, 0.77, 0, 0, -1, 0, 0, PEARL_R[1]); b.age[i] = 1; b.free[i] = 1;
     const j = spawnBead(b, 0, 0.77, 0, 0, -1, 0, PEARL_R[1]); b.age[j] = 1;
     stepBeads(b, 1 / 60, { ...CTX, liquid: false });
     expect(b.nHits).toBe(2);
-    const flags = [b.hits[HIT_STRIDE * 0 + 5], b.hits[HIT_STRIDE * 1 + 5]].sort();
-    expect(flags).toEqual([0, 1]);
+    expect([b.hits[5], b.hits[HIT_STRIDE + 5]]).toEqual([1, 1]);
+    const k = spawnBead(b, 0, 0, 0.77, 0, 0, -1, PEARL_R[1]); b.age[k] = 1;
+    stepBeads(b, 1 / 60, { ...CTX, liquid: false, freezeIn: 1 });
+    expect(b.nHits).toBe(1);
+    expect(b.hits[5]).toBe(0);
+  });
+  it('at rest the trickle ripples gently: ~1 proportional pearl ripple a second, never the old buzz', () => {
+    const b = createBeads(256);
+    const ctx = { ...CTX, phase: 'neutral', liquid: true, boil: 0, rateScale: 1 };
+    let n = 0, sMin = Infinity, sMax = 0;
+    const T = 60;
+    for (let t = 0; t < T; t += 1 / 60) {
+      stepBeads(b, 1 / 60, ctx);
+      for (let k = 0; k < b.nHits; k++) {
+        const h = HIT_STRIDE * k;
+        if (!b.hits[h + 5]) continue;
+        const s = pearlStrike(b.hits[h + 3], b.hits[h + 4]);
+        if (s > 0) { n++; sMin = Math.min(sMin, s); sMax = Math.max(sMax, s); }
+      }
+    }
+    expect(n / T).toBeGreaterThan(0.5);
+    expect(n / T).toBeLessThan(1.5); // the px-gated floor version was ~6/s
+    expect(sMin).toBeGreaterThan(0.05); // proportional, no floor: the smallest pearl landing slowly
+    expect(sMax).toBeLessThan(0.3); // well under a drop's splash
   });
 });
 

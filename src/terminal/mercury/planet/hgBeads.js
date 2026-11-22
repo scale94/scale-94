@@ -86,8 +86,8 @@ export function createBeads(cap, seed = 0x6867) {
     r: new Float32Array(cap), age: new Float32Array(cap), free: new Uint8Array(cap),
     ph2: new Float32Array(cap), ph3: new Float32Array(cap), ph4: new Float32Array(cap), tumble: new Float32Array(cap), wph: new Float32Array(cap),
     outPos: new Float32Array(cap * 3), outBead: new Float32Array(cap * 3),
-    // this step's touchdowns: (world dir xyz, radius, inward normal speed, flung 0/1) × nHits, HIT_STRIDE apart; the
-    // caller ripples flung pearls only
+    // this step's touchdowns: (world dir xyz, radius, inward normal speed, may ripple 0/1) × nHits, HIT_STRIDE apart.
+    // A refreeze-homing landing may not (no ripple burst while the planet settles); the caller ripples pearls only
     hits: new Float32Array(cap * HIT_STRIDE), nHits: 0,
     // coalescence: time left / total (0 = airborne), radius at contact, contact direction in the body frame
     mt: new Float32Array(cap), mD: new Float32Array(cap), r0: new Float32Array(cap), dB: new Float32Array(cap * 3),
@@ -181,7 +181,8 @@ function flowVel(phase, x, y, z, age) {
 // A touchdown's ripple strength on the phase-5 splash scale (0..1): pearls only (dust merges silently). Energy share,
 // not volume share: amplitude ∝ √(m v²), as the hyper swarm's strike splits one splash (breakupStep.strike). A pearl is
 // 1.6–7 % of a phase-5 drop by volume, so a linear share would be an invisible ring. No floor: a floor on every visible
-// bead buzzed the liquid nonstop (author 2026-11-22); the caller also ripples only flung pearls.
+// bead buzzed the liquid nonstop (author 2026-11-22). Trickle pearls ripple too (~1/s at rest, measured in the tests);
+// refreeze-homing landings never do (hits flag).
 export function pearlStrike(r, vn) {
   if (r < PEARL_R[0]) return 0;
   const vnK = 0.5 + 0.5 * Math.min(1, Math.max(vn, 0) / STRIKE_V_REF);
@@ -255,7 +256,7 @@ export function stepBeads(b, dt, ctx) {
       if (landed) {
         const h = HIT_STRIDE * b.nHits++;
         b.hits[h] = ux; b.hits[h + 1] = uy; b.hits[h + 2] = uz; b.hits[h + 3] = b.r[i]; b.hits[h + 4] = Math.max(vn, 0);
-        b.hits[h + 5] = b.free[i];
+        b.hits[h + 5] = homing ? 0 : 1;
         if (b.r[i] * pxPerUnit >= BEAD_BODY_PX) {
           _dir[0] = ux; _dir[1] = uy; _dir[2] = uz;
           qRotateInv(q, _dir, _dB);

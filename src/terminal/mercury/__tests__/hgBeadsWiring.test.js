@@ -24,7 +24,7 @@ describe('Hg beads wiring', () => {
   it('beads land on the live surface and a landing pearl ripples it without evicting a stronger ring', () => {
     expect(planetSrc).toContain('beadCtx.planetRadiusAt = drop.env.planetRadiusAt;');
     expect(planetSrc.indexOf('beadCtx.planetRadiusAt')).toBeLessThan(planetSrc.indexOf('stepBeads(beads.sim'));
-    expect(planetSrc).toContain('if (!sim.hits[h + 5]) continue;'); // flung pearls only: the mirror is still at rest
+    expect(planetSrc).toContain('if (!sim.hits[h + 5]) continue;'); // refreeze-homing landings never ripple
     expect(planetSrc).toContain('const s = pearlStrike(sim.hits[h + 3], sim.hits[h + 4]);');
     expect(planetSrc).not.toContain('pearlRipple');
     expect(planetSrc).toContain('beadCtx.pxPerUnit = drop.env.pxPerUnit;');

@@ -760,9 +760,9 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     beadCtx.pxPerUnit = drop.env.pxPerUnit; // what is drawn as a body coalesces (hgBeads BEAD_BODY_PX)
     beadCtx.q[0] = body.q.x; beadCtx.q[1] = body.q.y; beadCtx.q[2] = body.q.z; beadCtx.q[3] = body.q.w; // coalescence rides the planet
     stepBeads(beads.sim, stepS, beadCtx);
-    // A flung pearl landing ripples the liquid (the trickle, splash beads and dust coalesce silently, so the mirror stays
-    // still at rest): the strongest such touchdown this frame, one minor impulse that yields its slot to any stronger
-    // live ring (addImpulseIfRoom). Crust and calm take no ripple.
+    // A landing pearl ripples the liquid, flung or trickle (~1 gentle ripple a second at rest); dust and sub-pearl beads
+    // coalesce silently, and refreeze-homing landings never ripple (hits flag). The strongest such touchdown this frame,
+    // one minor impulse that yields its slot to any stronger live ring (addImpulseIfRoom). Crust and calm take none.
     if (!calm && beadCtx.liquid) {
       const sim = beads.sim;
       let best = -1, bestS = 0;
