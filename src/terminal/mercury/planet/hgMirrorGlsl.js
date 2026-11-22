@@ -158,7 +158,7 @@ ${ENV_LIGHTS_BODY}
 // too (aetherTint painted a terminator on a mirror). Each part rolls off on its own shoulder.
 vec3 aetherMirrorLiquid(vec3 R, float rough, vec3 nW) {
   vec3 neutral;
-  vec3 elem = aetherSkySplit(R, rough, neutral);
+  vec3 elem = aetherSkySplit(R, rough, 1.0, neutral); // the liquid sees a rough studio blurred, not flattened
   return aetherTint(nW) * aetherShoulder(uAetherGain * aetherHue(elem)) + studioShoulder(uAetherGain * aetherHue(neutral));
 }
 

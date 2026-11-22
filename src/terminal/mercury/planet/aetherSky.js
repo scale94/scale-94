@@ -11,7 +11,7 @@
 // ~nothing. Every helper is sky-prefixed: these chunks land in shaders that define their own noise.
 // ELEMENT_SKY_GLSL (the generators) runs only in the per-frame cube bake (elementSkyBake.js; needs uSkyT, uSkyPhase, uSkyW,
 // uSunDir). AETHER_SKY_GLSL is the mirror's side; needs (declared by HG_MIRROR_DECLS_GLSL): uSkyW, uNeutralSky, uStudioDome,
-// uStudioLook, uStudioMean, uNeutralNebula, uNebulaRot, uNebulaMap, uElementSky, uSunDir.
+// uStudioLook, uStudioLook2, uStudioMean, uNeutralNebula, uNebulaRot, uNebulaMap, uElementSky, uSunDir.
 
 import { glf, v3 } from '../../gl/glf';
 import { FLUID_SKY_RAD, AIR_SKY_RAD, AIR_LOWER_DIR, FIRE_SKY_RISE, EARTH_SKY_SINK } from './aetherClock';
@@ -40,6 +40,18 @@ export const AIR_SKY_WARP = 0.6;      // air angle warp, rad scale, in each laye
 //   void   — everything else: the black trenches between the lights that give the metal its weight.
 // Live knobs uStudioLook = (crisp, key, canopy, floor) ← PLANET_TUNE.studioCrisp / studioKey / studioSoftbox / studioFloor;
 // key and canopy sit above the AETHER_SHOULDER knee (× aetherGain 1.4). uStudioDome (smooth ambient) stays, default 0.
+// Structure (lighting polish Step 4: midtones from structure, never a constant), live knobs uStudioLook2.yzw ←
+// PLANET_TUNE.studioFalloff / studioSeams / studioCard, each 0 = the ruled tent exactly:
+//   falloff — every strip and the canopy hot at its centre line, × 1 − falloff·(|d|/hw)^POW toward its edges (the edges
+//             keep their crisp smoothsteps);
+//   seams   — faint vertical panel joins in the tent walls, a thin line every 2π/COUNT of azimuth (one periodic band, no
+//             noise: no banding source), behind the strips, each seams · SEAM_LUM · key;
+//   card    — a small warm bounce card low on the Sun side, crisp-edged, the corona's amber (NA_COL), so the reflection
+//             agrees with the glow around the planet.
+// Rough blur (controller ruling, 2026-11-22): a rough LIQUID mirror (the boil, rough 0.4 → k ≈ 0.6) sees each light as a
+// wider, dimmer lobe of the same energy (every edge half-width + STUDIO_ROUGH_BLUR · k; the narrow ones as a blurred box,
+// studioBand), and only fades to the flat mean from STUDIO_MEAN_K0 up. The flat-mean mix at k 0.6 painted the boiling
+// day half one flat grey. The ruled mirrors (crust, glaze, frost, rock) keep the old mean mix (aetherSkySplit blur 0).
 export const NEUTRAL_SKY_FLOOR = 0.004;    // the void between the lights
 export const TENT_EDGE_CRISP = 0.012;      // crisp edge half-width (rad / R.y; plane units for the canopy front)
 export const TENT_CANOPY_HX = 0.9;         // canopy half-width on the plane y = 1 (x)
@@ -66,48 +78,82 @@ export const TENT_FLOOR_FRONT = 0.12;      // floor brightness toward the camera
 export const NEUTRAL_DOME_NADIR = 0.05;    // dome straight down, × uStudioDome (the zenith value)
 export const NEUTRAL_DOME_POW = 1.5;       // dome rise: NADIR + (1 − NADIR)·((1 + R.y)/2)^POW
 export const NEUTRAL_SKY_DRIFT = 0.02;     // rad per sky-clock second: the nebula's drift (the tent is camera-fixed)
+export const TENT_FALLOFF_POW = 2;         // falloff shape: × 1 − falloff·(|d|/hw)^POW (c = 1 − |d|/hw: 1 at the centre line)
+export const TENT_SEAM_COUNT = 6;          // panel joins around the tent
+export const TENT_SEAM_W = 0.006;          // seam half-width (rad); its edge half-width is the same (a soft hairline)
+export const TENT_SEAM_LUM = 0.02;         // seam radiance per unit key per unit uStudioLook2.z (~2 % of key)
+export const TENT_SEAM_AZ0 = 0.3;          // first seam azimuth (rad); the rest every 2π/COUNT (one sits behind the fill strip)
+export const TENT_CARD_AZ = -0.7;          // card centre azimuth (rad): the Sun side (SUN_DIR_WORLD azimuth −0.96), in the trench
+                                           // between the camera axis and the key strip (−1.2), clear of both
+export const TENT_CARD_Y = -0.4;           // card centre R.y: low
+export const TENT_CARD_HW = 0.18;          // card half-size (rad in azimuth, R.y units in height)
+export const TENT_CARD_COL = Object.freeze([1.0, 0.55, 0.12]); // linear: the corona's amber = NA_COL (mercuryExosphere.js, the Na halo; tested)
+export const TENT_CARD_LUM = 0.15;         // card radiance per unit uStudioLook2.w
+export const STUDIO_ROUGH_BLUR = 0.4;      // edge half-width added at k = 1 (rad / R.y / plane units): the rough lobe's spread
+export const STUDIO_MEAN_K0 = 0.75;        // the blurred liquid studio fades to its mean only from here to k = 1 (boil k ≈ 0.6)
 export const STUDIO_DEFAULTS = Object.freeze({ crisp: 1, key: 4, canopy: 2, floor: 0, dome: 0 }); // = PLANET_TUNE (tested); floor ruled 0
 
 const ss = (e0, e1, x) => { const t = Math.min(Math.max((x - e0) / (e1 - e0), 0), 1); return t * t * (3 - 2 * t); };
 const lerp = (a, b, t) => a + (b - a) * t;
-// JS replica of skyStudio, line for line (same constants, same order).
-export function studioRadiance(x, y, z, { crisp, key, canopy, floor, dome }) {
+// A box of half-width hw blurred by an edge of half-width w (studioBand in the GLSL). For w ≤ hw its second term is
+// exactly 0, so it IS the old smoothstep(hw + w, hw − w, |d|), bit for bit; wider, it keeps the box's integral (2·hw)
+// as its peak drops: a rough mirror's dimmer, wider lobe of the same light.
+const band = (d, hw, w) => { const a = Math.abs(d); return ss(hw + w, hw - w, a) - ss(w - hw, -w - hw, a); };
+// Softbox falloff: 1 at the centre line, 1 − f at the edge (and beyond). f = 0 → exactly 1.
+const fall1 = (d, hw, f) => 1 - f * Math.min(Math.abs(d) / hw, 1) ** TENT_FALLOFF_POW;
+// JS replica of skyStudio, line for line (same constants, same order). Returns linear [r, g, b] (grey unless the card is up).
+// k: the rough-blur weight (aetherSkySplit's blur · k; 0 = the sharp tent). The GLSL's seam pixel-footprint term is 0 here
+// (skyPxLod 0: no screen).
+export function studioRadiance(x, y, z, { crisp, key, canopy, floor, dome, falloff = 0, seams = 0, card = 0 }, k = 0) {
+  const b = STUDIO_ROUGH_BLUR * k;
   let L = NEUTRAL_SKY_FLOOR;
   if (y > 0.02) {
     const px = x / y, pz = z / y;
-    const ef = lerp(TENT_CANOPY_FRONT_SOFT, TENT_EDGE_CRISP, crisp);
-    const inX = ss(TENT_CANOPY_HX + TENT_CANOPY_FADE, TENT_CANOPY_HX - TENT_CANOPY_FADE, Math.abs(px));
-    const inZ = ss(TENT_CANOPY_Z0 - TENT_CANOPY_FADE, TENT_CANOPY_Z0 + TENT_CANOPY_FADE, pz) * ss(TENT_CANOPY_Z1 + ef, TENT_CANOPY_Z1 - ef, pz);
+    const ef = lerp(TENT_CANOPY_FRONT_SOFT, TENT_EDGE_CRISP, crisp) + b, cf = TENT_CANOPY_FADE + b;
+    const inX = ss(TENT_CANOPY_HX + cf, TENT_CANOPY_HX - cf, Math.abs(px));
+    const inZ = ss(TENT_CANOPY_Z0 - cf, TENT_CANOPY_Z0 + cf, pz) * ss(TENT_CANOPY_Z1 + ef, TENT_CANOPY_Z1 - ef, pz);
     const u = px / TENT_CANOPY_HX;
-    const fall = lerp(1, TENT_CANOPY_BACK, ss(TENT_CANOPY_Z1, TENT_CANOPY_Z0, pz)) * (1 - TENT_CANOPY_SIDE * Math.min(u * u, 1));
+    const fall = lerp(1, TENT_CANOPY_BACK, ss(TENT_CANOPY_Z1, TENT_CANOPY_Z0, pz)) * (1 - TENT_CANOPY_SIDE * Math.min(u * u, 1))
+      * fall1(px, TENT_CANOPY_HX, falloff) * fall1(pz - 0.5 * (TENT_CANOPY_Z0 + TENT_CANOPY_Z1), 0.5 * (TENT_CANOPY_Z1 - TENT_CANOPY_Z0), falloff);
     L += canopy * inX * inZ * fall;
   }
   const az = Math.atan2(x, z);
-  const ys = lerp(TENT_STRIP_YSOFT, TENT_STRIP_FEATHER, crisp), se = lerp(TENT_STRIP_SOFT, TENT_EDGE_CRISP, crisp);
+  const ys = lerp(TENT_STRIP_YSOFT, TENT_STRIP_FEATHER, crisp) + b, se = lerp(TENT_STRIP_SOFT, TENT_EDGE_CRISP, crisp) + b;
   const span = ss(TENT_STRIP_Y0 - ys, TENT_STRIP_Y0 + ys, y) * ss(TENT_STRIP_Y1 + ys, TENT_STRIP_Y1 - ys, y);
-  const sL = ss(TENT_STRIP_HW + se, TENT_STRIP_HW - se, Math.abs(az + TENT_STRIP_AZ[0]));
-  const sR = ss(TENT_STRIP_HW + se, TENT_STRIP_HW - se, Math.abs(az - TENT_STRIP_AZ[1]));
-  L += TENT_STRIP_LUM * key * span * (TENT_STRIP_GAIN[0] * sL + TENT_STRIP_GAIN[1] * sR);
-  const fe = lerp(TENT_FLOOR_SOFT, TENT_EDGE_CRISP, crisp);
+  const dL = az + TENT_STRIP_AZ[0], dR = az - TENT_STRIP_AZ[1];
+  const sL = band(dL, TENT_STRIP_HW, se), sR = band(dR, TENT_STRIP_HW, se);
+  L += TENT_STRIP_LUM * key * span * (TENT_STRIP_GAIN[0] * sL * fall1(dL, TENT_STRIP_HW, falloff) + TENT_STRIP_GAIN[1] * sR * fall1(dR, TENT_STRIP_HW, falloff));
+  const sp = 2 * Math.PI / TENT_SEAM_COUNT, sv = az - TENT_SEAM_AZ0 + 0.5 * sp;
+  const dS = sv - sp * Math.floor(sv / sp) - 0.5 * sp; // GLSL mod: to the nearest seam
+  L += seams * TENT_SEAM_LUM * key * band(dS, TENT_SEAM_W, TENT_SEAM_W + b) * ss(TENT_STRIP_Y1 + ys, TENT_STRIP_Y1 - ys, Math.abs(y)) * Math.max(1 - sL - sR, 0);
+  const fe = lerp(TENT_FLOOR_SOFT, TENT_EDGE_CRISP, crisp) + b;
   L += floor * ss(-TENT_GAP + fe, -TENT_GAP - fe, y) * (0.5 + 0.5 * ss(-0.9, -0.15, y)) * lerp(TENT_FLOOR_FRONT, 1, ss(0, -0.8, z));
   L += dome * (NEUTRAL_DOME_NADIR + (1 - NEUTRAL_DOME_NADIR) * ((0.5 + 0.5 * y) ** NEUTRAL_DOME_POW));
-  return L;
+  const cw = TENT_EDGE_CRISP + b;
+  const cd = card * TENT_CARD_LUM * band(az - TENT_CARD_AZ, TENT_CARD_HW, cw) * band(y - TENT_CARD_Y, TENT_CARD_HW, cw);
+  return [L + cd * TENT_CARD_COL[0], L + cd * TENT_CARD_COL[1], L + cd * TENT_CARD_COL[2]];
 }
 // Mean over the sphere (uniform in R.y × azimuth): what a fully rough mirror of the tent sees. Numeric (the canopy's
 // projected rectangle has no tidy closed form); cheap at this grid, and studioMeanCached only recomputes on a knob change.
-export function studioMean(k, N = 96, M = 192) {
+// A grey float (uStudioMean): the channel average. The card's tint in it is ~0.1 % of the mean; at card 0 every channel is L.
+// blurK: the rough-blur weight (the energy check: the blurred tent keeps the sharp tent's mean).
+export function studioMean(k, N = 96, M = 192, blurK = 0) {
   let sum = 0;
   for (let i = 0; i < N; i++) {
     const y = -1 + (2 * (i + 0.5)) / N, r = Math.sqrt(Math.max(0, 1 - y * y));
-    for (let j = 0; j < M; j++) { const a = -Math.PI + (2 * Math.PI * (j + 0.5)) / M; sum += studioRadiance(r * Math.sin(a), y, r * Math.cos(a), k); }
+    for (let j = 0; j < M; j++) {
+      const a = -Math.PI + (2 * Math.PI * (j + 0.5)) / M, c = studioRadiance(r * Math.sin(a), y, r * Math.cos(a), k, blurK);
+      sum += c[0] === c[1] && c[1] === c[2] ? c[1] : (c[0] + c[1] + c[2]) / 3;
+    }
   }
   return sum / (N * M);
 }
-const _meanKey = [NaN, NaN, NaN, NaN, NaN]; let _meanVal = 0;
-export function studioMeanCached(crisp, key, canopy, floor, dome) {
-  if (_meanKey[0] !== crisp || _meanKey[1] !== key || _meanKey[2] !== canopy || _meanKey[3] !== floor || _meanKey[4] !== dome) {
-    _meanKey[0] = crisp; _meanKey[1] = key; _meanKey[2] = canopy; _meanKey[3] = floor; _meanKey[4] = dome;
-    _meanVal = studioMean({ crisp, key, canopy, floor, dome });
+const _meanKey = [NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN]; let _meanVal = 0;
+export function studioMeanCached(crisp, key, canopy, floor, dome, falloff = 0, seams = 0, card = 0) {
+  const a = [crisp, key, canopy, floor, dome, falloff, seams, card];
+  if (a.some((v, i) => _meanKey[i] !== v)) {
+    for (let i = 0; i < 8; i++) _meanKey[i] = a[i];
+    _meanVal = studioMean({ crisp, key, canopy, floor, dome, falloff, seams, card });
   }
   return _meanVal;
 }
@@ -306,6 +352,18 @@ const float TENT_FLOOR_FRONT = ${glf(TENT_FLOOR_FRONT)};
 const float NEUTRAL_DOME_NADIR = ${glf(NEUTRAL_DOME_NADIR)};
 const float NEUTRAL_DOME_POW = ${glf(NEUTRAL_DOME_POW)};
 const float NEUTRAL_SKY_DRIFT = ${glf(NEUTRAL_SKY_DRIFT)};
+const float TENT_FALLOFF_POW = ${glf(TENT_FALLOFF_POW)};
+const float TENT_SEAM_COUNT = ${glf(TENT_SEAM_COUNT)};
+const float TENT_SEAM_W = ${glf(TENT_SEAM_W)};
+const float TENT_SEAM_LUM = ${glf(TENT_SEAM_LUM)};
+const float TENT_SEAM_AZ0 = ${glf(TENT_SEAM_AZ0)};
+const float TENT_CARD_AZ = ${glf(TENT_CARD_AZ)};
+const float TENT_CARD_Y = ${glf(TENT_CARD_Y)};
+const float TENT_CARD_HW = ${glf(TENT_CARD_HW)};
+const vec3 TENT_CARD_COL = ${v3(TENT_CARD_COL)};
+const float TENT_CARD_LUM = ${glf(TENT_CARD_LUM)};
+const float STUDIO_ROUGH_BLUR = ${glf(STUDIO_ROUGH_BLUR)};
+const float STUDIO_MEAN_K0 = ${glf(STUDIO_MEAN_K0)};
 const vec3 SKY_MEAN_NEUTRAL = ${v3(SKY_MEAN.neutral)}; // documents the default studio; the mirror uses uStudioMean (live)
 const vec3 SKY_MEAN_NEBULA = ${v3(SKY_MEAN.nebula)};
 const float NEBULA_MAX_LOD = ${glf(NEBULA_MAX_LOD)};
@@ -314,30 +372,52 @@ const float ELEMENT_SKY_MAX_LOD = ${glf(ELEMENT_SKY_MAX_LOD)};
 // Mip floor from the reflection's pixel footprint; a shader with screen derivatives sets it in main (the planet), the rest leave 0.
 float skyPxLod = 0.0;
 
+// A box of width 2 hw blurred by an edge of width 2 w: for w <= hw the second term is exactly 0 (the old
+// smoothstep, bit for bit); wider, the peak drops and the integral holds (a rough mirror's dimmer, wider lobe).
+float studioBand(float d, float hw, float w) {
+  float a = abs(d);
+  return smoothstep(hw + w, hw - w, a) - smoothstep(w - hw, -w - hw, a);
+}
+// Softbox falloff (uStudioLook2.y): 1 on the centre line, 1 - falloff at the edge. Knob 0 = exactly 1.
+float studioFall(float d, float hw) {
+  return 1.0 - uStudioLook2.y * pow(min(abs(d) / hw, 1.0), TENT_FALLOFF_POW);
+}
+
 // The neutral studio: the macro tabletop tent (header; studioRadiance is its JS replica). Camera-fixed, no noise.
-vec3 skyStudio(vec3 R) {
+// k: the rough-blur weight (0 = the sharp tent): every edge widens by STUDIO_ROUGH_BLUR * k.
+vec3 skyStudio(vec3 R, float k) {
   float c = uStudioLook.x;
+  float b = STUDIO_ROUGH_BLUR * k;
   float L = NEUTRAL_SKY_FLOOR;
   if (R.y > 0.02) { // canopy: a rectangle on the plane y = 1
     vec2 p = R.xz / R.y;
-    float ef = mix(TENT_CANOPY_FRONT_SOFT, TENT_EDGE_CRISP, c);
-    float inX = smoothstep(TENT_CANOPY_HX + TENT_CANOPY_FADE, TENT_CANOPY_HX - TENT_CANOPY_FADE, abs(p.x));
-    float inZ = smoothstep(TENT_CANOPY_Z0 - TENT_CANOPY_FADE, TENT_CANOPY_Z0 + TENT_CANOPY_FADE, p.y) * smoothstep(TENT_CANOPY_Z1 + ef, TENT_CANOPY_Z1 - ef, p.y);
+    float ef = mix(TENT_CANOPY_FRONT_SOFT, TENT_EDGE_CRISP, c) + b, cf = TENT_CANOPY_FADE + b;
+    float inX = smoothstep(TENT_CANOPY_HX + cf, TENT_CANOPY_HX - cf, abs(p.x));
+    float inZ = smoothstep(TENT_CANOPY_Z0 - cf, TENT_CANOPY_Z0 + cf, p.y) * smoothstep(TENT_CANOPY_Z1 + ef, TENT_CANOPY_Z1 - ef, p.y);
     float u = p.x / TENT_CANOPY_HX;
-    float fall = mix(1.0, TENT_CANOPY_BACK, smoothstep(TENT_CANOPY_Z1, TENT_CANOPY_Z0, p.y)) * (1.0 - TENT_CANOPY_SIDE * min(u * u, 1.0));
+    float fall = mix(1.0, TENT_CANOPY_BACK, smoothstep(TENT_CANOPY_Z1, TENT_CANOPY_Z0, p.y)) * (1.0 - TENT_CANOPY_SIDE * min(u * u, 1.0))
+      * studioFall(p.x, TENT_CANOPY_HX) * studioFall(p.y - 0.5 * (TENT_CANOPY_Z0 + TENT_CANOPY_Z1), 0.5 * (TENT_CANOPY_Z1 - TENT_CANOPY_Z0));
     L += uStudioLook.z * inX * inZ * fall;
   }
   float az = atan(R.x, R.z); // 0 = toward the camera
-  float ys = mix(TENT_STRIP_YSOFT, TENT_STRIP_FEATHER, c), se = mix(TENT_STRIP_SOFT, TENT_EDGE_CRISP, c);
+  float ys = mix(TENT_STRIP_YSOFT, TENT_STRIP_FEATHER, c) + b, se = mix(TENT_STRIP_SOFT, TENT_EDGE_CRISP, c) + b;
   float span = smoothstep(TENT_STRIP_Y0 - ys, TENT_STRIP_Y0 + ys, R.y) * smoothstep(TENT_STRIP_Y1 + ys, TENT_STRIP_Y1 - ys, R.y);
-  float sL = smoothstep(TENT_STRIP_HW + se, TENT_STRIP_HW - se, abs(az + TENT_STRIP_AZ.x));
-  float sR = smoothstep(TENT_STRIP_HW + se, TENT_STRIP_HW - se, abs(az - TENT_STRIP_AZ.y));
-  L += TENT_STRIP_LUM * uStudioLook.y * span * (TENT_STRIP_GAIN.x * sL + TENT_STRIP_GAIN.y * sR);
-  float fe = mix(TENT_FLOOR_SOFT, TENT_EDGE_CRISP, c);
+  float dL = az + TENT_STRIP_AZ.x, dR = az - TENT_STRIP_AZ.y;
+  float sL = studioBand(dL, TENT_STRIP_HW, se), sR = studioBand(dR, TENT_STRIP_HW, se);
+  L += TENT_STRIP_LUM * uStudioLook.y * span * (TENT_STRIP_GAIN.x * sL * studioFall(dL, TENT_STRIP_HW) + TENT_STRIP_GAIN.y * sR * studioFall(dR, TENT_STRIP_HW));
+  // seams (uStudioLook2.z): one periodic band to the nearest join; widened by the pixel footprint past one texel
+  // (skyPxLod, 0 off the planet and in the JS replica) so a grazing limb sees a dimmer, wider line, not a sparkle.
+  float sp = 6.28318530718 / TENT_SEAM_COUNT;
+  float dS = mod(az - TENT_SEAM_AZ0 + 0.5 * sp, sp) - 0.5 * sp;
+  float sw = TENT_SEAM_W + b + 0.5 * NEBULA_TEXEL_RAD * (exp2(skyPxLod) - 1.0);
+  L += uStudioLook2.z * TENT_SEAM_LUM * uStudioLook.y * studioBand(dS, TENT_SEAM_W, sw) * smoothstep(TENT_STRIP_Y1 + ys, TENT_STRIP_Y1 - ys, abs(R.y)) * max(1.0 - sL - sR, 0.0);
+  float fe = mix(TENT_FLOOR_SOFT, TENT_EDGE_CRISP, c) + b;
   L += uStudioLook.w * smoothstep(-TENT_GAP + fe, -TENT_GAP - fe, R.y) * (0.5 + 0.5 * smoothstep(-0.9, -0.15, R.y))
      * mix(TENT_FLOOR_FRONT, 1.0, smoothstep(0.0, -0.8, R.z)); // floor sweep, lit behind: a lower rim
   L += uStudioDome * (NEUTRAL_DOME_NADIR + (1.0 - NEUTRAL_DOME_NADIR) * pow(0.5 + 0.5 * R.y, NEUTRAL_DOME_POW));
-  return vec3(L);
+  float cw = TENT_EDGE_CRISP + b; // the warm card (uStudioLook2.w): crisp-edged, low on the Sun side
+  float cd = uStudioLook2.w * TENT_CARD_LUM * studioBand(az - TENT_CARD_AZ, TENT_CARD_HW, cw) * studioBand(R.y - TENT_CARD_Y, TENT_CARD_HW, cw);
+  return vec3(L) + cd * TENT_CARD_COL;
 }
 
 // The baked nebula (one textureLod, rotated on the sky clock). Its mip chain IS its roughness blur, so it is never also
@@ -358,7 +438,9 @@ vec3 skyElements(vec3 R, float k) {
 // Split (lighting polish Step 1): returns the element part; neutral gets the studio + nebula part. Each part keeps today's
 // SKY_W_MIN gating and k-mix toward its own mean (the nebula stays outside the mix: its mips are its blur), so the two sum
 // to the unsplit sky. The liquid mirror night-tints only the element part (hgMirrorGlsl aetherMirrorLiquid).
-vec3 aetherSkySplit(vec3 R, float rough, out vec3 neutral) {
+// blur (0 or 1): 1 = the liquid: a rough mirror sees the studio blurred (skyStudio(R, k)) and fades to its mean only from
+// STUDIO_MEAN_K0 (the boil, k ~ 0.6, keeps the tent's structure, not a flat grey); 0 = the ruled mirrors, exactly as before.
+vec3 aetherSkySplit(vec3 R, float rough, float blur, out vec3 neutral) {
   float k = smoothstep(SKY_ROUGH_SHARP, SKY_ROUGH_FLAT, rough);
   float wE = uSkyW.x + uSkyW.y + uSkyW.z + uSkyW.w;
   float wN = uNeutralSky * clamp(1.0 - wE, 0.0, 1.0);
@@ -369,15 +451,15 @@ vec3 aetherSkySplit(vec3 R, float rough, out vec3 neutral) {
   if (k >= 1.0) { neutral = meanN + neb; return mean; } // the nebula blurs by its own mips, never to a mean
   vec3 s = vec3(0.0), sN = vec3(0.0);
   if (wE > SKY_W_MIN) s += skyElements(R, k); // the cube already carries the weights
-  if (wStudio > SKY_W_MIN) sN += wStudio * skyStudio(R);
-  neutral = mix(sN, meanN, k) + neb;
+  if (wStudio > SKY_W_MIN) sN += wStudio * skyStudio(R, blur * k);
+  neutral = mix(sN, meanN, mix(k, smoothstep(STUDIO_MEAN_K0, 1.0, k), blur)) + neb;
   return mix(s, mean, k);
 }
 
 // The whole sky: element + neutral (every frozen / ruled caller, through aetherMirror).
 vec3 aetherSky(vec3 R, float rough) {
   vec3 neutral;
-  vec3 elem = aetherSkySplit(R, rough, neutral);
+  vec3 elem = aetherSkySplit(R, rough, 0.0, neutral); // the ruled mirrors: the studio mixes toward its mean, as before
   return elem + neutral;
 }`;
 

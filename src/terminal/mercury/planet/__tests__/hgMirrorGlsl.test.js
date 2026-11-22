@@ -85,7 +85,7 @@ describe('hgMirrorGlsl — one mirror for the planet and its droplets', () => {
     expect(HG_ENV_GLSL).toContain('vec3 aetherMirrorLiquid(vec3 R, float rough, vec3 nW) {');
     const body = bodyOf(HG_ENV_GLSL, 'vec3 aetherMirrorLiquid(vec3 R, float rough, vec3 nW) {');
     expect(body.match(/aetherTint\(/g)).toHaveLength(1); // once,
-    expect(body).toContain('vec3 elem = aetherSkySplit(R, rough, neutral);');
+    expect(body).toContain('vec3 elem = aetherSkySplit(R, rough, 1.0, neutral); // the liquid sees a rough studio blurred, not flattened');
     expect(body).toContain('return aetherTint(nW) * aetherShoulder(uAetherGain * aetherHue(elem)) + studioShoulder(uAetherGain * aetherHue(neutral));'); // to the element term only
     expect(HG_MIRROR_UNIFORMS).toContain('uStudioLook2');
     expect(HG_MIRROR_DECLS_GLSL.split('\n')).toContain('uniform vec4 uStudioLook2;');

@@ -345,6 +345,18 @@ const float TENT_FLOOR_FRONT = 0.120000000;
 const float NEUTRAL_DOME_NADIR = 0.0500000000;
 const float NEUTRAL_DOME_POW = 1.50000000;
 const float NEUTRAL_SKY_DRIFT = 0.0200000000;
+const float TENT_FALLOFF_POW = 2.00000000;
+const float TENT_SEAM_COUNT = 6.00000000;
+const float TENT_SEAM_W = 0.00600000000;
+const float TENT_SEAM_LUM = 0.0200000000;
+const float TENT_SEAM_AZ0 = 0.300000000;
+const float TENT_CARD_AZ = -0.700000000;
+const float TENT_CARD_Y = -0.400000000;
+const float TENT_CARD_HW = 0.180000000;
+const vec3 TENT_CARD_COL = vec3(1.00000000, 0.550000000, 0.120000000);
+const float TENT_CARD_LUM = 0.150000000;
+const float STUDIO_ROUGH_BLUR = 0.400000000;
+const float STUDIO_MEAN_K0 = 0.750000000;
 const vec3 SKY_MEAN_NEUTRAL = vec3(0.208443441, 0.208443441, 0.208443441); // documents the default studio; the mirror uses uStudioMean (live)
 const vec3 SKY_MEAN_NEBULA = vec3(0.0179200000, 0.0179200000, 0.0179200000);
 const float NEBULA_MAX_LOD = 6.00000000;
@@ -353,30 +365,52 @@ const float ELEMENT_SKY_MAX_LOD = 4.00000000;
 // Mip floor from the reflection's pixel footprint; a shader with screen derivatives sets it in main (the planet), the rest leave 0.
 float skyPxLod = 0.0;
 
+// A box of width 2 hw blurred by an edge of width 2 w: for w <= hw the second term is exactly 0 (the old
+// smoothstep, bit for bit); wider, the peak drops and the integral holds (a rough mirror's dimmer, wider lobe).
+float studioBand(float d, float hw, float w) {
+  float a = abs(d);
+  return smoothstep(hw + w, hw - w, a) - smoothstep(w - hw, -w - hw, a);
+}
+// Softbox falloff (uStudioLook2.y): 1 on the centre line, 1 - falloff at the edge. Knob 0 = exactly 1.
+float studioFall(float d, float hw) {
+  return 1.0 - uStudioLook2.y * pow(min(abs(d) / hw, 1.0), TENT_FALLOFF_POW);
+}
+
 // The neutral studio: the macro tabletop tent (header; studioRadiance is its JS replica). Camera-fixed, no noise.
-vec3 skyStudio(vec3 R) {
+// k: the rough-blur weight (0 = the sharp tent): every edge widens by STUDIO_ROUGH_BLUR * k.
+vec3 skyStudio(vec3 R, float k) {
   float c = uStudioLook.x;
+  float b = STUDIO_ROUGH_BLUR * k;
   float L = NEUTRAL_SKY_FLOOR;
   if (R.y > 0.02) { // canopy: a rectangle on the plane y = 1
     vec2 p = R.xz / R.y;
-    float ef = mix(TENT_CANOPY_FRONT_SOFT, TENT_EDGE_CRISP, c);
-    float inX = smoothstep(TENT_CANOPY_HX + TENT_CANOPY_FADE, TENT_CANOPY_HX - TENT_CANOPY_FADE, abs(p.x));
-    float inZ = smoothstep(TENT_CANOPY_Z0 - TENT_CANOPY_FADE, TENT_CANOPY_Z0 + TENT_CANOPY_FADE, p.y) * smoothstep(TENT_CANOPY_Z1 + ef, TENT_CANOPY_Z1 - ef, p.y);
+    float ef = mix(TENT_CANOPY_FRONT_SOFT, TENT_EDGE_CRISP, c) + b, cf = TENT_CANOPY_FADE + b;
+    float inX = smoothstep(TENT_CANOPY_HX + cf, TENT_CANOPY_HX - cf, abs(p.x));
+    float inZ = smoothstep(TENT_CANOPY_Z0 - cf, TENT_CANOPY_Z0 + cf, p.y) * smoothstep(TENT_CANOPY_Z1 + ef, TENT_CANOPY_Z1 - ef, p.y);
     float u = p.x / TENT_CANOPY_HX;
-    float fall = mix(1.0, TENT_CANOPY_BACK, smoothstep(TENT_CANOPY_Z1, TENT_CANOPY_Z0, p.y)) * (1.0 - TENT_CANOPY_SIDE * min(u * u, 1.0));
+    float fall = mix(1.0, TENT_CANOPY_BACK, smoothstep(TENT_CANOPY_Z1, TENT_CANOPY_Z0, p.y)) * (1.0 - TENT_CANOPY_SIDE * min(u * u, 1.0))
+      * studioFall(p.x, TENT_CANOPY_HX) * studioFall(p.y - 0.5 * (TENT_CANOPY_Z0 + TENT_CANOPY_Z1), 0.5 * (TENT_CANOPY_Z1 - TENT_CANOPY_Z0));
     L += uStudioLook.z * inX * inZ * fall;
   }
   float az = atan(R.x, R.z); // 0 = toward the camera
-  float ys = mix(TENT_STRIP_YSOFT, TENT_STRIP_FEATHER, c), se = mix(TENT_STRIP_SOFT, TENT_EDGE_CRISP, c);
+  float ys = mix(TENT_STRIP_YSOFT, TENT_STRIP_FEATHER, c) + b, se = mix(TENT_STRIP_SOFT, TENT_EDGE_CRISP, c) + b;
   float span = smoothstep(TENT_STRIP_Y0 - ys, TENT_STRIP_Y0 + ys, R.y) * smoothstep(TENT_STRIP_Y1 + ys, TENT_STRIP_Y1 - ys, R.y);
-  float sL = smoothstep(TENT_STRIP_HW + se, TENT_STRIP_HW - se, abs(az + TENT_STRIP_AZ.x));
-  float sR = smoothstep(TENT_STRIP_HW + se, TENT_STRIP_HW - se, abs(az - TENT_STRIP_AZ.y));
-  L += TENT_STRIP_LUM * uStudioLook.y * span * (TENT_STRIP_GAIN.x * sL + TENT_STRIP_GAIN.y * sR);
-  float fe = mix(TENT_FLOOR_SOFT, TENT_EDGE_CRISP, c);
+  float dL = az + TENT_STRIP_AZ.x, dR = az - TENT_STRIP_AZ.y;
+  float sL = studioBand(dL, TENT_STRIP_HW, se), sR = studioBand(dR, TENT_STRIP_HW, se);
+  L += TENT_STRIP_LUM * uStudioLook.y * span * (TENT_STRIP_GAIN.x * sL * studioFall(dL, TENT_STRIP_HW) + TENT_STRIP_GAIN.y * sR * studioFall(dR, TENT_STRIP_HW));
+  // seams (uStudioLook2.z): one periodic band to the nearest join; widened by the pixel footprint past one texel
+  // (skyPxLod, 0 off the planet and in the JS replica) so a grazing limb sees a dimmer, wider line, not a sparkle.
+  float sp = 6.28318530718 / TENT_SEAM_COUNT;
+  float dS = mod(az - TENT_SEAM_AZ0 + 0.5 * sp, sp) - 0.5 * sp;
+  float sw = TENT_SEAM_W + b + 0.5 * NEBULA_TEXEL_RAD * (exp2(skyPxLod) - 1.0);
+  L += uStudioLook2.z * TENT_SEAM_LUM * uStudioLook.y * studioBand(dS, TENT_SEAM_W, sw) * smoothstep(TENT_STRIP_Y1 + ys, TENT_STRIP_Y1 - ys, abs(R.y)) * max(1.0 - sL - sR, 0.0);
+  float fe = mix(TENT_FLOOR_SOFT, TENT_EDGE_CRISP, c) + b;
   L += uStudioLook.w * smoothstep(-TENT_GAP + fe, -TENT_GAP - fe, R.y) * (0.5 + 0.5 * smoothstep(-0.9, -0.15, R.y))
      * mix(TENT_FLOOR_FRONT, 1.0, smoothstep(0.0, -0.8, R.z)); // floor sweep, lit behind: a lower rim
   L += uStudioDome * (NEUTRAL_DOME_NADIR + (1.0 - NEUTRAL_DOME_NADIR) * pow(0.5 + 0.5 * R.y, NEUTRAL_DOME_POW));
-  return vec3(L);
+  float cw = TENT_EDGE_CRISP + b; // the warm card (uStudioLook2.w): crisp-edged, low on the Sun side
+  float cd = uStudioLook2.w * TENT_CARD_LUM * studioBand(az - TENT_CARD_AZ, TENT_CARD_HW, cw) * studioBand(R.y - TENT_CARD_Y, TENT_CARD_HW, cw);
+  return vec3(L) + cd * TENT_CARD_COL;
 }
 
 // The baked nebula (one textureLod, rotated on the sky clock). Its mip chain IS its roughness blur, so it is never also
@@ -397,7 +431,9 @@ vec3 skyElements(vec3 R, float k) {
 // Split (lighting polish Step 1): returns the element part; neutral gets the studio + nebula part. Each part keeps today's
 // SKY_W_MIN gating and k-mix toward its own mean (the nebula stays outside the mix: its mips are its blur), so the two sum
 // to the unsplit sky. The liquid mirror night-tints only the element part (hgMirrorGlsl aetherMirrorLiquid).
-vec3 aetherSkySplit(vec3 R, float rough, out vec3 neutral) {
+// blur (0 or 1): 1 = the liquid: a rough mirror sees the studio blurred (skyStudio(R, k)) and fades to its mean only from
+// STUDIO_MEAN_K0 (the boil, k ~ 0.6, keeps the tent's structure, not a flat grey); 0 = the ruled mirrors, exactly as before.
+vec3 aetherSkySplit(vec3 R, float rough, float blur, out vec3 neutral) {
   float k = smoothstep(SKY_ROUGH_SHARP, SKY_ROUGH_FLAT, rough);
   float wE = uSkyW.x + uSkyW.y + uSkyW.z + uSkyW.w;
   float wN = uNeutralSky * clamp(1.0 - wE, 0.0, 1.0);
@@ -408,15 +444,15 @@ vec3 aetherSkySplit(vec3 R, float rough, out vec3 neutral) {
   if (k >= 1.0) { neutral = meanN + neb; return mean; } // the nebula blurs by its own mips, never to a mean
   vec3 s = vec3(0.0), sN = vec3(0.0);
   if (wE > SKY_W_MIN) s += skyElements(R, k); // the cube already carries the weights
-  if (wStudio > SKY_W_MIN) sN += wStudio * skyStudio(R);
-  neutral = mix(sN, meanN, k) + neb;
+  if (wStudio > SKY_W_MIN) sN += wStudio * skyStudio(R, blur * k);
+  neutral = mix(sN, meanN, mix(k, smoothstep(STUDIO_MEAN_K0, 1.0, k), blur)) + neb;
   return mix(s, mean, k);
 }
 
 // The whole sky: element + neutral (every frozen / ruled caller, through aetherMirror).
 vec3 aetherSky(vec3 R, float rough) {
   vec3 neutral;
-  vec3 elem = aetherSkySplit(R, rough, neutral);
+  vec3 elem = aetherSkySplit(R, rough, 0.0, neutral); // the ruled mirrors: the studio mixes toward its mean, as before
   return elem + neutral;
 }
 
@@ -460,7 +496,7 @@ vec3 envLights(vec3 R, float rough, vec3 P, vec3 nW) {
 // too (aetherTint painted a terminator on a mirror). Each part rolls off on its own shoulder.
 vec3 aetherMirrorLiquid(vec3 R, float rough, vec3 nW) {
   vec3 neutral;
-  vec3 elem = aetherSkySplit(R, rough, neutral);
+  vec3 elem = aetherSkySplit(R, rough, 1.0, neutral); // the liquid sees a rough studio blurred, not flattened
   return aetherTint(nW) * aetherShoulder(uAetherGain * aetherHue(elem)) + studioShoulder(uAetherGain * aetherHue(neutral));
 }
 
