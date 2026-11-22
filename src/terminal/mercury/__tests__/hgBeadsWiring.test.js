@@ -45,3 +45,17 @@ describe('Hg beads wiring', () => {
     expect(hookSrc).toContain('u.uDustSparkle.value = PLANET_TUNE.dustSparkle;');
   });
 });
+
+describe('hidden-tab catch-up wiring (fix/mercury-motion)', () => {
+  it('the airborne Hg flies through the skipped time after coolBody and before the drop step', () => {
+    const cool = planetSrc.indexOf('coolBody(body, delta - stepS)');
+    const fam = planetSrc.indexOf('drop.solver = catchUpFamily(drop.fam, drop.solver, drop.env, skippedS);');
+    const bds = planetSrc.indexOf('catchUpBeads(beads.sim, skippedS, beadCtx);');
+    const step = planetSrc.indexOf('stepDrop(drop, da);');
+    expect(cool).toBeGreaterThan(0);
+    expect(fam).toBeGreaterThan(cool);
+    expect(bds).toBeGreaterThan(fam);
+    expect(step).toBeGreaterThan(bds);
+    expect(planetSrc).toContain('if (!calm && skippedS > CATCHUP_MIN_S) {');
+  });
+});

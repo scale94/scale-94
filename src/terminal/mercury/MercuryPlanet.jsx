@@ -42,6 +42,7 @@ import {
 import { TONGUE_MAX_R, sigmaRatio } from './planet/breakupPhysics';
 import { stepFamily, DROP_DT } from './planet/breakupStep';
 import { muRef, returnTarget, createMuSolver, stepMuSolver, solverBudget, finishMuSolver } from './planet/breakupBudget';
+import { catchUpFamily, catchUpBeads, CATCHUP_MIN_S } from './planet/airborneCatchUp';
 import { canHyper, hyperGate, hyperEnergy, fireHyper, coreScale, hyperReach, HYPER_N, V_HYPER, V_HYPER_SPAN } from './planet/hyperFling';
 import { createDropFrame, packFamily, pxPerUnitAt, pxAngleOf } from './planet/breakupFrame';
 import useDropletField from './useDropletField';
@@ -680,6 +681,14 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     u.uSurfOn.value = !calm && (surf.frame.any || Math.abs(surf.bulge[3]) > 1e-5) ? 1 : 0;
 
     // --- Phase 5: breakup (spec 2026-10-02) ---
+    // A hidden tab: coolBody spent the skipped time on the heat (the planet may have refrozen), so the airborne Hg flies
+    // through it too (airborneCatchUp) and never comes back orbiting a crust.
+    const skippedS = delta - stepS;
+    if (!calm && skippedS > CATCHUP_MIN_S) {
+      drop.solver = catchUpFamily(drop.fam, drop.solver, drop.env, skippedS);
+      drop.coreScale = coreScale(drop.fam);
+      catchUpBeads(beads.sim, skippedS, beadCtx);
+    }
     const da = drop.args;
     da.body = body; da.surf = surf; da.camera = camera; da.calm = calm; da.ds = ds; da.stepS = stepS; da.t = t; da.bufferW = bufferW; da.bufferH = bufferH;
     stepDrop(drop, da);
