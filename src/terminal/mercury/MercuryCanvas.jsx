@@ -93,6 +93,9 @@ export default function MercuryCanvas({
     <Canvas
       camera={{ position: [0, 0, isMobile ? CAMERA_DIST.mobile : CAMERA_DIST.desktop], fov: isMobile ? CAMERA_FOV_DEG.mobile : CAMERA_FOV_DEG.desktop }}
       dpr={dpr}
+      // the layout box, not the transformed rect: the landing mounts this inside the boot reveal's scale(0.01 → 1),
+      // which no ResizeObserver sees (mercuryCanvasMeasure.test.js)
+      resize={{ offsetSize: true }}
       gl={{ antialias: !isMobile, alpha: false, powerPreference: 'high-performance' }}
       style={{ background: '#000' }}
       onCreated={(state) => { if (import.meta.env.DEV) window.__mercury = state; }}
