@@ -120,7 +120,8 @@ describe('mercuryPlanetShader contract', () => {
     expect(PLANET_FS).toContain('uniform float uAetherSilver;');
     expect(PLANET_FS).toContain('return mix(col, vec3(l), uAetherSilver);');
     expect(PLANET_FS).not.toMatch(/AETHER_SIN_W/);
-    expect(PLANET_FS).toMatch(/liquid = hgLiquid\(fresnelHg\(NoV\), R, [^;]*, hit, nW\);/); // highlight curve after the Fresnel
+    expect(PLANET_FS).toContain('vec3 Fl = fresnelHg(NoV);'); // the visitor tint folds into Fl (Fl *= visTint): before the curve
+    expect(PLANET_FS).toMatch(/liquid = hgLiquid\(Fl, R, [^;]*, hit, nW\);/); // highlight curve after the Fresnel
     // lighting polish Step 1: the liquid (and the visitor crust pool, liquid Hg) sees the studio untinted; the ruled
     // frost rime, quench core and evaporite keep envRadiance
     expect(PLANET_FS).toContain('colLin = mix(colLin, hgLiquid(fresnelHg(NoVP) * tintP, reflect(rd, nP), uRoughLiquid, hit, nP) + emitP, crustPool); // visitors');
@@ -457,13 +458,17 @@ describe('visitors: surface slots', () => {
     const refl = main.indexOf('vec3 R = reflect(rd, nW);');
     const nov = main.indexOf('float NoV = clamp(dot(nW, -rd), 0.0, 1.0);');
     const tint = main.indexOf('visTint = visitTint(xw, NoV, visEmit); // visitors');
-    const mul = main.indexOf('liquid *= visTint; // visitors');
+    // the tint folds into the Fresnel weight BEFORE the highlight curve (as the crust pool's fresnelHg(NoVP) * tintP)
+    const mul = main.indexOf('Fl *= visTint; // visitors');
+    const call = main.indexOf('liquid = hgLiquid(Fl, R, mix(uRoughLiquid, ROUGH_BOIL, boilW * (0.5 + 0.5 * popAct)), hit, nW);');
     const mix = main.indexOf('colLin = mix(colLin, mix(solid, liquid, liquidW), fluid);');
     const emit = main.indexOf('colLin += fluid * liquidW * visEmit; // visitors');
     expect(tilt).toBeGreaterThan(-1);
     expect(tilt).toBeLessThan(refl);
     expect(tint).toBeGreaterThan(nov);
     expect(mul).toBeGreaterThan(tint);
+    expect(call).toBeGreaterThan(mul);
+    expect(main).not.toContain('liquid *= visTint;'); // never after the curve
     expect(mul).toBeLessThan(mix);
     expect(emit).toBeGreaterThan(mix);
   });

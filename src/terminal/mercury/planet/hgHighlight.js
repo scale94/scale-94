@@ -8,6 +8,7 @@
 import { glf } from '../../gl/glf';
 import { HG_HIGHLIGHT_KNEE } from './planetLook';
 
+// rgb: linear [r, g, b] (Fresnel-weighted); knee < 1 (the roll-off divides by 1 - knee). Returns the curved [r, g, b].
 export function hgHighlight([r, g, b], knee = HG_HIGHLIGHT_KNEE) {
   const m = Math.max(r, Math.max(g, b));
   if (m <= knee) return [r, g, b];

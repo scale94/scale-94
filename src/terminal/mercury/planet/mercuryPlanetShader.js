@@ -899,9 +899,10 @@ void main() {
 
       vec3 liquid = vec3(0.0);
       if (liquidW > 0.0) {
-        liquid = hgLiquid(fresnelHg(NoV), R, mix(uRoughLiquid, ROUGH_BOIL, boilW * (0.5 + 0.5 * popAct)), hit, nW);
+        vec3 Fl = fresnelHg(NoV);
+        Fl *= visTint; // visitors
+        liquid = hgLiquid(Fl, R, mix(uRoughLiquid, ROUGH_BOIL, boilW * (0.5 + 0.5 * popAct)), hit, nW);
       }
-      liquid *= visTint; // visitors
 
       vec3 solid = vec3(0.0);
       if (liquidW < 1.0) {
