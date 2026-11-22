@@ -306,13 +306,13 @@ vec3 aetherShoulder(vec3 x) {
 }
 
 // The studio's roll-off: aetherShoulder with its knee read live from uStudioLook2.x (PLANET_TUNE.studioShoulder;
-// knee 1 = AETHER_SHOULDER, today's look).
+// knee 1 = AETHER_SHOULDER, today's look). Guarded: an unbound or zero knee would divide by zero.
 vec3 studioShoulder(vec3 x) {
   float m = max(x.r, max(x.g, x.b));
   if (m <= 1e-6) return x;
-  float s = softShoulder(m, uStudioLook2.x);
+  float s = softShoulder(m, max(uStudioLook2.x, 1e-3));
   vec3 y = x * (s / m);
-  return mix(y, vec3(s), AETHER_PATH_WHITE * smoothstep(0.55, 0.95, s / uStudioLook2.x));
+  return mix(y, vec3(s), AETHER_PATH_WHITE * smoothstep(0.55, 0.95, s / max(uStudioLook2.x, 1e-3)));
 }
 
 // Night attenuation of the aether, keyed on the SURFACE facing the Sun (not
@@ -481,10 +481,26 @@ vec3 aetherMirrorLiquid(vec3 R, float rough, vec3 nW) {
   return aetherTint(nW) * aetherShoulder(uAetherGain * aetherHue(elem)) + studioShoulder(uAetherGain * aetherHue(neutral));
 }
 
-// What liquid Hg sees (the planet liquid, the visitor crust pool, the droplets, the beads): envRadiance with the
-// studio untinted. The frost, quench, evaporite, frozen Hg and visitor water/rock keep envRadiance (ruled looks).
-vec3 envRadianceLiquid(vec3 R, float rough, vec3 P, vec3 nW) {
+// Liquid Hg highlights roll off to white (hgHighlight.js, line for line): identity below the knee, C1 above it.
+const float HG_HIGHLIGHT_KNEE = 0.600000000;
+vec3 hgHighlight(vec3 x) {
+  float m = max(x.r, max(x.g, x.b));
+  if (m <= HG_HIGHLIGHT_KNEE) return x;
+  float s = HG_HIGHLIGHT_KNEE + (1.0 - HG_HIGHLIGHT_KNEE) * (1.0 - exp(-(m - HG_HIGHLIGHT_KNEE) / (1.0 - HG_HIGHLIGHT_KNEE)));
+  return x * (s / m);
+}
+
+// What liquid Hg sees, before its highlight curve: envRadiance with the studio untinted. Only the beads call it
+// directly (they take their shadowed Sun off first, then curve the result themselves).
+vec3 envRadianceLiquidRaw(vec3 R, float rough, vec3 P, vec3 nW) {
   return envLights(R, rough, P, nW) + aetherMirrorLiquid(R, rough, nW);
+}
+
+// What liquid Hg sees (the planet liquid, the visitor crust pool, the droplets): the raw liquid env, its highlights
+// rolled off to white in this one place. The frost, quench, evaporite, frozen Hg and visitor water/rock keep
+// envRadiance (ruled looks, no curve).
+vec3 envRadianceLiquid(vec3 R, float rough, vec3 P, vec3 nW) {
+  return hgHighlight(envRadianceLiquidRaw(R, rough, P, nW));
 }
 
 // Frozen Hg is still a metal: polycrystalline, so a rough and dimmer mirror of the aether, not a matte ambient

@@ -100,13 +100,16 @@ describe('hgMirrorGlsl — one mirror for the planet and its droplets', () => {
     const lights = bodyOf(HG_ENV_GLSL, 'vec3 envLights(vec3 R, float rough, vec3 P, vec3 nW) {');
     const env = bodyOf(HG_ENV_GLSL, 'vec3 envRadiance(vec3 R, float rough, vec3 P, vec3 nW) {');
     expect(lights).toBe(env.replace('  return c + aetherMirror(R, rough, nW);', '  return c;')); // can't drift
-    expect(bodyOf(HG_ENV_GLSL, 'vec3 envRadianceLiquid(vec3 R, float rough, vec3 P, vec3 nW) {'))
+    expect(bodyOf(HG_ENV_GLSL, 'vec3 envRadianceLiquidRaw(vec3 R, float rough, vec3 P, vec3 nW) {'))
       .toBe('  return envLights(R, rough, P, nW) + aetherMirrorLiquid(R, rough, nW);');
+    expect(bodyOf(HG_ENV_GLSL, 'vec3 envRadianceLiquid(vec3 R, float rough, vec3 P, vec3 nW) {'))
+      .toBe('  return hgHighlight(envRadianceLiquidRaw(R, rough, P, nW));'); // the highlight curve, in one place
   });
 
-  it('studioShoulder is aetherShoulder with its knee read live from uStudioLook2.x (knee 1 = today)', () => {
+  it('studioShoulder is aetherShoulder with its knee read live from uStudioLook2.x, guarded (knee 1 = today)', () => {
     const studio = fnText(HG_ENV_GLSL, 'vec3 studioShoulder(vec3 x) {');
-    expect(studio).toBe(AETHER_SHOULDER_8255.replace('aetherShoulder', 'studioShoulder').replaceAll('AETHER_SHOULDER', 'uStudioLook2.x'));
+    // one JS template makes both; the guard keeps a zero/unbound knee from dividing by zero
+    expect(studio).toBe(AETHER_SHOULDER_8255.replace('aetherShoulder', 'studioShoulder').replaceAll('AETHER_SHOULDER', 'max(uStudioLook2.x, 1e-3)'));
     expect(AETHER_SHOULDER).toBe(1);
     expect(PLANET_TUNE.studioShoulder).toBe(AETHER_SHOULDER); // the default knee is today's
   });

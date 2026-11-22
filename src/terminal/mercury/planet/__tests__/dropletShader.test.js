@@ -34,6 +34,12 @@ describe('dropletShader — the family as one SDF impostor', () => {
     expect(fs).toContain('vec3 col = max(fresnelHg(NoV) * envRadianceLiquid(R, roughB, p, n), 0.0);'); // the planet's roughness, glint-AA'd per bead
   });
 
+  it('no longer calls plain envRadiance (the liquid mirror, highlight-curved, only)', () => {
+    const { fs } = buildDropletShader();
+    expect(fs.replace(HG_ENV_GLSL, '')).not.toMatch(/\benvRadiance\(/);
+    expect(fs.replace(HG_ENV_GLSL, '')).not.toContain('envRadianceLiquidRaw('); // the curve applies to droplets
+  });
+
   it('surface tension in the SDF: necks blend at their own radius; separate bodies use a hard min', () => {
     const { fs } = buildDropletShader();
     expect(fs).toContain(`const float NECK_BLEND = ${glf(NECK_BLEND)};`);

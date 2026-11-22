@@ -42,6 +42,7 @@ export const SOLID_HG_SPECULAR = 0.5;         // frozen Hg reflects at this shar
 export const NIGHT_TINT = [0.45, 0.58, 1.0];  // cold cast on the night side's aether: warm gas sinks to indigo / deep violet / dark cyan
 export const AETHER_SHOULDER = 1;              // knee of the hue-preserving roll-off (Fresnel ≤ 1, so the display never clips a channel)
 export const AETHER_PATH_WHITE = 0.3;          // how far the hottest sky structure pales toward white (0: pure hue; the old softbox core was ~1)
+export const HG_HIGHLIGHT_KNEE = 0.6;         // liquid Hg highlights (hgHighlight.js): identity below this linear level, then a C1 roll-off to white
 export const FRONT_EDGE = 0.12;               // transmutation front noise amplitude (in front units)
 export const FRONT_SOFT = 0.03;               // front edge softness; must stay < FRONT_EDGE / 2
 export const FRONT_NOISE_FREQ = 6;

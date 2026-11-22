@@ -9,6 +9,7 @@
 import { glf, v3 } from '../../gl/glf';
 import { HG_N, HG_K } from './hgOptics';
 import { AETHER_SKY_GLSL } from './aetherSky';
+import { HG_HIGHLIGHT_GLSL } from './hgHighlight';
 import {
   EMIT_RADIUS, EMIT_MIN_SIN, EMIT_HORIZON_SOFT, SUN_SHOULDER, AETHER_NIGHT, AETHER_DAY_LO, AETHER_DAY_HI,
   NIGHT_TINT, AETHER_SHOULDER, AETHER_PATH_WHITE,
@@ -83,6 +84,16 @@ const ENV_LIGHTS_BODY = `  vec3 c = vec3(softShoulder(uSunGlint * uSunIrr * uExp
     c += uEmitCol[i] * (uEmitGain * above * lobe(dot(R, dir), sinE, rough));
   }`;
 
+// The hue-preserving shoulder, one text for both knees: aetherShoulder's compiled text is byte-identical to 8255e4c0
+// (pinned), and studioShoulder can only differ from it in the knee expression.
+const shoulderFn = (name, knee) => `vec3 ${name}(vec3 x) {
+  float m = max(x.r, max(x.g, x.b));
+  if (m <= 1e-6) return x;
+  float s = softShoulder(m, ${knee});
+  vec3 y = x * (s / m);
+  return mix(y, vec3(s), AETHER_PATH_WHITE * smoothstep(0.55, 0.95, s / ${knee}));
+}`;
+
 export const HG_ENV_GLSL = `// A disc of angular radius asin(sinR) seen in a mirror of roughness rough:
 // a Gaussian in angle whose width adds the disc and the GGX alpha, scaled so
 // the integrated energy stays that of the disc.
@@ -100,23 +111,11 @@ float softShoulder(float x, float k) { return k * (1.0 - exp(-x / k)); }
 // Per channel, a bright magenta core clipped toward pastel (the sky's own structure sets the volume).
 // Only the hottest part of a core takes a little path to white (AETHER_PATH_WHITE at full compression), as overexposed
 // emission does: the core reads luminous and curved, the fringe stays the deep gas hue.
-vec3 aetherShoulder(vec3 x) {
-  float m = max(x.r, max(x.g, x.b));
-  if (m <= 1e-6) return x;
-  float s = softShoulder(m, AETHER_SHOULDER);
-  vec3 y = x * (s / m);
-  return mix(y, vec3(s), AETHER_PATH_WHITE * smoothstep(0.55, 0.95, s / AETHER_SHOULDER));
-}
+${shoulderFn('aetherShoulder', 'AETHER_SHOULDER')}
 
 // The studio's roll-off: aetherShoulder with its knee read live from uStudioLook2.x (PLANET_TUNE.studioShoulder;
-// knee 1 = AETHER_SHOULDER, today's look).
-vec3 studioShoulder(vec3 x) {
-  float m = max(x.r, max(x.g, x.b));
-  if (m <= 1e-6) return x;
-  float s = softShoulder(m, uStudioLook2.x);
-  vec3 y = x * (s / m);
-  return mix(y, vec3(s), AETHER_PATH_WHITE * smoothstep(0.55, 0.95, s / uStudioLook2.x));
-}
+// knee 1 = AETHER_SHOULDER, today's look). Guarded: an unbound or zero knee would divide by zero.
+${shoulderFn('studioShoulder', 'max(uStudioLook2.x, 1e-3)')}
 
 // Night attenuation of the aether, keyed on the SURFACE facing the Sun (not
 // the reflection direction): full day strength from AETHER_DAY_HI, a cold
@@ -163,8 +162,17 @@ vec3 aetherMirrorLiquid(vec3 R, float rough, vec3 nW) {
   return aetherTint(nW) * aetherShoulder(uAetherGain * aetherHue(elem)) + studioShoulder(uAetherGain * aetherHue(neutral));
 }
 
-// What liquid Hg sees (the planet liquid, the visitor crust pool, the droplets, the beads): envRadiance with the
-// studio untinted. The frost, quench, evaporite, frozen Hg and visitor water/rock keep envRadiance (ruled looks).
-vec3 envRadianceLiquid(vec3 R, float rough, vec3 P, vec3 nW) {
+${HG_HIGHLIGHT_GLSL}
+
+// What liquid Hg sees, before its highlight curve: envRadiance with the studio untinted. Only the beads call it
+// directly (they take their shadowed Sun off first, then curve the result themselves).
+vec3 envRadianceLiquidRaw(vec3 R, float rough, vec3 P, vec3 nW) {
   return envLights(R, rough, P, nW) + aetherMirrorLiquid(R, rough, nW);
+}
+
+// What liquid Hg sees (the planet liquid, the visitor crust pool, the droplets): the raw liquid env, its highlights
+// rolled off to white in this one place. The frost, quench, evaporite, frozen Hg and visitor water/rock keep
+// envRadiance (ruled looks, no curve).
+vec3 envRadianceLiquid(vec3 R, float rough, vec3 P, vec3 nW) {
+  return hgHighlight(envRadianceLiquidRaw(R, rough, P, nW));
 }`;

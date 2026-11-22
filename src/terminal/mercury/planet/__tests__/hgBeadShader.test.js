@@ -11,7 +11,12 @@ describe('Hg bead shader', () => {
   it('is the planet\'s mirror, by construction', () => {
     for (const chunk of [HG_MIRROR_DECLS_GLSL, HG_FRESNEL_GLSL, HG_ENV_GLSL, AETHER_SHADOW_GLSL]) expect(BEAD_FS).toContain(chunk);
     expect(BEAD_FS).toContain('fresnelHg(');
-    expect(BEAD_FS).toContain('vec3 env = envRadianceLiquid(R, uRoughLiquid, P, n) - (1.0 - sh) * sunTerm(R, uRoughLiquid);');
+    // the shadowed Sun comes off the uncurved env, then the env takes the highlight curve itself
+    expect(BEAD_FS).toContain('vec3 env = hgHighlight(envRadianceLiquidRaw(R, uRoughLiquid, P, n) - (1.0 - sh) * sunTerm(R, uRoughLiquid));');
+    expect(BEAD_FS).not.toContain('envRadianceLiquid(R, uRoughLiquid, P, n) - (1.0 - sh)'); // never subtract from a curved sum
+  });
+  it('the bead body no longer calls plain envRadiance (the liquid mirror only)', () => {
+    expect(BEAD_FS.replace(HG_ENV_GLSL, '')).not.toMatch(/\benvRadiance\(/);
   });
   it('the shadowed Sun term is the envRadiance Sun term, verbatim (drift guard)', () => {
     expect(HG_ENV_GLSL).toContain(SUN_TERM_GLSL);
