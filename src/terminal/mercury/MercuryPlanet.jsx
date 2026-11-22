@@ -265,7 +265,9 @@ function stepDrop(drop, { body, surf, camera, ds, calm, stepS, t, bufferW, buffe
       stepFamily(fam, dropDt, env);
       for (const ev of fam.events) {
         worldToBody(ev.dir, body.q, surf.b);
-        addImpulse(surf.impulses, { dirBody: surf.b, tS: t, mode: ev.mode, wave: ev.wave, kind: ev.kind });
+        // a hyper bead's landing ring is lifted to read at the touchdown (live knob; the sim's one-splash energy budget is untouched)
+        const evWave = fam.hyper && ev.kind === 'splash' ? Math.min(IMPACT_WAVE_AMP.splash, ev.wave * PLANET_TUNE.hyperWaveGain) : ev.wave;
+        addImpulse(surf.impulses, { dirBody: surf.b, tS: t, mode: ev.mode, wave: evWave, kind: ev.kind });
       }
       fam.events.length = 0;
     }

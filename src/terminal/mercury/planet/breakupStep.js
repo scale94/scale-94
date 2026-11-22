@@ -244,7 +244,10 @@ function strike(fam, b, dir, vn, env) {
   // land at full strength within 2 s and their rings beat into bands. s² is each strike's share of the swarm volume
   // (Σ vd ≤ volFamily, so Σ s² ≤ 1).
   const s = fam.hyper ? Math.sqrt(vd / fam.volFamily) * vnK : Math.min(1, (vd / env.vRef) * vnK);
-  fam.events.push({ kind: 'splash', dir: [dir[0], dir[1], dir[2]], mode: IMPACT_MODE_AMP.splash * s, wave: IMPACT_WAVE_AMP.splash * s });
+  // the local ring ∝ s; the whole-sphere body modes ∝ s² (the droplet's share of the planet's momentum, fix/mercury-motion):
+  // P2/P4 are even, so a small droplet's mode dented the antipode about as hard as its faint ring rang at the touchdown.
+  // A full-strength drop (s = 1) keeps both as before.
+  fam.events.push({ kind: 'splash', dir: [dir[0], dir[1], dir[2]], mode: IMPACT_MODE_AMP.splash * s * s, wave: IMPACT_WAVE_AMP.splash * s });
 }
 
 function startCascade(fam, b, env, vn) {

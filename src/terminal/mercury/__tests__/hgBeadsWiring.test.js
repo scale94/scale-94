@@ -79,3 +79,12 @@ describe('pearl ring gain (fix/mercury-motion)', () => {
     expect(typical / WAKE_WAVE_AMP).toBeLessThan(1.25);
   });
 });
+
+describe('hyper landing ring gain (fix/mercury-motion)', () => {
+  it('a hyper bead\'s landing ring carries PLANET_TUNE.hyperWaveGain (default 3), capped at a full splash; others as emitted', async () => {
+    expect(planetSrc).toContain("const evWave = fam.hyper && ev.kind === 'splash' ? Math.min(IMPACT_WAVE_AMP.splash, ev.wave * PLANET_TUNE.hyperWaveGain) : ev.wave;");
+    expect(planetSrc).toContain('addImpulse(surf.impulses, { dirBody: surf.b, tS: t, mode: ev.mode, wave: evWave, kind: ev.kind });');
+    const { PLANET_TUNE } = await import('../planet/planetLook');
+    expect(PLANET_TUNE.hyperWaveGain).toBe(3);
+  });
+});
