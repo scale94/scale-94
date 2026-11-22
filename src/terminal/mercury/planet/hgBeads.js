@@ -3,15 +3,16 @@
 // × boiling), fling bursts tangential to the spin, splashes at liquid visitor impacts. Motion: gravity toward
 // the planet + drag toward the ACTIVE element's flow velocity (flung beads fly free first, FLING_FREE_T, then the
 // flow they ease into also drifts them home at FLING_RETURN_V, and they live until they land: FLING_LIFE is a cap).
-// Sinks: life (fade), fire (evaporation), re-entry (merge at surface contact, reported in hits), the cap (oldest first; only flings and splashes
+// Sinks: life (fade), fire (evaporation), re-entry (contact is reported in hits; a bead drawn as a body then coalesces
+// over its capillary time, anchored to the planet, a glint-only speck merges at once), the cap (oldest first; only flings and splashes
 // evict, the ambient trickle waits for room). Preallocated typed arrays; nothing allocates per frame.
 // Upload: position + (radius, alpha, glint gate).
 
 import { mulberry32 } from './prng';
 import { SUN_DIR_WORLD } from './planetFrame';
-import { DROP_V_REF } from './breakupFamily';
-import { STRIKE_V_REF } from './breakupStep';
-import { sphereVol } from './breakupPhysics';
+import { DROP_V_REF, qRotate, qRotateInv } from './breakupFamily';
+import { STRIKE_V_REF, SINK } from './breakupStep';
+import { sphereVol, capillaryTime } from './breakupPhysics';
 
 export const DUST_R = Object.freeze([0.0015, 0.006]);  // scene units: ~0.4–1.5 px at the fitted desktop camera
 export const PEARL_R = Object.freeze([0.012, 0.02]);   // ~3–5 px: the rare solid silver bead
@@ -20,6 +21,9 @@ export const AMBIENT_RATE = 18;   // beads/s off the sunlit surface → ~AMBIENT
 export const BOIL_GAIN = 4;       // boiling multiplies the trickle by (1 + BOIL_GAIN · coverage)
 export const BEAD_LIFE = 8;       // s
 export const BEAD_FADE = 1.5;     // s of fade-OUT before BEAD_LIFE (the fade-in is the 0.15 s ramp in stepBeads)
+// A bead is drawn as a mirror body from 2 px across (hgBeadShader kPearl); below that it is a glint only. Ripples and
+// coalescence follow what is drawn, not the spawn class (dust renders as visible pearls on a large or high-dpr canvas).
+export const BEAD_BODY_PX = 1;     // rendered radius, px
 export const BEAD_SHAPE_MARGIN = 1.12; // × coreR: past this (|p| − r) the live surface (SHAPE_MAX + BULGE_MAX) can't reach a bead
 export const BEAD_ESCAPE_R = 4;   // × coreR: beyond this a bead has left the scene for good (flings never return)
 export const G_BEAD = 0.12;       // GM in scene units: escape speed at r 0.75 ≈ 0.57
@@ -75,6 +79,8 @@ export function createBeads(cap, seed = 0x6867) {
     outPos: new Float32Array(cap * 3), outBead: new Float32Array(cap * 3),
     // this step's touchdowns: (world dir xyz, radius, inward normal speed) × nHits; the caller turns pearls into ripples
     hits: new Float32Array(cap * 5), nHits: 0,
+    // coalescence: time left / total (0 = airborne), radius at contact, contact direction in the body frame
+    mt: new Float32Array(cap), mD: new Float32Array(cap), r0: new Float32Array(cap), dB: new Float32Array(cap * 3),
   };
 }
 
@@ -88,7 +94,7 @@ export function spawnBead(b, x, y, z, vx, vy, vz, r) {
   const i = b.n < b.cap ? b.n++ : oldest(b);
   b.pos[3 * i] = x; b.pos[3 * i + 1] = y; b.pos[3 * i + 2] = z;
   b.vel[3 * i] = vx; b.vel[3 * i + 1] = vy; b.vel[3 * i + 2] = vz;
-  b.r[i] = r; b.age[i] = 0; b.free[i] = 0; b.wph[i] = 0;
+  b.r[i] = r; b.age[i] = 0; b.free[i] = 0; b.wph[i] = 0; b.mt[i] = 0; b.mD[i] = 0;
   b.ph2[i] = 2 * Math.PI * b.rng(); b.ph3[i] = 2 * Math.PI * b.rng(); b.ph4[i] = 2 * Math.PI * b.rng();
   b.tumble[i] = TUMBLE_K[0] + (TUMBLE_K[1] - TUMBLE_K[0]) * b.rng();
   return i;
@@ -97,7 +103,8 @@ export function spawnBead(b, x, y, z, vx, vy, vz, r) {
 function remove(b, i) {
   const last = --b.n;
   if (i === last) return;
-  for (let c = 0; c < 3; c++) { b.pos[3 * i + c] = b.pos[3 * last + c]; b.vel[3 * i + c] = b.vel[3 * last + c]; }
+  for (let c = 0; c < 3; c++) { b.pos[3 * i + c] = b.pos[3 * last + c]; b.vel[3 * i + c] = b.vel[3 * last + c]; b.dB[3 * i + c] = b.dB[3 * last + c]; }
+  b.mt[i] = b.mt[last]; b.mD[i] = b.mD[last]; b.r0[i] = b.r0[last];
   b.r[i] = b.r[last]; b.age[i] = b.age[last]; b.free[i] = b.free[last];
   b.ph2[i] = b.ph2[last]; b.ph3[i] = b.ph3[last]; b.ph4[i] = b.ph4[last]; b.tumble[i] = b.tumble[last]; b.wph[i] = b.wph[last];
 }
@@ -160,18 +167,22 @@ function flowVel(phase, x, y, z, age) {
   else if (phase === 'thermal') { f[1] = 0.4; }                                    // updraft
 }
 
-// A touchdown's ripple strength on the phase-5 splash scale (0..1): pearls only (dust merges silently). Energy share,
-// not volume share: amplitude ∝ √(m v²), as the hyper swarm's strike splits one splash (breakupStep.strike). A pearl is
-// 1.6–7 % of a phase-5 drop by volume, so a linear share would be an invisible ring.
-export function pearlStrike(r, vn) {
-  if (r < PEARL_R[0]) return 0;
+// A touchdown's ripple strength on the phase-5 splash scale (0..1). Only a bead drawn as a body ripples (its rendered
+// radius r · pxPerUnit ≥ BEAD_BODY_PX); a glint-only speck is silent. Energy share, not volume share: amplitude ∝ √(m v²),
+// as the hyper swarm's strike splits one splash (breakupStep.strike); `floor` keeps the tiniest visible bead a micro-ripple.
+export function pearlStrike(r, vn, pxPerUnit, floor = 0) {
+  if (!(r * pxPerUnit >= BEAD_BODY_PX)) return 0;
   const vnK = 0.5 + 0.5 * Math.min(1, Math.max(vn, 0) / STRIKE_V_REF);
-  return Math.min(1, Math.sqrt(sphereVol(r) / DROP_V_REF) * vnK);
+  return Math.min(1, Math.max(floor, Math.sqrt(sphereVol(r) / DROP_V_REF) * vnK));
 }
 
-const _dir = [0, 0, 0];
+const smooth = (u) => u * u * (3 - 2 * u);
+
+const _dir = [0, 0, 0], _dB = [0, 0, 0];
+const Q_ID = [0, 0, 0, 1];
 export function stepBeads(b, dt, ctx) {
-  const { phase, coreR, calm, liquid, boil, rateScale = 1, planetRadiusAt = null } = ctx;
+  // pxPerUnit 0 (headless default): every bead merges at contact, as before coalescence
+  const { phase, coreR, calm, liquid, boil, rateScale = 1, planetRadiusAt = null, pxPerUnit = 0, q = Q_ID } = ctx;
   const ER2 = BEAD_ESCAPE_R * BEAD_ESCAPE_R * coreR * coreR;
   const nearR = BEAD_SHAPE_MARGIN * coreR;
   b.nHits = 0;
@@ -181,6 +192,17 @@ export function stepBeads(b, dt, ctx) {
   }
   for (let i = b.n - 1; i >= 0; i--) {
     b.age[i] += dt;
+    if (b.mD[i] > 0) { // coalescing: anchored to the turning planet, it drains and sinks like a drop's last cascade stage
+      b.mt[i] -= dt;
+      if (b.mt[i] <= 0) { remove(b, i); continue; }
+      const u = smooth(Math.min(1, 1 - b.mt[i] / b.mD[i]));
+      b.r[i] = b.r0[i] * Math.cbrt(1 - u);
+      _dB[0] = b.dB[3 * i]; _dB[1] = b.dB[3 * i + 1]; _dB[2] = b.dB[3 * i + 2];
+      qRotate(q, _dB, _dir);
+      const R = (planetRadiusAt ? planetRadiusAt(_dir) : coreR) + b.r[i] * (1 - SINK * u);
+      for (let c = 0; c < 3; c++) { b.pos[3 * i + c] = _dir[c] * R; b.vel[3 * i + c] = 0; }
+      continue;
+    }
     if (!calm) {
       const x = b.pos[3 * i], y = b.pos[3 * i + 1], z = b.pos[3 * i + 2];
       const r2 = x * x + y * y + z * z, rl = Math.sqrt(r2) || 1, g = G_BEAD / (r2 * rl);
@@ -213,6 +235,13 @@ export function stepBeads(b, dt, ctx) {
       if (landed) {
         const h = 5 * b.nHits++;
         b.hits[h] = ux; b.hits[h + 1] = uy; b.hits[h + 2] = uz; b.hits[h + 3] = b.r[i]; b.hits[h + 4] = Math.max(vn, 0);
+        if (b.r[i] * pxPerUnit >= BEAD_BODY_PX) {
+          _dir[0] = ux; _dir[1] = uy; _dir[2] = uz;
+          qRotateInv(q, _dir, _dB);
+          b.dB[3 * i] = _dB[0]; b.dB[3 * i + 1] = _dB[1]; b.dB[3 * i + 2] = _dB[2];
+          b.r0[i] = b.r[i]; b.mD[i] = b.mt[i] = capillaryTime(b.r[i]);
+          continue;
+        }
       }
     }
     if (landed || b.age[i] > (b.free[i] ? FLING_LIFE : BEAD_LIFE) || b.r[i] <= 0 || escaped) remove(b, i);

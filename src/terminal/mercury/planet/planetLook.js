@@ -57,6 +57,7 @@ export const PLANET_TUNE = {
   sunGlint: 120,     // liquid mirror: Sun-disc radiance gain (soft-shouldered; boil sheen ≈ 1, cooled pinpoint saturates)
   beadGlint: 4,      // droplets and the beads' resolved Sun lobe: × sunGlint; with the droplet glint AA, a crisp 2 px sparkle on the small beads
   beadSparkle: 1.0,  // Hg aether beads (hgBeadShader): peak of the guaranteed sub-pixel Sun glint, sRGB units before the 1.5 cap
+  pearlRipple: 0.1,  // floor of a landing bead's ripple (× a full splash): the tiniest bead drawn as a body still dimples the liquid (hgBeads.pearlStrike)
   dustSparkle: 3.0,  // Hg glitter dust: peak of the wobble-gated glint × size weight (biggest specks ≈ 2.3 after Hg Fresnel), sRGB units before DUST_GLINT_MAX 3
   emitGain: 1.5,     // liquid mirror: element-emitter reflection gain
   aetherGain: 1.4,   // liquid mirror + frozen ambient: aether sky gain (re-tuned in the mirror-sky look round)

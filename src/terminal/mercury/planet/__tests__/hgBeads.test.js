@@ -1,10 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import {
   createBeads, spawnBead, spawnFling, spawnSplash, stepBeads, beadRadius, wobbleHz, wobbleGate, WOBBLE_HZ_MIN, WOBBLE_HZ_MAX,
-  AMBIENT_RATE, BEAD_ESCAPE_R, BEAD_SHAPE_MARGIN, pearlStrike, FLING_LIFE, FLING_RETURN_V, BEAD_LIFE, DUST_R, PEARL_R, PEARL_P, EVAP_RATE, FLING_N, FLING_V_MAX, FLING_RADIAL, G_BEAD,
+  AMBIENT_RATE, BEAD_ESCAPE_R, BEAD_SHAPE_MARGIN, pearlStrike, BEAD_BODY_PX, FLING_LIFE, FLING_RETURN_V, BEAD_LIFE, DUST_R, PEARL_R, PEARL_P, EVAP_RATE, FLING_N, FLING_V_MAX, FLING_RADIAL, G_BEAD,
 } from '../hgBeads';
 import { mulberry32 } from '../prng';
 import { MAX_OMEGA } from '../mercuryBody';
+import { capillaryTime } from '../breakupPhysics';
 import { SUN_DIR_WORLD } from '../planetFrame';
 
 const CTX = { phase: 'air', coreR: 0.75, calm: false, liquid: true, boil: 0 };
@@ -319,15 +320,65 @@ describe('hgBeads touchdown (fix/mercury-motion: beads clipped into the sphere w
   });
 });
 
-describe('pearlStrike: a landing pearl ripples like a small drop', () => {
-  it('dust never ripples; a pearl does, more for a bigger or faster one, never past a full splash', () => {
-    expect(pearlStrike(DUST_R[1], 1)).toBe(0);
-    const small = pearlStrike(PEARL_R[0], 0.5), big = pearlStrike(PEARL_R[1], 0.5);
-    expect(small).toBeGreaterThan(0.1); // √(volume share): visible, not the 1.6 % a linear share would give
+describe('pearlStrike: a landing bead ripples like a small drop, by its rendered size', () => {
+  it('a glint-only speck (radius under BEAD_BODY_PX on screen) is silent; anything drawn as a body ripples', () => {
+    expect(pearlStrike(DUST_R[1], 1, 100, 0.1)).toBe(0); // 0.6 px: glint only
+    expect(pearlStrike(DUST_R[1], 1, 300, 0.1)).toBeGreaterThan(0); // the same speck at 1.8 px is a visible pearl
+    expect(pearlStrike(BEAD_BODY_PX / 140.7 - 1e-6, 1, 140.7, 0.1)).toBe(0);
+    expect(pearlStrike(BEAD_BODY_PX / 140.7 + 1e-6, 1, 140.7, 0.1)).toBeGreaterThan(0);
+  });
+  it('the floor makes the tiniest visible bead a micro-ripple; above it the strength stays proportional', () => {
+    expect(pearlStrike(DUST_R[1], 0, 300, 0.1)).toBe(0.1);
+    const small = pearlStrike(PEARL_R[0], 0.5, 300, 0.05), big = pearlStrike(PEARL_R[1], 0.5, 300, 0.05);
+    expect(small).toBeGreaterThan(0.1); // √(energy share), not the 1.6 % a linear share would give
     expect(big).toBeGreaterThan(small);
     expect(big).toBeLessThan(0.35);
-    expect(pearlStrike(PEARL_R[1], 0)).toBeCloseTo(0.5 * pearlStrike(PEARL_R[1], 10), 6); // vnK spans 0.5 → 1
-    expect(pearlStrike(1, 100)).toBe(1);
+    expect(pearlStrike(PEARL_R[1], 0, 300, 0)).toBeCloseTo(0.5 * pearlStrike(PEARL_R[1], 10, 300, 0), 6); // vnK 0.5 → 1
+    expect(pearlStrike(1, 100, 300, 0)).toBe(1);
+  });
+});
+
+// The tiniest visible pearls vanished in one frame on contact (the drops' cascade sits on the surface, drains and sinks
+// over a capillary time): a bead drawn as a body now coalesces the same way, anchored to the turning planet.
+describe('coalescence: a visible bead merges over its capillary time (fix/mercury-motion)', () => {
+  const Q0 = [0, 0, 0, 1];
+  const drop = (r, ctx) => {
+    const b = createBeads(8);
+    const i = spawnBead(b, 0, 0, 0.75 + r + 0.004, 0, 0, -0.5, r); b.age[i] = 1;
+    stepBeads(b, 1 / 60, ctx);
+    return b;
+  };
+  it('stays on the surface at contact, drains and sinks, and is gone after capillaryTime(r); one hit only', () => {
+    const r = PEARL_R[0];
+    const ctx = { ...CTX, phase: 'neutral', liquid: false, pxPerUnit: 300, q: Q0 };
+    const b = drop(r, ctx);
+    expect(b.nHits).toBe(1);
+    expect(b.n).toBe(1);
+    let hits = 0, rPrev = b.r[0], t = 1 / 60;
+    while (b.n > 0 && t < 2) {
+      stepBeads(b, 1 / 60, ctx); t += 1 / 60; hits += b.nHits;
+      if (b.n) {
+        expect(b.r[0]).toBeLessThanOrEqual(rPrev + 1e-7);
+        const d = Math.hypot(b.pos[0], b.pos[1], b.pos[2]);
+        expect(d).toBeGreaterThanOrEqual(0.75 - 1e-6);
+        expect(d).toBeLessThanOrEqual(0.75 + r + 1e-6);
+        rPrev = b.r[0];
+      }
+    }
+    expect(hits).toBe(0);
+    expect(Math.abs(t - capillaryTime(r))).toBeLessThan(3 / 60);
+  });
+  it('rides the planet: the merge point turns with the body quaternion', () => {
+    const ctx = { ...CTX, phase: 'neutral', liquid: false, pxPerUnit: 300, q: [0, 0, 0, 1] };
+    const b = drop(PEARL_R[1], ctx);
+    const s = Math.SQRT1_2; // 90° about +Y: +Z goes to +X
+    stepBeads(b, 1 / 60, { ...ctx, q: [0, s, 0, s] });
+    expect(b.pos[0]).toBeGreaterThan(0.7);
+    expect(Math.abs(b.pos[2])).toBeLessThan(0.02);
+  });
+  it('a glint-only speck still merges at once, and without pxPerUnit every bead does (headless default)', () => {
+    expect(drop(DUST_R[1], { ...CTX, liquid: false, pxPerUnit: 100, q: Q0 }).n).toBe(0);
+    expect(drop(PEARL_R[1], { ...CTX, liquid: false }).n).toBe(0);
   });
 });
 

@@ -461,7 +461,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
 
   // Hg beads: the trickle, flings and splash bursts, carried by the active element. beadCtx is written in place per frame.
   const beads = useHgBeads({ tier, planetMaterial: material });
-  const beadCtx = useMemo(() => ({ phase: 'fluid', coreR: R_SCENE, calm: false, liquid: true, boil: 0, rateScale: 1, lastFam: 'idle', dirW: [0, 0, 0], omega: [0, 0, 0] }), []);
+  const beadCtx = useMemo(() => ({ phase: 'fluid', coreR: R_SCENE, calm: false, liquid: true, boil: 0, rateScale: 1, lastFam: 'idle', dirW: [0, 0, 0], omega: [0, 0, 0], q: [0, 0, 0, 1], pxPerUnit: 0 }), []);
 
   // The maps outlive the material: a live CALM toggle swaps the shader variant (a new
   // material) without reloading them or flashing the flat fallback (planetMaps.js).
@@ -746,6 +746,8 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     beadCtx.boil = exo.coverage;
     beadCtx.rateScale = TIERS[tier].beadRate;
     beadCtx.planetRadiusAt = drop.env.planetRadiusAt; // touchdown on the live surface (bulge + ripples), as the drops land
+    beadCtx.pxPerUnit = drop.env.pxPerUnit; // what is drawn as a body ripples and coalesces (hgBeads BEAD_BODY_PX)
+    beadCtx.q[0] = body.q.x; beadCtx.q[1] = body.q.y; beadCtx.q[2] = body.q.z; beadCtx.q[3] = body.q.w; // coalescence rides the planet
     stepBeads(beads.sim, stepS, beadCtx);
     // A landing pearl ripples the liquid (dust merges silently): the strongest touchdown this frame, one minor impulse
     // that yields its slot to any stronger live ring (addImpulseIfRoom). Crust and calm take no ripple.
@@ -753,7 +755,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
       const sim = beads.sim;
       let best = -1, bestS = 0;
       for (let k = 0; k < sim.nHits; k++) {
-        const s = pearlStrike(sim.hits[5 * k + 3], sim.hits[5 * k + 4]);
+        const s = pearlStrike(sim.hits[5 * k + 3], sim.hits[5 * k + 4], beadCtx.pxPerUnit, PLANET_TUNE.pearlRipple);
         if (s > bestS) { bestS = s; best = k; }
       }
       if (best >= 0) {
