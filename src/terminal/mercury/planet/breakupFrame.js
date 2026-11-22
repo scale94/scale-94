@@ -3,7 +3,7 @@
 
 import { R_SCENE } from './planetLook';
 import { TONGUE_ROOT_R, pinchRadius, wobbleOmega } from './breakupPhysics';
-import { cappedChainN, chainSpan, qRotate, TONGUE_LAG_S } from './breakupFamily';
+import { cappedChainN, chainSpan, holdGrow, qRotate, TONGUE_LAG_S } from './breakupFamily';
 
 export const NECK_ASYM = 0.2;        // waist shifted toward the inner body: steep cone at the outer bead, shallow inward (spec §5.2)
 export const FLIGHT_STRETCH = 0.12;  // prolate stretch of a main bead at A_REF
@@ -60,19 +60,21 @@ function packHold(fam, env, f) {
   const N = cappedChainN(Ls, f.caps.bodies, f.caps.satellites);
   const sp = Ls / N;
   const ax = fam.axisBody;
+  // below one wavelength the tongue is grown out of the surface (holdGrow): it rises and sinks back, never a popped pawn
+  const g = holdGrow(fam.L), r0 = TONGUE_ROOT_R * Math.cbrt(g);
   for (let si = 0; si < 2; si++) {
     const sign = 1 - 2 * si;
     const first = f.nb;
     for (let k = 0; k < N; k++) {
-      const d = sign * (R_SCENE + Ls - (k + 0.5) * sp);
+      const d = sign * (R_SCENE + g * (Ls - (k + 0.5) * sp));
       _c[0] = ax[0] * d; _c[1] = ax[1] * d; _c[2] = ax[2] * d;
       qRotate(env.q, _c, _c);
-      pushBead(f, _c, TONGUE_ROOT_R, unitInto(_c, _u), 0);
+      pushBead(f, _c, r0, unitInto(_c, _u), 0);
     }
-    for (let k = 0; k + 1 < N; k++) pushNeck(f, first + k, first + k + 1, TONGUE_ROOT_R, 0, 0);
+    for (let k = 0; k + 1 < N; k++) pushNeck(f, first + k, first + k + 1, r0, 0, 0);
     const last = first + N - 1;
     _c[0] = f.bead[4 * last]; _c[1] = f.bead[4 * last + 1]; _c[2] = f.bead[4 * last + 2];
-    pushNeck(f, last, -1, TONGUE_ROOT_R, 0, env.planetRadiusAt(unitInto(_c, _u)));
+    pushNeck(f, last, -1, r0, 0, env.planetRadiusAt(unitInto(_c, _u)));
   }
 }
 
@@ -83,6 +85,9 @@ function packFired(fam, env, f) {
   // the extrude: attached beads co-rotate with the planet, so a radial lerp of their height carries the chain
   // from the held span to the fired one (a pure function of fam.t: replay-consistent, nothing in the sim moves)
   const ext = fam.ext0 < 1 && fam.t < EXTRUDE_S ? fam.ext0 + (1 - fam.ext0) * smooth01(fam.t / EXTRUDE_S) : 1;
+  // …and the attached beads and necks grow from the held (holdGrow) radius on the same clock
+  const rExt0 = fam.rExt0 ?? 1;
+  const rx = rExt0 < 1 && fam.t < EXTRUDE_S ? rExt0 + (1 - rExt0) * smooth01(fam.t / EXTRUDE_S) : 1;
   for (let i = 0; i < B.length; i++) {
     const b = B[i];
     f.map[i] = -1;
@@ -94,7 +99,7 @@ function packFired(fam, env, f) {
       if (d > R_SCENE) {
         const k = (R_SCENE + (d - R_SCENE) * ext) / d;
         _c[0] = b.p[0] * k; _c[1] = b.p[1] * k; _c[2] = b.p[2] * k;
-        f.map[i] = pushBead(f, _c, b.r, _ax, 0);
+        f.map[i] = pushBead(f, _c, b.r * rx, _ax, 0);
         continue;
       }
     }
@@ -111,7 +116,7 @@ function packFired(fam, env, f) {
     if (!n.on) continue;
     const ia = f.map[n.a];
     if (ia < 0) continue;
-    const h = pinchRadius(TONGUE_ROOT_R, fam.t, n.tSnap);
+    const h = pinchRadius(TONGUE_ROOT_R, fam.t, n.tSnap) * rx;
     if (n.b >= 0) {
       const ib = f.map[n.b];
       if (ib >= 0) pushNeck(f, ia, ib, h, NECK_ASYM, 0);
