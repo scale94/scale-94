@@ -11,9 +11,13 @@ describe('Hg bead shader', () => {
   it('is the planet\'s mirror, by construction', () => {
     for (const chunk of [HG_MIRROR_DECLS_GLSL, HG_FRESNEL_GLSL, HG_ENV_GLSL, AETHER_SHADOW_GLSL]) expect(BEAD_FS).toContain(chunk);
     expect(BEAD_FS).toContain('fresnelHg(');
-    // the shadowed Sun comes off the uncurved env, then the env takes the highlight curve itself
-    expect(BEAD_FS).toContain('vec3 env = hgHighlight(envRadianceLiquidRaw(R, uRoughLiquid, P, n) - (1.0 - sh) * sunTerm(R, uRoughLiquid));');
-    expect(BEAD_FS).not.toContain('envRadianceLiquid(R, uRoughLiquid, P, n) - (1.0 - sh)'); // never subtract from a curved sum
+    // the shadowed Sun comes off the uncurved env; the curve then takes the whole Fresnel-weighted reflection
+    expect(BEAD_FS).toContain('vec3 env = envRadianceLiquid(R, uRoughLiquid, P, n) - (1.0 - sh) * sunTerm(R, uRoughLiquid);');
+    expect(BEAD_FS).toContain('vec3 col = max(hgHighlight(fresnelHg(dot(n, V)) * env), 0.0);');
+    const at = (s) => BEAD_FS.indexOf(s);
+    expect(at('env = mix(env, pl.rgb * sh, pl.a);')).toBeLessThan(at('vec3 col = max(hgHighlight('));
+    expect(at('vec3 col = max(hgHighlight(')).toBeLessThan(at('vec3 glint = G *')); // the capped glint stays outside the curve
+    expect(BEAD_FS.replace(HG_ENV_GLSL, '').match(/hgHighlight\(/g)).toHaveLength(1);
   });
   it('the bead body no longer calls plain envRadiance (the liquid mirror only)', () => {
     expect(BEAD_FS.replace(HG_ENV_GLSL, '')).not.toMatch(/\benvRadiance\(/);

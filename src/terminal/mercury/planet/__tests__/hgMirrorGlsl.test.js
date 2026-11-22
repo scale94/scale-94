@@ -100,10 +100,10 @@ describe('hgMirrorGlsl — one mirror for the planet and its droplets', () => {
     const lights = bodyOf(HG_ENV_GLSL, 'vec3 envLights(vec3 R, float rough, vec3 P, vec3 nW) {');
     const env = bodyOf(HG_ENV_GLSL, 'vec3 envRadiance(vec3 R, float rough, vec3 P, vec3 nW) {');
     expect(lights).toBe(env.replace('  return c + aetherMirror(R, rough, nW);', '  return c;')); // can't drift
-    expect(bodyOf(HG_ENV_GLSL, 'vec3 envRadianceLiquidRaw(vec3 R, float rough, vec3 P, vec3 nW) {'))
-      .toBe('  return envLights(R, rough, P, nW) + aetherMirrorLiquid(R, rough, nW);');
     expect(bodyOf(HG_ENV_GLSL, 'vec3 envRadianceLiquid(vec3 R, float rough, vec3 P, vec3 nW) {'))
-      .toBe('  return hgHighlight(envRadianceLiquidRaw(R, rough, P, nW));'); // the highlight curve, in one place
+      .toBe('  return envLights(R, rough, P, nW) + aetherMirrorLiquid(R, rough, nW);');
+    expect(bodyOf(HG_ENV_GLSL, 'vec3 hgLiquid(vec3 F, vec3 R, float rough, vec3 P, vec3 nW) {'))
+      .toBe('  return hgHighlight(F * envRadianceLiquid(R, rough, P, nW));'); // the highlight curve after the Fresnel
   });
 
   it('studioShoulder is aetherShoulder with its knee read live from uStudioLook2.x, guarded (knee 1 = today)', () => {

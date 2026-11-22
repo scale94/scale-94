@@ -120,13 +120,15 @@ describe('mercuryPlanetShader contract', () => {
     expect(PLANET_FS).toContain('uniform float uAetherSilver;');
     expect(PLANET_FS).toContain('return mix(col, vec3(l), uAetherSilver);');
     expect(PLANET_FS).not.toMatch(/AETHER_SIN_W/);
-    expect(PLANET_FS).toMatch(/liquid = fresnelHg\(NoV\) \* envRadianceLiquid\(R, [^;]*, hit, nW\);/);
+    expect(PLANET_FS).toMatch(/liquid = hgLiquid\(fresnelHg\(NoV\), R, [^;]*, hit, nW\);/); // highlight curve after the Fresnel
     // lighting polish Step 1: the liquid (and the visitor crust pool, liquid Hg) sees the studio untinted; the ruled
     // frost rime, quench core and evaporite keep envRadiance
-    expect(PLANET_FS).toContain('colLin = mix(colLin, fresnelHg(NoVP) * envRadianceLiquid(reflect(rd, nP), uRoughLiquid, hit, nP) * tintP + emitP, crustPool); // visitors');
+    expect(PLANET_FS).toContain('colLin = mix(colLin, hgLiquid(fresnelHg(NoVP) * tintP, reflect(rd, nP), uRoughLiquid, hit, nP) + emitP, crustPool); // visitors');
     expect(PLANET_FS).toContain('FROST_ENV * envRadiance(nW, 1.0, P, nW)');
     expect(PLANET_FS).toContain('F * envRadiance(R, QUENCH_ROUGH, P, nW)');
-    expect(PLANET_FS.match(/envRadianceLiquid\(/g)).toHaveLength(3); // the definition + the two liquid call sites
+    expect(PLANET_FS.match(/envRadianceLiquid\(/g)).toHaveLength(2); // the definition + hgLiquid's one call
+    expect(PLANET_FS.match(/hgLiquid\(/g)).toHaveLength(3); // the definition + the two liquid call sites
+    expect(PLANET_FS.match(/hgHighlight\(/g)).toHaveLength(2); // one definition, applied only inside hgLiquid
     expect(PLANET_FS).toMatch(/\+ frozenAether\(R, nW, NoV\)/); // frozen Hg is a rough dark mirror, not a matte ambient
     expect(PLANET_FS).not.toContain('aetherDiffuse');
     expect(PLANET_FS).toContain('return c + aetherMirror(R, rough, nW);');

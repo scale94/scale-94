@@ -95,11 +95,12 @@ void main() {
   vec3 V = normalize(cameraPosition - P);
   vec3 R = reflect(-V, n);
   float sh = aetherShadow(vC, uSunDir, uPlanetR, uLitPen);
-  // The shadowed Sun comes off the uncurved env (a curved sum minus a raw Sun is wrong), then the highlight curve.
-  vec3 env = hgHighlight(envRadianceLiquidRaw(R, uRoughLiquid, P, n) - (1.0 - sh) * sunTerm(R, uRoughLiquid));
+  vec3 env = envRadianceLiquid(R, uRoughLiquid, P, n) - (1.0 - sh) * sunTerm(R, uRoughLiquid);
   vec4 pl = planetInMirror(P, R);
   env = mix(env, pl.rgb * sh, pl.a);
-  vec3 col = max(fresnelHg(dot(n, V)) * env, 0.0);
+  // The liquid highlight curve on the whole Fresnel-weighted Hg reflection (shadowed Sun already off, the planet in the
+  // mirror mixed in), as hgLiquid does for the planet and droplets; the analytic glint below keeps its own caps.
+  vec3 col = max(hgHighlight(fresnelHg(dot(n, V)) * env), 0.0);
   // Rim AA only where the rim band fits inside the disc; below 4 px vCover^2 already carries the coverage.
   float edgeK = vPx >= 4.0 ? 1.0 - smoothstep(1.0 - 2.0 / vPx, 1.0, sqrt(d2)) : 1.0;
   // Dust below 2 px is glint only; the mirror body fades in to a pearl by 4 px. vPx is floored at

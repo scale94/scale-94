@@ -31,13 +31,13 @@ describe('dropletShader — the family as one SDF impostor', () => {
     expect(fs).toContain(HG_MIRROR_DECLS_GLSL);
     expect(fs).toContain(HG_FRESNEL_GLSL);
     expect(fs).toContain(HG_ENV_GLSL);
-    expect(fs).toContain('vec3 col = max(fresnelHg(NoV) * envRadianceLiquid(R, roughB, p, n), 0.0);'); // the planet's roughness, glint-AA'd per bead
+    expect(fs).toContain('vec3 col = max(hgLiquid(fresnelHg(NoV), R, roughB, p, n), 0.0);'); // the planet's roughness, glint-AA'd per bead; curved after Fresnel
   });
 
   it('no longer calls plain envRadiance (the liquid mirror, highlight-curved, only)', () => {
     const { fs } = buildDropletShader();
     expect(fs.replace(HG_ENV_GLSL, '')).not.toMatch(/\benvRadiance\(/);
-    expect(fs.replace(HG_ENV_GLSL, '')).not.toContain('envRadianceLiquidRaw('); // the curve applies to droplets
+    expect(fs.replace(HG_ENV_GLSL, '')).not.toMatch(/envRadianceLiquid\(/); // only through hgLiquid: the curve applies to droplets
   });
 
   it('surface tension in the SDF: necks blend at their own radius; separate bodies use a hard min', () => {
@@ -86,8 +86,8 @@ describe('dropletShader — the family as one SDF impostor', () => {
       expect(fs).toContain(`const float GLINT_AA_K = ${glf(GLINT_AA_K)};`);
       expect(fs).toContain('float aPx = GLINT_AA_K * tt * uPxAngle / max(rB, 1e-6);');
       expect(fs).toContain('float roughB = sqrt(sqrt(a0 * a0 + aPx * aPx));');
-      expect(fs).toContain('envRadianceLiquid(R, roughB, p, n)');
-      expect(fs).not.toContain('envRadianceLiquid(R, uRoughLiquid, p, n)');
+      expect(fs).toContain('hgLiquid(fresnelHg(NoV), R, roughB, p, n)');
+      expect(fs).not.toContain('hgLiquid(fresnelHg(NoV), R, uRoughLiquid, p, n)');
     }
     expect(GLINT_AA_K).toBe(2); // a reflection turns twice the normal
   });

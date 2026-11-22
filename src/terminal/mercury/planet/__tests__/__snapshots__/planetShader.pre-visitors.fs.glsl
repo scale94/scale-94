@@ -476,6 +476,12 @@ vec3 aetherMirrorLiquid(vec3 R, float rough, vec3 nW) {
   return aetherTint(nW) * aetherShoulder(uAetherGain * aetherHue(elem)) + studioShoulder(uAetherGain * aetherHue(neutral));
 }
 
+// What liquid Hg sees: envRadiance with the studio untinted. The frost, quench, evaporite, frozen Hg and visitor
+// water/rock keep envRadiance (ruled looks, no curve).
+vec3 envRadianceLiquid(vec3 R, float rough, vec3 P, vec3 nW) {
+  return envLights(R, rough, P, nW) + aetherMirrorLiquid(R, rough, nW);
+}
+
 // Liquid Hg highlights roll off to white (hgHighlight.js, line for line): identity below the knee, C1 above it.
 const float HG_HIGHLIGHT_KNEE = 0.600000000;
 vec3 hgHighlight(vec3 x) {
@@ -485,17 +491,11 @@ vec3 hgHighlight(vec3 x) {
   return x * (s / m);
 }
 
-// What liquid Hg sees, before its highlight curve: envRadiance with the studio untinted. Only the beads call it
-// directly (they take their shadowed Sun off first, then curve the result themselves).
-vec3 envRadianceLiquidRaw(vec3 R, float rough, vec3 P, vec3 nW) {
-  return envLights(R, rough, P, nW) + aetherMirrorLiquid(R, rough, nW);
-}
-
-// What liquid Hg sees (the planet liquid, the visitor crust pool, the droplets): the raw liquid env, its highlights
-// rolled off to white in this one place. The frost, quench, evaporite, frozen Hg and visitor water/rock keep
-// envRadiance (ruled looks, no curve).
-vec3 envRadianceLiquid(vec3 R, float rough, vec3 P, vec3 nW) {
-  return hgHighlight(envRadianceLiquidRaw(R, rough, P, nW));
+// The displayed liquid Hg reflection (the planet liquid, the visitor crust pool, the droplets): its Fresnel weight F
+// times what it sees, highlights rolled off to white AFTER the Fresnel, so a light can reach white on screen. The beads
+// apply hgHighlight to their own Fresnel-weighted env (their shadowed Sun comes off first).
+vec3 hgLiquid(vec3 F, vec3 R, float rough, vec3 P, vec3 nW) {
+  return hgHighlight(F * envRadianceLiquid(R, rough, P, nW));
 }
 
 // Frozen Hg is still a metal: polycrystalline, so a rough and dimmer mirror of the aether, not a matte ambient
@@ -797,7 +797,7 @@ void main() {
 
       vec3 liquid = vec3(0.0);
       if (liquidW > 0.0) {
-        liquid = fresnelHg(NoV) * envRadianceLiquid(R, mix(uRoughLiquid, ROUGH_BOIL, boilW * (0.5 + 0.5 * popAct)), hit, nW);
+        liquid = hgLiquid(fresnelHg(NoV), R, mix(uRoughLiquid, ROUGH_BOIL, boilW * (0.5 + 0.5 * popAct)), hit, nW);
       }
 
       vec3 solid = vec3(0.0);

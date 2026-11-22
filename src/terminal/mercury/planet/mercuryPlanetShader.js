@@ -898,7 +898,7 @@ void main() {
 
       vec3 liquid = vec3(0.0);
       if (liquidW > 0.0) {
-        liquid = fresnelHg(NoV) * envRadianceLiquid(R, mix(uRoughLiquid, ROUGH_BOIL, boilW * (0.5 + 0.5 * popAct)), hit, nW);
+        liquid = hgLiquid(fresnelHg(NoV), R, mix(uRoughLiquid, ROUGH_BOIL, boilW * (0.5 + 0.5 * popAct)), hit, nW);
       }
       liquid *= visTint; // visitors
 
@@ -924,7 +924,7 @@ void main() {
       float NoVP = clamp(dot(nP, -rd), 0.0, 1.0); // visitors
       vec3 emitP; // visitors
       vec3 tintP = visitTint(xw, NoVP, emitP); // visitors
-      colLin = mix(colLin, fresnelHg(NoVP) * envRadianceLiquid(reflect(rd, nP), uRoughLiquid, hit, nP) * tintP + emitP, crustPool); // visitors
+      colLin = mix(colLin, hgLiquid(fresnelHg(NoVP) * tintP, reflect(rd, nP), uRoughLiquid, hit, nP) + emitP, crustPool); // visitors
     } // visitors
   } // visitors
 

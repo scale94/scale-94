@@ -1,6 +1,6 @@
 // src/terminal/mercury/planet/hgHighlight.js — liquid Hg highlights that blow out (lighting polish Step 2).
 //
-// A curve on the liquid Hg term only (envRadianceLiquid, hgMirrorGlsl.js): identity below HG_HIGHLIGHT_KNEE, then the
+// A curve on the displayed liquid Hg reflection only (Fresnel x envRadianceLiquid: hgLiquid, hgMirrorGlsl.js): identity below HG_HIGHLIGHT_KNEE, then the
 // brightest channel rolls off C1-smoothly toward 1 and the other two scale with it (hue-preserving, like aetherShoulder).
 // Not an output-stage curve: the crust, regolith, steam, embers and every non-Hg term never pass through it.
 // HG_HIGHLIGHT_GLSL is a line-for-line replica of hgHighlight (tested).
