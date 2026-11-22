@@ -298,7 +298,7 @@ void main() {
   float aPx = GLINT_AA_K * tt * uPxAngle / max(rB, 1e-6);
   float a0 = uRoughLiquid * uRoughLiquid;
   float roughB = sqrt(sqrt(a0 * a0 + aPx * aPx));
-  vec3 col = max(fresnelHg(NoV) * envRadiance(R, roughB, p, n), 0.0);
+  vec3 col = max(fresnelHg(NoV) * envRadianceLiquid(R, roughB, p, n), 0.0);
   // The dark rim: px from the silhouette of the nearest bead (its radius in px from the march's own footprint,
   // tt · uPxAngle; no screen derivatives after the discards above). A near-miss AA pixel is on the edge: all rim.
   col *= mix(1.0, rimShade(hit ? rimSilPx(rB / max(tt * uPxAngle, 1e-9), NoV) : 0.0), rimOn);

@@ -355,19 +355,30 @@ vec3 skyElements(vec3 R, float k) {
 
 // The active element's sky (at most one is up: switches pass through neutral), in a mirror of roughness rough; the neutral sky fills
 // whatever weight the element skies leave (full in neutral, zero once an element's sky is at full weight).
-vec3 aetherSky(vec3 R, float rough) {
+// Split (lighting polish Step 1): returns the element part; neutral gets the studio + nebula part. Each part keeps today's
+// SKY_W_MIN gating and k-mix toward its own mean (the nebula stays outside the mix: its mips are its blur), so the two sum
+// to the unsplit sky. The liquid mirror night-tints only the element part (hgMirrorGlsl aetherMirrorLiquid).
+vec3 aetherSkySplit(vec3 R, float rough, out vec3 neutral) {
   float k = smoothstep(SKY_ROUGH_SHARP, SKY_ROUGH_FLAT, rough);
   float wE = uSkyW.x + uSkyW.y + uSkyW.z + uSkyW.w;
   float wN = uNeutralSky * clamp(1.0 - wE, 0.0, 1.0);
   vec3 mean = uSkyW.x * SKY_MEAN_FLUID + uSkyW.y * SKY_MEAN_THERMAL + uSkyW.z * SKY_MEAN_EARTH + uSkyW.w * SKY_MEAN_AIR;
   float wStudio = wN * (1.0 - uNeutralNebula), wNeb = wN * uNeutralNebula;
-  mean += wStudio * uStudioMean; // studioMeanCached (JS) at the live knobs
+  vec3 meanN = vec3(wStudio * uStudioMean); // studioMeanCached (JS) at the live knobs (a float: the studio is grey)
   vec3 neb = wNeb > SKY_W_MIN ? wNeb * skyNebula(R, k) : vec3(0.0);
-  if (k >= 1.0) return mean + neb;
-  vec3 s = vec3(0.0);
+  if (k >= 1.0) { neutral = meanN + neb; return mean; } // the nebula blurs by its own mips, never to a mean
+  vec3 s = vec3(0.0), sN = vec3(0.0);
   if (wE > SKY_W_MIN) s += skyElements(R, k); // the cube already carries the weights
-  if (wStudio > SKY_W_MIN) s += wStudio * skyStudio(R);
-  return mix(s, mean, k) + neb;
+  if (wStudio > SKY_W_MIN) sN += wStudio * skyStudio(R);
+  neutral = mix(sN, meanN, k) + neb;
+  return mix(s, mean, k);
+}
+
+// The whole sky: element + neutral (every frozen / ruled caller, through aetherMirror).
+vec3 aetherSky(vec3 R, float rough) {
+  vec3 neutral;
+  vec3 elem = aetherSkySplit(R, rough, neutral);
+  return elem + neutral;
 }`;
 
 // Bake pass (elementSkyBake.js): a BackSide unit sphere at the cube camera's origin, as the nebula bake (nebulaSky.js).

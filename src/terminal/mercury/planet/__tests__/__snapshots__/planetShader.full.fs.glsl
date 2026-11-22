@@ -35,6 +35,7 @@ uniform float uAetherSilver;
 uniform float uNeutralSky;
 uniform float uStudioDome;
 uniform vec4 uStudioLook;
+uniform vec4 uStudioLook2;
 uniform float uStudioMean;
 uniform float uNeutralNebula;
 uniform mat3 uNebulaRot;
@@ -304,6 +305,16 @@ vec3 aetherShoulder(vec3 x) {
   return mix(y, vec3(s), AETHER_PATH_WHITE * smoothstep(0.55, 0.95, s / AETHER_SHOULDER));
 }
 
+// The studio's roll-off: aetherShoulder with its knee read live from uStudioLook2.x (PLANET_TUNE.studioShoulder;
+// knee 1 = AETHER_SHOULDER, today's look).
+vec3 studioShoulder(vec3 x) {
+  float m = max(x.r, max(x.g, x.b));
+  if (m <= 1e-6) return x;
+  float s = softShoulder(m, uStudioLook2.x);
+  vec3 y = x * (s / m);
+  return mix(y, vec3(s), AETHER_PATH_WHITE * smoothstep(0.55, 0.95, s / uStudioLook2.x));
+}
+
 // Night attenuation of the aether, keyed on the SURFACE facing the Sun (not
 // the reflection direction): full day strength from AETHER_DAY_HI, a cold
 // indigo AETHER_NIGHT below AETHER_DAY_LO.
@@ -400,19 +411,30 @@ vec3 skyElements(vec3 R, float k) {
 
 // The active element's sky (at most one is up: switches pass through neutral), in a mirror of roughness rough; the neutral sky fills
 // whatever weight the element skies leave (full in neutral, zero once an element's sky is at full weight).
-vec3 aetherSky(vec3 R, float rough) {
+// Split (lighting polish Step 1): returns the element part; neutral gets the studio + nebula part. Each part keeps today's
+// SKY_W_MIN gating and k-mix toward its own mean (the nebula stays outside the mix: its mips are its blur), so the two sum
+// to the unsplit sky. The liquid mirror night-tints only the element part (hgMirrorGlsl aetherMirrorLiquid).
+vec3 aetherSkySplit(vec3 R, float rough, out vec3 neutral) {
   float k = smoothstep(SKY_ROUGH_SHARP, SKY_ROUGH_FLAT, rough);
   float wE = uSkyW.x + uSkyW.y + uSkyW.z + uSkyW.w;
   float wN = uNeutralSky * clamp(1.0 - wE, 0.0, 1.0);
   vec3 mean = uSkyW.x * SKY_MEAN_FLUID + uSkyW.y * SKY_MEAN_THERMAL + uSkyW.z * SKY_MEAN_EARTH + uSkyW.w * SKY_MEAN_AIR;
   float wStudio = wN * (1.0 - uNeutralNebula), wNeb = wN * uNeutralNebula;
-  mean += wStudio * uStudioMean; // studioMeanCached (JS) at the live knobs
+  vec3 meanN = vec3(wStudio * uStudioMean); // studioMeanCached (JS) at the live knobs (a float: the studio is grey)
   vec3 neb = wNeb > SKY_W_MIN ? wNeb * skyNebula(R, k) : vec3(0.0);
-  if (k >= 1.0) return mean + neb;
-  vec3 s = vec3(0.0);
+  if (k >= 1.0) { neutral = meanN + neb; return mean; } // the nebula blurs by its own mips, never to a mean
+  vec3 s = vec3(0.0), sN = vec3(0.0);
   if (wE > SKY_W_MIN) s += skyElements(R, k); // the cube already carries the weights
-  if (wStudio > SKY_W_MIN) s += wStudio * skyStudio(R);
-  return mix(s, mean, k) + neb;
+  if (wStudio > SKY_W_MIN) sN += wStudio * skyStudio(R);
+  neutral = mix(sN, meanN, k) + neb;
+  return mix(s, mean, k);
+}
+
+// The whole sky: element + neutral (every frozen / ruled caller, through aetherMirror).
+vec3 aetherSky(vec3 R, float rough) {
+  vec3 neutral;
+  vec3 elem = aetherSkySplit(R, rough, neutral);
+  return elem + neutral;
 }
 
 // The aether in a mirror of roughness rough: the active element's moving sky (aetherSky.js), night-tinted,
@@ -434,6 +456,35 @@ vec3 envRadiance(vec3 R, float rough, vec3 P, vec3 nW) {
     c += uEmitCol[i] * (uEmitGain * above * lobe(dot(R, dir), sinE, rough));
   }
   return c + aetherMirror(R, rough, nW);
+}
+
+// The Sun disc and the four elements alone: envRadiance's own lines (one JS source, so the two can't drift).
+vec3 envLights(vec3 R, float rough, vec3 P, vec3 nW) {
+  vec3 c = vec3(softShoulder(uSunGlint * uSunIrr * uExposure * lobe(dot(R, uSunDir), uSunSinR, rough), SUN_SHOULDER));
+  for (int i = 0; i < 4; i++) {
+    vec3 d = uEmitPos[i] - P;
+    float dist = max(length(d), 1e-3);
+    vec3 dir = d / dist;
+    float sinE = clamp(EMIT_RADIUS / dist, EMIT_MIN_SIN, 0.99);
+    float above = smoothstep(-EMIT_HORIZON_SOFT, EMIT_HORIZON_SOFT, dot(nW, dir));
+    c += uEmitCol[i] * (uEmitGain * above * lobe(dot(R, dir), sinE, rough));
+  }
+  return c;
+}
+
+// The liquid's aether (lighting polish Step 1): only the element skies are night-tinted. The studio tent and the baked
+// nebula are a camera-fixed scene the mirror sees, not sunlit gas, so they reach the liquid untinted on the night side
+// too (aetherTint painted a terminator on a mirror). Each part rolls off on its own shoulder.
+vec3 aetherMirrorLiquid(vec3 R, float rough, vec3 nW) {
+  vec3 neutral;
+  vec3 elem = aetherSkySplit(R, rough, neutral);
+  return aetherTint(nW) * aetherShoulder(uAetherGain * aetherHue(elem)) + studioShoulder(uAetherGain * aetherHue(neutral));
+}
+
+// What liquid Hg sees (the planet liquid, the visitor crust pool, the droplets, the beads): envRadiance with the
+// studio untinted. The frost, quench, evaporite, frozen Hg and visitor water/rock keep envRadiance (ruled looks).
+vec3 envRadianceLiquid(vec3 R, float rough, vec3 P, vec3 nW) {
+  return envLights(R, rough, P, nW) + aetherMirrorLiquid(R, rough, nW);
 }
 
 // Frozen Hg is still a metal: polycrystalline, so a rough and dimmer mirror of the aether, not a matte ambient
@@ -984,7 +1035,7 @@ void main() {
 
       vec3 liquid = vec3(0.0);
       if (liquidW > 0.0) {
-        liquid = fresnelHg(NoV) * envRadiance(R, mix(uRoughLiquid, ROUGH_BOIL, boilW * (0.5 + 0.5 * popAct)), hit, nW);
+        liquid = fresnelHg(NoV) * envRadianceLiquid(R, mix(uRoughLiquid, ROUGH_BOIL, boilW * (0.5 + 0.5 * popAct)), hit, nW);
       }
       liquid *= visTint; // visitors
 
@@ -1010,7 +1061,7 @@ void main() {
       float NoVP = clamp(dot(nP, -rd), 0.0, 1.0); // visitors
       vec3 emitP; // visitors
       vec3 tintP = visitTint(xw, NoVP, emitP); // visitors
-      colLin = mix(colLin, fresnelHg(NoVP) * envRadiance(reflect(rd, nP), uRoughLiquid, hit, nP) * tintP + emitP, crustPool); // visitors
+      colLin = mix(colLin, fresnelHg(NoVP) * envRadianceLiquid(reflect(rd, nP), uRoughLiquid, hit, nP) * tintP + emitP, crustPool); // visitors
     } // visitors
   } // visitors
 

@@ -16,7 +16,7 @@ import {
 
 export const HG_MIRROR_UNIFORMS = [
   'uSunDir', 'uSunIrr', 'uSunSinR', 'uExposure', 'uEmitPos', 'uEmitCol', 'uSunGlint', 'uEmitGain',
-  'uSkyT', 'uSkyPhase', 'uSkyW', 'uAetherGain', 'uAetherSilver', 'uNeutralSky', 'uStudioDome', 'uStudioLook', 'uStudioMean', 'uNeutralNebula', 'uNebulaRot', 'uNebulaMap', 'uElementSky', 'uRoughLiquid',
+  'uSkyT', 'uSkyPhase', 'uSkyW', 'uAetherGain', 'uAetherSilver', 'uNeutralSky', 'uStudioDome', 'uStudioLook', 'uStudioLook2', 'uStudioMean', 'uNeutralNebula', 'uNebulaRot', 'uNebulaMap', 'uElementSky', 'uRoughLiquid',
 ];
 
 export const HG_MIRROR_DECLS_GLSL = [
@@ -36,6 +36,7 @@ export const HG_MIRROR_DECLS_GLSL = [
   'uniform float uNeutralSky;',
   'uniform float uStudioDome;',
   'uniform vec4 uStudioLook;',
+  'uniform vec4 uStudioLook2;',
   'uniform float uStudioMean;',
   'uniform float uNeutralNebula;',
   'uniform mat3 uNebulaRot;',
@@ -71,6 +72,17 @@ vec3 fresnelHg(float cosI) {
   return 0.5 * (rs + rp);
 }`;
 
+// envRadiance's Sun + emitter lines, shared verbatim with envLights (envRadiance's text stays byte-identical).
+const ENV_LIGHTS_BODY = `  vec3 c = vec3(softShoulder(uSunGlint * uSunIrr * uExposure * lobe(dot(R, uSunDir), uSunSinR, rough), SUN_SHOULDER));
+  for (int i = 0; i < 4; i++) {
+    vec3 d = uEmitPos[i] - P;
+    float dist = max(length(d), 1e-3);
+    vec3 dir = d / dist;
+    float sinE = clamp(EMIT_RADIUS / dist, EMIT_MIN_SIN, 0.99);
+    float above = smoothstep(-EMIT_HORIZON_SOFT, EMIT_HORIZON_SOFT, dot(nW, dir));
+    c += uEmitCol[i] * (uEmitGain * above * lobe(dot(R, dir), sinE, rough));
+  }`;
+
 export const HG_ENV_GLSL = `// A disc of angular radius asin(sinR) seen in a mirror of roughness rough:
 // a Gaussian in angle whose width adds the disc and the GGX alpha, scaled so
 // the integrated energy stays that of the disc.
@@ -94,6 +106,16 @@ vec3 aetherShoulder(vec3 x) {
   float s = softShoulder(m, AETHER_SHOULDER);
   vec3 y = x * (s / m);
   return mix(y, vec3(s), AETHER_PATH_WHITE * smoothstep(0.55, 0.95, s / AETHER_SHOULDER));
+}
+
+// The studio's roll-off: aetherShoulder with its knee read live from uStudioLook2.x (PLANET_TUNE.studioShoulder;
+// knee 1 = AETHER_SHOULDER, today's look).
+vec3 studioShoulder(vec3 x) {
+  float m = max(x.r, max(x.g, x.b));
+  if (m <= 1e-6) return x;
+  float s = softShoulder(m, uStudioLook2.x);
+  vec3 y = x * (s / m);
+  return mix(y, vec3(s), AETHER_PATH_WHITE * smoothstep(0.55, 0.95, s / uStudioLook2.x));
 }
 
 // Night attenuation of the aether, keyed on the SURFACE facing the Sun (not
@@ -122,14 +144,27 @@ vec3 aetherMirror(vec3 R, float rough, vec3 nW) {
 // What the liquid sees: the Sun disc, the four elements, and the aether that
 // wraps the planet on every side. Analytic; no cubemap.
 vec3 envRadiance(vec3 R, float rough, vec3 P, vec3 nW) {
-  vec3 c = vec3(softShoulder(uSunGlint * uSunIrr * uExposure * lobe(dot(R, uSunDir), uSunSinR, rough), SUN_SHOULDER));
-  for (int i = 0; i < 4; i++) {
-    vec3 d = uEmitPos[i] - P;
-    float dist = max(length(d), 1e-3);
-    vec3 dir = d / dist;
-    float sinE = clamp(EMIT_RADIUS / dist, EMIT_MIN_SIN, 0.99);
-    float above = smoothstep(-EMIT_HORIZON_SOFT, EMIT_HORIZON_SOFT, dot(nW, dir));
-    c += uEmitCol[i] * (uEmitGain * above * lobe(dot(R, dir), sinE, rough));
-  }
+${ENV_LIGHTS_BODY}
   return c + aetherMirror(R, rough, nW);
+}
+
+// The Sun disc and the four elements alone: envRadiance's own lines (one JS source, so the two can't drift).
+vec3 envLights(vec3 R, float rough, vec3 P, vec3 nW) {
+${ENV_LIGHTS_BODY}
+  return c;
+}
+
+// The liquid's aether (lighting polish Step 1): only the element skies are night-tinted. The studio tent and the baked
+// nebula are a camera-fixed scene the mirror sees, not sunlit gas, so they reach the liquid untinted on the night side
+// too (aetherTint painted a terminator on a mirror). Each part rolls off on its own shoulder.
+vec3 aetherMirrorLiquid(vec3 R, float rough, vec3 nW) {
+  vec3 neutral;
+  vec3 elem = aetherSkySplit(R, rough, neutral);
+  return aetherTint(nW) * aetherShoulder(uAetherGain * aetherHue(elem)) + studioShoulder(uAetherGain * aetherHue(neutral));
+}
+
+// What liquid Hg sees (the planet liquid, the visitor crust pool, the droplets, the beads): envRadiance with the
+// studio untinted. The frost, quench, evaporite, frozen Hg and visitor water/rock keep envRadiance (ruled looks).
+vec3 envRadianceLiquid(vec3 R, float rough, vec3 P, vec3 nW) {
+  return envLights(R, rough, P, nW) + aetherMirrorLiquid(R, rough, nW);
 }`;

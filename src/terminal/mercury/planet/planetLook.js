@@ -67,6 +67,10 @@ export const PLANET_TUNE = {
   studioSoftbox: 2,   // overhead canopy scrim (× aetherGain 1.4 ≈ 2.8 HDR at its front)
   studioFloor: 0,     // white sweep floor bounce: OFF (author 2026-10-08 locked 0; 0.35 = the lit lower rim)
   studioDome: 0,      // smooth ambient dome: OFF (author 2026-10-08: it read as grey clay in motion)
+  studioShoulder: 1,  // lighting polish: the studio's own roll-off knee (uStudioLook2.x); 1 = AETHER_SHOULDER, today's look
+  studioFalloff: 0,   // lighting polish (later steps): uStudioLook2.y; 0 = today's look
+  studioSeams: 0,     // lighting polish (later steps): uStudioLook2.z; 0 = today's look
+  studioCard: 0,      // lighting polish (later steps): uStudioLook2.w; 0 = today's look
   neutralNebula: 0,  // resting mirror: 0 = studio (option B, ruled 2026-10-07), 1 = baked neutral nebula, between = mix (spec 2026-10-08)
   aetherFloor: 0.2,     // lit element flows never fall below this × their colour (umbra, worst phase) — aetherLight.js
   aetherPenumbra: 0.08, // half-width of the planet shadow cylinder's soft edge, scene units (planet radius 0.75)

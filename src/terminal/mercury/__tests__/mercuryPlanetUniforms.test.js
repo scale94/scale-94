@@ -6,6 +6,7 @@ import { subsolarTempK } from '../planet/mercuryThermal';
 import { tailBrightness } from '../planet/mercuryExosphere';
 import planetSrc from '../MercuryPlanet.jsx?raw';
 import canvasSrc from '../MercuryCanvas.jsx?raw';
+import { HG_MIRROR_UNIFORMS } from '../planet/hgMirrorGlsl';
 import tabSrc from '../../views/MercuryTab.jsx?raw';
 
 describe('planetEphemerisUniforms', () => {
@@ -157,5 +158,15 @@ describe('visitors matrix wiring', () => {
     expect(planetSrc).toContain('if (liquidNow && healMelted(scar, vc.q, SUN_DIR_WORLD, vc.subsolarT, body.heatK)) scarDirty = true;');
     expect(planetSrc).toContain('uMarksOn: { value: 0 },');
     expect(planetSrc).toContain('u.uMarksOn.value = scar.marksLive ? 1 : 0;');
+  });
+});
+
+describe('the shared mirror uniforms are all created on the planet material (droplets, beads and visitors share its objects)', () => {
+  it('every HG_MIRROR_UNIFORMS name is created in MercuryPlanet (a missing one would read silently zero)', () => {
+    for (const u of HG_MIRROR_UNIFORMS) expect(planetSrc, u).toContain(`${u}: { value:`);
+  });
+  it('uStudioLook2 = (studioShoulder, studioFalloff, studioSeams, studioCard), at creation and every frame', () => {
+    expect(planetSrc).toContain('uStudioLook2: { value: new THREE.Vector4(PLANET_TUNE.studioShoulder, PLANET_TUNE.studioFalloff, PLANET_TUNE.studioSeams, PLANET_TUNE.studioCard) },');
+    expect(planetSrc).toContain('u.uStudioLook2.value.set(PLANET_TUNE.studioShoulder, PLANET_TUNE.studioFalloff, PLANET_TUNE.studioSeams, PLANET_TUNE.studioCard);');
   });
 });

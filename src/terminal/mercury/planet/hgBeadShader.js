@@ -95,7 +95,7 @@ void main() {
   vec3 V = normalize(cameraPosition - P);
   vec3 R = reflect(-V, n);
   float sh = aetherShadow(vC, uSunDir, uPlanetR, uLitPen);
-  vec3 env = envRadiance(R, uRoughLiquid, P, n) - (1.0 - sh) * sunTerm(R, uRoughLiquid);
+  vec3 env = envRadianceLiquid(R, uRoughLiquid, P, n) - (1.0 - sh) * sunTerm(R, uRoughLiquid);
   vec4 pl = planetInMirror(P, R);
   env = mix(env, pl.rgb * sh, pl.a);
   vec3 col = max(fresnelHg(dot(n, V)) * env, 0.0);

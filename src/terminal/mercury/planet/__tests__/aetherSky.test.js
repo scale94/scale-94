@@ -9,7 +9,7 @@ import {
   TENT_CANOPY_SIDE, TENT_STRIP_AZ, TENT_STRIP_HW, TENT_STRIP_SOFT, TENT_STRIP_Y0, TENT_STRIP_Y1, TENT_STRIP_YSOFT, TENT_STRIP_LUM,
   TENT_STRIP_GAIN, TENT_GAP, TENT_FLOOR_SOFT, TENT_FLOOR_FRONT, TENT_STRIP_FEATHER, STUDIO_DEFAULTS, studioMean, studioMeanCached, studioRadiance,
 } from '../aetherSky';
-import { HG_MIRROR_UNIFORMS } from '../hgMirrorGlsl';
+import { HG_MIRROR_UNIFORMS, HG_MIRROR_DECLS_GLSL } from '../hgMirrorGlsl';
 import { PLANET_UNIFORMS } from '../mercuryPlanetShader';
 import { FLUID_SKY_RAD, AIR_SKY_RAD, AIR_LOWER_DIR, FIRE_SKY_RISE, EARTH_SKY_SINK } from '../aetherClock';
 import { ROUGH_LIQUID, ROUGH_SOLID, PLANET_TUNE } from '../planetLook';
@@ -70,8 +70,24 @@ describe('aetherSky', () => {
     }
     expect(ELEMENT_SKY_GLSL).toContain('if (uSkyW.z > SKY_W_MIN) s += uSkyW.z * skyEarth(R, nOct, 0.0);'); // baked sharp: pings on
     expect(AETHER_SKY_GLSL).toContain('if (wE > SKY_W_MIN) s += skyElements(R, k); // the cube already carries the weights');
-    expect(AETHER_SKY_GLSL).toContain('if (k >= 1.0) return mean + neb;'); // the nebula blurs by its own mips, never to a mean
+    expect(AETHER_SKY_GLSL).toContain('if (k >= 1.0) { neutral = meanN + neb; return mean; } // the nebula blurs by its own mips, never to a mean');
     expect(AETHER_SKY_GLSL).toContain('vec3 aetherSky(vec3 R, float rough) {');
+  });
+
+  it('aetherSkySplit separates the neutral sky and aetherSky is their sum', () => {
+    expect(AETHER_SKY_GLSL).toContain('vec3 aetherSkySplit(vec3 R, float rough, out vec3 neutral) {');
+    const body = AETHER_SKY_GLSL.slice(AETHER_SKY_GLSL.indexOf('vec3 aetherSky(vec3 R, float rough) {'));
+    expect(body.slice(0, body.indexOf('\n}') + 2)).toBe([
+      'vec3 aetherSky(vec3 R, float rough) {',
+      '  vec3 neutral;',
+      '  vec3 elem = aetherSkySplit(R, rough, neutral);',
+      '  return elem + neutral;',
+      '}',
+    ].join('\n'));
+    // split before sum: the element part is declared first, so every caller of aetherSky still compiles
+    expect(AETHER_SKY_GLSL.indexOf('vec3 aetherSkySplit(')).toBeLessThan(AETHER_SKY_GLSL.indexOf('vec3 aetherSky(vec3 R'));
+    // each part: its own mean, its own k-mix; the nebula stays outside the mix (its mips are its blur)
+    expect(AETHER_SKY_GLSL).toContain('vec3 s = vec3(0.0), sN = vec3(0.0);');
   });
 
   it('octaves past the budget contribute their mean (brightness holds as rough rises)', () => {
@@ -144,7 +160,9 @@ describe('aetherSky', () => {
       expect(body).toContain('* mix(TENT_FLOOR_FRONT, 1.0, smoothstep(0.0, -0.8, R.z)); // floor sweep, lit behind: a lower rim');
       expect(body).not.toMatch(/uStudioWarm|AMBER/); // the amber fill was indistinguishable (author 2026-10-08): removed
       expect(body).not.toMatch(/skyFbm|skyNoise|skyHash|uSkyT/);
-      expect(AETHER_SKY_GLSL).toContain('mean += wStudio * uStudioMean; // studioMeanCached (JS) at the live knobs');
+      // uStudioMean is a float (HG_MIRROR_DECLS_GLSL): a bare float into a vec3 failed to compile live (2026-11-22)
+      expect(HG_MIRROR_DECLS_GLSL).toContain('uniform float uStudioMean;');
+      expect(AETHER_SKY_GLSL).toContain('vec3 meanN = vec3(wStudio * uStudioMean); // studioMeanCached (JS) at the live knobs (a float: the studio is grey)');
     });
 
     it('studioMean: the grid mean converges (finer grid agrees), the cache recomputes only on a knob change', () => {
@@ -162,14 +180,15 @@ describe('aetherSky', () => {
       expect(AETHER_SKY_GLSL).toContain('float wN = uNeutralSky * clamp(1.0 - wE, 0.0, 1.0);');
       expect(AETHER_SKY_GLSL).toContain('vec3 skyStudio(vec3 R) {');
       expect(AETHER_SKY_GLSL).toContain('float wStudio = wN * (1.0 - uNeutralNebula), wNeb = wN * uNeutralNebula;');
-      expect(AETHER_SKY_GLSL).toContain('if (wStudio > SKY_W_MIN) s += wStudio * skyStudio(R);');
+      expect(AETHER_SKY_GLSL).toContain('if (wStudio > SKY_W_MIN) sN += wStudio * skyStudio(R);');
     });
 
     it('studio / nebula switch: each side evaluated only when it has weight; nebula = one rotated textureLod', () => {
       expect(AETHER_SKY_GLSL).toContain('vec3 neb = wNeb > SKY_W_MIN ? wNeb * skyNebula(R, k) : vec3(0.0);');
       expect(AETHER_SKY_GLSL).toContain('return textureLod(uNebulaMap, uNebulaRot * R, max(k * NEBULA_MAX_LOD, skyPxLod)).rgb;');
       // rough mirrors: the mip chain is the blur, added AFTER the element/studio mix toward the mean (no double flattening)
-      expect(AETHER_SKY_GLSL).toContain('return mix(s, mean, k) + neb;');
+      expect(AETHER_SKY_GLSL).toContain('neutral = mix(sN, meanN, k) + neb;');
+      expect(AETHER_SKY_GLSL).toContain('return mix(s, mean, k);');
       // limb: a pixel-footprint mip floor, set by shaders that have screen derivatives, 0 elsewhere
       expect(AETHER_SKY_GLSL).toContain('float skyPxLod = 0.0;');
       expect(AETHER_SKY_GLSL).toContain(`const float NEBULA_TEXEL_RAD = ${glf(NEBULA_TEXEL_RAD)};`);
