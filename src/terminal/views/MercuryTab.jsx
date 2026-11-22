@@ -99,7 +99,7 @@ export default function MercuryTab({ onNavigateTab }) {
       if (avg < 30) {
         ad.adjusted = true;
         setParams(p => {
-          const reduced = Math.max(1000, Math.round(p.density * 0.75 / 500) * 500);
+          const reduced = Math.max(500, Math.round(p.density * 0.75 / 100) * 100); // a floor under the phone default (600), so it reduces
           setLiveDensity(reduced);
           return { ...p, density: reduced };
         });
