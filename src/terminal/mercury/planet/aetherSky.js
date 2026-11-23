@@ -17,7 +17,7 @@ import { glf, v3 } from '../../gl/glf';
 import { FLUID_SKY_RAD, AIR_SKY_RAD, AIR_LOWER_DIR, FIRE_SKY_RISE, EARTH_SKY_SINK } from './aetherClock';
 
 export const SKY_OCTAVES = 5;
-export const SKY_ROUGH_SHARP = 0.15; // ≤ this: full detail (liquid 0.14, glaze 0.1, quench 0.15)
+export const SKY_ROUGH_SHARP = 0.15; // ≤ this: full detail (liquid 0.08, glaze 0.1, quench 0.15)
 export const SKY_ROUGH_FLAT = 0.6;   // ≥ this: the element's mean radiance, no noise
 export const SKY_W_MIN = 0.004;      // a weight below this is not evaluated
 export const SKY_PING_EXP = 250;     // earth ping lobe sharpness (approved cadence: 1–2 concurrent pings)

@@ -89,8 +89,10 @@ describe('mercuryPlanetShader contract', () => {
     expect(PLANET_FS).toMatch(/float bias = [^;]*\* uRelief;/);
   });
 
-  it('never lets the liquid mirror go sharper than roughness 0.14; front softness < half its edge', () => {
-    expect(ROUGH_LIQUID).toBeGreaterThanOrEqual(0.14);
+  // author 2026-11-23: 0.08 (was 0.14) keeps the sphere's specular consistent with the droplets'; 0.04 stair-steps the limb
+  it('the liquid mirror sits at the ruled roughness 0.08, never sharper; front softness < half its edge', () => {
+    expect(ROUGH_LIQUID).toBe(0.08);
+    expect(ROUGH_LIQUID).toBeGreaterThanOrEqual(0.08);
     expect(FRONT_SOFT).toBeLessThan(FRONT_EDGE / 2);
   });
 
@@ -320,7 +322,7 @@ describe('mercuryPlanetShader contract', () => {
     expect(buildPlanetShader({ calm: true }).fs).toContain('const float ROIL_MOTION = 0.0;');
     expect(PLANET_FS).toContain('uniform float uRoilGain;');
     expect(PLANET_UNIFORMS).toContain('uRoilGain');
-    // coherence loss: active pops scatter more; the 0.14 floor is ROUGH_LIQUID's
+    // coherence loss: active pops scatter more; the floor is ROUGH_LIQUID's
     expect(PLANET_FS).toContain('mix(uRoughLiquid, ROUGH_BOIL, boilW * (0.5 + 0.5 * popAct))');
   });
 

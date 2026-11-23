@@ -22,7 +22,8 @@ export const RAY_ALBEDO = [0.42, 0.4, 0.38];  // fresh ejecta (linear): immature
 
 // Quicksilver (spec §3, §5 shading 3). Physical-ish; baked via glf.
 export { HG_F0 } from './hgOptics';          // liquid Hg normal-incidence reflectance (≈ 0.78, neutral), from n + ik
-export const ROUGH_LIQUID = 0.14;             // PLANET_TUNE.roughLiquid's default; below it a sharper mirror of black space reads as black glass
+export const ROUGH_LIQUID = 0.08;             // PLANET_TUNE.roughLiquid's default (author 2026-11-23: 0.08 over 0.14, the sphere's specular
+                                              // then matches the droplets'; 0.04 stair-steps the limb)
 export const ROUGH_BOIL = 0.4;                // boiling breaks the mirror's coherence
 export const SOLID_HG_ALBEDO = [0.52, 0.53, 0.55]; // frozen Hg: its sunlit diffuse (linear); the aether reaches it as a rough mirror (ROUGH_SOLID)
 export const SPARKLE_CELLS = 700;             // facet cells around the equator
