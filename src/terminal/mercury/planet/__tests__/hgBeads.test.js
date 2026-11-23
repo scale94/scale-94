@@ -1,9 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import {
   createBeads, spawnBead, spawnFling, spawnSplash, stepBeads, beadRadius, wobbleHz, wobbleGate, WOBBLE_HZ_MIN, WOBBLE_HZ_MAX,
-  AMBIENT_RATE, BEAD_ESCAPE_R, BEAD_LIFE, DUST_R, PEARL_R, PEARL_P, EVAP_RATE, FLING_N, FLING_V_MAX, FLING_RADIAL, G_BEAD,
+  AMBIENT_RATE, BEAD_ESCAPE_R, BEAD_SHAPE_MARGIN, pearlStrike, HIT_STRIDE, HIT_TRICKLE, HIT_FLUNG, FREEZE_FADE_S, FLING_LIFE, FLING_RETURN_V, BEAD_LIFE, DUST_R, PEARL_R, PEARL_P, EVAP_RATE, FLING_N, FLING_V_MAX, FLING_RADIAL, G_BEAD,
 } from '../hgBeads';
 import { mulberry32 } from '../prng';
+import { MAX_OMEGA } from '../mercuryBody';
+import { capillaryTime } from '../breakupPhysics';
 import { SUN_DIR_WORLD } from '../planetFrame';
 
 const CTX = { phase: 'air', coreR: 0.75, calm: false, liquid: true, boil: 0 };
@@ -272,5 +274,251 @@ describe('hgBeads sim', () => {
     stepBeads(b, dt, { ...CTX, liquid: false });
     const r2 = p0[0] ** 2 + p0[1] ** 2 + p0[2] ** 2, g = G_BEAD / (r2 * Math.sqrt(r2));
     for (let c = 0; c < 3; c++) expect(b.vel[c]).toBeCloseTo(v0[c] - g * p0[c] * dt, 3);
+  });
+});
+
+describe('hgBeads touchdown (fix/mercury-motion: beads clipped into the sphere with no ripple)', () => {
+  const old = (b, i) => { b.age[i] = 1; return i; }; // past the spawn guard
+  it('a bead touches down when its surface meets the live planet, not when its centre passes coreR', () => {
+    const b = createBeads(8);
+    old(b, spawnBead(b, 0, 0, 0.815, 0, 0, -0.5, 0.02));
+    const ctx = { ...CTX, liquid: false, planetRadiusAt: () => 0.8 }; // a bulged surface above coreR 0.75
+    stepBeads(b, 1 / 60, ctx); // |p| 0.8067, minus r 0.02 = 0.787 <= 0.8: contact, centre still far outside coreR
+    expect(b.n).toBe(0);
+    expect(b.nHits).toBe(1);
+    expect(b.hits[0]).toBeCloseTo(0, 2); expect(b.hits[1]).toBeCloseTo(0, 2); expect(b.hits[2]).toBeCloseTo(1, 4); // world dir (air drifts x a hair)
+    expect(b.hits[3]).toBeCloseTo(0.02, 6); // radius
+    expect(b.hits[4]).toBeGreaterThan(0.49); // inward normal speed
+  });
+  it('without planetRadiusAt the contact sphere is coreR, still at the bead surface', () => {
+    const b = createBeads(8);
+    old(b, spawnBead(b, 0.765, 0, 0, -0.3, 0, 0, 0.02));
+    stepBeads(b, 1 / 60, { ...CTX, liquid: false });
+    expect(b.nHits).toBe(1);
+  });
+  it('a fresh fling overlapping the surface on its way out is not a touchdown', () => {
+    const b = createBeads(64);
+    spawnFling(b, [0, 9, 0], 0.75);
+    run(b, 0.2, { ...CTX, liquid: false, planetRadiusAt: () => 0.75 });
+    expect(b.n).toBe(FLING_N);
+  });
+  it('hits are this step only; dust and pearls both report (the caller decides what ripples)', () => {
+    const b = createBeads(8);
+    old(b, spawnBead(b, 0, 0.76, 0, 0, -1, 0, DUST_R[0]));
+    old(b, spawnBead(b, 0.77, 0, 0, -1, 0, 0, PEARL_R[1]));
+    stepBeads(b, 1 / 60, { ...CTX, liquid: false });
+    expect(b.nHits).toBe(2);
+    stepBeads(b, 1 / 60, { ...CTX, liquid: false });
+    expect(b.nHits).toBe(0);
+  });
+  it('the live surface is only sampled near the planet (BEAD_SHAPE_MARGIN)', () => {
+    const b = createBeads(8);
+    old(b, spawnBead(b, 0, 0, 0.75 * BEAD_SHAPE_MARGIN + 0.1, 0, 0, 0, PEARL_R[1]));
+    let calls = 0;
+    stepBeads(b, 1 / 60, { ...CTX, liquid: false, planetRadiusAt: () => { calls++; return 0.75; } });
+    expect(calls).toBe(0);
+  });
+});
+
+// The author ruled 2026-11-22: rippling every visible bead (with a floor) buzzed the liquid nonstop. Only a pearl thrown
+// by a fling ripples, in proportion; the trickle and splash beads coalesce silently, so the mirror is still at rest.
+describe('pearlStrike: a landing pearl ripples like a small drop (no floor)', () => {
+  it('dust never ripples; a pearl does, more for a bigger or faster one, never past a full splash', () => {
+    expect(pearlStrike(DUST_R[1], 1)).toBe(0);
+    const small = pearlStrike(PEARL_R[0], 0.5), big = pearlStrike(PEARL_R[1], 0.5);
+    expect(small).toBeGreaterThan(0.1); // √(energy share): visible, not the 1.6 % a linear share would give
+    expect(big).toBeGreaterThan(small);
+    expect(big).toBeLessThan(0.35);
+    expect(pearlStrike(PEARL_R[1], 0)).toBeCloseTo(0.5 * pearlStrike(PEARL_R[1], 10), 6); // vnK spans 0.5 → 1
+    expect(pearlStrike(1, 100)).toBe(1);
+  });
+  // Author 2026-11-22 (round 2): an idle trickle pearl has visible mass, so it ripples like a flung one; only beads
+  // brought home by the refreeze guard stay silent (a ripple burst while the planet settles). pearlStrike keeps dust and
+  // sub-pearl beads silent by class.
+  it('each hit says how it may ripple: flung (2), trickle (1, budgeted), never a refreeze-homing landing (0)', () => {
+    const b = createBeads(8);
+    const i = spawnBead(b, 0.77, 0, 0, -1, 0, 0, PEARL_R[1]); b.age[i] = 1; b.free[i] = 1;
+    const j = spawnBead(b, 0, 0.77, 0, 0, -1, 0, PEARL_R[1]); b.age[j] = 1;
+    stepBeads(b, 1 / 60, { ...CTX, liquid: false });
+    expect(b.nHits).toBe(2);
+    expect([b.hits[5], b.hits[HIT_STRIDE + 5]].sort()).toEqual([HIT_TRICKLE, HIT_FLUNG]);
+    const k = spawnBead(b, 0, 0, 0.77, 0, 0, -1, PEARL_R[1]); b.age[k] = 1;
+    stepBeads(b, 1 / 60, { ...CTX, liquid: false, freezeIn: 1 });
+    expect(b.nHits).toBe(1);
+    expect(b.hits[5]).toBe(0);
+  });
+  // The planet rings flung pearls only (MercuryPlanet: hits[h + 5] !== HIT_FLUNG → skip), so an idle melted planet is calm.
+  it('an idle melted planet, even at a full boil, lands no touchdown that may ripple (trickle and splash beads are not flung)', () => {
+    for (const boil of [0, 1]) {
+      const b = createBeads(256);
+      const ctx = { ...CTX, phase: 'neutral', liquid: true, boil, rateScale: 1 };
+      let landings = 0, flung = 0;
+      for (let t = 0; t < 60; t += 1 / 60) {
+        stepBeads(b, 1 / 60, ctx);
+        for (let k = 0; k < b.nHits; k++) { landings++; if (b.hits[HIT_STRIDE * k + 5] === HIT_FLUNG) flung++; }
+      }
+      expect(landings).toBeGreaterThan(50); // the trickle really lands
+      expect(flung).toBe(0);
+    }
+    const b = createBeads(16);
+    spawnSplash(b, [1, 0, 0], 0.75, 4);
+    for (let i = 0; i < b.n; i++) expect(b.free[i]).toBe(0); // splash spray lands as HIT_TRICKLE: silent
+  });
+});
+
+// The tiniest visible pearls vanished in one frame on contact (the drops' cascade sits on the surface, drains and sinks
+// over a capillary time): a bead drawn as a body now coalesces the same way, anchored to the turning planet.
+describe('coalescence: a visible bead merges over its capillary time (fix/mercury-motion)', () => {
+  const Q0 = [0, 0, 0, 1];
+  const drop = (r, ctx) => {
+    const b = createBeads(8);
+    const i = spawnBead(b, 0, 0, 0.75 + r + 0.004, 0, 0, -0.5, r); b.age[i] = 1;
+    stepBeads(b, 1 / 60, ctx);
+    return b;
+  };
+  it('stays on the surface at contact, drains and sinks, and is gone after capillaryTime(r); one hit only', () => {
+    const r = PEARL_R[0];
+    const ctx = { ...CTX, phase: 'neutral', liquid: false, pxPerUnit: 300, q: Q0 };
+    const b = drop(r, ctx);
+    expect(b.nHits).toBe(1);
+    expect(b.n).toBe(1);
+    let hits = 0, rPrev = b.r[0], t = 1 / 60;
+    while (b.n > 0 && t < 2) {
+      stepBeads(b, 1 / 60, ctx); t += 1 / 60; hits += b.nHits;
+      if (b.n) {
+        expect(b.r[0]).toBeLessThanOrEqual(rPrev + 1e-7);
+        const d = Math.hypot(b.pos[0], b.pos[1], b.pos[2]);
+        expect(d).toBeGreaterThanOrEqual(0.75 - 1e-6);
+        expect(d).toBeLessThanOrEqual(0.75 + r + 1e-6);
+        rPrev = b.r[0];
+      }
+    }
+    expect(hits).toBe(0);
+    expect(Math.abs(t - capillaryTime(r))).toBeLessThan(3 / 60);
+  });
+  it('rides the planet: the merge point turns with the body quaternion', () => {
+    const ctx = { ...CTX, phase: 'neutral', liquid: false, pxPerUnit: 300, q: [0, 0, 0, 1] };
+    const b = drop(PEARL_R[1], ctx);
+    const s = Math.SQRT1_2; // 90° about +Y: +Z goes to +X
+    stepBeads(b, 1 / 60, { ...ctx, q: [0, s, 0, s] });
+    expect(b.pos[0]).toBeGreaterThan(0.7);
+    expect(Math.abs(b.pos[2])).toBeLessThan(0.02);
+  });
+  it('a glint-only speck still merges at once, and without pxPerUnit every bead does (headless default)', () => {
+    expect(drop(DUST_R[1], { ...CTX, liquid: false, pxPerUnit: 100, q: Q0 }).n).toBe(0);
+    expect(drop(PEARL_R[1], { ...CTX, liquid: false }).n).toBe(0);
+  });
+});
+
+// fix/mercury-motion: in a still aether (no element active) the drag braked a flung bead to rest far out, where G_BEAD
+// barely pulls (terminal ≈ 0.01–0.03 u/s), and BEAD_LIFE faded it out in space. Flung beads now ease into an inward
+// return drift after their free flight, and live until they land (FLING_LIFE is only the safety cap).
+describe('flung beads come home (fix/mercury-motion)', () => {
+  const landAll = (phase, omega = [0, MAX_OMEGA, 0], seconds = FLING_LIFE) => {
+    const b = createBeads(64);
+    spawnFling(b, omega, 0.75, FLING_N);
+    let landed = 0;
+    const ctx = { ...CTX, phase, liquid: false };
+    for (let t = 0; t < seconds && b.n > 0; t += 1 / 60) { stepBeads(b, 1 / 60, ctx); landed += b.nHits; }
+    return { landed, left: b.n };
+  };
+  it('a hyper-strength fling in a still aether: ≥ 95 % of the beads land on the planet', () => {
+    const { landed } = landAll('neutral');
+    expect(landed / FLING_N).toBeGreaterThanOrEqual(0.95);
+  });
+  it('carried by fluid or earth they still come home (the flow turns them; the drift brings them in)', () => {
+    for (const phase of ['fluid', 'earth']) {
+      const { landed } = landAll(phase);
+      expect(landed / FLING_N, phase).toBeGreaterThanOrEqual(0.9);
+    }
+  });
+  // Author 2026-11-23: in air the swarm spiralled out to BEAD_ESCAPE_R and popped out of existence mid-air. The drift now
+  // carries the centrifugal lead the rigid rotation's drag lock costs, so it swirls with the air and still comes home.
+  it('air (a rigid rotation) swirls them round, and they still come home: none escapes, none hits the life cap', () => {
+    for (const w of [4, 8, MAX_OMEGA]) {
+      const b = createBeads(64);
+      spawnFling(b, [0, w, 0], 0.75, FLING_N);
+      const ctx = { ...CTX, phase: 'air', liquid: false };
+      let landed = 0, maxR = 0;
+      for (let t = 0; t < FLING_LIFE - 1 && b.n > 0; t += 1 / 60) {
+        stepBeads(b, 1 / 60, ctx); landed += b.nHits;
+        for (let i = 0; i < b.n; i++) maxR = Math.max(maxR, Math.hypot(b.pos[3 * i], b.pos[3 * i + 1], b.pos[3 * i + 2]));
+      }
+      expect(landed, `w ${w}`).toBe(FLING_N);
+      expect(maxR / 0.75, `w ${w}`).toBeLessThan(0.8 * BEAD_ESCAPE_R);
+    }
+  });
+  it('every element brings the whole swarm home well inside FLING_LIFE (no mid-air despawn anywhere)', () => {
+    for (const phase of ['neutral', 'fluid', 'air', 'earth']) {
+      const { landed, left } = landAll(phase, [0, MAX_OMEGA, 0], 0.75 * FLING_LIFE);
+      expect(left, phase).toBe(0);
+      expect(landed, phase).toBe(FLING_N);
+    }
+  });
+  it('in fire the swarm boils away in flight (EVAP_RATE shrinks it smoothly), never culled at BEAD_ESCAPE_R', () => {
+    const b = createBeads(64);
+    spawnFling(b, [0, MAX_OMEGA, 0], 0.75, FLING_N);
+    let maxR = 0;
+    for (let t = 0; t < 0.75 * FLING_LIFE && b.n > 0; t += 1 / 60) {
+      stepBeads(b, 1 / 60, { ...CTX, phase: 'thermal', liquid: false });
+      for (let i = 0; i < b.n; i++) maxR = Math.max(maxR, Math.hypot(b.pos[3 * i], b.pos[3 * i + 1], b.pos[3 * i + 2]));
+    }
+    expect(b.n).toBe(0);
+    expect(maxR / 0.75).toBeLessThan(0.8 * BEAD_ESCAPE_R);
+  });
+  it('a flung bead does not hover: in a still aether most of the swarm is home within 8 s', () => {
+    const { landed } = landAll('neutral', [0, MAX_OMEGA, 0], 8);
+    expect(landed / FLING_N).toBeGreaterThanOrEqual(0.8);
+    expect(FLING_RETURN_V).toBeGreaterThan(0);
+  });
+  it('a flung bead keeps full alpha past BEAD_LIFE (it fades only at the FLING_LIFE cap); ambient beads still fade', () => {
+    const b = createBeads(8);
+    const i = spawnBead(b, 0, 2.5, 0, 0, 0, 0, 0.01); b.free[i] = 1; b.age[i] = BEAD_LIFE - 0.1;
+    const j = spawnBead(b, 0, -2.5, 0, 0, 0, 0, 0.01); b.age[j] = BEAD_LIFE - 0.1;
+    stepBeads(b, 1 / 60, { ...CTX, calm: true, liquid: false });
+    expect(b.outBead[3 * i + 1]).toBe(1);
+    expect(b.outBead[3 * j + 1]).toBeLessThan(0.1);
+  });
+});
+
+// While the planet refreezes (visible tab), airborne beads home onto the still-liquid surface before it stops counting as
+// liquid; any still airborne once it has crusted fade out. Liquid beads never orbit a solid crust (fix/mercury-motion).
+describe('freeze guard: airborne beads settle or clear as the planet refreezes (fix/mercury-motion)', () => {
+  const base = { ...CTX, phase: 'neutral', liquid: false };
+  const landBy = (b, ctx, seconds) => {
+    let landed = 0, t = 0;
+    for (; t < seconds && b.n > 0; t += 1 / 60) {
+      const fi = ctx.freezeIn === undefined ? undefined : Math.max(0, ctx.freezeIn - t);
+      stepBeads(b, 1 / 60, { ...ctx, freezeIn: fi }); landed += b.nHits;
+    }
+    return landed;
+  };
+  it('a trickle bead hovering far out lands before the surface stops being liquid', () => {
+    const b = createBeads(8);
+    spawnBead(b, 0, 1.4, 0, 0, 0, 0, 0.004); b.age[0] = 1;
+    expect(landBy(b, { ...base, freezeIn: 1.2 }, 1.2 + 0.1)).toBe(1);
+  });
+  it('a flung bead still heading out turns and lands in the window too', () => {
+    const b = createBeads(8);
+    const i = spawnBead(b, 1.6, 0, 0, 0.5, 0, 0, 0.01); b.free[i] = 1; b.age[i] = 2;
+    expect(landBy(b, { ...base, freezeIn: 1.5 }, 1.5 + 0.1)).toBe(1);
+  });
+  it('on a crust an airborne bead fades out over FREEZE_FADE_S and is removed', () => {
+    const b = createBeads(8);
+    spawnBead(b, 0, 2, 0, 0, 0, 0, 0.01); b.age[0] = 1;
+    const ctx = { ...base, freezeIn: 0, pxPerUnit: 300, q: [0, 0, 0, 1] };
+    stepBeads(b, 1 / 60, ctx);
+    const a0 = b.outBead[1];
+    stepBeads(b, 0.2, ctx);
+    expect(b.outBead[1]).toBeLessThan(a0);
+    for (let t = 0; t < FREEZE_FADE_S; t += 1 / 60) stepBeads(b, 1 / 60, ctx);
+    expect(b.n).toBe(0);
+  });
+  it('a melted planet (freezeIn Infinity, the default) changes nothing: a hovering trickle bead keeps its full life', () => {
+    const b = createBeads(8);
+    spawnBead(b, 0, 1.4, 0, 0, 0, 0, 0.004); b.age[0] = 1;
+    run(b, 2, base);
+    expect(b.n).toBe(1);
+    expect(b.outBead[1]).toBe(1);
   });
 });

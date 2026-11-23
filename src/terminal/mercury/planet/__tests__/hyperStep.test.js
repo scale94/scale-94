@@ -1,7 +1,7 @@
 // src/terminal/mercury/planet/__tests__/hyperStep.test.js — phase 6a: the vortex return, the grace, the cascade clock
 import { describe, it, expect } from 'vitest';
 import { createFamily, fireFamily, DROP_V_REF } from '../breakupFamily';
-import { stepFamily, DROP_DT, hyperAccel, cascadeDuration, STRIKE_V_REF } from '../breakupStep';
+import { stepFamily, DROP_DT, hyperAccel, cascadeDuration, STRIKE_V_REF, HYPER_INFLOW_K } from '../breakupStep';
 import { IMPACT_WAVE_AMP } from '../mercuryImpacts';
 import { TONGUE_MAX_R } from '../breakupPhysics';
 import { R_SCENE } from '../planetLook';
@@ -38,9 +38,9 @@ describe('hyperAccel (drag toward the aether vortex)', () => {
     expect(out[1]).toBeCloseTo(0, 12);
     expect(out[2]).toBeCloseTo(0, 12);
   });
-  it('at rest the vortex drags the bead along (L̂ × x), slowed by the headwind (1 − η)', () => {
+  it('at rest the vortex drags the bead along (L̂ × x), slowed by the headwind (1 − η), and drains it inward (η K)', () => {
     const out = hyperAccel(1, 0.25, 10, [0, 0, 1], 1, 0, 0, 0, 0, 0, 0, 0, [0, 0, 0]);
-    expect(out[0]).toBeCloseTo(-1, 12);
+    expect(out[0]).toBeCloseTo(-1 - 10 * 0.25 * HYPER_INFLOW_K, 12); // gravity + the drain (fix/mercury-motion)
     expect(out[1]).toBeCloseTo(10 * 0.75, 12);
   });
   it('inside the core gravity is linear, as for a uniform ball: a = −μ x / rC³ (no 1/r² singularity)', () => {

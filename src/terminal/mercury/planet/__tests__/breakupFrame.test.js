@@ -2,7 +2,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import * as THREE from 'three';
 import { createDropFrame, packFamily, pxPerUnitAt, EXTRUDE_S } from '../breakupFrame';
-import { createFamily, addBody, chainLayout, fireFamily, qRotate, holdTongue, TONGUE_LAG_S } from '../breakupFamily';
+import { createFamily, addBody, chainLayout, fireFamily, qRotate, holdTongue, holdGrow, TONGUE_LAG_S } from '../breakupFamily';
 import { TONGUE_ROOT_R, TONGUE_MAX_R, sphereVol, rpWavelength } from '../breakupPhysics';
 import { R_SCENE } from '../planetLook';
 import { TIERS } from '../planetQuality';
@@ -94,17 +94,100 @@ describe('breakupFrame — a family to the droplet shader', () => {
   it('px per scene unit at the planet distance', () => {
     expect(pxPerUnitAt(3.6, 42, 1000)).toBeCloseTo(1000 / (2 * 3.6 * Math.tan((21 * Math.PI) / 180)), 9);
   });
-  it('hold chain sits on the span fire uses, even below one wavelength (no jump at fire)', () => {
+  // fix/mercury-motion: below one wavelength the held chain used to be drawn at the full one-wavelength span and r0 (a
+  // stubby "pawn"), so an early release that retracted it held the pawn until L < 1e-4 and then popped it. It is now
+  // drawn grown out of the surface (height × g, radius × ∛g, g = holdGrow(L)); fire starts its extrude from the same
+  // drawn height and radius (ext0, rExt0), so there is still no jump at fire.
+  it('hold chain below one wavelength: fire starts from the drawn chain, height and radius (no jump at fire)', () => {
     const fam = createFamily(1);
     fam.phase = 'hold'; fam.L = 0.5 * rpWavelength(TONGUE_ROOT_R); fam.axisBody = [1, 0, 0];
     const f = createDropFrame(caps);
     packFamily(fam, testEnv(), f, viewOf());
     const held = [];
-    for (let i = 0; i < f.nb; i++) held.push([f.bead[4 * i], f.bead[4 * i + 1], f.bead[4 * i + 2]]);
+    for (let i = 0; i < f.nb; i++) held.push({ d: Math.hypot(f.bead[4 * i], f.bead[4 * i + 1], f.bead[4 * i + 2]), r: f.bead[4 * i + 3] });
     fireFamily(fam, { maxBodies: 12, satellites: false });
-    const mains = fam.bodies.filter((b) => b.state === 'attached').map((b) => b.posBody);
+    const mains = fam.bodies.filter((b) => b.state === 'attached');
     expect(mains.length).toBe(held.length);
-    mains.forEach((p, i) => { for (let k = 0; k < 3; k++) expect(held[i][k]).toBeCloseTo(p[k], 5); });
+    // packFired at t = 0: attached beads at R + (|posBody| − R) · ext0, radius b.r · rExt0
+    mains.forEach((b, i) => {
+      expect(R_SCENE + (Math.hypot(...b.posBody) - R_SCENE) * fam.ext0).toBeCloseTo(held[i].d, 5);
+      expect(b.r * fam.rExt0).toBeCloseTo(held[i].r, 7);
+    });
+  });
+
+  it('hold below one wavelength grows out of the surface: height × holdGrow(L), radius × ∛holdGrow(L)', () => {
+    const lam = rpWavelength(TONGUE_ROOT_R);
+    const fam = createFamily(1);
+    fam.phase = 'hold'; fam.L = 0.25 * lam; fam.axisBody = [1, 0, 0];
+    const f = createDropFrame(caps);
+    packFamily(fam, testEnv(), f, viewOf());
+    const g = holdGrow(fam.L);
+    expect(g).toBeGreaterThan(0); expect(g).toBeLessThan(1);
+    for (let i = 0; i < f.nb; i++) expect(f.bead[4 * i + 3]).toBeCloseTo(TONGUE_ROOT_R * Math.cbrt(g), 7);
+    expect(Math.hypot(f.bead[0], f.bead[1], f.bead[2]) - R_SCENE).toBeCloseTo(g * 0.5 * lam, 6); // one bead at half span
+    expect(holdGrow(lam)).toBe(1);
+    expect(holdGrow(2 * lam)).toBe(1);
+  });
+
+  it('an early release retracts the stub smoothly into the core: the drawn bead shrinks every frame to ~0 before idle', () => {
+    const fam = createFamily(1);
+    fam.phase = 'hold'; fam.L = 0.6 * rpWavelength(TONGUE_ROOT_R); fam.axisBody = [1, 0, 0];
+    const f = createDropFrame(caps);
+    let prev = Infinity, last = Infinity, frames = 0;
+    while (fam.L >= 1e-4 && frames < 2000) { // the release path in MercuryPlanet.stepDrop: excess 0 until L < 1e-4, then idle
+      packFamily(fam, testEnv(), f, viewOf());
+      const r = f.bead[3];
+      expect(r).toBeLessThanOrEqual(prev + 1e-9);
+      prev = r; last = r;
+      holdTongue(fam, 1 / 60, 0, 1);
+      frames++;
+    }
+    expect(frames).toBeLessThan(2000);
+    expect(last).toBeLessThan(0.03 * TONGUE_ROOT_R); // nothing left to pop when the family goes idle
+  });
+
+  // Author 2026-11-23: a long held tongue released without a fling popped. Its bead count fell in steps as L decayed
+  // (chainCount: 6 → 4 → 2 drawn beads), and each step dropped the tip by up to 13 % of R in one frame, leaving the
+  // one-bead "pawn". The hold keeps the most beads it reached (holdN), so the chain slides home continuously.
+  it('a long held tongue released without a fling retracts continuously: no bead vanishes, the tip never jumps', () => {
+    for (const tier of Object.keys(TIERS)) {
+      const tcaps = TIERS[tier].drop;
+      const fam = createFamily(1);
+      fam.phase = 'hold'; fam.axisBody = [1, 0, 0];
+      for (let i = 0; i < 300; i++) holdTongue(fam, 1 / 60, 1, 1); // grown to full excess
+      const f = createDropFrame(tcaps);
+      const tipOf = () => {
+        let tip = 0;
+        for (let i = 0; i < f.nb; i++) tip = Math.max(tip, Math.hypot(f.bead[4 * i], f.bead[4 * i + 1], f.bead[4 * i + 2]) + f.bead[4 * i + 3] - R_SCENE);
+        return tip;
+      };
+      packFamily(fam, testEnv(), f, viewOf());
+      let nb = f.nb, tip = tipOf(), frames = 0, maxDrop = 0;
+      while (fam.L >= 1e-4 && frames < 2000) {
+        holdTongue(fam, 1 / 60, 0, 1);
+        packFamily(fam, testEnv(), f, viewOf());
+        if (fam.L < 1e-4) break;
+        expect(f.nb, tier).toBe(nb);
+        const t2 = tipOf();
+        expect(t2, tier).toBeLessThanOrEqual(tip + 1e-9);
+        maxDrop = Math.max(maxDrop, tip - t2);
+        tip = t2; frames++;
+      }
+      // the steepest frame is the exponential decay's first (L / TONGUE_LAG_S · dt), not a re-layout step
+      expect(maxDrop, tier).toBeLessThan(1.05 * (TONGUE_MAX_R / TONGUE_LAG_S) / 60);
+      expect(tip, tier).toBeLessThan(0.05 * TONGUE_ROOT_R);
+    }
+  });
+  it('the kept bead count resets with the hold: a fresh hold grows from one bead again', () => {
+    const fam = createFamily(1);
+    fam.phase = 'hold'; fam.axisBody = [1, 0, 0];
+    for (let i = 0; i < 300; i++) holdTongue(fam, 1 / 60, 1, 1);
+    const f = createDropFrame(caps);
+    packFamily(fam, testEnv(), f, viewOf());
+    expect(fam.holdN).toBeGreaterThan(1);
+    fireFamily(fam, { maxBodies: 12, satellites: true });
+    expect(fam.holdN).toBe(0);
+    expect(createFamily(1).holdN).toBe(0);
   });
 
   it('hold chain respects every tier cap and sits where fire puts it (e = 0.75, 1)', () => {

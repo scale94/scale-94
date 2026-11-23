@@ -5,8 +5,9 @@ import {
   solverBudget, SOLVER_SUBSTEPS_PER_FRAME, PARTICLES_PER_UNIT,
 } from '../breakupBudget';
 import { createFamily, fireFamily } from '../breakupFamily';
-import { stepFamily, DROP_DT, cascadeDuration } from '../breakupStep';
-import { ETA_LO, ETA_HI, HYPER_GAMMA, HYPER_CASCADE_S } from '../hyperFling';
+import { stepFamily, DROP_DT, cascadeDuration, hyperEta, hyperAccel, HYPER_INFLOW_K } from '../breakupStep';
+import { ETA_LO, ETA_HI, HYPER_GAMMA, HYPER_CASCADE_S, hyperReach } from '../hyperFling';
+import { MAX_OMEGA } from '../mercuryBody';
 import { R_SCENE } from '../planetLook';
 import { testEnv, freeBody } from './breakupTestKit';
 import { hyperEnv0, firedHyper } from './hyperTestKit';
@@ -153,5 +154,69 @@ describe('test particles follow the orbit-then-gather schedule', () => {
     const T = (tHang) => { const f = oneBead(0.3); f.tHang = tHang; const tr = beginParticles(f, 300, { eta: 0.3, gamma: 10, tMax: 60 }); runParticles(tr, Infinity); return tr.tEnd; };
     expect(T(3) - T(0)).toBeGreaterThan(2.5);
     expect(T(3) - T(0)).toBeLessThan(3.5);
+  });
+});
+
+// fix/mercury-motion: the overdamped gather (infall ≈ g/γ) could not land a swarm aimed out to the stage-fit desktop
+// reach (camera 4.94 → reach 1.61; the fixtures above still frame at 3.6 → 1.175) inside the target at any η, so the
+// solver fell back to η = 1: a still aether that killed the spin within 1/γ and let the beads sink straight down, late.
+describe('the gather keeps the spiral (fix/mercury-motion)', () => {
+  const desktop = (seed = 7) => firedHyper({ N: 32, eH: 0.5, seed, omega: [0, MAX_OMEGA, 0], pxPerUnit: 140.7, reach: hyperReach(1.897), target: 14 });
+
+  it('hyperEta: none while hanging, a linear ramp over the gather ease, then η; no ramp = the old step', () => {
+    expect(hyperEta(6.99, 7, 0.2, 0.4)).toBe(0);
+    expect(hyperEta(7.2, 7, 0.2, 0.4)).toBeCloseTo(0.1, 9);
+    expect(hyperEta(7.5, 7, 0.2, 0.4)).toBe(0.2);
+    expect(hyperEta(7, 7, 0.2, 0)).toBe(0.2);
+    expect(hyperEta(6.9, 7, 0.2, 0)).toBe(0);
+  });
+
+  it('the headwind drains the vortex: at η the aether turns at (1 − η) and flows in at η · HYPER_INFLOW_K of orbital speed', () => {
+    const a = [0, 0, 0];
+    const eta = 0.3; // μ 1, r 1: orbital speed 1. A bead moving with the flow feels gravity alone.
+    hyperAccel(1, eta, 10, [0, 0, 1], 1, 0, 0, -eta * HYPER_INFLOW_K, 1 - eta, 0, 0.3, 0, a);
+    expect(a[0]).toBeCloseTo(-1, 9);
+    expect(a[1]).toBeCloseTo(0, 9);
+  });
+
+  it('a lone bead with the gather ramp arrives at the same time live and in the trial', () => {
+    const mk = () => { const f = oneBead(0.3); Object.assign(f, { tHang: 2, rampG: 0.4 }); return f; };
+    const live = mk();
+    const tr = beginParticles(mk(), 300, { eta: 0.3, gamma: 10, tMax: 60 });
+    runParticles(tr, Infinity);
+    const env = testEnv({ kappa: 0, planetRadiusAt: () => live.rC0 });
+    let tArr = -1;
+    for (let i = 0; i < 60 / DROP_DT && tArr < 0; i++) {
+      stepFamily(live, DROP_DT, env);
+      if (live.bodies[0].state === 'cascade') tArr = live.t;
+    }
+    expect(tArr).toBeGreaterThan(2);
+    expect(Math.abs(tr.out[0] - cascadeDuration(0.05, 300) - tArr)).toBeLessThan(2 * DROP_DT);
+  });
+
+  it('a desktop-framed swarm lands by its target with the vortex still turning (η < ETA_HI < 1)', () => {
+    for (const seed of [7, 99]) {
+      const s = finishMuSolver(createMuSolver(desktop(seed), hyperEnv0([0, MAX_OMEGA, 0], 140.7), 14));
+      expect(s.landed, `seed ${seed}`).toBe(true);
+      expect(s.best, `seed ${seed}`).toBeLessThan(ETA_HI);
+    }
+    expect(ETA_HI).toBeLessThan(1);
+  });
+
+  // The cohesion gather (V4 §10.3) still takes its share as clumps form; the headwind itself costs ~η. Measured
+  // 2026-11-22 over 20 seeds: keeps 0.62–0.9 at the desktop framing (old fallback: ≈ 0.01, no turns at all).
+  it('the spin carries through the gather: 0.5 s after tHang the swarm keeps over half its tangential speed (cohesion on)', () => {
+    const f = desktop();
+    f.eta = finishMuSolver(createMuSolver(f, hyperEnv0([0, MAX_OMEGA, 0], 140.7), 14)).best;
+    const env = { ...hyperEnv0([0, MAX_OMEGA, 0], 140.7), planetRadiusAt: () => f.rC0 }; // live cohesion κ 0.1
+    const vt = () => {
+      let s = 0;
+      for (const b of f.bodies) if (b.state === 'free') s += Math.abs(b.p[2] * b.v[0] - b.p[0] * b.v[2]) / Math.max(Math.hypot(b.p[0], b.p[2]), 1e-6);
+      return s;
+    };
+    while (f.t < f.tHang) stepFamily(f, DROP_DT, env);
+    const v0 = vt();
+    while (f.t < f.tHang + 0.5) stepFamily(f, DROP_DT, env);
+    expect(vt() / v0).toBeGreaterThan(0.55); // was ≈ 0 at the old fallback η = 1
   });
 });

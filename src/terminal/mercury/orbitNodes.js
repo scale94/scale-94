@@ -26,3 +26,10 @@ export function nodeWorldPosition(angle, precession) {
   const a = angle + precession;
   return [Math.cos(a) * ORBIT_RADIUS, Math.sin(a) * ORBIT_RADIUS, 0];
 }
+
+// Where an element node sits, the one source every consumer reads (the handles and the mercury thread in MercurySphere,
+// the mirror's element reflections and the visitors' launch in MercuryPlanet): on the precessing ring, or, with a
+// portrait phone's corner layout (planet/phoneLayout.js), fixed in its corner.
+export function nodePosition(node, precession, layout = null) {
+  return layout ? layout.nodes[node.phase] : nodeWorldPosition(node.angle, precession);
+}

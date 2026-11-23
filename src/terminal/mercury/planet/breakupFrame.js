@@ -3,7 +3,7 @@
 
 import { R_SCENE } from './planetLook';
 import { TONGUE_ROOT_R, pinchRadius, wobbleOmega } from './breakupPhysics';
-import { cappedChainN, chainSpan, qRotate, TONGUE_LAG_S } from './breakupFamily';
+import { chainSpan, holdChainN, holdGrow, qRotate, TONGUE_LAG_S } from './breakupFamily';
 
 export const NECK_ASYM = 0.2;        // waist shifted toward the inner body: steep cone at the outer bead, shallow inward (spec §5.2)
 export const FLIGHT_STRETCH = 0.12;  // prolate stretch of a main bead at A_REF
@@ -55,24 +55,27 @@ function pushBridge(f, ia, ib, k, R) {
 }
 
 function packHold(fam, env, f) {
-  // the same span and tier-capped bead count fireFamily lays the chain on, so hold -> fire does not jump the beads
+  // the same span and tier-capped bead count fireFamily lays the chain on, so hold -> fire does not jump the beads;
+  // a retracting tongue keeps the most beads it drew (holdChainN), so it slides home instead of re-laying in steps
   const Ls = chainSpan(fam.L);
-  const N = cappedChainN(Ls, f.caps.bodies, f.caps.satellites);
+  const N = holdChainN(fam, f.caps.bodies, f.caps.satellites);
   const sp = Ls / N;
   const ax = fam.axisBody;
+  // below one wavelength the tongue is grown out of the surface (holdGrow): it rises and sinks back, never a popped pawn
+  const g = holdGrow(fam.L), r0 = TONGUE_ROOT_R * Math.cbrt(g);
   for (let si = 0; si < 2; si++) {
     const sign = 1 - 2 * si;
     const first = f.nb;
     for (let k = 0; k < N; k++) {
-      const d = sign * (R_SCENE + Ls - (k + 0.5) * sp);
+      const d = sign * (R_SCENE + g * (Ls - (k + 0.5) * sp));
       _c[0] = ax[0] * d; _c[1] = ax[1] * d; _c[2] = ax[2] * d;
       qRotate(env.q, _c, _c);
-      pushBead(f, _c, TONGUE_ROOT_R, unitInto(_c, _u), 0);
+      pushBead(f, _c, r0, unitInto(_c, _u), 0);
     }
-    for (let k = 0; k + 1 < N; k++) pushNeck(f, first + k, first + k + 1, TONGUE_ROOT_R, 0, 0);
+    for (let k = 0; k + 1 < N; k++) pushNeck(f, first + k, first + k + 1, r0, 0, 0);
     const last = first + N - 1;
     _c[0] = f.bead[4 * last]; _c[1] = f.bead[4 * last + 1]; _c[2] = f.bead[4 * last + 2];
-    pushNeck(f, last, -1, TONGUE_ROOT_R, 0, env.planetRadiusAt(unitInto(_c, _u)));
+    pushNeck(f, last, -1, r0, 0, env.planetRadiusAt(unitInto(_c, _u)));
   }
 }
 
@@ -83,10 +86,15 @@ function packFired(fam, env, f) {
   // the extrude: attached beads co-rotate with the planet, so a radial lerp of their height carries the chain
   // from the held span to the fired one (a pure function of fam.t: replay-consistent, nothing in the sim moves)
   const ext = fam.ext0 < 1 && fam.t < EXTRUDE_S ? fam.ext0 + (1 - fam.ext0) * smooth01(fam.t / EXTRUDE_S) : 1;
+  // …and the attached beads and necks grow from the held (holdGrow) radius on the same clock
+  const rExt0 = fam.rExt0 ?? 1;
+  const rx = rExt0 < 1 && fam.t < EXTRUDE_S ? rExt0 + (1 - rExt0) * smooth01(fam.t / EXTRUDE_S) : 1;
+  // …and a family caught out over a fresh crust shrinks to nothing (breakupStep.crustFade)
+  const fk = fam.fadeK ?? 1;
   for (let i = 0; i < B.length; i++) {
     const b = B[i];
     f.map[i] = -1;
-    if (b.state === 'gone' || b.r < 1e-6) continue;
+    if (b.state === 'gone' || b.r * fk < 1e-6) continue;
     let s = 0;
     unitInto(b.p, _ax);
     if (ext < 1 && b.state === 'attached') {
@@ -94,7 +102,7 @@ function packFired(fam, env, f) {
       if (d > R_SCENE) {
         const k = (R_SCENE + (d - R_SCENE) * ext) / d;
         _c[0] = b.p[0] * k; _c[1] = b.p[1] * k; _c[2] = b.p[2] * k;
-        f.map[i] = pushBead(f, _c, b.r, _ax, 0);
+        f.map[i] = pushBead(f, _c, b.r * rx * fk, _ax, 0);
         continue;
       }
     }
@@ -104,14 +112,14 @@ function packFired(fam, env, f) {
       const fl = FLIGHT_STRETCH * (b.r / (fam.rMain || b.r)) ** 2 * Math.min(al / A_REF, 1);
       if (Math.abs(wob) >= fl) { _ax[0] = b.wobAxis[0]; _ax[1] = b.wobAxis[1]; _ax[2] = b.wobAxis[2]; s = wob; } else if (al > 0) { unitInto(b.a, _ax); s = fl; }
     }
-    f.map[i] = pushBead(f, b.p, b.r, _ax, s);
+    f.map[i] = pushBead(f, b.p, b.r * fk, _ax, s);
   }
   for (let ni = 0; ni < fam.necks.length; ni++) {
     const n = fam.necks[ni];
     if (!n.on) continue;
     const ia = f.map[n.a];
     if (ia < 0) continue;
-    const h = pinchRadius(TONGUE_ROOT_R, fam.t, n.tSnap);
+    const h = pinchRadius(TONGUE_ROOT_R, fam.t, n.tSnap) * rx * fk;
     if (n.b >= 0) {
       const ib = f.map[n.b];
       if (ib >= 0) pushNeck(f, ia, ib, h, NECK_ASYM, 0);
@@ -122,11 +130,11 @@ function packFired(fam, env, f) {
   for (let i = 0; i < B.length; i++) {
     const b = B[i], ia = f.map[i];
     if (ia < 0) continue;
-    if (b.state === 'merging' && b.lead && b.bridgeB > 0) pushBridge(f, ia, f.map[b.partner], b.bridgeB, 0);
+    if (b.state === 'merging' && b.lead && b.bridgeB > 0) pushBridge(f, ia, f.map[b.partner], b.bridgeB * fk, 0);
     if (b.state === 'cascade') {
       const R = env.planetRadiusAt(unitInto(b.p, _u));
-      if (b.bridgeB > 0) pushBridge(f, ia, -1, b.bridgeB, R);
-      if (b.neckH > 0) pushNeck(f, ia, -1, b.neckH, 0, R);
+      if (b.bridgeB > 0) pushBridge(f, ia, -1, b.bridgeB * fk, R);
+      if (b.neckH > 0) pushNeck(f, ia, -1, b.neckH * fk, 0, R);
     }
   }
 }

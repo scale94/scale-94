@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   MODE_OMEGA, MODE_GAMMA, MODE_WEIGHTS, rayleighOmega, capillaryOmega, DROP_R_M,
   WAVE_KR, WAVE_C_PHASE, WAVE_C_GROUP, IMPULSE_SLOTS, IMPULSE_LIFE_S, WAVE_DAMP_PER_S,
-  legendre, dLegendre, modeResponse, createImpulses, addImpulse, createImpulseFrame, impulseFrame,
+  legendre, dLegendre, modeResponse, createImpulses, addImpulse, addImpulseIfRoom, createImpulseFrame, impulseFrame,
   spinBulge, BULGE_MAX, SHAPE_MAX, shapeHeight, createWake, wakeImpulse, WAKE_EVERY_S, LIQUID_TAU,
   RELEASE_MODE_AMP, WAKE_WAVE_AMP,
   WAKE_FULL_OMEGA, WAKE_SLIP, slipDirWorld, WAVE_C_FRONT, rippleSlope, WAVE_DIMPLE_S, WAVE_SHARP,
@@ -155,6 +155,38 @@ describe('impulse ring buffer', () => {
     expect(kept).toHaveLength(1);
     expect(kept[0]).toBe(splash);
     expect(kept[0].t0).toBe(0.5);
+  });
+
+  // fix/mercury-motion: the body modes are Legendre P2/P3/P4 of dot(x, d); P2 and P4 are even, so a mode impulse dents
+  // the antipode about as hard as the hit (a pearl's ripple seemed to land on the opposite limb). A ring-only impulse
+  // (mode 0, the pearls) leaves the shape untouched everywhere: the ring term is centred on d.
+  it('a ring-only impulse (mode 0) moves no body mode: the antipode stays still', () => {
+    const buf = createImpulses();
+    addImpulse(buf, { dirBody: [0, 0, 1], tS: 0, mode: 0, wave: 0.04, kind: 'splash' });
+    const out = createImpulseFrame();
+    const dirs = Array.from({ length: IMPULSE_SLOTS }, () => [0, 0, 1]);
+    for (const age of [0.1, 0.5, 1]) {
+      impulseFrame(buf, age, {}, out);
+      expect(shapeHeight([0, 0, -1], dirs, out.mode, [0, 1, 0, 0])).toBe(0);
+      expect(out.wave[1]).toBeGreaterThan(0);
+    }
+    const modal = createImpulses();
+    addImpulse(modal, { dirBody: [0, 0, 1], tS: 0, mode: 0.004, wave: 0.04, kind: 'splash' });
+    impulseFrame(modal, 0.5, {}, out);
+    expect(Math.abs(shapeHeight([0, 0, -1], dirs, out.mode, [0, 1, 0, 0]))).toBeGreaterThan(1e-4); // why pearls drop it
+  });
+
+  it('addImpulseIfRoom takes a free slot, but never evicts a stronger live impulse', () => {
+    const buf = createImpulses();
+    expect(addImpulseIfRoom(buf, { dirBody: [0, 0, 1], tS: 0, mode: 0.001, wave: 0.01, kind: 'splash' })).not.toBeNull();
+    for (let i = 1; i < IMPULSE_SLOTS; i++) addImpulse(buf, { dirBody: [0, 0, 1], tS: 0, mode: 0.035, wave: 0.35, kind: 'splash' });
+    const before = buf.slots.map((s) => s.t0);
+    // a pearl stronger than the weak one replaces it; a weaker one is dropped and the ring is untouched
+    expect(addImpulseIfRoom(buf, { dirBody: [1, 0, 0], tS: 0.1, mode: 0.0005, wave: 0.005, kind: 'splash' })).toBeNull();
+    expect(buf.slots.map((s) => s.t0)).toEqual(before);
+    const s = addImpulseIfRoom(buf, { dirBody: [1, 0, 0], tS: 0.1, mode: 0.002, wave: 0.02, kind: 'splash' });
+    expect(s).not.toBeNull();
+    expect(buf.slots.filter((x) => x.wave === 0.35)).toHaveLength(IMPULSE_SLOTS - 1);
   });
 
   it('an unknown impulse kind decays like a splash instead of going NaN', () => {

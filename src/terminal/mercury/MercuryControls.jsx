@@ -1,31 +1,69 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
+import { snapSlider } from './sliderMath';
 
+const isMobile = typeof navigator !== 'undefined' && /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+
+// A phone drag (fix/mercury-motion): the hit area is 36 px tall with touch-action none, so the browser never takes the
+// finger for a page pan (which cancelled the pointer mid-drag); the drag ends on up / cancel / a lost capture; and the
+// value is snapped to step and sent at most once per animation frame, only when it moves (every pointer move used to
+// re-render the whole stage).
 function Slider({ label, value, min, max, step, onChange }) {
-  const trackRef = useRef();
-  const handlePointerDown = (e) => {
-    e.currentTarget.setPointerCapture(e.pointerId);
-    update(e);
+  const trackRef = useRef(null);
+  const dragging = useRef(false);
+  const raf = useRef(0);
+  const pending = useRef(value);
+  const sent = useRef(value);
+  const onChangeRef = useRef(onChange);
+  useEffect(() => { onChangeRef.current = onChange; sent.current = value; }, [onChange, value]);
+  useEffect(() => () => cancelAnimationFrame(raf.current), []);
+
+  const flush = () => {
+    raf.current = 0;
+    if (pending.current === sent.current) return;
+    sent.current = pending.current;
+    onChangeRef.current(pending.current);
   };
   const update = (e) => {
     const rect = trackRef.current.getBoundingClientRect();
     const t = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    onChange(min + (max - min) * t);
+    const v = snapSlider(min + (max - min) * t, min, max, step);
+    pending.current = v;
+    if (v === sent.current) return;
+    if (!raf.current) raf.current = requestAnimationFrame(flush);
   };
-  const pct = ((value - min) / (max - min)) * 100;
+  const start = (e) => {
+    dragging.current = true;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    update(e);
+  };
+  const move = (e) => { if (dragging.current) update(e); };
+  const end = () => { dragging.current = false; };
+
+  const pct = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100));
+  const knob = isMobile ? 16 : 8;
   return (
-    <div className="mb-3">
-      <div className="flex justify-between mb-1">
+    <div className="mb-1">
+      <div className="flex justify-between">
         <span className="text-[10px] font-mono text-cyan-400/60 tracking-widest uppercase">{label}</span>
         <span className="text-[10px] font-mono text-cyan-400/40">{typeof value === 'number' ? value.toFixed(2) : value}</span>
       </div>
       <div
         ref={trackRef}
-        className="relative h-1 bg-cyan-900/30 rounded cursor-pointer"
-        onPointerDown={handlePointerDown}
-        onPointerMove={(e) => { if (e.buttons === 1) update(e); }}
+        className="relative h-9 flex items-center cursor-pointer"
+        style={{ touchAction: 'none' }}
+        onPointerDown={start}
+        onPointerMove={move}
+        onPointerUp={end}
+        onPointerCancel={end}
+        onLostPointerCapture={end}
       >
-        <div className="absolute left-0 top-0 h-full bg-cyan-500/60 rounded" style={{ width: `${pct}%` }} />
-        <div className="absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-cyan-400" style={{ left: `calc(${pct}% - 4px)` }} />
+        <div className="relative w-full h-1 bg-cyan-900/30 rounded">
+          <div className="absolute left-0 top-0 h-full bg-cyan-500/60 rounded" style={{ width: `${pct}%` }} />
+          <div
+            className="absolute top-1/2 -translate-y-1/2 rounded-full bg-cyan-400"
+            style={{ width: knob, height: knob, left: `calc(${pct}% - ${knob / 2}px)` }}
+          />
+        </div>
       </div>
     </div>
   );
@@ -73,7 +111,7 @@ export default function MercuryControls({
 
       <Slider label="speed"      value={params.speed}      min={0.01} max={0.4}  step={0.01} onChange={v => handleChange('speed', v)} />
       <Slider label="turbulence" value={params.turbulence ?? 0.25} min={0}    max={1.0}  step={0.01} onChange={v => handleChange('turbulence', v)} />
-      <Slider label="density"    value={params.density}    min={1000} max={15000} step={500} onChange={v => handleChange('density', v)} />
+      <Slider label="density"    value={params.density}    min={500} max={15000} step={100} onChange={v => handleChange('density', v)} />
 
       <div className="border-t border-cyan-900/20 pt-2 mt-2">
         {(PHASE_PARAMS[activePhase] ?? []).map(({ key, label, min, max, step }) => (

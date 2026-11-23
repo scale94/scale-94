@@ -28,8 +28,9 @@ export const HYPER_REACH_MIN_R = 1.45; // …but never contain tighter than this
 export const HYPER_GAMMA = 20;         // the vortex drag, 1/s (V4: fixed; explicit drag is stable below 2/h ≈ 240)
 export const HYPER_AIM_S = 0.6;        // each bead's launch is aimed to settle at its radius after this long (§10.2)
 export const HYPER_HANG_K = 0.5;       // the disc orbits for this share of the return target before the gather (§10.3)
+export const HYPER_GATHER_RAMP_S = 0.4; // the headwind eases in over this long from tHang: the spin bends into the spiral, no kink
 export const ETA_LO = 1e-3;            // headwind bracket: ln-bisection over [ETA_LO, ETA_HI]
-export const ETA_HI = 1;               // (η = 1: a still aether, plain drag; also the provisional value while solving)
+export const ETA_HI = 0.5;             // never a still aether: even the fallback turns at half orbital speed (also the provisional value while solving)
 export const HYPER_CASCADE_S = 1.5;    // the largest bead's whole cascade takes this many display s (each stage keeps its r^1.5 share; V4 §10.6: was 3)
 export const HYPER_MIN_TARGET_S = 9;   // hyper needs room for orbit + gather + cascade: cooler, just-melted planets (shorter return; refreezeIn grows with heat) break the Phase 5 way (V4 §10.6)
 export const ETA_ITERS = 8;            // final ratio 1000^(1/256) ≈ 1.027
@@ -156,8 +157,8 @@ export function fireHyper(fam, { N, eH, seed, omega, pxPerUnit, orbitS, reach, t
 
   fam.bodies.length = 0; fam.necks.length = 0; fam.events.length = 0;
   Object.assign(fam, {
-    phase: 'fired', hyper: true, t: 0, acc: 0, volResidual: 0, L: 0, e: 0, N, seed,
-    tGrace: HYPER_GRACE_S, tHang: HYPER_HANG_K * target, rC0: m.rC0, mu, eta: ETA_HI, gammaH: HYPER_GAMMA,
+    phase: 'fired', hyper: true, t: 0, acc: 0, volResidual: 0, fadeK: 1, tCrust: -1, holdN: 0, L: 0, e: 0, N, seed,
+    tGrace: HYPER_GRACE_S, tHang: HYPER_HANG_K * target, rC0: m.rC0, mu, eta: ETA_HI, gammaH: HYPER_GAMMA, rampG: HYPER_GATHER_RAMP_S,
     axisL: [z[0], z[1], z[2]],
   });
   const golden = Math.PI * (3 - Math.sqrt(5));

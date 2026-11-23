@@ -21,6 +21,22 @@ describe('Hg beads wiring', () => {
     expect(planetSrc).toMatch(/stepBeads\(beads\.sim, stepS, beadCtx\)/); // clamped dt, not raw delta
     expect(planetSrc).toContain('<points geometry={beads.geometry} material={beads.material} renderOrder={beads.renderOrder} frustumCulled={false} />');
   });
+  it('beads land on the live surface and a landing pearl ripples it without evicting a stronger ring', () => {
+    expect(planetSrc).toContain('beadCtx.planetRadiusAt = drop.env.planetRadiusAt;');
+    expect(planetSrc.indexOf('beadCtx.planetRadiusAt')).toBeLessThan(planetSrc.indexOf('stepBeads(beads.sim'));
+    expect(planetSrc).toContain('if (sim.hits[h + 5] !== HIT_FLUNG) continue;'); // flung pearls only: trickle, splash spray and homing land silent
+    expect(planetSrc).toContain('const s = pearlStrike(sim.hits[h + 3], sim.hits[h + 4]);');
+    expect(planetSrc).not.toContain('pearlRipple');
+    expect(planetSrc).toContain('beadCtx.pxPerUnit = drop.env.pxPerUnit;');
+    expect(planetSrc).toContain('beadCtx.freezeIn = body.liquid ? Infinity : Math.max(0, (body.tau - LIQUID_TAU) * TRANSMUTE_S);');
+    expect(planetSrc.indexOf('beadCtx.q[3] = body.q.w')).toBeLessThan(planetSrc.indexOf('stepBeads(beads.sim'));
+    // a pearl rings the surface locally only: no body modes, whose even P2/P4 dent the antipode as hard as the hit
+    // the ring carries the live pearlWaveGain (author dials it by eye), never past a full drop's splash
+    expect(planetSrc).toContain('const pearlWave = Math.min(IMPACT_WAVE_AMP.splash, IMPACT_WAVE_AMP.splash * bestS * PLANET_TUNE.pearlWaveGain);');
+    expect(planetSrc).toContain("addImpulseIfRoom(surf.impulses, { dirBody: surf.b, tS: t, mode: 0, wave: pearlWave, kind: 'splash' })");
+    expect(planetSrc).not.toContain('HIT_TRICKLE');
+    expect(planetSrc).not.toContain('RippleBudget');
+  });
   it('the canvas tells the planet which element is active', () => {
     const planetTag = canvasSrc.slice(canvasSrc.indexOf('<MercuryPlanet'), canvasSrc.indexOf('<MercurySphere'));
     expect(planetTag).toContain('activePhase={activePhase}');
@@ -35,5 +51,68 @@ describe('Hg beads wiring', () => {
     expect(hookSrc).toContain('u.uBeadSparkle.value = PLANET_TUNE.beadSparkle;');
     expect(hookSrc).toContain('uDustSparkle: { value: PLANET_TUNE.dustSparkle }');
     expect(hookSrc).toContain('u.uDustSparkle.value = PLANET_TUNE.dustSparkle;');
+  });
+});
+
+describe('hidden-tab catch-up wiring (fix/mercury-motion)', () => {
+  it('the airborne Hg flies through the skipped time after coolBody and before the drop step', () => {
+    const cool = planetSrc.indexOf('coolBody(body, delta - stepS)');
+    const fam = planetSrc.indexOf('drop.solver = catchUpFamily(drop.fam, drop.solver, drop.env, skippedS, crustNow);');
+    const bds = planetSrc.indexOf('catchUpBeads(beads.sim, skippedS, beadCtx, crustNow);');
+    expect(planetSrc).toContain('const crustNow = !body.liquid && body.tau <= LIQUID_TAU;');
+    const step = planetSrc.indexOf('stepDrop(drop, da);');
+    expect(cool).toBeGreaterThan(0);
+    expect(fam).toBeGreaterThan(cool);
+    expect(bds).toBeGreaterThan(fam);
+    expect(step).toBeGreaterThan(bds);
+    expect(planetSrc).toContain('if (!calm && skippedS > CATCHUP_MIN_S) {');
+  });
+});
+
+describe('pearl ring gain (fix/mercury-motion)', () => {
+  it('PLANET_TUNE.pearlWaveGain (flung pearls) defaults to 3: a mid-strength pearl rings like the drag wake (~0.12)', async () => {
+    const { PLANET_TUNE } = await import('../planet/planetLook');
+    const { IMPACT_WAVE_AMP } = await import('../planet/mercuryImpacts');
+    const { WAKE_WAVE_AMP } = await import('../planet/mercuryWaves');
+    expect(PLANET_TUNE.pearlWaveGain).toBe(3);
+    const typical = IMPACT_WAVE_AMP.splash * 0.12 * PLANET_TUNE.pearlWaveGain; // measured idle mean strike 0.12
+    expect(typical / WAKE_WAVE_AMP).toBeGreaterThan(0.9);
+    expect(typical / WAKE_WAVE_AMP).toBeLessThan(1.25);
+  });
+});
+
+describe('hyper landing ring gain (fix/mercury-motion)', () => {
+  it('a hyper bead\'s landing ring carries PLANET_TUNE.hyperWaveGain (default 3), capped at a full splash; others as emitted', async () => {
+    expect(planetSrc).toContain("const evWave = fam.hyper && ev.kind === 'splash' ? Math.min(IMPACT_WAVE_AMP.splash, ev.wave * PLANET_TUNE.hyperWaveGain) : ev.wave;");
+    expect(planetSrc).toContain('addImpulse(surf.impulses, { dirBody: surf.b, tS: t, mode: ev.mode, wave: evWave, kind: ev.kind });');
+    const { PLANET_TUNE } = await import('../planet/planetLook');
+    expect(PLANET_TUNE.hyperWaveGain).toBe(3);
+  });
+});
+
+describe('trickle pearl ripples off (fix/mercury-motion)', () => {
+  it('no trickle gain is left to tune: an idle trickle pearl never rings', async () => {
+    const { PLANET_TUNE } = await import('../planet/planetLook');
+    expect(PLANET_TUNE.trickleWaveGain).toBeUndefined();
+  });
+});
+
+describe('family freeze guard wiring (fix/mercury-motion)', () => {
+  it('stepDrop hands the family the same refreeze clock as the beads; the hidden-tab replay runs unguarded', async () => {
+    expect(planetSrc).toContain('env.freezeIn = body.liquid ? Infinity : Math.max(0, (body.tau - LIQUID_TAU) * TRANSMUTE_S);');
+    expect(planetSrc.indexOf('env.freezeIn = body.liquid')).toBeLessThan(planetSrc.indexOf('stepFamily(fam, dropDt, env);'));
+    const { default: catchSrc } = await import('../planet/airborneCatchUp.js?raw');
+    expect(catchSrc).toContain('{ ...env, freezeIn: Infinity, planetRadiusAt: () => R_SCENE * coreScale(fam) }');
+  });
+});
+
+describe('bead shadow edge (fix/mercury-motion)', () => {
+  it('the beads take their own, softer shadow edge (beadPenumbra), uploaded live; the flows keep aetherPenumbra', async () => {
+    expect(hookSrc).toContain('uLitPen: { value: Math.max(PLANET_TUNE.beadPenumbra, 1e-3) }');
+    expect(hookSrc).toContain('u.uLitPen.value = Math.max(PLANET_TUNE.beadPenumbra, 1e-3);');
+    expect(hookSrc).not.toContain('aetherPenumbra');
+    const { PLANET_TUNE } = await import('../planet/planetLook');
+    expect(PLANET_TUNE.beadPenumbra).toBe(0.3);
+    expect(PLANET_TUNE.aetherPenumbra).toBe(0.08);
   });
 });

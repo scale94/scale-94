@@ -12,12 +12,33 @@ import ReliquaryView          from '../quintessence/ReliquaryView';
 import { loadSealedArtifact } from '../quintessence/sealedArtifact';
 import { useMercuryState }    from '../mercury/useMercuryState';
 import { computeInstruments } from '../mercury/instruments';
+import { phoneStageHeightCss } from '../mercury/planet/phoneLayout';
 
 const isMobile = typeof navigator !== 'undefined' && /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
 // Desktop stage: full width, 16:9, capped so the whole canvas sits below the nav on load.
 // Calibrated live (stage-layout plan Task 4): canvas top at scrollY 0 + a little breathing room.
 const NAV_OFFSET_PX = 208;
+
+// A portrait phone's stage: its width (which does not depend on its height) and the window's orientation, for the
+// corner-trigger layout's taller stage (planet/phoneLayout.js). Desktop never reads it.
+function usePhoneStage(ref) {
+  const [st, setSt] = useState({ w: 0, portrait: false });
+  useEffect(() => {
+    const el = ref.current;
+    if (!isMobile || !el) return undefined;
+    const read = () => setSt((p) => {
+      const w = el.clientWidth, portrait = window.innerHeight > window.innerWidth;
+      return p.w === w && p.portrait === portrait ? p : { w, portrait };
+    });
+    read();
+    const ro = new ResizeObserver(read);
+    ro.observe(el);
+    window.addEventListener('resize', read);
+    return () => { ro.disconnect(); window.removeEventListener('resize', read); };
+  }, [ref]);
+  return st;
+}
 
 const DEFAULT_PARAMS = {
   speed:        0.1,
@@ -42,6 +63,9 @@ export default function MercuryTab({ onNavigateTab }) {
   // a compile; sealRef lets the altar scroll the fresh artifact into view.
   const [, bumpSeal] = useReducer(x => x + 1, 0);
   const sealRef = useRef(null);
+  const stageRef = useRef(null);
+  const phoneStage = usePhoneStage(stageRef);
+  const cornerStage = isMobile && phoneStage.portrait && phoneStage.w > 0;
   const sealedArtifact = loadSealedArtifact();
   const revealSeal = useCallback(() => {
     bumpSeal();
@@ -75,7 +99,7 @@ export default function MercuryTab({ onNavigateTab }) {
       if (avg < 30) {
         ad.adjusted = true;
         setParams(p => {
-          const reduced = Math.max(1000, Math.round(p.density * 0.75 / 500) * 500);
+          const reduced = Math.max(500, Math.round(p.density * 0.75 / 100) * 100); // a floor under the phone default (600), so it reduces
           setLiveDensity(reduced);
           return { ...p, density: reduced };
         });
@@ -110,11 +134,15 @@ export default function MercuryTab({ onNavigateTab }) {
 
       {/* Stage — the simulation gets the full width (16:9, capped at the viewport); the title rides inside it */}
       <div
+        ref={stageRef}
         className="w-full rounded-sm overflow-hidden"
         style={{
-          ...(isMobile
-            ? { height: 'calc(100svh - 420px - env(safe-area-inset-bottom, 0px))' }
-            : { aspectRatio: '16 / 9', maxHeight: `calc(100svh - ${NAV_OFFSET_PX}px)` }),
+          // portrait phone: taller, for the corner triggers (phoneLayout); landscape phone: as before; desktop: 16:9
+          ...(cornerStage
+            ? { height: phoneStageHeightCss(phoneStage.w) }
+            : isMobile
+              ? { height: 'calc(100svh - 420px - env(safe-area-inset-bottom, 0px))' }
+              : { aspectRatio: '16 / 9', maxHeight: `calc(100svh - ${NAV_OFFSET_PX}px)` }),
           minHeight: '300px',
           background: '#000',
           position: 'relative',
@@ -140,7 +168,9 @@ export default function MercuryTab({ onNavigateTab }) {
         />
 
         {/* HUD — title + phase, top-left, in the credit's register; never takes the pointer */}
-        <div className="absolute top-3 left-4 pointer-events-none select-none flex items-start gap-2" style={{ maxWidth: 'calc(50% - 80px)' }}>
+        {/* a phone: one title line + one phase line across the top (≤ phoneLayout TITLE_BAND_PX), so the corner triggers
+            sit below it; the old half-width column wrapped into ~7 lines under the top-left trigger */}
+        <div className="absolute top-3 left-4 pointer-events-none select-none flex items-start gap-2" style={{ maxWidth: isMobile ? 'calc(100% - 32px)' : 'calc(50% - 80px)' }}>
           <span
             aria-hidden="true"
             style={{
@@ -153,7 +183,7 @@ export default function MercuryTab({ onNavigateTab }) {
           >◉</span>
           <div className="min-w-0">
             <h2
-              className="text-sm sm:text-base font-bold tracking-tight uppercase font-mono"
+              className={`text-sm sm:text-base font-bold tracking-tight uppercase font-mono${isMobile ? ' whitespace-nowrap' : ''}`}
               style={{
                 background: 'linear-gradient(90deg, #c0c0c0, #e8e8e8, #a0a0a0)',
                 WebkitBackgroundClip: 'text',
@@ -164,7 +194,7 @@ export default function MercuryTab({ onNavigateTab }) {
               Mercury Terminal
             </h2>
             <div
-              className="text-[9px] font-mono text-zinc-500/50 uppercase tracking-[0.2em] mt-0.5"
+              className={`text-[9px] font-mono text-zinc-500/50 uppercase tracking-[0.2em] mt-0.5${isMobile ? ' whitespace-nowrap overflow-hidden text-ellipsis' : ''}`}
               style={{ animation: 'hg-titleReveal 0.6s 0.1s cubic-bezier(0.16,1,0.3,1) both' }}
             >
               {activePhase ?? 'neutral'} :: phase active // perihelion precession // metallurgy of the present

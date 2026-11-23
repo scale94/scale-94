@@ -25,7 +25,7 @@ export default function useHgBeads({ tier, planetMaterial }) {
     const uniforms = {
       uViewportPx: { value: new THREE.Vector2(1, 1) },
       uPlanetR: { value: R_SCENE },
-      uLitPen: { value: Math.max(PLANET_TUNE.aetherPenumbra, 1e-3) },
+      uLitPen: { value: Math.max(PLANET_TUNE.beadPenumbra, 1e-3) }, // the beads' own, softer shadow edge (beadPenumbra)
       uBeadSparkle: { value: PLANET_TUNE.beadSparkle },
       uDustSparkle: { value: PLANET_TUNE.dustSparkle },
     };
@@ -49,7 +49,7 @@ export default function useHgBeads({ tier, planetMaterial }) {
     const u = material.uniforms;
     gl.getDrawingBufferSize(u.uViewportPx.value);
     u.uPlanetR.value = coreR;
-    u.uLitPen.value = Math.max(PLANET_TUNE.aetherPenumbra, 1e-3);
+    u.uLitPen.value = Math.max(PLANET_TUNE.beadPenumbra, 1e-3);
     u.uSunGlint.value = planetMaterial.uniforms.uSunGlint.value * PLANET_TUNE.beadGlint;
     u.uBeadSparkle.value = PLANET_TUNE.beadSparkle;
     u.uDustSparkle.value = PLANET_TUNE.dustSparkle;

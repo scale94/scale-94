@@ -4,6 +4,7 @@ import { stepFamily, DROP_DT } from '../breakupStep';
 import { sphereVol, bridgeRadius, bridgeTime, capillaryTime, DAUGHTER_RATIO } from '../breakupPhysics';
 import { R_SCENE } from '../planetLook';
 import { testEnv, firedFamily, runFor, freeBody, muRefAt } from './breakupTestKit';
+import { IMPACT_MODE_AMP, IMPACT_WAVE_AMP } from '../mercuryImpacts';
 
 describe('breakupStep II — merges and the cascade', () => {
   it('beads that touch in flight merge fully: volume and momentum conserved, bridge = r_b(t)', () => {
@@ -97,5 +98,30 @@ describe('breakupStep II — merges and the cascade', () => {
     expect(f.phase).toBe('idle');
     expect(events).toBeGreaterThan(2);
     expect(Math.abs(f.volResidual)).toBeLessThan(1e-12 * f.volFamily);
+  });
+});
+
+// fix/mercury-motion: a returning droplet's body modes dented the antipode as hard as its local ring rang (the even
+// Legendre P2/P4), and a small droplet's ring was too faint to read, so its ripple seemed to land on the opposite limb.
+// The whole-sphere response follows the droplet's momentum share: mode ∝ s², the local ring stays ∝ s.
+describe('strike: the body-mode dent follows s², the local ring s', () => {
+  it('a small landing rings locally with little body mode; a full-strength one keeps both', () => {
+    const land = (r) => {
+      const f = createFamily(1);
+      f.phase = 'fired'; f.mu = 0;
+      const b = freeBody(f, [R_SCENE + r - 0.001, 0, 0], [-0.2, 0, 0], r);
+      f.volOut = b.vol;
+      const env = testEnv({ gamma: 0, omega: [0, 0, 0], pxPerUnit: 300, vRef: sphereVol(0.03) });
+      for (let i = 0; i < 4 && !f.events.length; i++) stepFamily(f, DROP_DT, env);
+      return f.events[0];
+    };
+    for (const r of [0.012, 0.02, 0.03]) {
+      const e = land(r);
+      const s = e.wave / IMPACT_WAVE_AMP.splash;
+      expect(e.kind).toBe('splash');
+      expect(e.mode).toBeCloseTo(IMPACT_MODE_AMP.splash * s * s, 12);
+    }
+    const small = land(0.012), big = land(0.03);
+    expect(small.mode / small.wave).toBeLessThan(0.5 * (big.mode / big.wave)); // the small one is mostly ring
   });
 });

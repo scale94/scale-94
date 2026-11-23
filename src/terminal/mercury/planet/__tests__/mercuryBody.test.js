@@ -196,10 +196,22 @@ describe('mercuryBody', () => {
     coolBody(body, 60);
     expect(body.heatK).toBeLessThan(FREEZE_HEAT_K);
     expect(body.liquid).toBe(false);
-    // τ still eases on the body's own clock: the refreeze is seen, not skipped
-    expect(body.tau).toBe(1);
-    for (let i = 0; i < (TRANSMUTE_S + 0.1) * 60; i++) stepBody(body, 1 / 60, { target });
+    // author 2026-11-23: the refreeze ran while the tab was hidden too (a liquid planet coming back from a long absence
+    // and crusting over in front of you left the airborne Hg orbiting it): it crossed FREEZE long before 60 s
     expect(body.tau).toBe(0);
+  });
+
+  it('coolBody: τ eases at the freeze rate only from the moment the heat crossed FREEZE_HEAT_K', () => {
+    const body = createBody(targetFromYaw(0));
+    Object.assign(body, { heatK: 2 * FREEZE_HEAT_K, liquid: true, tau: 1 });
+    const tf = Math.log(2) / HEAT_LEAK_PER_S; // ≈ 19.8 s to reach FREEZE_HEAT_K
+    coolBody(body, tf + 0.5 * TRANSMUTE_S);
+    expect(body.liquid).toBe(false);
+    expect(body.tau).toBeCloseTo(0.5, 6);
+    const b2 = createBody(targetFromYaw(0));
+    Object.assign(b2, { heatK: 20, liquid: false, tau: 0.9 }); // already refreezing when the tab hid
+    coolBody(b2, 0.3 * TRANSMUTE_S);
+    expect(b2.tau).toBeCloseTo(0.6, 6);
   });
 
   it('coolBody: a short gap keeps the hysteresis (stays liquid above FREEZE)', () => {
@@ -351,8 +363,8 @@ describe('held liquid (neutral state)', () => {
     const h0 = b.heatK;
     coolBody(b, 10);
     expect(b.heatK).toBeCloseTo(h0 * Math.exp(-HEAT_LEAK_PER_S * 10), 9);
-    coolBody(b, 40);
-    expect(b.heatK).toBeLessThanOrEqual(FREEZE_HEAT_K);
+    coolBody(b, Math.log(b.heatK / FREEZE_HEAT_K) / HEAT_LEAK_PER_S); // exactly to the freeze point: no τ spent yet
+    expect(b.heatK).toBeLessThanOrEqual(FREEZE_HEAT_K + 1e-9);
     expect(b.liquid).toBe(false);
     let f = 0;
     while (b.tau > 0 && f < 6) { stepBody(b, dt, still(b)); f += dt; }

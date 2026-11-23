@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   canHyper, hyperGate, hyperEnergy, HYPER_MIN_TARGET_S, splitMass, gammaMean1, mulberry32, hyperMu, hyperReach,
-  fireHyper, coreScale, ETA_HI, HYPER_GRACE_S, T_BURST, HYPER_GAMMA, HYPER_AIM_S, HYPER_HANG_K,
+  fireHyper, coreScale, ETA_HI, HYPER_GRACE_S, T_BURST, HYPER_GAMMA, HYPER_AIM_S, HYPER_HANG_K, HYPER_GATHER_RAMP_S,
   V0, V_HYPER, V_HYPER_SPAN, HYPER_OMEGA_FRAC, HYPER_RBAR_LO, HYPER_RBAR_HI, HYPER_R_MAX_K, HYPER_VIS_K, HYPER_REACH_MIN_R,
 } from '../hyperFling';
 import { hyperAccel, DROP_DT } from '../breakupStep';
@@ -199,6 +199,7 @@ describe('fireHyper (aimed launch, spec §10.2)', () => {
     const f = fireAt();
     expect(f.mu).toBeCloseTo(hyperMu(3), 12);
     expect(f.gammaH).toBe(HYPER_GAMMA);
+    expect(f.rampG).toBe(HYPER_GATHER_RAMP_S);
     expect(f.tHang).toBeCloseTo(HYPER_HANG_K * 12, 12);
     expect(f.eta).toBe(ETA_HI);
     expect(fireAt().bodies.map((b) => b.v)).toEqual(f.bodies.map((b) => b.v));

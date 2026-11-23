@@ -144,12 +144,19 @@ function substep(b, h, dragging, omegaPtr, target, calm) {
 }
 
 // Cools the store over real time the frame clamp dropped (a hidden tab, a slow GPU): heat is a scalar
-// and cannot fling the body. The freeze threshold is applied; τ still eases on stepBody's clock.
+// and cannot fling the body. The freeze threshold is applied, and the refreeze runs through the gap too (author
+// 2026-11-23): from the moment the heat crossed FREEZE_HEAT_K, τ falls at the freeze rate, so a planet that crusted
+// while the tab was hidden comes back crusted (airborneCatchUp then clears the Hg still out over it).
 export function coolBody(b, seconds) {
   if (!(seconds > 0) || !Number.isFinite(seconds)) return b;
+  const h0 = b.heatK, wasLiquid = b.liquid;
   b.heatK *= Math.exp(-HEAT_LEAK_PER_S * seconds);
   if (b.holdLiquid && b.heatK < MELT_HEAT_K) { b.heatK = MELT_HEAT_K; b.liquid = true; }
   if (b.heatK <= FREEZE_HEAT_K) b.liquid = false;
+  if (!b.liquid) {
+    const tFreeze = wasLiquid && h0 > FREEZE_HEAT_K ? Math.log(h0 / FREEZE_HEAT_K) / HEAT_LEAK_PER_S : 0;
+    b.tau = Math.max(0, b.tau - Math.max(0, seconds - tFreeze) / TRANSMUTE_S);
+  }
   return b;
 }
 

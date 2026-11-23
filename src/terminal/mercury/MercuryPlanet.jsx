@@ -21,7 +21,7 @@ import {
   createScarMap, stampCrater, stampFrost, stampQuench, stampGlaze, stampPit, matureScars, healScars, healMelted, crossMarks, SCAR_TICK_S,
 } from './planet/scarMap';
 import {
-  IMPULSE_SLOTS, createImpulses, addImpulse, createImpulseFrame, impulseFrame, spinBulge, createWake, wakeImpulse, slipDirWorld,
+  IMPULSE_SLOTS, createImpulses, addImpulse, addImpulseIfRoom, createImpulseFrame, impulseFrame, spinBulge, createWake, wakeImpulse, slipDirWorld,
   shapeHeight, LIQUID_TAU,
 } from './planet/mercuryWaves';
 import {
@@ -29,10 +29,10 @@ import {
 } from './planet/mercuryImpacts';
 import { pickSphereDir } from './planet/pickSphere';
 import { popZoom, subsolarPxArc } from './planet/mercuryRoil';
-import { createBody, stepBody, coolBody, targetFromYaw, MAX_OMEGA } from './planet/mercuryBody';
-import { ORBIT_NODES, orbitPrecessionAngle, nodeWorldPosition } from './orbitNodes';
+import { createBody, stepBody, coolBody, targetFromYaw, MAX_OMEGA, TRANSMUTE_S } from './planet/mercuryBody';
+import { ORBIT_NODES, orbitPrecessionAngle, nodePosition } from './orbitNodes';
 import useMercuryDrag from './useMercuryDrag';
-import useStageCameraDist from './useStageCameraDist';
+import { useStageLayout } from './useStageCameraDist';
 import { registerTuningRig, DEV_OVERRIDES } from './mercuryTuning';
 import MercuryExosphere from './MercuryExosphere';
 import { tailBrightness, tailLength, boilCoverage } from './planet/mercuryExosphere';
@@ -42,6 +42,7 @@ import {
 import { TONGUE_MAX_R, sigmaRatio } from './planet/breakupPhysics';
 import { stepFamily, DROP_DT } from './planet/breakupStep';
 import { muRef, returnTarget, createMuSolver, stepMuSolver, solverBudget, finishMuSolver } from './planet/breakupBudget';
+import { catchUpFamily, catchUpBeads, CATCHUP_MIN_S } from './planet/airborneCatchUp';
 import { canHyper, hyperGate, hyperEnergy, fireHyper, coreScale, hyperReach, HYPER_N, V_HYPER, V_HYPER_SPAN } from './planet/hyperFling';
 import { createDropFrame, packFamily, pxPerUnitAt, pxAngleOf } from './planet/breakupFrame';
 import useDropletField from './useDropletField';
@@ -52,7 +53,10 @@ import {
 import { createVisitorFrame, packVisitors } from './planet/visitorFrame';
 import useVisitorField from './useVisitorField';
 import useHgBeads from './useHgBeads';
-import { spawnFling, spawnSplash, stepBeads, FLING_N, SPLASH_N } from './planet/hgBeads';
+import {
+  spawnFling, spawnSplash, stepBeads, pearlStrike, HIT_STRIDE, HIT_FLUNG,
+  FLING_N, SPLASH_N,
+} from './planet/hgBeads';
 import { CALORIS_DIR_BODY, stepOverlay } from './planet/slowNoon';
 import { nebulaRotation } from './planet/nebulaSky';
 import { canBakeNebula, bakeNebula } from './nebulaBake';
@@ -176,6 +180,9 @@ function stepDrop(drop, { body, surf, camera, ds, calm, stepS, t, bufferW, buffe
     env.kappa = PLANET_TUNE.dropCohesion;
     env.omegaTh = PLANET_TUNE.breakOmega;
     env.pxPerUnit = pxPerUnitAt(camera.position.length(), camera.fov, bufferH);
+    // refreezing: the time left before the surface stops counting as liquid (the family homes in it, then clears),
+    // the same clock the glitter beads read (beadCtx.freezeIn)
+    env.freezeIn = body.liquid ? Infinity : Math.max(0, (body.tau - LIQUID_TAU) * TRANSMUTE_S);
     if (ds.released) {
       const lr = drop.lastRelease;
       lr.omega = body.omega.length(); lr.ptrOmega = ds.releaseOmegaPtr; lr.eH = 0; lr.hyper = false; lr.phase0 = fam.phase;
@@ -235,7 +242,7 @@ function stepDrop(drop, { body, surf, camera, ds, calm, stepS, t, bufferW, buffe
         holdTongue(fam, dropDt, breakExcess(omega, env.omegaTh), PLANET_TUNE.breakGain);
       } else if (fam.phase === 'hold') {
         holdTongue(fam, dropDt, 0, PLANET_TUNE.breakGain);
-        if (fam.L < 1e-4) { fam.L = 0; fam.phase = 'idle'; }
+        if (fam.L < 1e-4) { fam.L = 0; fam.holdN = 0; fam.phase = 'idle'; }
       }
     }
     if (ds.released) reportRelease(drop.lastRelease, drop);
@@ -261,7 +268,9 @@ function stepDrop(drop, { body, surf, camera, ds, calm, stepS, t, bufferW, buffe
       stepFamily(fam, dropDt, env);
       for (const ev of fam.events) {
         worldToBody(ev.dir, body.q, surf.b);
-        addImpulse(surf.impulses, { dirBody: surf.b, tS: t, mode: ev.mode, wave: ev.wave, kind: ev.kind });
+        // a hyper bead's landing ring is lifted to read at the touchdown (live knob; the sim's one-splash energy budget is untouched)
+        const evWave = fam.hyper && ev.kind === 'splash' ? Math.min(IMPACT_WAVE_AMP.splash, ev.wave * PLANET_TUNE.hyperWaveGain) : ev.wave;
+        addImpulse(surf.impulses, { dirBody: surf.b, tS: t, mode: ev.mode, wave: evWave, kind: ev.kind });
       }
       fam.events.length = 0;
     }
@@ -286,7 +295,10 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
   // The drawing buffer's height in device px: the pops are sized from it (mercuryRoil.popZoom).
   const bufferH = useThree((s) => s.size.height * s.viewport.dpr);
   const bufferW = useThree((s) => s.size.width * s.viewport.dpr);
-  const camDist = useStageCameraDist(isMobile);
+  const { dist: camDist, layout: stageLayout } = useStageLayout(isMobile);
+  // where the element nodes sit (ring, or a portrait phone's corners): the visitors launch and the mirror reflects there
+  const stageLayoutRef = useRef(stageLayout);
+  stageLayoutRef.current = stageLayout;
   const drag = useMercuryDrag(gl.domElement);
   const geometry = useMemo(() => new THREE.PlaneGeometry(2, 2), []);
 
@@ -438,7 +450,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
       coreScale: 1, fires: 0, hyperN: Math.min(HYPER_N[tier] ?? 0, TIERS[tier].drop.bodies), // phase 6
       frame: createDropFrame(TIERS[tier].drop), spinBody: [0, 0, 0],
       camBody: [0, 0, 0], rigW: [0, 0, 0], rigDrag: [0, 0, 0], // the dev rig's stand-in drag point (rigTongueAxis)
-      env: { q: [0, 0, 0, 1], omega: [0, 0, 0], gamma: 0, kappa: 0, vRef: DROP_V_REF, pxPerUnit: 1, omegaTh: 7.5, planetRadiusAt: null },
+      env: { q: [0, 0, 0, 1], omega: [0, 0, 0], gamma: 0, kappa: 0, vRef: DROP_V_REF, pxPerUnit: 1, omegaTh: 7.5, planetRadiusAt: null, freezeIn: Infinity },
       view: { vp: new Float32Array(16), p00: 1, p11: 1, wPx: 1, hPx: 1 }, m: new THREE.Matrix4(),
       // canHold / canFire read their fields from this one object, written in place (no per-frame spread).
       st: { tau: 0, omega: 0, omegaTh: 0, calm: false, phase: 'idle', released: false, heatK: 0, dragging: false },
@@ -463,7 +475,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
 
   // Hg beads: the trickle, flings and splash bursts, carried by the active element. beadCtx is written in place per frame.
   const beads = useHgBeads({ tier, planetMaterial: material });
-  const beadCtx = useMemo(() => ({ phase: 'fluid', coreR: R_SCENE, calm: false, liquid: true, boil: 0, rateScale: 1, lastFam: 'idle', dirW: [0, 0, 0], omega: [0, 0, 0] }), []);
+  const beadCtx = useMemo(() => ({ phase: 'fluid', coreR: R_SCENE, calm: false, liquid: true, boil: 0, rateScale: 1, lastFam: 'idle', dirW: [0, 0, 0], omega: [0, 0, 0], q: [0, 0, 0, 1], pxPerUnit: 0, freezeIn: Infinity }), []);
 
   // The maps outlive the material: a live CALM toggle swaps the shader variant (a new
   // material) without reloading them or flashing the flat fallback (planetMaps.js).
@@ -593,7 +605,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
       const phase = queue && queue.length > 0 ? queue.shift() : devQ.shift();
       const node = ORBIT_NODES.find((n) => n.phase === phase);
       if (!node) continue;
-      const p = nodeWorldPosition(node.angle, precession);
+      const p = nodePosition(node, precession, stageLayoutRef.current);
       vc.nodePos[0] = p[0]; vc.nodePos[1] = p[1]; vc.nodePos[2] = p[2];
       launchVisitor(vis.buf, phase, vc);
     }
@@ -684,6 +696,16 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     u.uSurfOn.value = !calm && (surf.frame.any || Math.abs(surf.bulge[3]) > 1e-5) ? 1 : 0;
 
     // --- Phase 5: breakup (spec 2026-10-02) ---
+    // A hidden tab: coolBody spent the skipped time on the heat (the planet may have refrozen), so the airborne Hg flies
+    // through it too (airborneCatchUp) and never comes back orbiting a crust.
+    const skippedS = delta - stepS;
+    if (!calm && skippedS > CATCHUP_MIN_S) {
+      // coolBody ran the refreeze through the gap: back onto a crust, whatever is still out is cleared at once
+      const crustNow = !body.liquid && body.tau <= LIQUID_TAU;
+      drop.solver = catchUpFamily(drop.fam, drop.solver, drop.env, skippedS, crustNow);
+      drop.coreScale = coreScale(drop.fam);
+      catchUpBeads(beads.sim, skippedS, beadCtx, crustNow);
+    }
     const da = drop.args;
     da.body = body; da.surf = surf; da.camera = camera; da.calm = calm; da.ds = ds; da.stepS = stepS; da.t = t; da.bufferW = bufferW; da.bufferH = bufferH;
     stepDrop(drop, da);
@@ -722,7 +744,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     }
 
     ORBIT_NODES.forEach((node, i) => {
-      const [x, y, z] = nodeWorldPosition(node.angle, precession);
+      const [x, y, z] = nodePosition(node, precession, stageLayoutRef.current);
       u.uEmitPos.value[i].set(x, y, z);
       const o = emitRef.current[node.phase] ?? 0;
       const c = EMIT_COLORS[i];
@@ -749,7 +771,35 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     beadCtx.liquid = body.tau >= LIQUID_TAU;
     beadCtx.boil = exo.coverage;
     beadCtx.rateScale = TIERS[tier].beadRate;
+    beadCtx.planetRadiusAt = drop.env.planetRadiusAt; // touchdown on the live surface (bulge + ripples), as the drops land
+    // refreezing: the time left before the surface stops counting as liquid (the beads home in it, then clear)
+    beadCtx.freezeIn = body.liquid ? Infinity : Math.max(0, (body.tau - LIQUID_TAU) * TRANSMUTE_S);
+    beadCtx.pxPerUnit = drop.env.pxPerUnit; // what is drawn as a body coalesces (hgBeads BEAD_BODY_PX)
+    beadCtx.q[0] = body.q.x; beadCtx.q[1] = body.q.y; beadCtx.q[2] = body.q.z; beadCtx.q[3] = body.q.w; // coalescence rides the planet
     stepBeads(beads.sim, stepS, beadCtx);
+    // Only a flung pearl ripples the liquid (it is the author's gesture). The idle trickle and the visitor-splash spray land
+    // silent (fix/mercury-motion: a short-hop trickle pearl lost in the bright reflection rang a ripple from nothing), as do
+    // dust, sub-pearl beads and refreeze-homing landings. The strongest flung touchdown this frame, one minor impulse that
+    // yields its slot to any stronger live ring (addImpulseIfRoom). A pearl rings the surface locally only (mode 0): the
+    // body modes are even Legendre terms that dent the antipode about as hard as the hit. Crust and calm take none.
+    if (!calm && beadCtx.liquid) {
+      const sim = beads.sim;
+      let best = -1, bestS = 0;
+      for (let k = 0; k < sim.nHits; k++) {
+        const h = HIT_STRIDE * k;
+        if (sim.hits[h + 5] !== HIT_FLUNG) continue;
+        const s = pearlStrike(sim.hits[h + 3], sim.hits[h + 4]);
+        if (s > bestS) { bestS = s; best = k; }
+      }
+      if (best >= 0) {
+        const h = HIT_STRIDE * best;
+        beadCtx.dirW[0] = sim.hits[h]; beadCtx.dirW[1] = sim.hits[h + 1]; beadCtx.dirW[2] = sim.hits[h + 2];
+        worldToBody(beadCtx.dirW, body.q, surf.b);
+        // ring only, so it is all the pearl has: the live pearlWaveGain lifts it to read, capped at a drop's splash
+        const pearlWave = Math.min(IMPACT_WAVE_AMP.splash, IMPACT_WAVE_AMP.splash * bestS * PLANET_TUNE.pearlWaveGain);
+        addImpulseIfRoom(surf.impulses, { dirBody: surf.b, tS: t, mode: 0, wave: pearlWave, kind: 'splash' });
+      }
+    }
     beads.upload(gl, beadCtx.coreR);
   });
 

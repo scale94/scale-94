@@ -2,7 +2,8 @@ import { useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { THREAD_VISIBLE_MIN, threadTargetOpacity, easeThread, threadPhase } from './threadMath';
 import { Html } from '@react-three/drei';
-import { ORBIT_NODES, ORBIT_RADIUS, orbitPrecessionAngle } from './orbitNodes';
+import { ORBIT_NODES, ORBIT_RADIUS, orbitPrecessionAngle, nodePosition } from './orbitNodes';
+import { useStageLayout } from './useStageCameraDist';
 
 // Orbit ring, mercury thread and elemental handles. The planet is MercuryPlanet.
 
@@ -62,6 +63,9 @@ export default function MercurySphere({
   const threadMatRef = useRef();
   const threadMeshRef = useRef();
   const lastLitRef = useRef(null);
+  // a portrait phone puts the triggers in the canvas corners (planet/phoneLayout.js): no ring, no precession there
+  const { layout } = useStageLayout(isMobile);
+  const corners = !!layout;
 
   // Click burst state for handle animation
   const [pressedPhase, setPressedPhase] = useState(null);
@@ -75,7 +79,7 @@ export default function MercurySphere({
   const threadTarget = threadTargetOpacity(activeFade, transitionState);
   useFrame(({ clock }, delta) => {
     if (ringRef.current) {
-      ringRef.current.rotation.z = orbitPrecessionAngle(clock.elapsedTime);
+      ringRef.current.rotation.z = corners ? 0 : orbitPrecessionAngle(clock.elapsedTime);
     }
     const mat = threadMatRef.current;
     if (mat) {
@@ -89,20 +93,22 @@ export default function MercurySphere({
 
       {/* Orbit ring — precesses via rotation.z in useFrame */}
       <group ref={ringRef}>
-        {/* Dashed ring drawn as thin torus */}
-        <mesh rotation={[Math.PI / 2, 0, 0]}>
-          <torusGeometry args={[ORBIT_RADIUS, 0.004, 8, 80]} />
-          {/* no depth write: seen edge-on its near half crosses the planet, and a written depth there punched a dark line
-              through the planet and clipped the visitors drawn after it */}
-          <meshBasicMaterial color="#ffffff" transparent opacity={0.12} depthWrite={false} />
-        </mesh>
+        {/* Dashed ring drawn as thin torus (not in the corner layout: the triggers are off it) */}
+        {!corners && (
+          <mesh rotation={[Math.PI / 2, 0, 0]}>
+            <torusGeometry args={[ORBIT_RADIUS, 0.004, 8, 80]} />
+            {/* no depth write: seen edge-on its near half crosses the planet, and a written depth there punched a dark line
+                through the planet and clipped the visitors drawn after it */}
+            <meshBasicMaterial color="#ffffff" transparent opacity={0.12} depthWrite={false} />
+          </mesh>
+        )}
 
         {/* Mercury thread — to the lit node, fading with its element */}
         {threadPhase(litPhase, lastLitRef.current) && (() => {
           const litNode = ORBIT_NODES.find(n => n.phase === threadPhase(litPhase, lastLitRef.current));
           if (!litNode) return null;
-          const endX = Math.cos(litNode.angle) * ORBIT_RADIUS;
-          const endY = Math.sin(litNode.angle) * ORBIT_RADIUS;
+          // the group's own rotation is the precession (0 in corners), so the ring end is the unprecessed node
+          const [endX, endY] = nodePosition(litNode, 0, layout);
           const midX = endX / 2;
           const midY = endY / 2;
           const length = Math.sqrt(endX * endX + endY * endY);
@@ -120,8 +126,7 @@ export default function MercurySphere({
 
         {/* Orbit nodes */}
         {ORBIT_NODES.map(({ phase, angle, color, element, glyph }) => {
-          const x = Math.cos(angle) * ORBIT_RADIUS;
-          const y = Math.sin(angle) * ORBIT_RADIUS;
+          const [x, y] = nodePosition({ phase, angle }, 0, layout);
           const isLit  = phase === litPhase;
 
           const isPressed = pressedPhase === phase;
@@ -151,6 +156,9 @@ export default function MercurySphere({
                     justifyContent: 'center',
                     gap: 4,
                     position: 'relative',
+                    // corners: a ROUND hit area (hit testing follows the border radius), the circle phoneLayout keeps
+                    // FLICK_GAP_PX clear of the sphere; a square's corner would point at it
+                    borderRadius: corners ? '50%' : undefined,
                     // Press-burst: scale up + spring back
                     transform: isPressed ? 'scale(1.38)' : 'scale(1)',
                     transition: isPressed

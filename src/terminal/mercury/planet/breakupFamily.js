@@ -69,10 +69,12 @@ export function canFire(st) {
 
 export function createFamily(seed = 1) {
   return {
-    phase: 'idle', seed, axisBody: [1, 0, 0], L: 0, e: 0, N: 0, s: 0, rMain: 0, rSat: 0, sat: false, ext0: 1,
+    phase: 'idle', seed, axisBody: [1, 0, 0], L: 0, e: 0, N: 0, s: 0, rMain: 0, rSat: 0, sat: false, ext0: 1, rExt0: 1,
+    holdN: 0, // the most mains per tongue this hold has drawn (holdChainN): a retracting tongue keeps them
     t: 0, acc: 0, mu: 0, bodies: [], necks: [], events: [], volOut: 0, volFamily: 0, volResidual: 0, nextId: 0,
     // phase 6 (hyper-fling): off for a phase-5 family
-    hyper: false, tGrace: 0, tHang: 0, rC0: 0, axisL: [0, 0, 1], gammaH: 0, eta: 0, vRefH: 0,
+    hyper: false, tGrace: 0, tHang: 0, rC0: 0, axisL: [0, 0, 1], gammaH: 0, rampG: 0, eta: 0, vRefH: 0,
+    fadeK: 1, tCrust: -1, volFade0: 0, // the crust fade (breakupStep.crustFade): 1 = none
     tcScale: 1, // cascade clock multiplier (phase 6: a hyper family shortens its big beads' cascades)
   };
 }
@@ -112,6 +114,13 @@ export function tongueAxis(spinBody, dragBody, out = [0, 0, 0]) {
 export const chainCount = (L) => Math.min(MAX_MAIN_PER_TONGUE, Math.max(1, Math.round(L / rpWavelength(TONGUE_ROOT_R))));
 // The span a chain is laid on: never shorter than one wavelength (hold and fire share it, so nothing jumps).
 export const chainSpan = (L) => Math.max(L, rpWavelength(TONGUE_ROOT_R));
+// How far a held tongue shorter than that span has grown out of the surface (fix/mercury-motion): it is drawn at height
+// × g and radius × ∛g, so it rises from and sinks back into the core instead of standing as a one-wavelength "pawn"
+// that popped when an early release retracted it to idle. 1 from one wavelength on (longer tongues are unchanged).
+export const holdGrow = (L) => {
+  const u = Math.min(1, Math.max(0, L / rpWavelength(TONGUE_ROOT_R)));
+  return u * u * (3 - 2 * u);
+};
 // The main bead a pinched span of thread rolls up into (volume of a r0 cylinder of length s).
 export const mainRadius = (s) => Math.cbrt(0.75 * TONGUE_ROOT_R * TONGUE_ROOT_R * s);
 const perTongue = (n, sat) => n + (sat ? n - 1 : 0) + 1; // mains + satellites + the root stub
@@ -123,6 +132,17 @@ export function cappedChainN(L, maxBodies, satellites) {
   const sat = chainSatellites(L, maxBodies, satellites);
   let N = chainCount(L);
   while (2 * perTongue(N, sat) > maxBodies && N > 1) N -= 1;
+  return N;
+}
+
+// The held chain's mains per tongue (fix/mercury-motion): the tier-capped count for its span, but never fewer than the
+// hold has already drawn. As a released tongue decays the count used to fall in steps (chainCount), and each step
+// re-laid the chain one frame to the next: the tip dropped up to 13 % of R and beads vanished, down to a one-bead
+// "pawn". Kept, the chain's beads slide home together (closing up, then sinking with holdGrow). Reset by fireFamily
+// and when the hold ends (MercuryPlanet.stepDrop).
+export function holdChainN(fam, maxBodies, satellites) {
+  const N = Math.max(fam.holdN || 0, cappedChainN(chainSpan(fam.L), maxBodies, satellites));
+  fam.holdN = N;
   return N;
 }
 
@@ -149,24 +169,28 @@ export function holdTongue(fam, dt, e, gain) {
 // with no hold still throws the full chain; a tongue held longer than that keeps its length.
 export const releaseLength = (L, e, gain) => Math.max(L, tongueTarget(e, gain));
 
-// The tip bead's distance above the surface for a chain of span Ls (the same layout as below and packHold).
-const tipHeight = (Ls, maxBodies, satellites) => Ls - (0.5 * Ls) / cappedChainN(Ls, maxBodies, satellites);
+// The tip bead's distance above the surface for a chain of span Ls laid with N mains (the layout below and packHold's).
+const tipHeight = (Ls, N) => Ls - (0.5 * Ls) / N;
 
 // gain: PLANET_TUNE.breakGain, sizes the tongue from fam.e (the release excess); 0 fires the held length as is.
-// ext0: the radial scale (tip height held / fired) breakupFrame extrudes the attached chain from, 1 = no extrude.
+// ext0: the radial scale (tip height as drawn held / fired) breakupFrame extrudes the attached chain from, 1 = no
+// extrude; rExt0: the bead radius scale it grows from (∛holdGrow of the held length, 1 from one wavelength on).
 export function fireFamily(fam, { maxBodies = 12, satellites = true, gain = 0 } = {}) {
   const Lh = chainSpan(fam.L);
   const L = chainSpan(releaseLength(fam.L, fam.e, gain));
   const sat = chainSatellites(L, maxBodies, satellites);
   const N = cappedChainN(L, maxBodies, satellites);
   const s = L / N;
-  fam.ext0 = L > Lh ? tipHeight(Lh, maxBodies, satellites) / tipHeight(L, maxBodies, satellites) : 1;
+  const g = holdGrow(fam.L);
+  const Nh = fam.holdN > 0 ? fam.holdN : cappedChainN(Lh, maxBodies, satellites); // as packHold drew it
+  fam.ext0 = (g * tipHeight(Lh, Nh)) / tipHeight(L, N);
+  fam.rExt0 = Math.cbrt(g);
   const rMain = mainRadius(s);
   const rSat = SAT_RATIO * rMain;
   const vMain = sphereVol(rMain), vSat = sphereVol(rSat);
 
   fam.bodies.length = 0; fam.necks.length = 0; fam.events.length = 0;
-  Object.assign(fam, { L, N, s, rMain, rSat, sat, t: 0, acc: 0, volResidual: 0, hyper: false, tGrace: 0, tHang: 0, tcScale: 1, vRefH: 0 });
+  Object.assign(fam, { L, N, s, rMain, rSat, sat, holdN: 0, fadeK: 1, tCrust: -1, t: 0, acc: 0, volResidual: 0, hyper: false, tGrace: 0, tHang: 0, tcScale: 1, vRefH: 0 });
   let vol = 0;
   for (const sign of [1, -1]) {
     const first = fam.bodies.length;
