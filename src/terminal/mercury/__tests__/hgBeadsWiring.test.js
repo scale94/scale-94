@@ -24,7 +24,7 @@ describe('Hg beads wiring', () => {
   it('beads land on the live surface and a landing pearl ripples it without evicting a stronger ring', () => {
     expect(planetSrc).toContain('beadCtx.planetRadiusAt = drop.env.planetRadiusAt;');
     expect(planetSrc.indexOf('beadCtx.planetRadiusAt')).toBeLessThan(planetSrc.indexOf('stepBeads(beads.sim'));
-    expect(planetSrc).toContain('if (!kind) continue;'); // homing never
+    expect(planetSrc).toContain('if (sim.hits[h + 5] !== HIT_FLUNG) continue;'); // flung pearls only: trickle, splash spray and homing land silent
     expect(planetSrc).toContain('const s = pearlStrike(sim.hits[h + 3], sim.hits[h + 4]);');
     expect(planetSrc).not.toContain('pearlRipple');
     expect(planetSrc).toContain('beadCtx.pxPerUnit = drop.env.pxPerUnit;');
@@ -32,10 +32,10 @@ describe('Hg beads wiring', () => {
     expect(planetSrc.indexOf('beadCtx.q[3] = body.q.w')).toBeLessThan(planetSrc.indexOf('stepBeads(beads.sim'));
     // a pearl rings the surface locally only: no body modes, whose even P2/P4 dent the antipode as hard as the hit
     // the ring carries the live pearlWaveGain (author dials it by eye), never past a full drop's splash
-    expect(planetSrc).toContain('const pearlWave = Math.min(IMPACT_WAVE_AMP.splash, IMPACT_WAVE_AMP.splash * bestS * gain);');
+    expect(planetSrc).toContain('const pearlWave = Math.min(IMPACT_WAVE_AMP.splash, IMPACT_WAVE_AMP.splash * bestS * PLANET_TUNE.pearlWaveGain);');
     expect(planetSrc).toContain("addImpulseIfRoom(surf.impulses, { dirBody: surf.b, tS: t, mode: 0, wave: pearlWave, kind: 'splash' })");
-    expect(planetSrc).toContain('if (added && bestKind === HIT_TRICKLE) takeRipple(beadCtx.rip);');
-    expect(planetSrc).toContain('refillRippleBudget(beadCtx.rip, stepS);');
+    expect(planetSrc).not.toContain('HIT_TRICKLE');
+    expect(planetSrc).not.toContain('RippleBudget');
   });
   it('the canvas tells the planet which element is active', () => {
     const planetTag = canvasSrc.slice(canvasSrc.indexOf('<MercuryPlanet'), canvasSrc.indexOf('<MercurySphere'));
@@ -57,8 +57,9 @@ describe('Hg beads wiring', () => {
 describe('hidden-tab catch-up wiring (fix/mercury-motion)', () => {
   it('the airborne Hg flies through the skipped time after coolBody and before the drop step', () => {
     const cool = planetSrc.indexOf('coolBody(body, delta - stepS)');
-    const fam = planetSrc.indexOf('drop.solver = catchUpFamily(drop.fam, drop.solver, drop.env, skippedS);');
-    const bds = planetSrc.indexOf('catchUpBeads(beads.sim, skippedS, beadCtx);');
+    const fam = planetSrc.indexOf('drop.solver = catchUpFamily(drop.fam, drop.solver, drop.env, skippedS, crustNow);');
+    const bds = planetSrc.indexOf('catchUpBeads(beads.sim, skippedS, beadCtx, crustNow);');
+    expect(planetSrc).toContain('const crustNow = !body.liquid && body.tau <= LIQUID_TAU;');
     const step = planetSrc.indexOf('stepDrop(drop, da);');
     expect(cool).toBeGreaterThan(0);
     expect(fam).toBeGreaterThan(cool);
@@ -89,11 +90,29 @@ describe('hyper landing ring gain (fix/mercury-motion)', () => {
   });
 });
 
-describe('trickle pearl ripples (fix/mercury-motion)', () => {
-  it('a trickle pearl must be drawn whole to ripple, and rings at trickleWaveGain (1.5); a flung one at pearlWaveGain', async () => {
-    expect(planetSrc).toContain('if (kind === HIT_TRICKLE && (!trickleOk || !trickleRipplesAt(sim.hits[h + 3], beadCtx.pxPerUnit))) continue;');
-    expect(planetSrc).toContain('const gain = bestKind === HIT_FLUNG ? PLANET_TUNE.pearlWaveGain : PLANET_TUNE.trickleWaveGain;');
+describe('trickle pearl ripples off (fix/mercury-motion)', () => {
+  it('no trickle gain is left to tune: an idle trickle pearl never rings', async () => {
     const { PLANET_TUNE } = await import('../planet/planetLook');
-    expect(PLANET_TUNE.trickleWaveGain).toBe(1.5);
+    expect(PLANET_TUNE.trickleWaveGain).toBeUndefined();
+  });
+});
+
+describe('family freeze guard wiring (fix/mercury-motion)', () => {
+  it('stepDrop hands the family the same refreeze clock as the beads; the hidden-tab replay runs unguarded', async () => {
+    expect(planetSrc).toContain('env.freezeIn = body.liquid ? Infinity : Math.max(0, (body.tau - LIQUID_TAU) * TRANSMUTE_S);');
+    expect(planetSrc.indexOf('env.freezeIn = body.liquid')).toBeLessThan(planetSrc.indexOf('stepFamily(fam, dropDt, env);'));
+    const { default: catchSrc } = await import('../planet/airborneCatchUp.js?raw');
+    expect(catchSrc).toContain('{ ...env, freezeIn: Infinity, planetRadiusAt: () => R_SCENE * coreScale(fam) }');
+  });
+});
+
+describe('bead shadow edge (fix/mercury-motion)', () => {
+  it('the beads take their own, softer shadow edge (beadPenumbra), uploaded live; the flows keep aetherPenumbra', async () => {
+    expect(hookSrc).toContain('uLitPen: { value: Math.max(PLANET_TUNE.beadPenumbra, 1e-3) }');
+    expect(hookSrc).toContain('u.uLitPen.value = Math.max(PLANET_TUNE.beadPenumbra, 1e-3);');
+    expect(hookSrc).not.toContain('aetherPenumbra');
+    const { PLANET_TUNE } = await import('../planet/planetLook');
+    expect(PLANET_TUNE.beadPenumbra).toBe(0.3);
+    expect(PLANET_TUNE.aetherPenumbra).toBe(0.08);
   });
 });

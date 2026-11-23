@@ -157,7 +157,7 @@ export function fireHyper(fam, { N, eH, seed, omega, pxPerUnit, orbitS, reach, t
 
   fam.bodies.length = 0; fam.necks.length = 0; fam.events.length = 0;
   Object.assign(fam, {
-    phase: 'fired', hyper: true, t: 0, acc: 0, volResidual: 0, L: 0, e: 0, N, seed,
+    phase: 'fired', hyper: true, t: 0, acc: 0, volResidual: 0, fadeK: 1, tCrust: -1, holdN: 0, L: 0, e: 0, N, seed,
     tGrace: HYPER_GRACE_S, tHang: HYPER_HANG_K * target, rC0: m.rC0, mu, eta: ETA_HI, gammaH: HYPER_GAMMA, rampG: HYPER_GATHER_RAMP_S,
     axisL: [z[0], z[1], z[2]],
   });

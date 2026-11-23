@@ -11,7 +11,7 @@
 import { mulberry32 } from './prng';
 import { SUN_DIR_WORLD } from './planetFrame';
 import { DROP_V_REF, qRotate, qRotateInv } from './breakupFamily';
-import { STRIKE_V_REF, SINK } from './breakupStep';
+import { STRIKE_V_REF, SINK, FREEZE_AIM, FREEZE_MIN_S, FREEZE_DRAG, FREEZE_FADE_S } from './breakupStep';
 import { sphereVol, capillaryTime } from './breakupPhysics';
 
 export const DUST_R = Object.freeze([0.0015, 0.006]);  // scene units: ~0.4–1.5 px at the fitted desktop camera
@@ -25,7 +25,7 @@ export const BEAD_FADE = 1.5;     // s of fade-OUT before BEAD_LIFE (the fade-in
 // follows what is drawn, not the spawn class (dust renders as visible pearls on a large or high-dpr canvas).
 export const BEAD_BODY_PX = 1;     // rendered radius, px
 export const BEAD_SHAPE_MARGIN = 1.12; // × coreR: past this (|p| − r) the live surface (SHAPE_MAX + BULGE_MAX) can't reach a bead
-export const BEAD_ESCAPE_R = 4;   // × coreR: beyond this a bead has left the scene for good (flings never return)
+export const BEAD_ESCAPE_R = 4;   // × coreR: beyond this a bead has left the scene for good (a safety cull: every element brings a fling home inside it)
 export const G_BEAD = 0.12;       // GM in scene units: escape speed at r 0.75 ≈ 0.57
 export const DRAG = 1.5;          // 1/s toward the active element's flow velocity
 export const EVAP_RATE = 0.004;   // radius loss per second in fire
@@ -36,17 +36,15 @@ export const FLING_V_MAX = 2.25;  // launch speed cap (scene units/s): readable 
 export const FLING_FREE_T = 0.5;   // s: a flung bead flies free (no drag), then eases into the flow: drag × (1 − e^(−age/T))
 // fix/mercury-motion: in a still aether the drag braked a flung bead to rest far out (G_BEAD's terminal speed there is
 // ≈ 0.01–0.03 u/s) and BEAD_LIFE faded it in space. A flung bead's flow carries this inward drift on top of the element's,
-// so it arcs out ballistic, then comes home (spiralling with air/fluid), and it is not faded before FLING_LIFE.
+// so it arcs out ballistic, then comes home (spiralling with air/fluid: the drift carries the swirl's centrifugal lead),
+// and it is not faded before FLING_LIFE.
 export const FLING_RETURN_V = 0.35; // u/s toward the planet
 export const FLING_LIFE = 16;       // s: the safety cap for a flung bead (≫ its ~3–6 s trip home)
 // The freeze guard (fix/mercury-motion): while the planet refreezes, ctx.freezeIn is the time left before its surface
 // stops counting as liquid. Airborne beads home onto it in that window (a drift planned to arrive at FREEZE_AIM of the
 // time left, less the drag's lag, never planned shorter than FREEZE_MIN_S, under a firmer drag); once it has crusted,
 // any still airborne fade out.
-export const FREEZE_AIM = 0.5;
-export const FREEZE_MIN_S = 0.15;
-export const FREEZE_DRAG = 4;      // 1/s: the homing drift must win over the element's flow
-export const FREEZE_FADE_S = 0.4;
+export { FREEZE_AIM, FREEZE_MIN_S, FREEZE_DRAG, FREEZE_FADE_S }; // one guard for the beads and the family (breakupStep)
 export const FLING_RADIAL = 0.25;  // outward launch kick (scene units/s): the spray peels off the surface
 // The glint gate (spec §2 + amendment): a free droplet rings in its l=2 and l=3 shape modes
 // (Rayleigh: f ∝ √(l(l−1)(l+2)) · r^−1.5, ratio √(30/8) ≈ 1.94), and an ejected droplet tumbles, so its
@@ -79,27 +77,10 @@ const SPLASH_V = 0.35;
 const SUN_MIN = 0.2;              // ambient sources: dot(normal, Sun) above this
 
 export const HIT_STRIDE = 6;
-// hits[h + 5]: how a touchdown may ripple. 0 a refreeze-homing landing (never), 1 a trickle / splash bead (under the
-// ripple budget), 2 a flung bead (always: it is the author's gesture)
+// hits[h + 5]: how a touchdown may ripple. 0 a refreeze-homing landing, 1 a trickle / splash bead, 2 a flung bead. Only a
+// flung bead ripples (it is the author's gesture); the trickle and the splash spray land silent (fix/mercury-motion: a
+// short-hop trickle pearl lost in the bright reflection rang a ripple from nothing), so an idle melted planet is calm.
 export const HIT_SILENT = 0, HIT_TRICKLE = 1, HIT_FLUNG = 2;
-// A light cap on trickle ripples (a full boil sheds 5x the trickle, ~4.5 pearl ripples/s): a token bucket refilled at
-// this rate, holding at most this many. At rest (~0.8/s) it barely bites.
-export const TRICKLE_RIPPLES_PER_S = 1.2;
-export const TRICKLE_RIPPLE_BURST = 2;
-// A trickle pearl ripples only when the bead shader draws it whole (≥ this many drawing-buffer px across: its kPearl
-// reaches 1 at vPx 4); smaller, its ring reads larger than the bead, a ripple from nothing. Flung pearls are exempt.
-export const TRICKLE_RIPPLE_MIN_PX = 4;
-export const trickleRipplesAt = (r, pxPerUnit) => 2 * r * pxPerUnit >= TRICKLE_RIPPLE_MIN_PX;
-export const createRippleBudget = () => ({ tokens: TRICKLE_RIPPLE_BURST });
-export function refillRippleBudget(bud, dt) {
-  bud.tokens = Math.min(TRICKLE_RIPPLE_BURST, bud.tokens + TRICKLE_RIPPLES_PER_S * dt);
-  return bud;
-}
-export function takeRipple(bud) {
-  if (bud.tokens < 1) return false;
-  bud.tokens -= 1;
-  return true;
-}
 export function createBeads(cap, seed = 0x6867) {
   return {
     cap, n: 0, acc: 0, rng: mulberry32(seed),
@@ -107,8 +88,8 @@ export function createBeads(cap, seed = 0x6867) {
     r: new Float32Array(cap), age: new Float32Array(cap), free: new Uint8Array(cap),
     ph2: new Float32Array(cap), ph3: new Float32Array(cap), ph4: new Float32Array(cap), tumble: new Float32Array(cap), wph: new Float32Array(cap),
     outPos: new Float32Array(cap * 3), outBead: new Float32Array(cap * 3),
-    // this step's touchdowns: (world dir xyz, radius, inward normal speed, may ripple 0/1) × nHits, HIT_STRIDE apart.
-    // A refreeze-homing landing may not (no ripple burst while the planet settles); the caller ripples pearls only
+    // this step's touchdowns: (world dir xyz, radius, inward normal speed, HIT_* kind) × nHits, HIT_STRIDE apart.
+    // The caller ripples flung pearls only (HIT_FLUNG); a refreeze-homing landing is HIT_SILENT
     hits: new Float32Array(cap * HIT_STRIDE), nHits: 0,
     // coalescence: time left / total (0 = airborne), radius at contact, contact direction in the body frame
     mt: new Float32Array(cap), mD: new Float32Array(cap), r0: new Float32Array(cap), dB: new Float32Array(cap * 3),
@@ -202,8 +183,7 @@ function flowVel(phase, x, y, z, age) {
 // A touchdown's ripple strength on the phase-5 splash scale (0..1): pearls only (dust merges silently). Energy share,
 // not volume share: amplitude ∝ √(m v²), as the hyper swarm's strike splits one splash (breakupStep.strike). A pearl is
 // 1.6–7 % of a phase-5 drop by volume, so a linear share would be an invisible ring. No floor: a floor on every visible
-// bead buzzed the liquid nonstop (author 2026-11-22). Trickle pearls ripple too (~1/s at rest, measured in the tests);
-// refreeze-homing landings never do (hits flag).
+// bead buzzed the liquid nonstop (author 2026-11-22). Only flung pearls are rung (hits flag).
 export function pearlStrike(r, vn) {
   if (r < PEARL_R[0]) return 0;
   const vnK = 0.5 + 0.5 * Math.min(1, Math.max(vn, 0) / STRIKE_V_REF);
@@ -243,7 +223,15 @@ export function stepBeads(b, dt, ctx) {
       const x = b.pos[3 * i], y = b.pos[3 * i + 1], z = b.pos[3 * i + 2];
       const r2 = x * x + y * y + z * z, rl = Math.sqrt(r2) || 1, g = G_BEAD / (r2 * rl);
       flowVel(phase, x, y, z, b.age[i]);
-      let ret = b.free[i] ? FLING_RETURN_V : 0;
+      let ret = 0;
+      if (b.free[i]) {
+        // drag-locked into a swirling flow, a bead needs v_t²/r of centripetal pull, and drag pays it with an outward drift
+        // of ≈ v_t² / (r · DRAG): in air's rigid rotation that beat FLING_RETURN_V past r ≈ 0.8 and the swarm spiralled out
+        // to BEAD_ESCAPE_R (popped mid-air). The drift carries that lead, so a flung bead swirls with the flow and comes home.
+        const fr = (f[0] * x + f[1] * y + f[2] * z) / rl;
+        const ft2 = Math.max(0, f[0] * f[0] + f[1] * f[1] + f[2] * f[2] - fr * fr);
+        ret = FLING_RETURN_V + ft2 / (rl * DRAG);
+      }
       let drag = b.free[i] ? DRAG * (1 - Math.exp(-b.age[i] / FLING_FREE_T)) : DRAG;
       if (homing) {
         const need = Math.max(0, rl - b.r[i] - coreR) / Math.max(FREEZE_AIM * freezeIn - 1 / FREEZE_DRAG, FREEZE_MIN_S);

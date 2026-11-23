@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   createBeads, spawnBead, spawnFling, spawnSplash, stepBeads, beadRadius, wobbleHz, wobbleGate, WOBBLE_HZ_MIN, WOBBLE_HZ_MAX,
-  AMBIENT_RATE, BEAD_ESCAPE_R, BEAD_SHAPE_MARGIN, pearlStrike, TRICKLE_RIPPLE_MIN_PX, trickleRipplesAt, HIT_STRIDE, HIT_TRICKLE, HIT_FLUNG, createRippleBudget, refillRippleBudget, takeRipple, TRICKLE_RIPPLES_PER_S, TRICKLE_RIPPLE_BURST, FREEZE_FADE_S, FLING_LIFE, FLING_RETURN_V, BEAD_LIFE, DUST_R, PEARL_R, PEARL_P, EVAP_RATE, FLING_N, FLING_V_MAX, FLING_RADIAL, G_BEAD,
+  AMBIENT_RATE, BEAD_ESCAPE_R, BEAD_SHAPE_MARGIN, pearlStrike, HIT_STRIDE, HIT_TRICKLE, HIT_FLUNG, FREEZE_FADE_S, FLING_LIFE, FLING_RETURN_V, BEAD_LIFE, DUST_R, PEARL_R, PEARL_P, EVAP_RATE, FLING_N, FLING_V_MAX, FLING_RADIAL, G_BEAD,
 } from '../hgBeads';
 import { mulberry32 } from '../prng';
 import { MAX_OMEGA } from '../mercuryBody';
@@ -347,44 +347,22 @@ describe('pearlStrike: a landing pearl ripples like a small drop (no floor)', ()
     expect(b.nHits).toBe(1);
     expect(b.hits[5]).toBe(0);
   });
-  // The planet's per-frame pick, mirrored: the strongest eligible touchdown, a trickle one only while the budget allows.
-  const trickleRipples = (boil, T = 120) => {
-    const b = createBeads(256);
-    const ctx = { ...CTX, phase: 'neutral', liquid: true, boil, rateScale: 1 };
-    const bud = createRippleBudget();
-    let n = 0, sMin = Infinity, sMax = 0;
-    for (let t = 0; t < T; t += 1 / 60) {
-      stepBeads(b, 1 / 60, ctx);
-      refillRippleBudget(bud, 1 / 60);
-      let best = 0;
-      for (let k = 0; k < b.nHits; k++) {
-        const h = HIT_STRIDE * k;
-        if (b.hits[h + 5] !== HIT_TRICKLE || bud.tokens < 1) continue;
-        best = Math.max(best, pearlStrike(b.hits[h + 3], b.hits[h + 4]));
+  // The planet rings flung pearls only (MercuryPlanet: hits[h + 5] !== HIT_FLUNG → skip), so an idle melted planet is calm.
+  it('an idle melted planet, even at a full boil, lands no touchdown that may ripple (trickle and splash beads are not flung)', () => {
+    for (const boil of [0, 1]) {
+      const b = createBeads(256);
+      const ctx = { ...CTX, phase: 'neutral', liquid: true, boil, rateScale: 1 };
+      let landings = 0, flung = 0;
+      for (let t = 0; t < 60; t += 1 / 60) {
+        stepBeads(b, 1 / 60, ctx);
+        for (let k = 0; k < b.nHits; k++) { landings++; if (b.hits[HIT_STRIDE * k + 5] === HIT_FLUNG) flung++; }
       }
-      if (best > 0 && takeRipple(bud)) { n++; sMin = Math.min(sMin, best); sMax = Math.max(sMax, best); }
+      expect(landings).toBeGreaterThan(50); // the trickle really lands
+      expect(flung).toBe(0);
     }
-    return { rate: n / T, sMin, sMax };
-  };
-  it('at rest the trickle ripples gently: ~1 proportional pearl ripple a second, never the old buzz', () => {
-    const { rate, sMin, sMax } = trickleRipples(0);
-    expect(rate).toBeGreaterThan(0.5);
-    expect(rate).toBeLessThan(1.3); // the px-gated floor version was ~6/s
-    expect(sMin).toBeGreaterThan(0.05); // proportional, no floor: the smallest pearl landing slowly
-    expect(sMax).toBeLessThan(0.3); // well under a drop's splash
-  });
-  it('a full boil sheds 5x the trickle, but its ripples stay under the budget (was ~4.5/s)', () => {
-    expect(trickleRipples(1).rate).toBeLessThanOrEqual(TRICKLE_RIPPLES_PER_S + 0.05);
-  });
-  it('the ripple budget: refills at TRICKLE_RIPPLES_PER_S up to a burst of TRICKLE_RIPPLE_BURST, one token a ripple', () => {
-    const bud = createRippleBudget();
-    expect(bud.tokens).toBe(TRICKLE_RIPPLE_BURST);
-    for (let k = 0; k < TRICKLE_RIPPLE_BURST; k++) expect(takeRipple(bud)).toBe(true);
-    expect(takeRipple(bud)).toBe(false);
-    refillRippleBudget(bud, 1 / TRICKLE_RIPPLES_PER_S);
-    expect(takeRipple(bud)).toBe(true);
-    refillRippleBudget(bud, 100);
-    expect(bud.tokens).toBe(TRICKLE_RIPPLE_BURST);
+    const b = createBeads(16);
+    spawnSplash(b, [1, 0, 0], 0.75, 4);
+    for (let i = 0; i < b.n; i++) expect(b.free[i]).toBe(0); // splash spray lands as HIT_TRICKLE: silent
   });
 });
 
@@ -454,11 +432,39 @@ describe('flung beads come home (fix/mercury-motion)', () => {
       expect(landed / FLING_N, phase).toBeGreaterThanOrEqual(0.9);
     }
   });
-  it('air (a rigid rotation) carries them off centrifugally: each one lands or leaves the scene, none fades in view', () => {
-    const { landed, left } = landAll('air', [0, MAX_OMEGA, 0], FLING_LIFE - 1); // stop before the cap could fire
-    // gone before FLING_LIFE: at hyper strength every one leaves past BEAD_ESCAPE_R · coreR (off frame), none faded
-    expect(left).toBe(0);
-    expect(landed).toBeLessThan(FLING_N / 2);
+  // Author 2026-11-23: in air the swarm spiralled out to BEAD_ESCAPE_R and popped out of existence mid-air. The drift now
+  // carries the centrifugal lead the rigid rotation's drag lock costs, so it swirls with the air and still comes home.
+  it('air (a rigid rotation) swirls them round, and they still come home: none escapes, none hits the life cap', () => {
+    for (const w of [4, 8, MAX_OMEGA]) {
+      const b = createBeads(64);
+      spawnFling(b, [0, w, 0], 0.75, FLING_N);
+      const ctx = { ...CTX, phase: 'air', liquid: false };
+      let landed = 0, maxR = 0;
+      for (let t = 0; t < FLING_LIFE - 1 && b.n > 0; t += 1 / 60) {
+        stepBeads(b, 1 / 60, ctx); landed += b.nHits;
+        for (let i = 0; i < b.n; i++) maxR = Math.max(maxR, Math.hypot(b.pos[3 * i], b.pos[3 * i + 1], b.pos[3 * i + 2]));
+      }
+      expect(landed, `w ${w}`).toBe(FLING_N);
+      expect(maxR / 0.75, `w ${w}`).toBeLessThan(0.8 * BEAD_ESCAPE_R);
+    }
+  });
+  it('every element brings the whole swarm home well inside FLING_LIFE (no mid-air despawn anywhere)', () => {
+    for (const phase of ['neutral', 'fluid', 'air', 'earth']) {
+      const { landed, left } = landAll(phase, [0, MAX_OMEGA, 0], 0.75 * FLING_LIFE);
+      expect(left, phase).toBe(0);
+      expect(landed, phase).toBe(FLING_N);
+    }
+  });
+  it('in fire the swarm boils away in flight (EVAP_RATE shrinks it smoothly), never culled at BEAD_ESCAPE_R', () => {
+    const b = createBeads(64);
+    spawnFling(b, [0, MAX_OMEGA, 0], 0.75, FLING_N);
+    let maxR = 0;
+    for (let t = 0; t < 0.75 * FLING_LIFE && b.n > 0; t += 1 / 60) {
+      stepBeads(b, 1 / 60, { ...CTX, phase: 'thermal', liquid: false });
+      for (let i = 0; i < b.n; i++) maxR = Math.max(maxR, Math.hypot(b.pos[3 * i], b.pos[3 * i + 1], b.pos[3 * i + 2]));
+    }
+    expect(b.n).toBe(0);
+    expect(maxR / 0.75).toBeLessThan(0.8 * BEAD_ESCAPE_R);
   });
   it('a flung bead does not hover: in a still aether most of the swarm is home within 8 s', () => {
     const { landed } = landAll('neutral', [0, MAX_OMEGA, 0], 8);
@@ -514,18 +520,5 @@ describe('freeze guard: airborne beads settle or clear as the planet refreezes (
     run(b, 2, base);
     expect(b.n).toBe(1);
     expect(b.outBead[1]).toBe(1);
-  });
-});
-
-// Author 2026-11-23: at the flung gain a trickle pearl's ring read larger than the pearl (a ripple from nothing). A
-// trickle pearl ripples only when the shader draws it whole (≥ TRICKLE_RIPPLE_MIN_PX across, its kPearl = 1), and at
-// its own gentler gain (PLANET_TUNE.trickleWaveGain); flung pearls keep pearlWaveGain.
-describe('trickle ripples only from pearls drawn whole (fix/mercury-motion)', () => {
-  it('the gate is the bead shader\'s full-body size, in drawing-buffer px', () => {
-    expect(TRICKLE_RIPPLE_MIN_PX).toBe(4);
-    expect(trickleRipplesAt(PEARL_R[0], 140)).toBe(false); // 3.4 px across on a 534 px-tall dpr-1 canvas
-    expect(trickleRipplesAt(PEARL_R[1], 140)).toBe(true);  // 5.6 px
-    expect(trickleRipplesAt(PEARL_R[0], 140 * 3)).toBe(true); // a dpr-3 phone draws every pearl whole
-    expect(trickleRipplesAt(DUST_R[1], 300)).toBe(false); // dust never: pearlStrike gates it by class anyway
   });
 });

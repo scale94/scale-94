@@ -54,7 +54,7 @@ import { createVisitorFrame, packVisitors } from './planet/visitorFrame';
 import useVisitorField from './useVisitorField';
 import useHgBeads from './useHgBeads';
 import {
-  spawnFling, spawnSplash, stepBeads, pearlStrike, trickleRipplesAt, HIT_STRIDE, HIT_TRICKLE, HIT_FLUNG, createRippleBudget, refillRippleBudget, takeRipple,
+  spawnFling, spawnSplash, stepBeads, pearlStrike, HIT_STRIDE, HIT_FLUNG,
   FLING_N, SPLASH_N,
 } from './planet/hgBeads';
 import { CALORIS_DIR_BODY, stepOverlay } from './planet/slowNoon';
@@ -180,6 +180,9 @@ function stepDrop(drop, { body, surf, camera, ds, calm, stepS, t, bufferW, buffe
     env.kappa = PLANET_TUNE.dropCohesion;
     env.omegaTh = PLANET_TUNE.breakOmega;
     env.pxPerUnit = pxPerUnitAt(camera.position.length(), camera.fov, bufferH);
+    // refreezing: the time left before the surface stops counting as liquid (the family homes in it, then clears),
+    // the same clock the glitter beads read (beadCtx.freezeIn)
+    env.freezeIn = body.liquid ? Infinity : Math.max(0, (body.tau - LIQUID_TAU) * TRANSMUTE_S);
     if (ds.released) {
       const lr = drop.lastRelease;
       lr.omega = body.omega.length(); lr.ptrOmega = ds.releaseOmegaPtr; lr.eH = 0; lr.hyper = false; lr.phase0 = fam.phase;
@@ -239,7 +242,7 @@ function stepDrop(drop, { body, surf, camera, ds, calm, stepS, t, bufferW, buffe
         holdTongue(fam, dropDt, breakExcess(omega, env.omegaTh), PLANET_TUNE.breakGain);
       } else if (fam.phase === 'hold') {
         holdTongue(fam, dropDt, 0, PLANET_TUNE.breakGain);
-        if (fam.L < 1e-4) { fam.L = 0; fam.phase = 'idle'; }
+        if (fam.L < 1e-4) { fam.L = 0; fam.holdN = 0; fam.phase = 'idle'; }
       }
     }
     if (ds.released) reportRelease(drop.lastRelease, drop);
@@ -445,7 +448,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
       coreScale: 1, fires: 0, hyperN: Math.min(HYPER_N[tier] ?? 0, TIERS[tier].drop.bodies), // phase 6
       frame: createDropFrame(TIERS[tier].drop), spinBody: [0, 0, 0],
       camBody: [0, 0, 0], rigW: [0, 0, 0], rigDrag: [0, 0, 0], // the dev rig's stand-in drag point (rigTongueAxis)
-      env: { q: [0, 0, 0, 1], omega: [0, 0, 0], gamma: 0, kappa: 0, vRef: DROP_V_REF, pxPerUnit: 1, omegaTh: 7.5, planetRadiusAt: null },
+      env: { q: [0, 0, 0, 1], omega: [0, 0, 0], gamma: 0, kappa: 0, vRef: DROP_V_REF, pxPerUnit: 1, omegaTh: 7.5, planetRadiusAt: null, freezeIn: Infinity },
       view: { vp: new Float32Array(16), p00: 1, p11: 1, wPx: 1, hPx: 1 }, m: new THREE.Matrix4(),
       // canHold / canFire read their fields from this one object, written in place (no per-frame spread).
       st: { tau: 0, omega: 0, omegaTh: 0, calm: false, phase: 'idle', released: false, heatK: 0, dragging: false },
@@ -470,7 +473,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
 
   // Hg beads: the trickle, flings and splash bursts, carried by the active element. beadCtx is written in place per frame.
   const beads = useHgBeads({ tier, planetMaterial: material });
-  const beadCtx = useMemo(() => ({ phase: 'fluid', coreR: R_SCENE, calm: false, liquid: true, boil: 0, rateScale: 1, lastFam: 'idle', dirW: [0, 0, 0], omega: [0, 0, 0], q: [0, 0, 0, 1], pxPerUnit: 0, freezeIn: Infinity, rip: createRippleBudget() }), []);
+  const beadCtx = useMemo(() => ({ phase: 'fluid', coreR: R_SCENE, calm: false, liquid: true, boil: 0, rateScale: 1, lastFam: 'idle', dirW: [0, 0, 0], omega: [0, 0, 0], q: [0, 0, 0, 1], pxPerUnit: 0, freezeIn: Infinity }), []);
 
   // The maps outlive the material: a live CALM toggle swaps the shader variant (a new
   // material) without reloading them or flashing the flat fallback (planetMaps.js).
@@ -693,9 +696,11 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     // through it too (airborneCatchUp) and never comes back orbiting a crust.
     const skippedS = delta - stepS;
     if (!calm && skippedS > CATCHUP_MIN_S) {
-      drop.solver = catchUpFamily(drop.fam, drop.solver, drop.env, skippedS);
+      // coolBody ran the refreeze through the gap: back onto a crust, whatever is still out is cleared at once
+      const crustNow = !body.liquid && body.tau <= LIQUID_TAU;
+      drop.solver = catchUpFamily(drop.fam, drop.solver, drop.env, skippedS, crustNow);
       drop.coreScale = coreScale(drop.fam);
-      catchUpBeads(beads.sim, skippedS, beadCtx);
+      catchUpBeads(beads.sim, skippedS, beadCtx, crustNow);
     }
     const da = drop.args;
     da.body = body; da.surf = surf; da.camera = camera; da.calm = calm; da.ds = ds; da.stepS = stepS; da.t = t; da.bufferW = bufferW; da.bufferH = bufferH;
@@ -768,36 +773,27 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     beadCtx.pxPerUnit = drop.env.pxPerUnit; // what is drawn as a body coalesces (hgBeads BEAD_BODY_PX)
     beadCtx.q[0] = body.q.x; beadCtx.q[1] = body.q.y; beadCtx.q[2] = body.q.z; beadCtx.q[3] = body.q.w; // coalescence rides the planet
     stepBeads(beads.sim, stepS, beadCtx);
-    // A landing pearl ripples the liquid, flung or trickle (~0.8 gentle ripples a second at rest); dust and sub-pearl
-    // beads coalesce silently, refreeze-homing landings never ripple, and trickle ripples spend a light budget (a full
-    // boil sheds 5x the trickle). The strongest such touchdown this frame, one minor impulse that yields its slot to any
-    // stronger live ring (addImpulseIfRoom). A pearl rings the surface locally only (mode 0): the body modes are even
-    // Legendre terms that dent the antipode about as hard as the hit, so a pearl's ripple read on the opposite limb.
-    // Crust and calm take none.
-    refillRippleBudget(beadCtx.rip, stepS);
+    // Only a flung pearl ripples the liquid (it is the author's gesture). The idle trickle and the visitor-splash spray land
+    // silent (fix/mercury-motion: a short-hop trickle pearl lost in the bright reflection rang a ripple from nothing), as do
+    // dust, sub-pearl beads and refreeze-homing landings. The strongest flung touchdown this frame, one minor impulse that
+    // yields its slot to any stronger live ring (addImpulseIfRoom). A pearl rings the surface locally only (mode 0): the
+    // body modes are even Legendre terms that dent the antipode about as hard as the hit. Crust and calm take none.
     if (!calm && beadCtx.liquid) {
       const sim = beads.sim;
-      const trickleOk = beadCtx.rip.tokens >= 1;
-      let best = -1, bestS = 0, bestKind = 0;
+      let best = -1, bestS = 0;
       for (let k = 0; k < sim.nHits; k++) {
         const h = HIT_STRIDE * k;
-        const kind = sim.hits[h + 5];
-        if (!kind) continue;
-        // a trickle pearl rings only when drawn whole, and only on budget (its ring at the flung gain read as a ghost)
-        if (kind === HIT_TRICKLE && (!trickleOk || !trickleRipplesAt(sim.hits[h + 3], beadCtx.pxPerUnit))) continue;
+        if (sim.hits[h + 5] !== HIT_FLUNG) continue;
         const s = pearlStrike(sim.hits[h + 3], sim.hits[h + 4]);
-        if (s > bestS) { bestS = s; best = k; bestKind = kind; }
+        if (s > bestS) { bestS = s; best = k; }
       }
       if (best >= 0) {
         const h = HIT_STRIDE * best;
         beadCtx.dirW[0] = sim.hits[h]; beadCtx.dirW[1] = sim.hits[h + 1]; beadCtx.dirW[2] = sim.hits[h + 2];
         worldToBody(beadCtx.dirW, body.q, surf.b);
-        // ring only, so it is all the pearl has: a live gain lifts it to read (flung pearlWaveGain, trickle the gentler
-        // trickleWaveGain), capped at a drop's splash
-        const gain = bestKind === HIT_FLUNG ? PLANET_TUNE.pearlWaveGain : PLANET_TUNE.trickleWaveGain;
-        const pearlWave = Math.min(IMPACT_WAVE_AMP.splash, IMPACT_WAVE_AMP.splash * bestS * gain);
-        const added = addImpulseIfRoom(surf.impulses, { dirBody: surf.b, tS: t, mode: 0, wave: pearlWave, kind: 'splash' });
-        if (added && bestKind === HIT_TRICKLE) takeRipple(beadCtx.rip);
+        // ring only, so it is all the pearl has: the live pearlWaveGain lifts it to read, capped at a drop's splash
+        const pearlWave = Math.min(IMPACT_WAVE_AMP.splash, IMPACT_WAVE_AMP.splash * bestS * PLANET_TUNE.pearlWaveGain);
+        addImpulseIfRoom(surf.impulses, { dirBody: surf.b, tS: t, mode: 0, wave: pearlWave, kind: 'splash' });
       }
     }
     beads.upload(gl, beadCtx.coreR);

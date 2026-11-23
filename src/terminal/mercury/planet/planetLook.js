@@ -57,8 +57,7 @@ export const PLANET_TUNE = {
   sunGlint: 120,     // liquid mirror: Sun-disc radiance gain (soft-shouldered; boil sheen ≈ 1, cooled pinpoint saturates)
   beadGlint: 4,      // droplets and the beads' resolved Sun lobe: × sunGlint; with the droplet glint AA, a crisp 2 px sparkle on the small beads
   hyperWaveGain: 3,  // a hyper-fling bead's landing ring × this (median strike 0.03 rang 0.010, unreadable); watch for banding (6a)
-  pearlWaveGain: 3,
-  trickleWaveGain: 1.5, // an idle trickle pearl's ring (drawn whole only): gentler than a flung pearl's, so it never reads as a ghost  // a landing pearl's local ring × this (it rings without body modes since 50c316e1): 3 puts the idle mean at the drag wake's ~0.12
+  pearlWaveGain: 3,  // a landing flung pearl's local ring × this (it rings without body modes since 50c316e1): 3 puts the mean at the drag wake's ~0.12
   beadSparkle: 1.0,  // Hg aether beads (hgBeadShader): peak of the guaranteed sub-pixel Sun glint, sRGB units before the 1.5 cap
   dustSparkle: 3.0,  // Hg glitter dust: peak of the wobble-gated glint × size weight (biggest specks ≈ 2.3 after Hg Fresnel), sRGB units before DUST_GLINT_MAX 3
   emitGain: 1.5,     // liquid mirror: element-emitter reflection gain
@@ -73,6 +72,8 @@ export const PLANET_TUNE = {
   neutralNebula: 0,  // resting mirror: 0 = studio (option B, ruled 2026-10-07), 1 = baked neutral nebula, between = mix (spec 2026-10-08)
   aetherFloor: 0.2,     // lit element flows never fall below this × their colour (umbra, worst phase) — aetherLight.js
   aetherPenumbra: 0.08, // half-width of the planet shadow cylinder's soft edge, scene units (planet radius 0.75)
+  beadPenumbra: 0.3,    // the Hg beads' shadow edge (half-width, scene units): a flung pearl dims over ~1–2 s into the planet's shadow
+                        // instead of winking out at its rim (author 2026-11-23: dust is glint only, so the 0.08 edge read as a mid-air pop)
   streakGain: 0.05,  // filament shutter (s): length beyond the core = on-screen speed × this; fluid ~355 px/s → ~9× width (live sweep 2026-10-06)
   filWidth: 2.2,     // filament core width, CSS px at GAS_Z_REF (× the pixel ratio; ±25 % per particle, floored at GAS_PX_FLOOR)
   filAlpha: 4,       // filament alpha × this, on the element's own per-particle alpha (fire embers: × FIRE_EMBER_GAIN too)

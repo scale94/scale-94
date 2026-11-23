@@ -17,7 +17,9 @@ export const CATCHUP_MAX_S = 20;   // ≥ any return target (refreeze-capped), s
 const BEAD_CATCHUP_DT = 1 / 30;
 
 // Returns the solver to keep (null after a reset). Events are dropped: their ripples would have died while away.
-export function catchUpFamily(fam, solver, env, seconds) {
+// crust: the planet came back crusted (coolBody runs the refreeze through the gap): whatever the replay did not bring
+// home is cleared on the spot, volume home, rather than orbiting the rock until the live guard fades it.
+export function catchUpFamily(fam, solver, env, seconds, crust = false) {
   if (fam.phase !== 'fired') return solver;
   if (seconds > CATCHUP_MAX_S) {
     Object.assign(fam, createFamily(fam.seed));
@@ -27,16 +29,24 @@ export function catchUpFamily(fam, solver, env, seconds) {
     finishMuSolver(solver);
     if (fam.hyper) fam.eta = solver.best; else fam.mu = solver.best;
   }
-  // the core regrows as beads land: read its live size each substep (the caller's coreScale is a frame stale)
-  stepFamily(fam, seconds, { ...env, planetRadiusAt: () => R_SCENE * coreScale(fam) });
+  // the core regrows as beads land: read its live size each substep (the caller's coreScale is a frame stale). No freeze
+  // guard in the replay: the body has already cooled through the whole absence, so the guard would clear drops that
+  // landed in time; whatever is still out after it the live guard (breakupStep, env.freezeIn) clears on the next frame.
+  stepFamily(fam, seconds, { ...env, freezeIn: Infinity, planetRadiusAt: () => R_SCENE * coreScale(fam) });
   fam.events.length = 0;
+  if (crust && fam.phase === 'fired') {
+    Object.assign(fam, createFamily(fam.seed));
+    return null;
+  }
   return solver;
 }
 
-export function catchUpBeads(b, seconds, ctx) {
+// crust: as catchUpFamily, the beads still out over a planet that came back crusted are cleared on the spot.
+export function catchUpBeads(b, seconds, ctx, crust = false) {
   if (seconds > CATCHUP_MAX_S) { b.n = 0; b.nHits = 0; return b; }
-  const ff = { ...ctx, liquid: false }; // nothing new is shed while away
+  const ff = { ...ctx, liquid: false, freezeIn: Infinity }; // nothing new is shed while away; landings as for the family
   for (let t = 0; t < seconds; t += BEAD_CATCHUP_DT) stepBeads(b, Math.min(BEAD_CATCHUP_DT, seconds - t), ff);
+  if (crust) b.n = 0;
   b.nHits = 0;
   return b;
 }

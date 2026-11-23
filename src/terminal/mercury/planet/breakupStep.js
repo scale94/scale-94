@@ -20,6 +20,16 @@ export const HOP_NECK = 0.6;         // daughter–planet neck at lift-off, × d
 export const HOP_NECK_T = 0.3;       // …pinched off by this share of the hop
 export const STRIKE_V_REF = 0.5;     // normal speed (units/s) for a full-strength strike
 export const COHESION_SOFT = 1;      // cohesion softening, × (ra + rb)
+// The freeze guard (fix/mercury-motion), shared with the glitter beads (hgBeads re-exports these): while the planet
+// refreezes, env.freezeIn is the time left before its surface stops counting as liquid. Every flying body homes onto it
+// in that window (a drift planned to arrive at FREEZE_AIM of the time left, less the drag's lag, never planned shorter
+// than FREEZE_MIN_S, under a firmer drag that replaces the aether's); once it has crusted, whatever is still out (in
+// flight, merging, still attached or mid-cascade) drains away over FREEZE_FADE_S (fam.fadeK, drawn by breakupFrame) and
+// rings nothing: liquid Hg never orbits, or splashes on, a solid crust. Absent (replays, catch-up) = Infinity: no guard.
+export const FREEZE_AIM = 0.5;
+export const FREEZE_MIN_S = 0.15;
+export const FREEZE_DRAG = 4;      // 1/s: the homing drift must win over the flow / vortex
+export const FREEZE_FADE_S = 0.4;
 
 const smooth = (x) => { const t = Math.min(1, Math.max(0, x)); return t * t * (3 - 2 * t); };
 const len = (v) => Math.hypot(v[0], v[1], v[2]);
@@ -90,6 +100,7 @@ export function stepFamily(fam, dt, env) {
 
 function substep(fam, h, env) {
   fam.t += h;
+  if (!((env.freezeIn ?? Infinity) > 0)) { crustFade(fam, h, env); return; }
   snapNecks(fam, env);
   for (const b of fam.bodies) {
     if (b.state !== 'attached') continue;
@@ -110,6 +121,33 @@ function substep(fam, h, env) {
     fam.volOut = 0;
     fam.phase = 'idle';
   }
+}
+
+// Crusted with Hg still out: no snaps, landings or cascades (nothing rings the crust); the bodies keep moving (flight,
+// merges closing, attached and cascading ones riding the turning planet) while the whole family shrinks to nothing.
+function crustFade(fam, h, env) {
+  if (!(fam.tCrust >= 0)) {
+    fam.tCrust = fam.t - h; fam.volFade0 = fam.volOut;
+    for (const n of fam.necks) n.on = false;
+  }
+  const k = Math.max(0, 1 - (fam.t - fam.tCrust) / FREEZE_FADE_S);
+  fam.fadeK = k;
+  fam.volOut = fam.volFade0 * k * k * k;
+  if (k <= 0) {
+    for (const b of fam.bodies) { b.state = 'gone'; b.bridgeB = 0; b.neckH = 0; }
+    fam.events.length = 0;
+    fam.volResidual = 0;
+    fam.volOut = 0;
+    fam.phase = 'idle';
+    return;
+  }
+  for (const b of fam.bodies) {
+    if (b.state === 'attached') qRotate(env.q, b.posBody, b.p);
+    else if (b.state === 'cascade') { const l = len(b.p); qRotate(env.q, b.dirBody, _u); b.p[0] = _u[0] * l; b.p[1] = _u[1] * l; b.p[2] = _u[2] * l; }
+  }
+  flight(fam, h, env);
+  mergeStep(fam, h);
+  fam.events.length = 0;
 }
 
 function launch(b, env) {
@@ -158,20 +196,32 @@ function flight(fam, h, env) {
   const hang = fam.hyper && fam.t < fam.tHang;
   const eta = fam.hyper ? hyperEta(fam.t, fam.tHang, fam.eta, fam.rampG || 0) : 0;
   const kappa = hang ? 0 : env.kappa;
+  const fi = env.freezeIn ?? Infinity;
+  const homing = fi > 0 && fi < Infinity;
+  const homeT = homing ? Math.max(FREEZE_AIM * fi - 1 / FREEZE_DRAG, FREEZE_MIN_S) : 0;
   for (let i = 0; i < B.length; i++) {
     const b = B[i];
     if (!flies(b)) continue;
     const x = b.state === 'free' ? b.p : b.mergeC;
     let ax, ay, az;
+    // refreezing: gravity only from the sim, and a firm drag toward a straight-home drift replaces the aether's
+    const gam = homing ? 0 : fam.hyper ? fam.gammaH : env.gamma;
     if (fam.hyper) {
-      hyperAccel(fam.mu, eta, fam.gammaH, fam.axisL, x[0], x[1], x[2], b.v[0], b.v[1], b.v[2], fam.rC0, h, _acc);
+      hyperAccel(fam.mu, eta, gam, fam.axisL, x[0], x[1], x[2], b.v[0], b.v[1], b.v[2], fam.rC0, h, _acc);
       ax = _acc[0]; ay = _acc[1]; az = _acc[2];
     } else {
       const r2 = x[0] * x[0] + x[1] * x[1] + x[2] * x[2];
       const r3 = r2 * Math.sqrt(r2);
-      ax = (-fam.mu * x[0]) / r3 - env.gamma * b.v[0];
-      ay = (-fam.mu * x[1]) / r3 - env.gamma * b.v[1];
-      az = (-fam.mu * x[2]) / r3 - env.gamma * b.v[2];
+      ax = (-fam.mu * x[0]) / r3 - gam * b.v[0];
+      ay = (-fam.mu * x[1]) / r3 - gam * b.v[1];
+      az = (-fam.mu * x[2]) / r3 - gam * b.v[2];
+    }
+    if (homing) {
+      unit(x, _u);
+      const need = Math.max(0, len(x) - b.r - env.planetRadiusAt(_u)) / homeT;
+      ax += FREEZE_DRAG * (-need * _u[0] - b.v[0]);
+      ay += FREEZE_DRAG * (-need * _u[1] - b.v[1]);
+      az += FREEZE_DRAG * (-need * _u[2] - b.v[2]);
     }
     if (kappa > 0) {
       for (let j = 0; j < B.length; j++) {

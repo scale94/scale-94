@@ -146,6 +146,50 @@ describe('breakupFrame — a family to the droplet shader', () => {
     expect(last).toBeLessThan(0.03 * TONGUE_ROOT_R); // nothing left to pop when the family goes idle
   });
 
+  // Author 2026-11-23: a long held tongue released without a fling popped. Its bead count fell in steps as L decayed
+  // (chainCount: 6 → 4 → 2 drawn beads), and each step dropped the tip by up to 13 % of R in one frame, leaving the
+  // one-bead "pawn". The hold keeps the most beads it reached (holdN), so the chain slides home continuously.
+  it('a long held tongue released without a fling retracts continuously: no bead vanishes, the tip never jumps', () => {
+    for (const tier of Object.keys(TIERS)) {
+      const tcaps = TIERS[tier].drop;
+      const fam = createFamily(1);
+      fam.phase = 'hold'; fam.axisBody = [1, 0, 0];
+      for (let i = 0; i < 300; i++) holdTongue(fam, 1 / 60, 1, 1); // grown to full excess
+      const f = createDropFrame(tcaps);
+      const tipOf = () => {
+        let tip = 0;
+        for (let i = 0; i < f.nb; i++) tip = Math.max(tip, Math.hypot(f.bead[4 * i], f.bead[4 * i + 1], f.bead[4 * i + 2]) + f.bead[4 * i + 3] - R_SCENE);
+        return tip;
+      };
+      packFamily(fam, testEnv(), f, viewOf());
+      let nb = f.nb, tip = tipOf(), frames = 0, maxDrop = 0;
+      while (fam.L >= 1e-4 && frames < 2000) {
+        holdTongue(fam, 1 / 60, 0, 1);
+        packFamily(fam, testEnv(), f, viewOf());
+        if (fam.L < 1e-4) break;
+        expect(f.nb, tier).toBe(nb);
+        const t2 = tipOf();
+        expect(t2, tier).toBeLessThanOrEqual(tip + 1e-9);
+        maxDrop = Math.max(maxDrop, tip - t2);
+        tip = t2; frames++;
+      }
+      // the steepest frame is the exponential decay's first (L / TONGUE_LAG_S · dt), not a re-layout step
+      expect(maxDrop, tier).toBeLessThan(1.05 * (TONGUE_MAX_R / TONGUE_LAG_S) / 60);
+      expect(tip, tier).toBeLessThan(0.05 * TONGUE_ROOT_R);
+    }
+  });
+  it('the kept bead count resets with the hold: a fresh hold grows from one bead again', () => {
+    const fam = createFamily(1);
+    fam.phase = 'hold'; fam.axisBody = [1, 0, 0];
+    for (let i = 0; i < 300; i++) holdTongue(fam, 1 / 60, 1, 1);
+    const f = createDropFrame(caps);
+    packFamily(fam, testEnv(), f, viewOf());
+    expect(fam.holdN).toBeGreaterThan(1);
+    fireFamily(fam, { maxBodies: 12, satellites: true });
+    expect(fam.holdN).toBe(0);
+    expect(createFamily(1).holdN).toBe(0);
+  });
+
   it('hold chain respects every tier cap and sits where fire puts it (e = 0.75, 1)', () => {
     for (const tier of Object.keys(TIERS)) {
       const tcaps = TIERS[tier].drop;

@@ -34,6 +34,20 @@ describe('catchUpFamily', () => {
     expect(f.phase).toBe('idle');
     expect(coreScale(f)).toBe(1);
   });
+  // author 2026-11-23: back from a hidden tab onto a planet that crusted while away, a droplet still out kept orbiting the
+  // rock for seconds. The replay flies what lands in time; whatever is still out over the crust is cleared on the spot.
+  it('back onto a crust: what the replay did not bring home is cleared at once (idle, core whole, solver dropped)', () => {
+    const f = firedHyper({ N: 32, seed: 5, target: 14 });
+    expect(catchUpFamily(f, createMuSolver(f, hyperEnv0(), 14), liveEnv(f), 1.5, true)).toBeNull();
+    expect(f.phase).toBe('idle');
+    expect(coreScale(f)).toBe(1);
+    expect(f.events).toHaveLength(0);
+  });
+  it('back onto a still-liquid planet nothing is cleared (crust false is the old replay)', () => {
+    const f = firedHyper({ N: 32, seed: 5, target: 14 });
+    catchUpFamily(f, createMuSolver(f, hyperEnv0(), 14), liveEnv(f), 1.5, false);
+    expect(f.phase).toBe('fired');
+  });
   it('an idle family is left alone', () => {
     const f = firedHyper();
     f.phase = 'idle';
@@ -50,6 +64,16 @@ describe('catchUpBeads', () => {
     catchUpBeads(b, FLING_LIFE + 1, ctx);
     expect(b.n).toBe(0);
     expect(b.nHits).toBe(0);
+  });
+  it('back onto a crust the glitter still out is cleared at once', () => {
+    const b = createBeads(64);
+    spawnFling(b, [0, MAX_OMEGA, 0], 0.75, FLING_N);
+    catchUpBeads(b, 1, ctx, true);
+    expect(b.n).toBe(0);
+    const c = createBeads(64);
+    spawnFling(c, [0, MAX_OMEGA, 0], 0.75, FLING_N);
+    catchUpBeads(c, 1, ctx, false);
+    expect(c.n).toBeGreaterThan(0);
   });
   it('past CATCHUP_MAX_S the aether is simply cleared', () => {
     const b = createBeads(8);
