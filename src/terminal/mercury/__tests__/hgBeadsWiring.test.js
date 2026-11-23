@@ -127,10 +127,10 @@ describe('pearl rings stay where the pearl landed (fix/mercury-pearl-ripples)', 
     const { slipDirWorld } = await import('../planet/mercuryWaves');
     expect(slipDirWorld([1, 0, 0], [0, 0, 1], 1)).toEqual([0, 0, 1]); // the carried dir drops out entirely
   });
-  it('the ripple sheen is a live knob, uploaded every frame', async () => {
-    expect(planetSrc).toContain('uRippleSheen: { value: PLANET_TUNE.rippleSheen },');
-    expect(planetSrc).toContain('u.uRippleSheen.value = PLANET_TUNE.rippleSheen;');
+  it('no ripple sheen: the dark mirror stays a pure mirror (0.3 read as chalky streaks in Air/Fire, author 2026-11-23)', async () => {
+    expect(planetSrc).not.toContain('uRippleSheen');
     const { PLANET_TUNE } = await import('../planet/planetLook');
-    expect(PLANET_TUNE.rippleSheen).toBe(0.3);
+    expect(PLANET_TUNE).not.toHaveProperty('rippleSheen');
+    expect(PLANET_TUNE.roilGain).toBe(0);
   });
 });

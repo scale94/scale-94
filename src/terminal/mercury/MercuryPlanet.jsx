@@ -384,7 +384,6 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
       uScar: { value: scarTex },
       uRayGain: { value: PLANET_TUNE.rayGain },
       uRoilGain: { value: PLANET_TUNE.roilGain },
-      uRippleSheen: { value: PLANET_TUNE.rippleSheen },
       uRoughLiquid: { value: PLANET_TUNE.roughLiquid },
       uMeniscus: { value: PLANET_TUNE.meniscus },
       uMeniscusW: { value: PLANET_TUNE.meniscusW },
@@ -559,7 +558,6 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     u.uNeutralNebula.value = neb.map ? want : 0;
     u.uRayGain.value = PLANET_TUNE.rayGain;
     u.uRoilGain.value = PLANET_TUNE.roilGain;
-    u.uRippleSheen.value = PLANET_TUNE.rippleSheen;
     u.uRoughLiquid.value = PLANET_TUNE.roughLiquid;
     u.uMeniscus.value = PLANET_TUNE.meniscus;
     u.uMeniscusW.value = PLANET_TUNE.meniscusW;

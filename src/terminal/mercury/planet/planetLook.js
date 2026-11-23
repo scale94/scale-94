@@ -102,7 +102,6 @@ export const PLANET_TUNE = {
   modeGain: 1,       // body-mode + spin-bulge amplitude (the bead's wobble)
   waveGain: 1,       // capillary ripple slope
   roilGain: 0,       // boil-zone bubble-pop slope (mercuryRoil.POP_AMP × this). 0 (author 2026-11-23): pops read as causeless dimples next to world-anchored pearl rings; real boiling Hg heaves, it does not simmer into rings
-  rippleSheen: 0.3,  // liquid: a ring lifts the mirror by its own slope × this (soft knee 0.15): a pearl's ring reads on the dark sky, ≈ +0.02 linear; 0 = pure mirror
   exoGain: 4,        // sodium tail + Hg vapour haze brightness
   roughLiquid: ROUGH_LIQUID, // liquid mirror roughness (Sun + emitter lobes; the aether sky keeps full detail up to SKY_ROUGH_SHARP)
   meniscus: 1,       // melt-front bead rim: 0 = the old soft wipe, 1 = full non-wetting rim (mercuryMeniscus.js)

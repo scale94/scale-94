@@ -20,9 +20,10 @@ export const SPIN_DAMP_PER_S = 0.35;   // free-spin damping after release
 export const MAX_OMEGA = 12;           // rad/s
 export const RECAPTURE_OMEGA = 0.8;    // rad/s natural frequency of the return
 export const RECAPTURE_RAMP_S = 4;     // inertia first, then recapture
-export const HEAT_OMEGA_FLOOR = 2.5;   // rad/s (~1000 px/s on a 1000 px canvas); spin below it does not heat
-export const HEAT_GAIN = 0.93;         // K per (rad/s)² of spin above the floor, per s: at MAX_OMEGA it heats as fast as the floorless 0.58 did
-                                       // a stroke holds the liquid only above ω₀ + √(FREEZE·λ/κ) ≈ 3.5 rad/s
+export const HEAT_OMEGA_FLOOR = 2;     // rad/s (~800 px/s on a 1000 px canvas); spin below it does not heat, so a slow drag never melts
+export const HEAT_GAIN = 36;           // K per (rad/s)² of spin above the floor, per s. 0.93 needed ~0.3 s held at MAX_OMEGA (author
+                                       // 2026-11-23: too aggressive even at 1600 DPI); 36 melts a 0.1 s flick at ω 5 (2 canvas heights/s),
+                                       // not one at ω 4, nor 3 s of steady drag at ω 2.5. A stroke holds the liquid above ω₀ + √(FREEZE·λ/κ) ≈ 2.2 rad/s
 export const HEAT_LEAK_PER_S = 0.035;
 export const MELT_HEAT_K = 60;
 export const FREEZE_HEAT_K = 25;

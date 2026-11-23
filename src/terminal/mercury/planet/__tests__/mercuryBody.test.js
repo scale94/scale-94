@@ -161,7 +161,8 @@ describe('mercuryBody', () => {
     expect(at(samples, 90).tau).toBe(0);
   });
 
-  // A slow stroke (watching the wake) must not hold the bead liquid. ω 3 ≈ 1200 px/s on a 1000 px canvas.
+  // A slow stroke (watching the wake) must not hold the bead liquid. ω 2 ≈ 800 px/s on a 1000 px canvas.
+  // Author 2026-11-23: a deliberate flick melts it; the slow-drag guard is the floor (was ω 3 / 3.4 at HEAT_GAIN 0.93).
   const strokeFor = (seconds, w, body, target) => {
     for (let i = 0; i < seconds * 60; i++) stepBody(body, 1 / 60, { dragging: true, omegaPtr: [0, w, 0], target });
   };
@@ -170,7 +171,7 @@ describe('mercuryBody', () => {
     const target = targetFromYaw(0);
     const body = createBody(target);
     Object.assign(body, { heatK: HEAT_CAP_K, liquid: true, tau: 1 });
-    strokeFor(120, 3, body, target);
+    strokeFor(120, 2.1, body, target);
     expect(body.heatK).toBeLessThan(FREEZE_HEAT_K);
     expect(body.tau).toBe(0);
   });
@@ -178,8 +179,20 @@ describe('mercuryBody', () => {
   it('a slow stroke from cold never melts it', () => {
     const target = targetFromYaw(0);
     const body = createBody(target);
-    strokeFor(120, 3.4, body, target);
+    strokeFor(120, 2.2, body, target);
     expect(body.tau).toBe(0);
+  });
+
+  it('a deliberate flick melts it; a softer one does not (author 2026-11-23)', () => {
+    const flick = (w) => {
+      const target = targetFromYaw(0);
+      const body = createBody(target);
+      strokeFor(0.1, w, body, target); // 6 frames ≈ a 0.1 s flick
+      for (let i = 0; i < 600; i++) stepBody(body, 1 / 60, { target });
+      return body.liquid || body.tau > 0;
+    };
+    expect(flick(5)).toBe(true);  // 2 canvas heights/s
+    expect(flick(4)).toBe(false);
   });
 
   it('spin below HEAT_OMEGA_FLOOR adds no heat at all', () => {

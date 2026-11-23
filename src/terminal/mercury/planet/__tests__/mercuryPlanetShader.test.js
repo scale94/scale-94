@@ -239,8 +239,7 @@ describe('mercuryPlanetShader contract', () => {
     expect(PLANET_FS).toContain('float warp = WAVE_WARP_RAD * (2.0 * vnoise3(xb * WAVE_WARP_FREQ) - 1.0);');
     expect(PLANET_FS).toContain('float slope = A * rippleSlope(max(th + warp, 0.0), age, pxArc, uImpWave[i].z) * sqrt(WAVE_SPREAD_FLOOR / max(s, WAVE_SPREAD_FLOOR));');
     expect(PLANET_FS).toContain('float pxArc = length(fwidth(xw));');
-    expect(PLANET_FS).toContain('vec3 wTilt = waveTilt(xw, pxArc, warp);');
-    expect(PLANET_FS).toContain('nW = normalize(nW - fluid * wTilt);');
+    expect(PLANET_FS).toContain('nW = normalize(nW - fluid * waveTilt(xw, pxArc, warp));');
   });
 
   it('keeps every derivative before the first loop and the discard', () => {
@@ -325,19 +324,6 @@ describe('mercuryPlanetShader contract', () => {
     expect(PLANET_UNIFORMS).toContain('uRoilGain');
     // coherence loss: active pops scatter more; the floor is ROUGH_LIQUID's
     expect(PLANET_FS).toContain('mix(uRoughLiquid, ROUGH_BOIL, boilW * (0.5 + 0.5 * popAct))');
-  });
-
-  it('ripple sheen: each ring lifts the liquid by its own slope, soft-capped, so a dark-sky ring reads (fix/mercury-pearl-ripples)', () => {
-    expect(PLANET_UNIFORMS).toContain('uRippleSheen');
-    for (const fs of [PLANET_FS, buildPlanetShader({ tier: 'lite' }).fs, buildPlanetShader({ calm: true }).fs]) {
-      expect(fs).toContain('uniform float uRippleSheen;');
-      expect(fs).toContain('float waveSheen(vec3 tilt) { return WAVE_SHEEN_KNEE * (1.0 - exp(-length(tilt) / WAVE_SHEEN_KNEE)); }');
-      expect(fs).toContain('nW = normalize(nW - fluid * wTilt);');
-      expect(fs).toContain('liquid += Fl * (uRippleSheen * waveSheen(wTilt));');
-    }
-    // the same tilt that bends the normal feeds the sheen, after hgLiquid (liquid only: the solid branch is untouched)
-    expect(PLANET_FS.indexOf('vec3 wTilt = waveTilt(xw, pxArc, warp);')).toBeLessThan(PLANET_FS.indexOf('waveSheen(wTilt)'));
-    expect(PLANET_FS.indexOf('liquid = hgLiquid(Fl, R,')).toBeLessThan(PLANET_FS.indexOf('waveSheen(wTilt)'));
   });
 
   it('roil: the pop size follows the live pixel footprint (uPopZoom); one geometry for every variant', () => {
