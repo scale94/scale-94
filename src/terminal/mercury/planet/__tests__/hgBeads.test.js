@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   createBeads, spawnBead, spawnFling, spawnSplash, stepBeads, beadRadius, wobbleHz, wobbleGate, WOBBLE_HZ_MIN, WOBBLE_HZ_MAX,
-  AMBIENT_RATE, BEAD_ESCAPE_R, BEAD_SHAPE_MARGIN, pearlStrike, HIT_STRIDE, HIT_TRICKLE, HIT_FLUNG, FREEZE_FADE_S, FLING_LIFE, FLING_RETURN_V, BEAD_LIFE, DUST_R, PEARL_R, PEARL_P, EVAP_RATE, FLING_N, FLING_V_MAX, FLING_RADIAL, G_BEAD,
+  AMBIENT_RATE, BEAD_ESCAPE_R, BEAD_SHAPE_MARGIN, pearlStrike, trickleRings, pearlDrawnWhole, facesCamera, PEARL_RING_MIN_PX, HIT_STRIDE, HIT_TRICKLE, HIT_FLUNG, FREEZE_FADE_S, FLING_LIFE, FLING_RETURN_V, BEAD_LIFE, DUST_R, PEARL_R, PEARL_P, EVAP_RATE, FLING_N, FLING_V_MAX, FLING_RADIAL, G_BEAD,
 } from '../hgBeads';
 import { mulberry32 } from '../prng';
 import { MAX_OMEGA } from '../mercuryBody';
@@ -347,7 +347,7 @@ describe('pearlStrike: a landing pearl ripples like a small drop (no floor)', ()
     expect(b.nHits).toBe(1);
     expect(b.hits[5]).toBe(0);
   });
-  // The planet rings flung pearls only (MercuryPlanet: hits[h + 5] !== HIT_FLUNG → skip), so an idle melted planet is calm.
+  // An idle melted planet throws no flung pearl: its trickle and splash spray land HIT_TRICKLE (rung only when seen whole).
   it('an idle melted planet, even at a full boil, lands no touchdown that may ripple (trickle and splash beads are not flung)', () => {
     for (const boil of [0, 1]) {
       const b = createBeads(256);
@@ -362,7 +362,53 @@ describe('pearlStrike: a landing pearl ripples like a small drop (no floor)', ()
     }
     const b = createBeads(16);
     spawnSplash(b, [1, 0, 0], 0.75, 4);
-    for (let i = 0; i < b.n; i++) expect(b.free[i]).toBe(0); // splash spray lands as HIT_TRICKLE: silent
+    for (let i = 0; i < b.n; i++) expect(b.free[i]).toBe(0); // splash spray lands as HIT_TRICKLE
+  });
+});
+
+// fix/mercury-pearl-ripples (author 2026-11-23): a big trickle pearl sinking in silent broke the physics, and the old
+// shared budget handed the ring to whichever bead landed first (often one lost in the glare), so it read as displaced.
+// Now every trickle pearl the eye sees land rings, at its own touchdown; dust and the far side stay silent.
+describe('trickleRings: every visible trickle pearl rings, nothing else (fix/mercury-pearl-ripples)', () => {
+  const R = 0.75, CAM = [0, 0, 4];
+  const hit = (dir, r, kind = HIT_TRICKLE) => Float32Array.from([...dir, r, 0.3, kind]);
+  it('drawn whole means ≥ PEARL_RING_MIN_PX across on the drawing buffer', () => {
+    expect(PEARL_RING_MIN_PX).toBe(4);
+    expect(pearlDrawnWhole(0.012, 200)).toBe(true);   // 4.8 px
+    expect(pearlDrawnWhole(0.012, 150)).toBe(false);  // 3.6 px
+    expect(pearlDrawnWhole(DUST_R[1], 1000)).toBe(true); // a huge canvas draws dust whole, but pearlStrike keeps it silent
+    expect(pearlStrike(DUST_R[1], 1)).toBe(0);
+  });
+  it('the camera-facing cap is d·c > R (the limb at d·c = R)', () => {
+    expect(facesCamera(0, 0, 1, ...CAM, R)).toBe(true);
+    expect(facesCamera(0, 0, -1, ...CAM, R)).toBe(false);
+    expect(facesCamera(1, 0, 0, ...CAM, R)).toBe(false); // the silhouette from 4 R-units out is past 90° only slightly
+    const c = R / 4 + 0.01, s = Math.sqrt(1 - c * c);
+    expect(facesCamera(s, 0, c, ...CAM, R)).toBe(true);
+    expect(facesCamera(s, 0, c - 0.02, ...CAM, R)).toBe(false);
+  });
+  it('a near-side whole pearl rings; a far-side, sub-4 px, flung or homing one does not (here)', () => {
+    expect(trickleRings(hit([0, 0, 1], PEARL_R[1]), 0, 200, ...CAM, R)).toBe(true);
+    expect(trickleRings(hit([0, 0, -1], PEARL_R[1]), 0, 200, ...CAM, R)).toBe(false);
+    expect(trickleRings(hit([0, 0, 1], PEARL_R[0]), 0, 100, ...CAM, R)).toBe(false);
+    expect(trickleRings(hit([0, 0, 1], PEARL_R[1], HIT_FLUNG), 0, 200, ...CAM, R)).toBe(false); // the flung path rings it
+    expect(trickleRings(hit([0, 0, 1], PEARL_R[1], 0), 0, 200, ...CAM, R)).toBe(false);
+  });
+  it('an idle melted planet rings its visible pearls a few times a minute, not a buzz (desktop px scale)', () => {
+    for (const [boil, lo, hi] of [[0, 3, 60], [1, 10, 300]]) {
+      const b = createBeads(512);
+      const ctx = { ...CTX, phase: 'neutral', liquid: true, boil, rateScale: 1, pxPerUnit: 200 };
+      let rings = 0;
+      for (let t = 0; t < 60; t += 1 / 60) {
+        stepBeads(b, 1 / 60, ctx);
+        for (let k = 0; k < b.nHits; k++) {
+          const h = HIT_STRIDE * k;
+          if (trickleRings(b.hits, h, 200, ...CAM, R) && pearlStrike(b.hits[h + 3], b.hits[h + 4]) > 0) rings++;
+        }
+      }
+      expect(rings).toBeGreaterThanOrEqual(lo);
+      expect(rings).toBeLessThanOrEqual(hi);
+    }
   });
 });
 

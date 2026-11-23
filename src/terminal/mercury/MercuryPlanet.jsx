@@ -54,7 +54,7 @@ import { createVisitorFrame, packVisitors } from './planet/visitorFrame';
 import useVisitorField from './useVisitorField';
 import useHgBeads from './useHgBeads';
 import {
-  spawnFling, spawnSplash, stepBeads, pearlStrike, HIT_STRIDE, HIT_FLUNG,
+  spawnFling, spawnSplash, stepBeads, pearlStrike, trickleRings, HIT_STRIDE, HIT_FLUNG,
   FLING_N, SPLASH_N,
 } from './planet/hgBeads';
 import { CALORIS_DIR_BODY, stepOverlay } from './planet/slowNoon';
@@ -163,6 +163,18 @@ function reportRelease(lr, drop) {
     (window.__mercuryGate0 ??= []).push(row);
     console.info('[mercury] release', row);
   }
+}
+
+// A pearl's ring stays where the pearl landed in the world (slip 1, slipDirWorld): the liquid mirror reads as still, so
+// a ring carried by body.q slid visibly off its pearl (~45° of clock face a second, author 2026-11-23, dev ring probe).
+const PEARL_RING_SLIP = 1;
+// One pearl's touchdown ring at hits[h..h+2] (world dir): ring only, so it is all the pearl has. strength = pearlStrike ×
+// the live gain, capped at a drop's splash. dirW is scratch; it holds the ring's world centre on return.
+function ringPearl(hits, h, strength, q, surf, dirW, t) {
+  dirW[0] = hits[h]; dirW[1] = hits[h + 1]; dirW[2] = hits[h + 2];
+  worldToBody(dirW, q, surf.b);
+  const pearlWave = Math.min(IMPACT_WAVE_AMP.splash, IMPACT_WAVE_AMP.splash * strength);
+  return addImpulseIfRoom(surf.impulses, { dirBody: surf.b, dirWorld: dirW, slip: PEARL_RING_SLIP, tS: t, mode: 0, wave: pearlWave, kind: 'splash' });
 }
 
 function stepDrop(drop, { body, surf, camera, ds, calm, stepS, t, bufferW, bufferH }) {
@@ -372,6 +384,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
       uScar: { value: scarTex },
       uRayGain: { value: PLANET_TUNE.rayGain },
       uRoilGain: { value: PLANET_TUNE.roilGain },
+      uRippleSheen: { value: PLANET_TUNE.rippleSheen },
       uRoughLiquid: { value: PLANET_TUNE.roughLiquid },
       uMeniscus: { value: PLANET_TUNE.meniscus },
       uMeniscusW: { value: PLANET_TUNE.meniscusW },
@@ -546,6 +559,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     u.uNeutralNebula.value = neb.map ? want : 0;
     u.uRayGain.value = PLANET_TUNE.rayGain;
     u.uRoilGain.value = PLANET_TUNE.roilGain;
+    u.uRippleSheen.value = PLANET_TUNE.rippleSheen;
     u.uRoughLiquid.value = PLANET_TUNE.roughLiquid;
     u.uMeniscus.value = PLANET_TUNE.meniscus;
     u.uMeniscusW.value = PLANET_TUNE.meniscusW;
@@ -777,11 +791,13 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     beadCtx.pxPerUnit = drop.env.pxPerUnit; // what is drawn as a body coalesces (hgBeads BEAD_BODY_PX)
     beadCtx.q[0] = body.q.x; beadCtx.q[1] = body.q.y; beadCtx.q[2] = body.q.z; beadCtx.q[3] = body.q.w; // coalescence rides the planet
     stepBeads(beads.sim, stepS, beadCtx);
-    // Only a flung pearl ripples the liquid (it is the author's gesture). The idle trickle and the visitor-splash spray land
-    // silent (fix/mercury-motion: a short-hop trickle pearl lost in the bright reflection rang a ripple from nothing), as do
-    // dust, sub-pearl beads and refreeze-homing landings. The strongest flung touchdown this frame, one minor impulse that
-    // yields its slot to any stronger live ring (addImpulseIfRoom). A pearl rings the surface locally only (mode 0): the
-    // body modes are even Legendre terms that dent the antipode about as hard as the hit. Crust and calm take none.
+    // A landing pearl ripples the liquid. Flung: the strongest flung touchdown this frame (the author's gesture, pearlWaveGain).
+    // Trickle and visitor-splash spray: every pearl the eye sees land rings (drawn whole, camera-facing: hgBeads
+    // trickleRings), at the gentler trickleWaveGain, so no big pearl sinks in silent and no ring is born from a pearl lost
+    // in the glare. Dust, sub-pearl beads and refreeze-homing landings stay silent. Each ring is a minor impulse that yields
+    // its slot to any stronger live ring (addImpulseIfRoom; flung first, so it is never crowded out by the trickle), and
+    // rings the surface locally only (mode 0): the body modes are even Legendre terms that dent the antipode about as hard
+    // as the hit. Crust and calm take none.
     if (!calm && beadCtx.liquid) {
       const sim = beads.sim;
       let best = -1, bestS = 0;
@@ -791,13 +807,13 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
         const s = pearlStrike(sim.hits[h + 3], sim.hits[h + 4]);
         if (s > bestS) { bestS = s; best = k; }
       }
-      if (best >= 0) {
-        const h = HIT_STRIDE * best;
-        beadCtx.dirW[0] = sim.hits[h]; beadCtx.dirW[1] = sim.hits[h + 1]; beadCtx.dirW[2] = sim.hits[h + 2];
-        worldToBody(beadCtx.dirW, body.q, surf.b);
-        // ring only, so it is all the pearl has: the live pearlWaveGain lifts it to read, capped at a drop's splash
-        const pearlWave = Math.min(IMPACT_WAVE_AMP.splash, IMPACT_WAVE_AMP.splash * bestS * PLANET_TUNE.pearlWaveGain);
-        addImpulseIfRoom(surf.impulses, { dirBody: surf.b, tS: t, mode: 0, wave: pearlWave, kind: 'splash' });
+      if (best >= 0) ringPearl(sim.hits, HIT_STRIDE * best, bestS * PLANET_TUNE.pearlWaveGain, body.q, surf, beadCtx.dirW, t);
+      const cam = camera.position;
+      for (let k = 0; k < sim.nHits; k++) {
+        const h = HIT_STRIDE * k;
+        if (!trickleRings(sim.hits, h, beadCtx.pxPerUnit, cam.x, cam.y, cam.z, beadCtx.coreR)) continue;
+        const s = pearlStrike(sim.hits[h + 3], sim.hits[h + 4]);
+        if (s > 0) ringPearl(sim.hits, h, s * PLANET_TUNE.trickleWaveGain, body.q, surf, beadCtx.dirW, t);
       }
     }
     beads.upload(gl, beadCtx.coreR);

@@ -24,18 +24,19 @@ describe('Hg beads wiring', () => {
   it('beads land on the live surface and a landing pearl ripples it without evicting a stronger ring', () => {
     expect(planetSrc).toContain('beadCtx.planetRadiusAt = drop.env.planetRadiusAt;');
     expect(planetSrc.indexOf('beadCtx.planetRadiusAt')).toBeLessThan(planetSrc.indexOf('stepBeads(beads.sim'));
-    expect(planetSrc).toContain('if (sim.hits[h + 5] !== HIT_FLUNG) continue;'); // flung pearls only: trickle, splash spray and homing land silent
+    expect(planetSrc).toContain('if (sim.hits[h + 5] !== HIT_FLUNG) continue;'); // the strongest flung pearl of the frame
     expect(planetSrc).toContain('const s = pearlStrike(sim.hits[h + 3], sim.hits[h + 4]);');
+    // every visible trickle / spray pearl rings (fix/mercury-pearl-ripples), after the flung one so it never crowds it out
+    expect(planetSrc).toContain('if (!trickleRings(sim.hits, h, beadCtx.pxPerUnit, cam.x, cam.y, cam.z, beadCtx.coreR)) continue;');
+    expect(planetSrc.indexOf('bestS * PLANET_TUNE.pearlWaveGain')).toBeLessThan(planetSrc.indexOf('s * PLANET_TUNE.trickleWaveGain'));
+    expect(planetSrc).not.toContain('RippleBudget');
     expect(planetSrc).not.toContain('pearlRipple');
     expect(planetSrc).toContain('beadCtx.pxPerUnit = drop.env.pxPerUnit;');
     expect(planetSrc).toContain('beadCtx.freezeIn = body.liquid ? Infinity : Math.max(0, (body.tau - LIQUID_TAU) * TRANSMUTE_S);');
     expect(planetSrc.indexOf('beadCtx.q[3] = body.q.w')).toBeLessThan(planetSrc.indexOf('stepBeads(beads.sim'));
     // a pearl rings the surface locally only: no body modes, whose even P2/P4 dent the antipode as hard as the hit
     // the ring carries the live pearlWaveGain (author dials it by eye), never past a full drop's splash
-    expect(planetSrc).toContain('const pearlWave = Math.min(IMPACT_WAVE_AMP.splash, IMPACT_WAVE_AMP.splash * bestS * PLANET_TUNE.pearlWaveGain);');
-    expect(planetSrc).toContain("addImpulseIfRoom(surf.impulses, { dirBody: surf.b, tS: t, mode: 0, wave: pearlWave, kind: 'splash' })");
-    expect(planetSrc).not.toContain('HIT_TRICKLE');
-    expect(planetSrc).not.toContain('RippleBudget');
+    expect(planetSrc).toContain('const pearlWave = Math.min(IMPACT_WAVE_AMP.splash, IMPACT_WAVE_AMP.splash * strength);');
   });
   it('the canvas tells the planet which element is active', () => {
     const planetTag = canvasSrc.slice(canvasSrc.indexOf('<MercuryPlanet'), canvasSrc.indexOf('<MercurySphere'));
@@ -90,10 +91,12 @@ describe('hyper landing ring gain (fix/mercury-motion)', () => {
   });
 });
 
-describe('trickle pearl ripples off (fix/mercury-motion)', () => {
-  it('no trickle gain is left to tune: an idle trickle pearl never rings', async () => {
+describe('visible trickle pearl ripples (fix/mercury-pearl-ripples)', () => {
+  it('a visible trickle pearl rings at the gentler trickleWaveGain (1.5), half a flung pearl ring', async () => {
     const { PLANET_TUNE } = await import('../planet/planetLook');
-    expect(PLANET_TUNE.trickleWaveGain).toBeUndefined();
+    expect(PLANET_TUNE.trickleWaveGain).toBe(1.5);
+    expect(PLANET_TUNE.trickleWaveGain).toBeLessThan(PLANET_TUNE.pearlWaveGain);
+    expect(planetSrc).toContain('if (s > 0) ringPearl(sim.hits, h, s * PLANET_TUNE.trickleWaveGain, body.q, surf, beadCtx.dirW, t);');
   });
 });
 
@@ -114,5 +117,20 @@ describe('bead shadow edge (fix/mercury-motion)', () => {
     const { PLANET_TUNE } = await import('../planet/planetLook');
     expect(PLANET_TUNE.beadPenumbra).toBe(0.3);
     expect(PLANET_TUNE.aetherPenumbra).toBe(0.08);
+  });
+});
+
+describe('pearl rings stay where the pearl landed (fix/mercury-pearl-ripples)', () => {
+  it('ringPearl hands the world centre with slip 1, so slipDirWorld pins it against body.q', async () => {
+    expect(planetSrc).toContain('const PEARL_RING_SLIP = 1;');
+    expect(planetSrc).toContain("addImpulseIfRoom(surf.impulses, { dirBody: surf.b, dirWorld: dirW, slip: PEARL_RING_SLIP, tS: t, mode: 0, wave: pearlWave, kind: 'splash' })");
+    const { slipDirWorld } = await import('../planet/mercuryWaves');
+    expect(slipDirWorld([1, 0, 0], [0, 0, 1], 1)).toEqual([0, 0, 1]); // the carried dir drops out entirely
+  });
+  it('the ripple sheen is a live knob, uploaded every frame', async () => {
+    expect(planetSrc).toContain('uRippleSheen: { value: PLANET_TUNE.rippleSheen },');
+    expect(planetSrc).toContain('u.uRippleSheen.value = PLANET_TUNE.rippleSheen;');
+    const { PLANET_TUNE } = await import('../planet/planetLook');
+    expect(PLANET_TUNE.rippleSheen).toBe(0.3);
   });
 });

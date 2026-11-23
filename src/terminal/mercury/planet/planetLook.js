@@ -60,6 +60,7 @@ export const PLANET_TUNE = {
   beadGlint: 4,      // droplets and the beads' resolved Sun lobe: × sunGlint; with the droplet glint AA, a crisp 2 px sparkle on the small beads
   hyperWaveGain: 3,  // a hyper-fling bead's landing ring × this (median strike 0.03 rang 0.010, unreadable); watch for banding (6a)
   pearlWaveGain: 3,  // a landing flung pearl's local ring × this (it rings without body modes since 50c316e1): 3 puts the mean at the drag wake's ~0.12
+  trickleWaveGain: 1.5, // a visible trickle pearl's ring (drawn whole, camera-facing): gentler than a flung pearl's, ∝ pearlStrike (size, speed)
   beadSparkle: 1.0,  // Hg aether beads (hgBeadShader): peak of the guaranteed sub-pixel Sun glint, sRGB units before the 1.5 cap
   dustSparkle: 3.0,  // Hg glitter dust: peak of the wobble-gated glint × size weight (biggest specks ≈ 2.3 after Hg Fresnel), sRGB units before DUST_GLINT_MAX 3
   emitGain: 1.5,     // liquid mirror: element-emitter reflection gain
@@ -100,7 +101,8 @@ export const PLANET_TUNE = {
   rayGain: 1.5,      // fresh crater-ray brightness (scar map G channel); 1.5 tuned 2026-10-02 (Task 7: 2+ flattens rays into a blob)
   modeGain: 1,       // body-mode + spin-bulge amplitude (the bead's wobble)
   waveGain: 1,       // capillary ripple slope
-  roilGain: 1,       // boil-zone bubble-pop slope (mercuryRoil.POP_AMP × this)
+  roilGain: 0,       // boil-zone bubble-pop slope (mercuryRoil.POP_AMP × this). 0 (author 2026-11-23): pops read as causeless dimples next to world-anchored pearl rings; real boiling Hg heaves, it does not simmer into rings
+  rippleSheen: 0.3,  // liquid: a ring lifts the mirror by its own slope × this (soft knee 0.15): a pearl's ring reads on the dark sky, ≈ +0.02 linear; 0 = pure mirror
   exoGain: 4,        // sodium tail + Hg vapour haze brightness
   roughLiquid: ROUGH_LIQUID, // liquid mirror roughness (Sun + emitter lobes; the aether sky keeps full detail up to SKY_ROUGH_SHARP)
   meniscus: 1,       // melt-front bead rim: 0 = the old soft wipe, 1 = full non-wetting rim (mercuryMeniscus.js)

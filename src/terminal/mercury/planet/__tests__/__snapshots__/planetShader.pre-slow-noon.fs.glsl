@@ -51,6 +51,7 @@ uniform vec3 uImpMode[8];
 uniform vec3 uImpWave[8];
 uniform vec4 uBulge;
 uniform float uRoilGain;
+uniform float uRippleSheen;
 uniform float uPopZoom;
 uniform float uRoughLiquid;
 uniform float uMeniscus;
@@ -634,6 +635,13 @@ float rippleSlope(float th, float age, float pxArc, float dimple) {
   return slope + dimple * dimpleAA(pxArc) * WAVE_DIMPLE_GAIN * exp(-age / WAVE_DIMPLE_S) * DIMPLE_NORM * xd * exp(-xd * xd);
 }
 
+// Ripple sheen (fix/mercury-pearl-ripples): a pure mirror shows a tilted normal only where the reflected sky has
+// detail, so a ring on the dark part of the mirror stayed invisible until it crossed the white studio band. Each ring
+// lifts the liquid faintly by its own slope (Hg-Fresnel tinted, × uRippleSheen), soft-capped at this knee so a drop's
+// splash or a drag wake never washes out: a pearl's ring (slope ≈ 0.05–0.13) reads at its own touchdown.
+const float WAVE_SHEEN_KNEE = 0.15;
+float waveSheen(vec3 tilt) { return WAVE_SHEEN_KNEE * (1.0 - exp(-length(tilt) / WAVE_SHEEN_KNEE)); }
+
 // Capillary ripple trains running out from each impulse, 1/√sinθ spreading
 // normalised inside WAVE_SPREAD_FLOOR; warp (a light noise on the arc
 // distance) shears the rings so they never read as etched grooves. Returns
@@ -840,7 +848,8 @@ void main() {
       }
       vec3 nW = uBodyRot * nB;
       float warp = WAVE_WARP_RAD * (2.0 * vnoise3(xb * WAVE_WARP_FREQ) - 1.0);
-      nW = normalize(nW - fluid * waveTilt(xw, pxArc, warp));
+      vec3 wTilt = waveTilt(xw, pxArc, warp);
+      nW = normalize(nW - fluid * wTilt);
       float popAct = 0.0;
       if (boilW > 0.0) {
         vec3 rt;
@@ -855,6 +864,7 @@ void main() {
       if (liquidW > 0.0) {
         vec3 Fl = fresnelHg(NoV);
         liquid = hgLiquid(Fl, R, mix(uRoughLiquid, ROUGH_BOIL, boilW * (0.5 + 0.5 * popAct)), hit, nW);
+        liquid += Fl * (uRippleSheen * waveSheen(wTilt)); // ripple sheen: a ring reads on the dark mirror too
       }
 
       vec3 solid = vec3(0.0);

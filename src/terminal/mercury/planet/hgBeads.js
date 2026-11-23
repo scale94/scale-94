@@ -81,6 +81,19 @@ export const HIT_STRIDE = 6;
 // flung bead ripples (it is the author's gesture); the trickle and the splash spray land silent (fix/mercury-motion: a
 // short-hop trickle pearl lost in the bright reflection rang a ripple from nothing), so an idle melted planet is calm.
 export const HIT_SILENT = 0, HIT_TRICKLE = 1, HIT_FLUNG = 2;
+// fix/mercury-pearl-ripples (author 2026-11-23): a big trickle pearl sinking into the mirror with no ring broke the
+// physics. A trickle / splash pearl rings when the eye can see it land: drawn whole by the bead shader (≥ this many
+// drawing-buffer px across: its kPearl reaches 1 at vPx 4) and touching down on the camera-facing cap. Every such pearl
+// rings (no shared budget, no strongest-of-frame): the old budget handed the ring to whichever bead landed first, often
+// one lost in the glare, so the ring read as displaced from the pearl being watched. Dust stays silent (pearlStrike 0).
+export const PEARL_RING_MIN_PX = 4;
+export const pearlDrawnWhole = (r, pxPerUnit) => 2 * r * pxPerUnit >= PEARL_RING_MIN_PX;
+// R·d (d a unit world dir, planet at the origin) is on the cap a camera at c sees iff d·c > R.
+export const facesCamera = (dx, dy, dz, cx, cy, cz, R) => dx * cx + dy * cy + dz * cz > R;
+export function trickleRings(hits, h, pxPerUnit, cx, cy, cz, R) {
+  return hits[h + 5] === HIT_TRICKLE && pearlDrawnWhole(hits[h + 3], pxPerUnit)
+    && facesCamera(hits[h], hits[h + 1], hits[h + 2], cx, cy, cz, R);
+}
 export function createBeads(cap, seed = 0x6867) {
   return {
     cap, n: 0, acc: 0, rng: mulberry32(seed),
