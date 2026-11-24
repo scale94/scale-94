@@ -92,16 +92,17 @@ function kickLevel(k, tsec) {
   return k.peak * (Math.exp(-4 * x) - DECAY_FLOOR) / (1 - DECAY_FLOOR);
 }
 
-// The crescendo's override for this frame: values `o` and their weight `w`
-// over the baseline (w = 1 until the settle phase eases it back to 0).
-function crescendoAt(c, tsec) {
+// The crescendo's override for this frame, written into `o` (a per-eye scratch: no
+// allocation per frame): values and their weight `o.w` over the baseline (w = 1 until
+// the settle phase eases it back to 0).
+function crescendoAt(c, tsec, o) {
   const age = tsec - c.t0;
-  const o = { core: 0, focus: 0.95, turb: 0, speedMul: 1, jitter: 0, kick: 0 };
+  o.core = 0; o.focus = 0.95; o.turb = 0; o.speedMul = 1; o.jitter = 0; o.kick = 0; o.w = 1;
   if (age < IMPLODE_S) {
     const x = age / IMPLODE_S;
     o.core = c.core0 * Math.pow(1 - x, 3);               // the star-core collapses to a point
     o.focus = lerp(c.focus0, 0.95, smooth(x));
-    return { o, w: 1 };
+    return o;
   }
   const tDet = age - IMPLODE_S;
   if (tDet < DETONATE_S) {
@@ -109,18 +110,38 @@ function crescendoAt(c, tsec) {
     o.focus = lerp(0.95, 0.3, smooth(y));                // the blast throws the iris open
     o.turb = 1; o.speedMul = 4;
     o.kick = 1 - y;                                      // a white-gold ring flies outward
-    return { o, w: 1 };
+    return o;
   }
   const tStorm = tDet - DETONATE_S;
   o.focus = 0.3;
   if (tStorm < STORM_S) {
     const z = tStorm / STORM_S;
     o.turb = lerp(1, 0.6, z); o.speedMul = lerp(4, 2, z); o.jitter = 1;
-    return { o, w: 1 };
+    return o;
   }
   const s = Math.min(1, (tStorm - STORM_S) / SETTLE_S);
   o.turb = 0.6; o.speedMul = 2; o.jitter = 1 - s;
-  return { o, w: 1 - smooth(s) };
+  o.w = 1 - smooth(s);
+  return o;
+}
+
+// Per-eye scratch for the frame loop: every per-frame value is written in place.
+const cols3 = () => [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+function makeScratch() {
+  return {
+    o: {
+      cols: cols3(), speed: 0, focus: 0, irid: 0, pulse: 0, gaze: [0, 0], core: 0, orbit: 0,
+      shimmer: 0, thread: 0, turb: 0, kick: 0, kickKind: 0, kickDir: 0, phase: 0,
+    },
+    cres: { core: 0, focus: 0, turb: 0, speedMul: 1, jitter: 0, kick: 0, w: 1 },
+    T: { tgt: null, tCols: null, tGaze: null, tCore: 0, tOrbit: 0, tShimmer: 0, tThread: 0, tPulse: 0 },
+    leanTgt: { speed: 0, focus: 0, irid: 0 },
+    leanCols: cols3(),
+    leanGaze: [0, 0],
+    derived: { tint: null, cols: null },        // deriveCols(tint), recomputed only on a new tint
+    f3: [new Float32Array(3), new Float32Array(3), new Float32Array(3)],
+    f2: new Float32Array(2),
+  };
 }
 
 // lean (0..1, default 1) eases an overlay in: the leaning tint / gaze / pulse / shimmer blend
@@ -142,6 +163,8 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
   const holdTimerRef = useRef(0);
 
   const curRef = useRef(null);
+  const scratchRef = useRef(null);
+  if (!scratchRef.current) scratchRef.current = makeScratch();
   const { snap } = useShaderCanvas(canvasRef, {
     version: 1,
     contextOptions: { alpha: true, premultipliedAlpha: false, antialias: true },
@@ -229,7 +252,7 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
       cur.orbit = tOrbit;
       cur.shimmer = tShimmer;
       cur.thread = tThread;
-      paint(host, still(cur), 0);
+      paint(host, still(cur, scratchRef.current.o), 0);
     },
   });
 
@@ -239,60 +262,79 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
     return leanRef.current == null ? 1 : clamp01(leanRef.current);
   }
 
+  // deriveCols for the leaning tint, cached per tint (a new array only when the tint changes).
+  function derivedTint(tint) {
+    const d = scratchRef.current.derived;
+    if (d.tint !== tint) { d.tint = tint; d.cols = deriveCols(tint); }
+    return d.cols;
+  }
+
+  // The targets the eye eases toward, written into a scratch (read before the next call).
   function targets(chargeP, useLean) {
+    const S = scratchRef.current;
+    const T = S.T;
     const tgt = STATES[stateRef.current] || STATES.resting;
-    const tCols = (stateRef.current === 'leaning' && tintRef.current) ? deriveCols(tintRef.current) : tgt.cols;
+    const tCols = (stateRef.current === 'leaning' && tintRef.current) ? derivedTint(tintRef.current) : tgt.cols;
     const tGaze = gazeRef.current || tgt.gaze;
     const tCore = tgt.charge ? lerp(CHARGE_CORE[0], CHARGE_CORE[1], chargeP) : (tgt.core || 0);
     const tOrbit = tgt.charge ? lerp(CHARGE_ORBIT[0], CHARGE_ORBIT[1], chargeP) : (tgt.orbit || 0);
     const tShimmer = Math.max(tgt.shimmer || 0, clamp01(shimmerRef.current));
-    const tThread = clamp01(threadRef.current);
     const tPulse = pulseRef.current ? 1 : 0;
     const w = useLean ? currentLean() : 1;
+    T.tThread = clamp01(threadRef.current);
     // Fully leaned in: exactly today's targets (no lerp(a, b, 1) rounding).
-    if (w >= 1) return { tgt, tCols, tGaze, tCore, tOrbit, tShimmer, tThread, tPulse };
+    if (w >= 1) {
+      T.tgt = tgt; T.tCols = tCols; T.tGaze = tGaze; T.tCore = tCore; T.tOrbit = tOrbit;
+      T.tShimmer = tShimmer; T.tPulse = tPulse;
+      return T;
+    }
     const base = STATES[baseStateRef.current] || STATES[stateRef.current] || STATES.resting;
     const bCore = base.charge ? lerp(CHARGE_CORE[0], CHARGE_CORE[1], chargeP) : (base.core || 0);
     const bOrbit = base.charge ? lerp(CHARGE_ORBIT[0], CHARGE_ORBIT[1], chargeP) : (base.orbit || 0);
-    return {
-      tgt: {
-        speed: lerp(base.speed, tgt.speed, w), focus: lerp(base.focus, tgt.focus, w), irid: lerp(base.irid, tgt.irid, w),
-      },
-      tCols: tCols.map((c, i) => c.map((x, j) => lerp(base.cols[i][j], x, w))),
-      tGaze: [lerp(base.gaze[0], tGaze[0], w), lerp(base.gaze[1], tGaze[1], w)],
-      tCore: lerp(bCore, tCore, w),
-      tOrbit: lerp(bOrbit, tOrbit, w),
-      tShimmer: lerp(base.shimmer || 0, tShimmer, w),
-      tThread,
-      tPulse: tPulse * w,
-    };
+    const lt = S.leanTgt;
+    lt.speed = lerp(base.speed, tgt.speed, w);
+    lt.focus = lerp(base.focus, tgt.focus, w);
+    lt.irid = lerp(base.irid, tgt.irid, w);
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) S.leanCols[i][j] = lerp(base.cols[i][j], tCols[i][j], w);
+    S.leanGaze[0] = lerp(base.gaze[0], tGaze[0], w);
+    S.leanGaze[1] = lerp(base.gaze[1], tGaze[1], w);
+    T.tgt = lt; T.tCols = S.leanCols; T.tGaze = S.leanGaze;
+    T.tCore = lerp(bCore, tCore, w);
+    T.tOrbit = lerp(bOrbit, tOrbit, w);
+    T.tShimmer = lerp(base.shimmer || 0, tShimmer, w);
+    T.tPulse = tPulse * w;
+    return T;
   }
 
-  // The eased baseline with no reaction on it.
-  function still(cur) {
-    return {
-      cols: cur.cols, speed: cur.speed, focus: cur.focus, irid: cur.irid, pulse: cur.pulse,
-      gaze: cur.gaze, core: cur.core, orbit: cur.orbit, shimmer: cur.shimmer, thread: cur.thread,
-      turb: 0, kick: 0, kickKind: 0, kickDir: 0, phase: 0,
-    };
+  // The eased baseline with no reaction on it, copied into `o` (the frame scratch).
+  function still(cur, o) {
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) o.cols[i][j] = cur.cols[i][j];
+    o.gaze[0] = cur.gaze[0]; o.gaze[1] = cur.gaze[1];
+    o.speed = cur.speed; o.focus = cur.focus; o.irid = cur.irid; o.pulse = cur.pulse;
+    o.core = cur.core; o.orbit = cur.orbit; o.shimmer = cur.shimmer; o.thread = cur.thread;
+    o.turb = 0; o.kick = 0; o.kickKind = 0; o.kickDir = 0; o.phase = 0;
+    return o;
   }
 
   // The baseline with the crescendo, or else the live kick, laid over it.
   function overlay(cur, tsec) {
-    const o = still(cur);
+    const S = scratchRef.current;
+    const o = still(cur, S.o);
     let hue = null, level = 0;
     const c = cur.cres;
     if (c) {
       if (c.t0 == null) { c.t0 = tsec; c.core0 = cur.core; c.focus0 = cur.focus; }
       if (tsec - c.t0 >= CRESCENDO_S) cur.cres = null;
       else {
-        const { o: x, w } = crescendoAt(c, tsec);
+        const x = crescendoAt(c, tsec, S.cres);
+        const w = x.w;
         o.core = lerp(cur.core, x.core, w);
         o.focus = lerp(cur.focus, x.focus, w);
         o.turb = x.turb * w;
         o.speed = cur.speed * lerp(1, x.speedMul, w);
         const j = 0.03 * x.jitter * w;     // storm: the gaze shakes, ±0.03
-        o.gaze = [cur.gaze[0] + j * Math.sin(tsec * 47.3), cur.gaze[1] + j * Math.sin(tsec * 39.1 + 1.3)];
+        o.gaze[0] = cur.gaze[0] + j * Math.sin(tsec * 47.3);
+        o.gaze[1] = cur.gaze[1] + j * Math.sin(tsec * 39.1 + 1.3);
         if (x.kick > 0) {
           o.kick = x.kick; o.kickKind = KICK.ring; o.kickDir = 1;
           hue = WHITE_GOLD_COLS; level = x.kick;
@@ -311,7 +353,7 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
     if (hue && level > 0) {
       const kc = hue;
       const t = Math.min(1, level);
-      o.cols = cur.cols.map((col, i) => col.map((x, jj) => lerp(x, kc[i][jj], t)));
+      for (let i = 0; i < 3; i++) for (let jj = 0; jj < 3; jj++) o.cols[i][jj] = lerp(cur.cols[i][jj], kc[i][jj], t);
     }
     cur.kickOut = o.kick;
     return o;
@@ -321,7 +363,8 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
   // reduced-motion snap — both must emit exactly the same call sequence.
   function paint(host, o, tsec) {
     const { gl, U } = host;
-    const nrm = c => new Float32Array([c[0] / 255, c[1] / 255, c[2] / 255]);
+    const { f3, f2 } = scratchRef.current;
+    const nrm = (c, f) => { f[0] = c[0] / 255; f[1] = c[1] / 255; f[2] = c[2] / 255; return f; };
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.uniform1f(U.u_t, tsec);
@@ -329,10 +372,11 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
     gl.uniform1f(U.u_irid, o.irid);
     gl.uniform1f(U.u_speed, o.speed);
     gl.uniform1f(U.u_pulse, o.pulse);
-    gl.uniform3fv(U.c0, nrm(o.cols[0]));
-    gl.uniform3fv(U.c1, nrm(o.cols[1]));
-    gl.uniform3fv(U.c2, nrm(o.cols[2]));
-    gl.uniform2fv(U.u_gaze, new Float32Array(o.gaze));
+    gl.uniform3fv(U.c0, nrm(o.cols[0], f3[0]));
+    gl.uniform3fv(U.c1, nrm(o.cols[1], f3[1]));
+    gl.uniform3fv(U.c2, nrm(o.cols[2], f3[2]));
+    f2[0] = o.gaze[0]; f2[1] = o.gaze[1];
+    gl.uniform2fv(U.u_gaze, f2);
     gl.uniform1f(U.u_core, o.core);
     gl.uniform1f(U.u_orbit, o.orbit);
     gl.uniform1f(U.u_shimmer, o.shimmer);
