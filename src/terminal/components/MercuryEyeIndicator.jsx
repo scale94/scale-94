@@ -12,7 +12,7 @@
 // preempts a showing whisper: the visitor's own act wins.
 //
 // Telemetry: edge/eye_phase {phase: silver|aether|charging|crescendo|sealed}
-// on change, edge/eye_whisper {piece} per new whisper. Both deferred out of render.
+// on change, deferred out of render. edge/eye_whisper {target} is the store's (showWhisper).
 // Suppression: handled by parent (boot / sanctuary / breach).
 
 import React, { useState, useEffect, useRef, useSyncExternalStore } from 'react';
@@ -141,15 +141,13 @@ export default function MercuryEyeIndicator({ activeTab, onNavigate, lastKernelA
   }, [lastLoadAt]);
 
   // ── Whisper → the phrase slot, once per id (the store keeps it spent) ───────
-  // No cleanup on the emit: the snapshot object changes on every store ping, and a
-  // re-run (guarded by id) must not cancel the pending emit.
+  // The store emits edge/eye_whisper itself (spec §5.9), so a remount never re-logs it.
   const whisper = obs.whisper;
   const prevWhisperId = useRef(null);
   useEffect(() => {
     if (!whisper || whisper.id === prevWhisperId.current) return;
     prevWhisperId.current = whisper.id;
     setSlot({ text: whisper.text, whisper: true, key: ++slotKey.current });
-    setTimeout(() => emitObs('edge', 'eye_whisper', { piece: whisper.piece }), 0);
   }, [whisper]);
 
   const { state: eyeState, tint, gaze, pulse, thread, shimmer, baseline } = resolveEyeState({

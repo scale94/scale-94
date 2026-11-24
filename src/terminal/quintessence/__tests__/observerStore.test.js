@@ -12,7 +12,7 @@ import { PIECE_TAB, TAB_PIECES, RIDDLES } from '../whispers';
 import { setTrend, setCouncil, setPhase, setElement, _resetSpineForTests } from '../spineStore';
 import { STORAGE_KEY } from '../sealedArtifact';
 import { _resetVolatileForTests, holdVolatile } from '../volatileHold';
-import { emit, _resetForTests as _resetBusForTests } from '../../../observatory/observatoryBus';
+import { emit, subscribe as subscribeBus, _resetForTests as _resetBusForTests } from '../../../observatory/observatoryBus';
 import { KICK } from '../../components/observerEyeShader';
 import { LUNAR_ACCORDS } from '../../data/lunarAccords';
 
@@ -460,6 +460,31 @@ describe('observerStore — whispers', () => {
     emit('gaze', 'tab_navigated', { tab: 'privacy' });
     await step(IDLE_MS + 2000);
     expect(getObserver().whisper).toMatchObject({ piece: 'ledger.write' });
+  });
+
+  it('emits edge/eye_whisper {target} once per shown whisper, deferred', async () => {
+    const got = [];
+    subscribeBus(e => { if (e.kind === 'eye_whisper') got.push(e); });
+    boot('mercury');
+    await step(IDLE_MS);
+    expect(getObserver().whisper).toMatchObject({ piece: 'mercury.flick' });
+    await step(0);
+    await step(WHISPER_MS);
+    expect(got.map(e => [e.category, e.payload])).toEqual([['edge', { target: 'mercury.flick' }]]);
+  });
+
+  it('a held whisper emits eye_whisper only when it shows; a dropped one never', async () => {
+    const got = [];
+    subscribeBus(e => { if (e.kind === 'eye_whisper') got.push(e); });
+    boot(QUIET_TAB);
+    setChromeVisible(false);
+    await act();
+    await step(SETTLE);
+    await step(MOBILE_HOLD_MS);
+    expect(got).toHaveLength(0);
+    setChromeVisible(true);
+    await step(0);
+    expect(got).toHaveLength(0);
   });
 
   it('pointermove_does_not_reset_idle_but_pointerdown_does', async () => {

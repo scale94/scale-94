@@ -143,12 +143,12 @@ describe('MercuryEyeIndicator — observerStore wiring', () => {
     expect(phases()).toEqual(['silver', 'charging', 'crescendo', 'sealed']);
   });
 
-  it('emits eye_whisper {piece} once per new whisper id, deferred out of render', () => {
+  it('never emits eye_whisper itself (the store does, once per whisper)', () => {
     mount();
     act(() => store.set({ whisper: { id: 'sol.release:1', text: 'x', piece: 'sol.release' } }));
-    act(() => store.set({ glance: { tab: 'sol', tint: [254, 249, 195], shimmer: false, reason: 'whisper', phase: 'hold' } }));
+    act(() => store.set({ glance: { tab: 'sol', tint: [254, 249, 195], shimmer: false, reason: 'whisper', startedAt: 0 } }));
     flushEmits();
     const w = bus.emits.filter(e => e.kind === 'eye_whisper');
-    expect(w).toEqual([{ category: 'edge', kind: 'eye_whisper', payload: { piece: 'sol.release' } }]);
+    expect(w).toEqual([]);
   });
 });

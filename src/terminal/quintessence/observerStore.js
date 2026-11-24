@@ -5,7 +5,7 @@
 // Only a hand moves the eye: sim kinds are dropped, mixed kinds pass only with
 // `payload.hand`. Every timed rule runs off ONE scheduler timeout, re-armed on
 // each state change, so the store's clock is always the injected `now`.
-import { subscribe } from '../../observatory/observatoryBus';
+import { subscribe, emit as emitBus } from '../../observatory/observatoryBus';
 import { getSpine, subscribeSpine } from './spineStore';
 import { loadSealedArtifact } from './sealedArtifact';
 import { heldVolatile } from './volatileHold';
@@ -341,6 +341,10 @@ function showWhisper(w, idleTab, t) {
   saveTrail();
   cooldownMs = drawCooldown();
   whisper = { ...w, until: t + WHISPER_MS };
+  // Telemetry (spec §5.9), once per shown whisper: from here, not from the indicator, so a
+  // remount never re-emits. Deferred: never synchronous inside a caller's render or effect chain.
+  const target = w.piece;
+  setTimeout(() => emitBus('edge', 'eye_whisper', { target }), 0);
   const tab = PIECE_TAB[w.piece];
   const mercury = tab === 'mercury';
   startGlance(tab, mercury ? null : NAV_TINTS[tab] || null, mercury, 'whisper', t);
