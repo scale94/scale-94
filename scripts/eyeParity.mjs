@@ -8,7 +8,8 @@
 //   node scripts/eyeParity.mjs     exit 0 = parity, 1 = per-row report
 //
 // Fail rule: a pixel "differs" if any channel is off by > 2/255; a row fails if
-// more than 0.1% of its pixels differ.
+// more than 0.1% of its pixels differ, OR if any single channel anywhere is off
+// by more than 16/255 (a few wrong pixels can still be a visible defect).
 import { readFileSync } from 'node:fs';
 import { launch } from './cdp.mjs';
 import { VS, FS } from '../src/terminal/components/observerEyeShader.js';
@@ -133,7 +134,7 @@ try {
   const res = await page.eval(`window.run(${JSON.stringify(rows)})`);
   for (const r of res) {
     const frac = r.bad / r.total;
-    const ok = frac <= 0.001;
+    const ok = frac <= 0.001 && r.maxd <= 16;
     if (!ok) { failed++; console.log(`FAIL ${r.label}: ${r.bad}/${r.total} px differ (${(frac * 100).toFixed(2)}%), max channel delta ${r.maxd}/255`); }
     else if (r.lit < r.total * 0.2) { failed++; console.log(`FAIL ${r.label}: vacuous, only ${r.lit} lit pixels`); }
   }
