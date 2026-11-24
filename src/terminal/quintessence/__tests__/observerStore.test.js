@@ -6,7 +6,7 @@ import {
   NAV_TINTS, FLASH_MS, WITNESS_MS, VERTEBRA_MS, CRESCENDO_MS, _resetObserverForTests,
   setChromeVisible, QUIET_MS, GLANCE_IN_MS, GLANCE_HOLD_MS, GLANCE_OUT_MS, GLANCE_GAP_MS,
   IDLE_MS, COOLDOWN_MIN_MS, COOLDOWN_MAX_MS, AFTER_REACTION_MS, WHISPER_MS, PHRASE_BUSY_MS,
-  MOBILE_HOLD_MS,
+  MOBILE_HOLD_MS, glanceLevel, GLANCE_TOTAL_MS,
 } from '../observerStore';
 import { PIECE_TAB, TAB_PIECES, RIDDLES } from '../whispers';
 import { setTrend, setCouncil, setPhase, setElement, _resetSpineForTests } from '../spineStore';
@@ -363,6 +363,20 @@ describe('observerStore — constants', () => {
 });
 
 describe('observerStore — glances', () => {
+  it('glanceLevel ramps in, holds, ramps out (D5 slow ease)', () => {
+    const g = { startedAt: 1000 };
+    expect(glanceLevel(g, 1000)).toBe(0);
+    expect(glanceLevel(g, 1000 + GLANCE_IN_MS / 2)).toBeCloseTo(0.5, 6);
+    expect(glanceLevel(g, 1000 + GLANCE_IN_MS / 4)).toBeGreaterThan(0);
+    expect(glanceLevel(g, 1000 + GLANCE_IN_MS / 4)).toBeLessThan(0.5);
+    expect(glanceLevel(g, 1000 + GLANCE_IN_MS)).toBe(1);
+    expect(glanceLevel(g, 1000 + GLANCE_IN_MS + GLANCE_HOLD_MS - 1)).toBe(1);
+    expect(glanceLevel(g, 1000 + GLANCE_IN_MS + GLANCE_HOLD_MS + GLANCE_OUT_MS / 2)).toBeCloseTo(0.5, 6);
+    expect(glanceLevel(g, 1000 + GLANCE_TOTAL_MS)).toBe(0);
+    expect(glanceLevel(null, 5000)).toBe(0);
+    expect(GLANCE_TOTAL_MS).toBe(GLANCE_IN_MS + GLANCE_HOLD_MS + GLANCE_OUT_MS);
+  });
+
   it('flash_cancels_glance_and_nothing_reasserts', async () => {
     boot('mercury');
     await step(QUIET_MS);
@@ -386,18 +400,22 @@ describe('observerStore — glances', () => {
     expect(getObserver().glance).toBeNull();
     await step(1);
     expect(getObserver().glance).toEqual({
-      tab: 'bsky', tint: NAV_TINTS.bsky, shimmer: false, reason: 'compass', phase: 'in',
+      tab: 'bsky', tint: NAV_TINTS.bsky, shimmer: false, reason: 'compass', startedAt: t,
     });
+    const g = getObserver().glance;
+    const seen = [];
+    subscribeObserver(s => seen.push(s));
     await step(GLANCE_IN_MS);
-    expect(getObserver().glance.phase).toBe('hold');
+    expect(glanceLevel(g, t)).toBe(1);
     await step(GLANCE_HOLD_MS);
-    expect(getObserver().glance.phase).toBe('out');
+    expect(glanceLevel(g, t)).toBe(1);
+    expect(seen).toHaveLength(0);                 // the ease needs no pings: it is a function of time
     await step(GLANCE_OUT_MS);
     expect(getObserver().glance).toBeNull();
     await step(GLANCE_GAP_MS - 1);
     expect(getObserver().glance).toBeNull();
     await step(1);
-    expect(getObserver().glance).toMatchObject({ reason: 'compass', phase: 'in' });
+    expect(getObserver().glance).toMatchObject({ reason: 'compass', startedAt: t });
     // An impulse during a glance cancels it immediately.
     await act();
     await flush();
@@ -442,7 +460,7 @@ describe('observerStore — whispers', () => {
       id: 'mercury.flick:0', text: RIDDLES['mercury.flick'][0], piece: 'mercury.flick',
     });
     expect(getObserver().glance).toEqual({
-      tab: 'mercury', tint: null, shimmer: true, reason: 'whisper', phase: 'in',
+      tab: 'mercury', tint: null, shimmer: true, reason: 'whisper', startedAt: t,
     });
     await step(WHISPER_MS);
     expect(getObserver().whisper).toBeNull();
@@ -520,7 +538,7 @@ describe('observerStore — whispers', () => {
     // mercury.flick is first in order but the visitor stands on /MERCURY: skip to the first vertebra.
     expect(getObserver().whisper).toMatchObject({ id: 'bsky.trend:0', piece: 'bsky.trend' });
     expect(getObserver().glance).toEqual({
-      tab: 'bsky', tint: NAV_TINTS.bsky, shimmer: false, reason: 'whisper', phase: 'in',
+      tab: 'bsky', tint: NAV_TINTS.bsky, shimmer: false, reason: 'whisper', startedAt: t,
     });
   });
 

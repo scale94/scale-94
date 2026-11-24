@@ -126,7 +126,7 @@ let cooldownMs = COOLDOWN_MIN_MS;
 let lastInputAt = 0;
 let quietFrom = 0;              // the compass quiet window counts from here
 let compassEndAt = -Infinity;
-let glance = null;              // { tab, tint, shimmer, reason, t0, phase }
+let glance = null;              // { tab, tint, shimmer, reason, t0 }
 let whisper = null;             // { id, text, piece, until }
 let held = null;                // a whisper waiting for the chrome: { id, text, piece, idleTab, since }
 let forwardAt = null;           // when the settled reaction may earn a forward whisper
@@ -144,8 +144,10 @@ function wantsChromeAt(t) {
 function buildSnap() {
   return {
     flash,
+    // No phase here: the ease is a pure function of time (glanceLevel), so the store pings
+    // only when a glance starts or ends and the eye reads the level per frame.
     glance: glance && {
-      tab: glance.tab, tint: glance.tint, shimmer: glance.shimmer, reason: glance.reason, phase: glance.phase,
+      tab: glance.tab, tint: glance.tint, shimmer: glance.shimmer, reason: glance.reason, startedAt: glance.t0,
     },
     whisper: whisper && { id: whisper.id, text: whisper.text, piece: whisper.piece },
     igniting, sealed, remarkedSinceSeal,
@@ -311,14 +313,19 @@ function onBus({ category, kind, payload }) {
 
 // ---- glances + whispers ----------------------------------------------------
 
-const GLANCE_TOTAL_MS = GLANCE_IN_MS + GLANCE_HOLD_MS + GLANCE_OUT_MS;
+export const GLANCE_TOTAL_MS = GLANCE_IN_MS + GLANCE_HOLD_MS + GLANCE_OUT_MS;
 
-function glancePhase(t) {
-  const dt = t - glance.t0;
-  if (dt < GLANCE_IN_MS) return 'in';
-  if (dt < GLANCE_IN_MS + GLANCE_HOLD_MS) return 'hold';
-  if (dt < GLANCE_TOTAL_MS) return 'out';
-  return null;
+const smooth01 = x => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
+
+// How far a glance leans in at `t` (D5's slow ease): 0→1 over GLANCE_IN_MS, 1 for the hold,
+// 1→0 over GLANCE_OUT_MS, smoothstepped. Pure, so a consumer can evaluate it every frame.
+export function glanceLevel(g, t) {
+  if (!g || !Number.isFinite(g.startedAt)) return 0;
+  const dt = t - g.startedAt;
+  if (dt <= 0 || dt >= GLANCE_TOTAL_MS) return 0;
+  if (dt < GLANCE_IN_MS) return smooth01(dt / GLANCE_IN_MS);
+  if (dt < GLANCE_IN_MS + GLANCE_HOLD_MS) return 1;
+  return smooth01(1 - (dt - GLANCE_IN_MS - GLANCE_HOLD_MS) / GLANCE_OUT_MS);
 }
 
 function endGlance(t) {
@@ -328,7 +335,7 @@ function endGlance(t) {
 
 function startGlance(tab, tint, shimmer, reason, t) {
   if (glance) endGlance(t);
-  glance = { tab, tint, shimmer, reason, t0: t, phase: 'in' };
+  glance = { tab, tint, shimmer, reason, t0: t };
 }
 
 const compassTarget = () => (sealed || armed() ? null : VERTEBRAE.find(v => !spine?.[v.key]) || null);
@@ -389,14 +396,7 @@ function tick() {
   const wantedBefore = snap.wantsChrome;
   let changed = false;
 
-  if (glance) {
-    const phase = glancePhase(t);
-    if (phase !== glance.phase) {
-      if (phase) glance.phase = phase;
-      else endGlance(glance.t0 + GLANCE_TOTAL_MS);
-      changed = true;
-    }
-  }
+  if (glance && t >= glance.t0 + GLANCE_TOTAL_MS) { endGlance(glance.t0 + GLANCE_TOTAL_MS); changed = true; }
   if (whisper && t >= whisper.until) { whisper = null; quietFrom = Math.max(quietFrom, t); changed = true; }
   if (held && t >= held.since + MOBILE_HOLD_MS) {
     held = null;                                   // dropped, never spent
@@ -435,11 +435,7 @@ function schedule() {
   tickTimer = 0;
   const t = now();
   const due = [];
-  if (glance) {
-    const dt = t - glance.t0;
-    due.push(glance.t0 + (dt < GLANCE_IN_MS ? GLANCE_IN_MS
-      : dt < GLANCE_IN_MS + GLANCE_HOLD_MS ? GLANCE_IN_MS + GLANCE_HOLD_MS : GLANCE_TOTAL_MS));
-  }
+  if (glance) due.push(glance.t0 + GLANCE_TOTAL_MS);
   if (whisper) due.push(whisper.until);
   if (held) due.push(held.since + MOBILE_HOLD_MS);
   if (sealedAt !== null) due.push(sealedAt + CRESCENDO_MS);

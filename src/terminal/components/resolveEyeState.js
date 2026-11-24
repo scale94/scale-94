@@ -4,12 +4,23 @@
 //           all three vertebrae marked → aether (thread if sealed); else silver.
 // Overlay:  flash → leaning in the flash tint; tinted glance → leaning + gaze + pulse;
 //           shimmer glance (Mercury) → baseline state + shimmer + gaze.
+// Lean (D5): how far the overlay leans in, 0..1. A flash is immediate (1); a glance follows
+// glanceLevel at `now` (omitted → 1, the old behaviour). The eye blends the overlay toward
+// `baseState` (the pre-overlay state) by 1 - lean.
 // The vertebra table lives in quintessence/vertebrae.js — the altar's mirror reads it too.
 import { VERTEBRAE } from '../quintessence/vertebrae';
+import { glanceLevel } from '../quintessence/observerStore';
 
 const NAV_GAZE = [0.15, -0.04]; // drift toward the nav row
 
-export function resolveEyeState({ spine, sealed, igniting, remarkedSinceSeal, flash, glance } = {}) {
+// The overlay's lean at `now`, from a snapshot ({ flash, glance }). The masthead reads it every frame.
+export function overlayLean({ flash, glance } = {}, now) {
+  if (flash) return 1;
+  if (glance && (glance.tint || glance.shimmer) && now != null) return glanceLevel(glance, now);
+  return 1;
+}
+
+export function resolveEyeState({ spine, sealed, igniting, remarkedSinceSeal, flash, glance, now } = {}) {
   const s = spine || {};
   const armed = VERTEBRAE.every(v => !!s[v.key]);
 
@@ -19,10 +30,11 @@ export function resolveEyeState({ spine, sealed, igniting, remarkedSinceSeal, fl
   else if (armed) { baseline = 'aether'; state = 'aether'; thread = sealed ? 1 : 0; }
   else { baseline = 'silver'; state = 'resting'; thread = 0; }
 
-  const out = { state, tint: null, gaze: null, pulse: false, thread, shimmer: 0, baseline };
+  const out = { state, tint: null, gaze: null, pulse: false, thread, shimmer: 0, baseline, baseState: state, lean: 1 };
+  const lean = overlayLean({ flash, glance }, now);
 
   if (flash) return { ...out, state: 'leaning', tint: flash.tint };
-  if (glance && glance.tint) return { ...out, state: 'leaning', tint: glance.tint, gaze: NAV_GAZE, pulse: true };
-  if (glance && glance.shimmer) return { ...out, gaze: NAV_GAZE, shimmer: 1 };
+  if (glance && glance.tint) return { ...out, state: 'leaning', tint: glance.tint, gaze: NAV_GAZE, pulse: true, lean };
+  if (glance && glance.shimmer) return { ...out, gaze: NAV_GAZE, shimmer: 1, lean };
   return out;
 }

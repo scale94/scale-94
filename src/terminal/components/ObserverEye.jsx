@@ -123,7 +123,10 @@ function crescendoAt(c, tsec) {
   return { o, w: 1 - smooth(s) };
 }
 
-function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, pulse = false, lens = true, constrict = null, thread = 0, shimmer = 0, onClick, title, className = '', ariaLabel }, ref) {
+// lean (0..1, default 1) eases an overlay in: the leaning tint / gaze / pulse / shimmer blend
+// toward `baseState` (the state without the overlay) by 1 - lean. `getLean`, when given, is read
+// every frame instead (a glance's slow ease without a React render per frame). A flash passes 1.
+function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, pulse = false, lens = true, constrict = null, thread = 0, shimmer = 0, lean = 1, getLean = null, baseState = null, onClick, title, className = '', ariaLabel }, ref) {
   const canvasRef = useRef(null);
   const stateRef  = useRef(state);
   const tintRef   = useRef(tint);
@@ -132,6 +135,9 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
   const constrictRef = useRef(constrict);
   const threadRef  = useRef(thread);
   const shimmerRef = useRef(shimmer);
+  const leanRef = useRef(lean);
+  const getLeanRef = useRef(getLean);
+  const baseStateRef = useRef(baseState);
   const aliveRef = useRef(false);
   const holdTimerRef = useRef(0);
 
@@ -177,7 +183,7 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
       else if (cur.chargeT0 == null && dt > 0) cur.chargeT0 = tsec;
       if (dt > 0) {
         const chargeP = cur.chargeT0 == null ? 0 : Math.min(1, (tsec - cur.chargeT0) / CHARGE_S);
-        const { tgt, tCols, tGaze, tCore, tOrbit, tShimmer, tThread } = targets(chargeP);
+        const { tgt, tCols, tGaze, tCore, tOrbit, tShimmer, tThread, tPulse } = targets(chargeP, true);
         const e = 1 - Math.pow(0.004, dt);
         for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) {
           cur.cols[i][j] = lerp(cur.cols[i][j], tCols[i][j], e);
@@ -187,7 +193,7 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
           ? Math.max(tgt.focus, constrictRef.current) : tgt.focus;
         cur.focus = lerp(cur.focus, focusTarget, e);
         cur.irid = lerp(cur.irid, tgt.irid, e);
-        cur.pulse = lerp(cur.pulse, pulseRef.current ? 1 : 0, e);
+        cur.pulse = lerp(cur.pulse, tPulse, e);
         cur.gaze[0] = lerp(cur.gaze[0], tGaze[0], e);
         cur.gaze[1] = lerp(cur.gaze[1], tGaze[1], e);
         cur.core = lerp(cur.core, tCore, e);
@@ -208,7 +214,9 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
       // and a reaction shows as a static colour hold (cur.hold).
       const cur = curRef.current;
       if (!cur) return;
-      const { tgt, tCols, tGaze, tCore, tOrbit, tShimmer, tThread } = targets(1);
+      // Reduced motion snaps on prop changes only, so a slow lean would freeze at its first
+      // value: the snap shows the overlay fully, as before.
+      const { tgt, tCols, tGaze, tCore, tOrbit, tShimmer, tThread } = targets(1, false);
       const hold = cur.hold;
       cur.cols = (hold ? hold.cols : tCols).map(c => c.slice());
       cur.speed = tgt.speed;
@@ -225,7 +233,13 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
     },
   });
 
-  function targets(chargeP) {
+  function currentLean() {
+    const fn = getLeanRef.current;
+    if (typeof fn === 'function') return clamp01(fn());
+    return leanRef.current == null ? 1 : clamp01(leanRef.current);
+  }
+
+  function targets(chargeP, useLean) {
     const tgt = STATES[stateRef.current] || STATES.resting;
     const tCols = (stateRef.current === 'leaning' && tintRef.current) ? deriveCols(tintRef.current) : tgt.cols;
     const tGaze = gazeRef.current || tgt.gaze;
@@ -233,7 +247,25 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
     const tOrbit = tgt.charge ? lerp(CHARGE_ORBIT[0], CHARGE_ORBIT[1], chargeP) : (tgt.orbit || 0);
     const tShimmer = Math.max(tgt.shimmer || 0, clamp01(shimmerRef.current));
     const tThread = clamp01(threadRef.current);
-    return { tgt, tCols, tGaze, tCore, tOrbit, tShimmer, tThread };
+    const tPulse = pulseRef.current ? 1 : 0;
+    const w = useLean ? currentLean() : 1;
+    // Fully leaned in: exactly today's targets (no lerp(a, b, 1) rounding).
+    if (w >= 1) return { tgt, tCols, tGaze, tCore, tOrbit, tShimmer, tThread, tPulse };
+    const base = STATES[baseStateRef.current] || STATES[stateRef.current] || STATES.resting;
+    const bCore = base.charge ? lerp(CHARGE_CORE[0], CHARGE_CORE[1], chargeP) : (base.core || 0);
+    const bOrbit = base.charge ? lerp(CHARGE_ORBIT[0], CHARGE_ORBIT[1], chargeP) : (base.orbit || 0);
+    return {
+      tgt: {
+        speed: lerp(base.speed, tgt.speed, w), focus: lerp(base.focus, tgt.focus, w), irid: lerp(base.irid, tgt.irid, w),
+      },
+      tCols: tCols.map((c, i) => c.map((x, j) => lerp(base.cols[i][j], x, w))),
+      tGaze: [lerp(base.gaze[0], tGaze[0], w), lerp(base.gaze[1], tGaze[1], w)],
+      tCore: lerp(bCore, tCore, w),
+      tOrbit: lerp(bOrbit, tOrbit, w),
+      tShimmer: lerp(base.shimmer || 0, tShimmer, w),
+      tThread,
+      tPulse: tPulse * w,
+    };
   }
 
   // The eased baseline with no reaction on it.
@@ -366,8 +398,9 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
   useEffect(() => {
     stateRef.current = state; tintRef.current = tint; gazeRef.current = gaze; pulseRef.current = pulse;
     constrictRef.current = constrict; threadRef.current = thread; shimmerRef.current = shimmer;
+    leanRef.current = lean; getLeanRef.current = getLean; baseStateRef.current = baseState;
     snap();
-  }, [state, tint, gaze, pulse, constrict, thread, shimmer]);
+  }, [state, tint, gaze, pulse, constrict, thread, shimmer, lean, getLean, baseState]);
 
   // The lens viewBox is 280 wide, so a stroke in user units shrinks with `size`
   // (1.3 → 0.3px at 64px: paper thin, pixelated on 1440p). Non-scaling px strokes

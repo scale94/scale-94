@@ -20,7 +20,10 @@ import { emit as emitObs } from '../../observatory/observatoryBus';
 import ObserverEye from './ObserverEye';
 import { getSpine, subscribeSpine } from '../quintessence/spineStore';
 import { getObserver, subscribeObserver, subscribeImpulse, CRESCENDO_MS } from '../quintessence/observerStore';
-import { resolveEyeState } from './resolveEyeState';
+import { resolveEyeState, overlayLean } from './resolveEyeState';
+
+// The glance's slow ease (D5), read by the eye every frame: no React render per frame.
+const getLean = () => overlayLean(getObserver(), Date.now());
 
 const PHRASE_COLOR  = 'rgba(232,210,138,0.65)';
 const WHISPER_COLOR = 'rgba(200,196,232,0.75)';
@@ -150,7 +153,7 @@ export default function MercuryEyeIndicator({ activeTab, onNavigate, lastKernelA
     setSlot({ text: whisper.text, whisper: true, key: ++slotKey.current });
   }, [whisper]);
 
-  const { state: eyeState, tint, gaze, pulse, thread, shimmer, baseline } = resolveEyeState({
+  const { state: eyeState, tint, gaze, pulse, thread, shimmer, baseline, baseState } = resolveEyeState({
     spine, sealed: obs.sealed, igniting: obs.igniting, remarkedSinceSeal: obs.remarkedSinceSeal,
     flash: obs.flash, glance: obs.glance,
   });
@@ -216,6 +219,8 @@ export default function MercuryEyeIndicator({ activeTab, onNavigate, lastKernelA
         pulse={pulse}
         thread={thread}
         shimmer={shimmer}
+        baseState={baseState}
+        getLean={getLean}
         size={64}
         className="transition-transform duration-300 group-hover:scale-110"
       />

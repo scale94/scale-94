@@ -253,3 +253,41 @@ describe('ObserverEye imperative handle', () => {
     expect(valuesOf('u_phase').every((p) => p === 0)).toBe(true);
   });
 });
+
+describe('ObserverEye lean (D5 glance ease)', () => {
+  const TINT = [56, 189, 248];
+  const REST = [210, 220, 232];
+  const mid = (a, b) => a.map((x, i) => (x + b[i]) / 2);
+  const near = (got, want) => got.forEach((x, i) => expect(x).toBeCloseTo(want[i], 3));
+
+  it('lean 0.5 pushes the colours, gaze and pulse halfway to the baseline', () => {
+    render(<ObserverEye state="leaning" tint={TINT} gaze={[0.15, -0.04]} pulse baseState="resting" lean={0.5} size={64} />);
+    const f = frames(240);
+    const u = f.at(-1).u;
+    near(u.c0, asVec3(mid(REST, TINT)));
+    expect(u.u_pulse).toBeCloseTo(0.5, 3);
+    near(u.u_gaze, [0.075, -0.02]);
+  });
+
+  it('lean 1 (the default) is the plain leaning look', () => {
+    render(<ObserverEye state="leaning" tint={TINT} pulse baseState="resting" size={64} />);
+    const u = frames(240).at(-1).u;
+    near(u.c0, asVec3(TINT));
+    expect(u.u_pulse).toBeCloseTo(1, 3);
+  });
+
+  it('getLean is read every frame, with no re-render', () => {
+    let level = 0;
+    let commits = 0;
+    render(
+      <Profiler id="eye" onRender={() => { commits++; }}>
+        <ObserverEye state="leaning" tint={TINT} baseState="resting" getLean={() => level} size={64} />
+      </Profiler>
+    );
+    near(frames(240).at(-1).u.c0, asVec3(REST));
+    const before = commits;
+    level = 1;
+    near(frames(240).at(-1).u.c0, asVec3(TINT));
+    expect(commits).toBe(before);
+  });
+});

@@ -96,6 +96,9 @@ describe('MercuryEyeIndicator — observerStore wiring', () => {
     expect(eye.props.tint).toEqual([217, 70, 239]);
     act(() => store.set({ flash: null, sealed: true }));
     expect(eye.props.thread).toBe(1);
+    expect(eye.props.baseState).toBe('resting');
+    expect(typeof eye.props.getLean).toBe('function');
+    expect(eye.props.getLean()).toBe(1);          // no glance: nothing to ease
   });
 
   it('whisper_renders_in_phrase_slot_with_riddle_colour', () => {
