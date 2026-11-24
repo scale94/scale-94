@@ -109,6 +109,10 @@ const POLARITY_GLOW = {
   CHAOTIC:  'rgba(255,40,80,0.14)',
 };
 
+// observerStore selectors (primitives, so a ping that changes neither skips App's render).
+const selectWantsChrome = () => getObserver().wantsChrome;
+const selectGlanceTab = () => getObserver().glance?.tab ?? null;
+
 const App = () => {
   const [currentPath, setCurrentPath] = useState(LANDING_PATH);
   const [activeTab, setActiveTab] = useState(LANDING_TAB);
@@ -304,8 +308,9 @@ const App = () => {
 
   // The observer layer (spec §5.7-§5.8): its glance drives the nav beat, and
   // `wantsChrome` (a whisper, the crescendo) holds the masthead visible.
-  const observer = useSyncExternalStore(subscribeObserver, getObserver);
-  const wantsChrome = observer.wantsChrome;
+  // Primitive selectors: App re-renders only when one of them changes, not on every ping.
+  const wantsChrome = useSyncExternalStore(subscribeObserver, selectWantsChrome);
+  const pulseTab = useSyncExternalStore(subscribeObserver, selectGlanceTab);
   const wantsChromeRef = useRef(wantsChrome);
   // The observer starts once the boot sequence has ended (not on mount).
   useEffect(() => { if (!bootSequence) startObserver({ tab: LANDING_TAB }); }, [bootSequence]);
@@ -631,7 +636,6 @@ const App = () => {
 
   // ── Nav beat (spec §5.7): the glance's tab breathes on the eye's 2400ms beat
   // while a glance is up, and nothing otherwise.
-  const pulseTab = observer.glance?.tab ?? null;
   const beatDelay = useMemo(() => `-${Math.round(performance.now() % 2400)}ms`, [pulseTab]);
   const beat = (tab) => (pulseTab === tab ? ' nav-beat' : '');
 
