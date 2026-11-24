@@ -1,27 +1,29 @@
 // ── MercuryEyeIndicator ──────────────────────────────────────────────────────
-// Persistent ◉ glyph rendered top-right across every tab. Converts Mercury's
-// alien-architect frame from a *feature* of one tab into a *structural
-// property* of the whole work — the observer is always watching, not just
-// when you visit Mercury.
+// The Observer eye at the masthead's left edge, on every tab. The observer is
+// always watching, not just when you visit Mercury.
 //
-// Color: full nav-spectrum cycle (13 colors, kernel cyan → ledger teal → loop)
+// It renders observerStore (spec §5.7–§5.9): the snapshot (flash, glance,
+// whisper, ignition, seal) resolves to the eye's state via resolveEyeState;
+// impulses (bus/spine reactions) become imperative kick()s, the crescendo a
+// detonate(). The kernel flare is the store's KICK.miosis impulse.
 //
-// Animation priority (highest → lowest):
-//   flare      — 1.8s opacity surge on kernel run, spectrum continues underneath
-//   active     — on Mercury tab: spectrum 8s vivid, breath 8s (0.72–0.95)
-//   deep-watch — >90s since last kernel: spectrum 120s dim, breath 14s (0.15–0.38)
-//   idle       — default: spectrum 52s moderate, breath 11s (0.28–0.58)
+// One phrase slot right of the eye: the existentialist lines on kernel
+// load/run (amber) and the whispers (pale silver-violet). A kernel phrase
+// preempts a showing whisper: the visitor's own act wins.
 //
-// Mobile fade: follows header opacity via mobileChrome prop.
+// Telemetry: edge/eye_phase {phase: silver|aether|charging|crescendo|sealed}
+// on change, edge/eye_whisper {piece} per new whisper. Both deferred out of render.
 // Suppression: handled by parent (boot / sanctuary / breach).
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useSyncExternalStore } from 'react';
 import { emit as emitObs } from '../../observatory/observatoryBus';
 import ObserverEye from './ObserverEye';
 import { getSpine, subscribeSpine } from '../quintessence/spineStore';
-import { loadSealedArtifact } from '../quintessence/sealedArtifact';
-import { getGuidance, subscribeGuidance, startGuidance } from '../quintessence/guidanceStore';
+import { getObserver, subscribeObserver, subscribeImpulse, CRESCENDO_MS } from '../quintessence/observerStore';
 import { resolveEyeState } from './resolveEyeState';
+
+const PHRASE_COLOR  = 'rgba(232,210,138,0.65)';
+const WHISPER_COLOR = 'rgba(200,196,232,0.75)';
 
 // ── Observer phrase pools ────────────────────────────────────────────────────
 const OBSERVER_PHRASES_LOAD = [
@@ -83,33 +85,38 @@ const OBSERVER_PHRASES_RUN = [
   'meaning absent · cascade nominal',
 ];
 
-export default function MercuryEyeIndicator({ activeTab, onNavigate, lastKernelAt, lastLoadAt }) {
+// mobileChrome is the masthead's visibility (spec §5.8). App feeds it to the store
+// (setChromeVisible), which holds whispers while it is hidden; the eye itself needs nothing from it.
+export default function MercuryEyeIndicator({ activeTab, onNavigate, lastKernelAt, lastLoadAt, mobileChrome: _mobileChrome }) {
   const isOnMercury = activeTab === 'mercury';
-  const [flaring,   setFlaring]   = useState(false);
-  const [deepWatch, setDeepWatch] = useState(true); // true on load — no runs yet
-  const prevKernelAt = useRef(null);
-  const [phrase,    setPhrase]    = useState(null);
-  const [phraseKey, setPhraseKey] = useState(0);
+  const eyeRef = useRef(null);
+  const [slot, setSlot] = useState(null);       // { text, whisper, key } | null
+  const slotKey      = useRef(0);
   const lastRunIdx   = useRef(-1);
   const lastLoadIdx  = useRef(-1);
+  const prevKernelAt = useRef(null);
   const prevLoadAt   = useRef(null);
   const [spine, setSpine] = useState(getSpine);
-  const [sealed, setSealed] = useState(() => !!loadSealedArtifact());
-  const [guidance, setGuidance] = useState(getGuidance);
+  const [crescendo, setCrescendo] = useState(false);
+  const obs = useSyncExternalStore(subscribeObserver, getObserver);
 
-  // ── The eye reads the compile state and reacts (Phase 3) ────────────────────
-  // Empty spine → resting (the golden record). Mark a vertebra → leaning, aimed at
-  // the next one in that tab's hue. Full spine → armed. Sealed kernel → complete.
   useEffect(() => subscribeSpine(setSpine), []);
+
+  // ── Impulses → the eye's imperative handle (no re-render) ───────────────────
   useEffect(() => {
-    // One read path to the seal (sealedArtifact.js) — also sees the volatile
-    // hold when localStorage rejected the write at seal time.
-    const check = () => setSealed(!!loadSealedArtifact());
-    check();
-    const id = setInterval(check, 2000);
-    return () => clearInterval(id);
+    let crescendoTimer = 0;
+    const off = subscribeImpulse((imp) => {
+      if (imp.tier === 'crescendo' || imp.kind === 0) {
+        eyeRef.current?.detonate();
+        setCrescendo(true);
+        clearTimeout(crescendoTimer);
+        crescendoTimer = setTimeout(() => setCrescendo(false), CRESCENDO_MS);
+        return;
+      }
+      eyeRef.current?.kick({ kind: imp.kind, tint: imp.tint, dir: imp.dir, durationMs: imp.durationMs });
+    });
+    return () => { off(); clearTimeout(crescendoTimer); };
   }, []);
-  useEffect(() => { startGuidance(); return subscribeGuidance(setGuidance); }, []);
 
   // ── Phrase picker — anti-repeat within pool ─────────────────────────────────
   function firePhrase(pool, idxRef) {
@@ -117,50 +124,50 @@ export default function MercuryEyeIndicator({ activeTab, onNavigate, lastKernelA
     do { idx = Math.floor(Math.random() * pool.length); }
     while (idx === idxRef.current && pool.length > 1);
     idxRef.current = idx;
-    setPhrase(pool[idx]);
-    setPhraseKey(k => k + 1);
+    setSlot({ text: pool[idx], whisper: false, key: ++slotKey.current });
   }
 
-  // ── Flare on new kernel run ─────────────────────────────────────────────────
+  // ── Phrase on kernel run / load (takes the slot from a showing whisper) ─────
   useEffect(() => {
     if (!lastKernelAt || lastKernelAt === prevKernelAt.current) return;
     prevKernelAt.current = lastKernelAt;
-    setFlaring(true);
-    setDeepWatch(false);
     firePhrase(OBSERVER_PHRASES_RUN, lastRunIdx);
-    const t = setTimeout(() => setFlaring(false), 1800);
-    return () => clearTimeout(t);
   }, [lastKernelAt]);
 
-  // ── Phrase on kernel load ───────────────────────────────────────────────────
   useEffect(() => {
     if (!lastLoadAt || lastLoadAt === prevLoadAt.current) return;
     prevLoadAt.current = lastLoadAt;
     firePhrase(OBSERVER_PHRASES_LOAD, lastLoadIdx);
   }, [lastLoadAt]);
 
-  // ── Deep-watch: dim after 90s of no kernel runs ─────────────────────────────
+  // ── Whisper → the phrase slot, once per id (the store keeps it spent) ───────
+  // No cleanup on the emit: the snapshot object changes on every store ping, and a
+  // re-run (guarded by id) must not cancel the pending emit.
+  const whisper = obs.whisper;
+  const prevWhisperId = useRef(null);
   useEffect(() => {
-    const elapsed = lastKernelAt ? Date.now() - lastKernelAt : Infinity;
-    if (elapsed >= 90_000) {
-      setDeepWatch(true);
-      return;
-    }
-    const remaining = 90_000 - elapsed;
-    const t = setTimeout(() => setDeepWatch(true), remaining);
-    return () => clearTimeout(t);
-  }, [lastKernelAt]);
+    if (!whisper || whisper.id === prevWhisperId.current) return;
+    prevWhisperId.current = whisper.id;
+    setSlot({ text: whisper.text, whisper: true, key: ++slotKey.current });
+    setTimeout(() => emitObs('edge', 'eye_whisper', { piece: whisper.piece }), 0);
+  }, [whisper]);
 
-  // ── Eye phase emit ─────────────────────────────────────────────────────────
+  const { state: eyeState, tint, gaze, pulse, thread, shimmer, baseline } = resolveEyeState({
+    spine, sealed: obs.sealed, igniting: obs.igniting, remarkedSinceSeal: obs.remarkedSinceSeal,
+    flash: obs.flash, glance: obs.glance,
+  });
+
+  // ── Eye phase emit (on change only, deferred out of render) ─────────────────
+  const phase = crescendo ? 'crescendo'
+    : obs.igniting ? 'charging'
+    : obs.sealed && baseline === 'silver' ? 'sealed'
+    : baseline;
+  const prevPhase = useRef(null);
   useEffect(() => {
-    const phase = flaring ? 'flaring' :
-                  isOnMercury ? 'engaged-here' :
-                  deepWatch ? 'deep-watch' : 'idle';
-    emitObs('edge', 'eye_phase', { phase });
-  }, [flaring, deepWatch, isOnMercury]);
-
-  const { state: eyeState, tint: leanTint, gaze: leanGaze, pulse: eyePulse } =
-    resolveEyeState({ flaring, sealed, spine, suggestion: guidance.suggestion, flash: guidance.flash });
+    if (phase === prevPhase.current) return;
+    prevPhase.current = phase;
+    setTimeout(() => emitObs('edge', 'eye_phase', { phase }), 0);   // no cleanup: every change is logged
+  }, [phase]);
 
   return (
     <div
@@ -172,90 +179,25 @@ export default function MercuryEyeIndicator({ activeTab, onNavigate, lastKernelA
     >
       {/* ── Observer phrase — extends rightward from the eye on kernel load/run
           (the eye is the masthead's left edge now; leftward would run off-screen) ── */}
-      {phrase && (
+      {slot && (
         <div
-          key={phraseKey}
+          key={slot.key}
           className="absolute left-full top-1/2 px-2 py-0.5 pointer-events-none"
           style={{
-            animation: 'mei-phrase 5.1s ease forwards',
+            animation: `mei-phrase ${slot.whisper ? '6s' : '5.1s'} ease forwards`,
             background: 'rgba(0,0,0,0.88)',
           }}
-          onAnimationEnd={() => setPhrase(null)}
+          onAnimationEnd={() => setSlot(null)}
         >
           <span
             className="font-mono text-[9px] tracking-[0.12em] block text-left whitespace-nowrap"
-            style={{ color: 'rgba(232,210,138,0.65)' }}
+            style={{ color: slot.whisper ? WHISPER_COLOR : PHRASE_COLOR }}
           >
-            {phrase}
+            {slot.text}
           </span>
         </div>
       )}
       <style>{`
-        @keyframes mei-spectrum-idle {
-          0%   { color: #06b6d4; text-shadow: 0 0 14px rgba(6,182,212,0.55),   0 0 4px rgba(6,182,212,0.3); }
-          8%   { color: #38bdf8; text-shadow: 0 0 14px rgba(56,189,248,0.55),  0 0 4px rgba(56,189,248,0.3); }
-          17%  { color: #a78bfa; text-shadow: 0 0 14px rgba(167,139,250,0.55), 0 0 4px rgba(167,139,250,0.3); }
-          25%  { color: #c084fc; text-shadow: 0 0 14px rgba(192,132,252,0.55), 0 0 4px rgba(192,132,252,0.3); }
-          33%  { color: #d946ef; text-shadow: 0 0 14px rgba(217,70,239,0.55),  0 0 4px rgba(217,70,239,0.3); }
-          38%  { color: #fb7185; text-shadow: 0 0 14px rgba(251,113,133,0.55), 0 0 4px rgba(251,113,133,0.3); }
-          43%  { color: #ef4444; text-shadow: 0 0 14px rgba(239,68,68,0.55),   0 0 4px rgba(239,68,68,0.3); }
-          48%  { color: #f97316; text-shadow: 0 0 14px rgba(249,115,22,0.55),  0 0 4px rgba(249,115,22,0.3); }
-          56%  { color: #FFD700; text-shadow: 0 0 14px rgba(255,215,0,0.55),   0 0 4px rgba(255,215,0,0.3); }
-          65%  { color: #7ab800; text-shadow: 0 0 14px rgba(122,184,0,0.55),   0 0 4px rgba(122,184,0,0.3); }
-          75%  { color: #a78bfa; text-shadow: 0 0 14px rgba(167,139,250,0.55), 0 0 4px rgba(167,139,250,0.3); }
-          85%  { color: #c0c0c0; text-shadow: 0 0 14px rgba(192,192,192,0.45), 0 0 4px rgba(192,192,192,0.3); }
-          93%  { color: #14b8a6; text-shadow: 0 0 14px rgba(20,184,166,0.55),  0 0 4px rgba(20,184,166,0.3); }
-          100% { color: #06b6d4; text-shadow: 0 0 14px rgba(6,182,212,0.55),   0 0 4px rgba(6,182,212,0.3); }
-        }
-        @keyframes mei-spectrum-active {
-          0%   { color: #06b6d4; text-shadow: 0 0 28px rgba(6,182,212,0.90),   0 0 10px rgba(6,182,212,0.6); }
-          8%   { color: #38bdf8; text-shadow: 0 0 28px rgba(56,189,248,0.90),  0 0 10px rgba(56,189,248,0.6); }
-          17%  { color: #a78bfa; text-shadow: 0 0 28px rgba(167,139,250,0.90), 0 0 10px rgba(167,139,250,0.6); }
-          25%  { color: #c084fc; text-shadow: 0 0 28px rgba(192,132,252,0.90), 0 0 10px rgba(192,132,252,0.6); }
-          33%  { color: #d946ef; text-shadow: 0 0 28px rgba(217,70,239,0.90),  0 0 10px rgba(217,70,239,0.6); }
-          38%  { color: #fb7185; text-shadow: 0 0 28px rgba(251,113,133,0.90), 0 0 10px rgba(251,113,133,0.6); }
-          43%  { color: #ef4444; text-shadow: 0 0 28px rgba(239,68,68,0.90),   0 0 10px rgba(239,68,68,0.6); }
-          48%  { color: #f97316; text-shadow: 0 0 28px rgba(249,115,22,0.90),  0 0 10px rgba(249,115,22,0.6); }
-          56%  { color: #FFD700; text-shadow: 0 0 28px rgba(255,215,0,0.90),   0 0 10px rgba(255,215,0,0.6); }
-          65%  { color: #7ab800; text-shadow: 0 0 28px rgba(122,184,0,0.90),   0 0 10px rgba(122,184,0,0.6); }
-          75%  { color: #a78bfa; text-shadow: 0 0 28px rgba(167,139,250,0.90), 0 0 10px rgba(167,139,250,0.6); }
-          85%  { color: #c0c0c0; text-shadow: 0 0 28px rgba(192,192,192,0.80), 0 0 10px rgba(192,192,192,0.6); }
-          93%  { color: #14b8a6; text-shadow: 0 0 28px rgba(20,184,166,0.90),  0 0 10px rgba(20,184,166,0.6); }
-          100% { color: #06b6d4; text-shadow: 0 0 28px rgba(6,182,212,0.90),   0 0 10px rgba(6,182,212,0.6); }
-        }
-        @keyframes mei-spectrum-deep {
-          0%   { color: #06b6d4; text-shadow: 0 0 6px rgba(6,182,212,0.22); }
-          8%   { color: #38bdf8; text-shadow: 0 0 6px rgba(56,189,248,0.22); }
-          17%  { color: #a78bfa; text-shadow: 0 0 6px rgba(167,139,250,0.22); }
-          25%  { color: #c084fc; text-shadow: 0 0 6px rgba(192,132,252,0.22); }
-          33%  { color: #d946ef; text-shadow: 0 0 6px rgba(217,70,239,0.22); }
-          38%  { color: #fb7185; text-shadow: 0 0 6px rgba(251,113,133,0.22); }
-          43%  { color: #ef4444; text-shadow: 0 0 6px rgba(239,68,68,0.22); }
-          48%  { color: #f97316; text-shadow: 0 0 6px rgba(249,115,22,0.22); }
-          56%  { color: #FFD700; text-shadow: 0 0 6px rgba(255,215,0,0.22); }
-          65%  { color: #7ab800; text-shadow: 0 0 6px rgba(122,184,0,0.22); }
-          75%  { color: #a78bfa; text-shadow: 0 0 6px rgba(167,139,250,0.22); }
-          85%  { color: #c0c0c0; text-shadow: 0 0 6px rgba(192,192,192,0.18); }
-          93%  { color: #14b8a6; text-shadow: 0 0 6px rgba(20,184,166,0.22); }
-          100% { color: #06b6d4; text-shadow: 0 0 6px rgba(6,182,212,0.22); }
-        }
-        @keyframes mei-breath {
-          0%, 100% { opacity: 0.28; }
-          50%      { opacity: 0.58; }
-        }
-        @keyframes mei-breath-active {
-          0%, 100% { opacity: 0.72; }
-          50%      { opacity: 0.95; }
-        }
-        @keyframes mei-breath-deep {
-          0%, 100% { opacity: 0.15; }
-          50%      { opacity: 0.38; }
-        }
-        @keyframes mei-flare {
-          0%   { opacity: 0.95; }
-          35%  { opacity: 0.82; }
-          100% { opacity: 0.28; }
-        }
         @keyframes mei-tooltip-in {
           from { opacity: 0; transform: translateY(-2px); }
           to   { opacity: 1; transform: translateY(0); }
@@ -267,14 +209,15 @@ export default function MercuryEyeIndicator({ activeTab, onNavigate, lastKernelA
           100% { opacity: 0; transform: translateX(0)   translateY(-50%); }
         }
       `}</style>
-      {/* The living eye — WebGL nebula pupil in a hexagon lens (replaces the ◉ glyph).
-          State locks its character; `animation` / the spectrum keyframes below are now
-          dead and slated for cleanup once the eye's leaning/spine wiring lands (Phase 3-4). */}
+      {/* The living eye — WebGL nebula pupil in a hexagon lens. */}
       <ObserverEye
+        ref={eyeRef}
         state={eyeState}
-        tint={leanTint}
-        gaze={leanGaze}
-        pulse={eyePulse}
+        tint={tint}
+        gaze={gaze}
+        pulse={pulse}
+        thread={thread}
+        shimmer={shimmer}
         size={64}
         className="transition-transform duration-300 group-hover:scale-110"
       />

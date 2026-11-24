@@ -1,5 +1,5 @@
 // src/terminal/quintessence/vertebrae.js — the spine's three deliberate vertebrae (spec §4).
-// Pure data + pure functions, no React: same discipline as spineStore / guidanceStore.
+// Pure data + pure functions, no React: same discipline as spineStore / observerStore.
 // This is spine domain knowledge, not view state — the eye's compass and the
 // altar's mirror both read it, and a second copy is how tints drift.
 //

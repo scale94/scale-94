@@ -3,7 +3,7 @@
 // Rollup (Vite prod bundler) hoists these, but bundler behaviour diverges from
 // esbuild (Vite dev). Keep all imports at the top to guarantee identical
 // module evaluation order in both environments.
-import React, { useState, useEffect, useRef, useLayoutEffect, useMemo, useCallback, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect, useMemo, useCallback, useSyncExternalStore, lazy, Suspense } from 'react';
 
 // Locale-independent HH:MM:SS — toLocaleTimeString strips hours on some mobile browsers
 const fmtTime = (d = new Date()) =>
@@ -56,8 +56,7 @@ import { pinnedKernelArticleIds } from './mercury/pinnedKernels';
 import KuramotoVisualizer   from './components/KuramotoVisualizer';
 import { emit as emitObs } from '../observatory/observatoryBus';
 import { usePrivacyDrawer } from './hooks/usePrivacyDrawer';
-import { notifyNav, getGuidance as getEyeGuidance, subscribeGuidance } from './quintessence/guidanceStore';
-import { getSpine as getSpineSnap, subscribeSpine as subscribeSpineSnap } from './quintessence/spineStore';
+import { startObserver, notifyNav, setChromeVisible, getObserver, subscribeObserver } from './quintessence/observerStore';
 
 // Hooks
 import useSystemLog           from './hooks/useSystemLog';
@@ -303,25 +302,40 @@ const App = () => {
   // Persistent WASM struct instances — keyed by wasmEntry.id.
   const activeKernels = useRef({});
 
+  // The observer layer (spec §5.7-§5.8): its glance drives the nav beat, and
+  // `wantsChrome` (a whisper, the crescendo) holds the masthead visible.
+  const observer = useSyncExternalStore(subscribeObserver, getObserver);
+  const wantsChrome = observer.wantsChrome;
+  const wantsChromeRef = useRef(wantsChrome);
+  // The observer starts once the boot sequence has ended (not on mount).
+  useEffect(() => { if (!bootSequence) startObserver({ tab: LANDING_TAB }); }, [bootSequence]);
+
   // Mobile chrome auto-hide:
   //   touchstart  → show immediately, cancel any pending hide
   //   touchend / touchcancel → start 3s countdown, then hide
   //   boot complete → start 3s countdown (chrome stays visible during boot)
+  //   observer wantsChrome → the header shows (ORed into its class) and no countdown
+  //   runs; when it lets go, the normal countdown starts again
   const showMobileChrome = useCallback(() => {
     setMobileChrome(true);
     if (mobileChromeTimerRef.current) clearTimeout(mobileChromeTimerRef.current);
   }, []);
   const hideMobileChromeAfterDelay = useCallback(() => {
     if (mobileChromeTimerRef.current) clearTimeout(mobileChromeTimerRef.current);
+    if (wantsChromeRef.current) return;
     mobileChromeTimerRef.current = setTimeout(() => setMobileChrome(false), 3000);
   }, []);
   // Start hide timer after boot completes (not on mount — chrome visible during 5s boot)
   useEffect(() => {
-    if (!bootSequence) {
-      mobileChromeTimerRef.current = setTimeout(() => setMobileChrome(false), 3000);
-    }
+    wantsChromeRef.current = wantsChrome;
+    if (!bootSequence) hideMobileChromeAfterDelay();   // a no-op while wantsChrome holds
     return () => { if (mobileChromeTimerRef.current) clearTimeout(mobileChromeTimerRef.current); };
-  }, [bootSequence]);
+  }, [bootSequence, wantsChrome, hideMobileChromeAfterDelay]);
+  // The store holds a whisper while the masthead is hidden and plays it when it
+  // returns. The header's real visibility includes wantsChrome: a held whisper asks
+  // for the chrome, the OR reveals the header, and this releases the whisper (on
+  // desktop mobileChrome goes false 3 s after boot while the header stays shown).
+  useEffect(() => { setChromeVisible(mobileChrome || wantsChrome); }, [mobileChrome, wantsChrome]);
 
   // Fiction articles for Transmission tab — updates when CAS data loads
   const transmissionStories = useMemo(() => articles.filter(a => a.type === 'fiction'), [articles]);
@@ -614,13 +628,9 @@ const App = () => {
     setCurrentPath('~/' + targetTab);
   }, [originTab]);
 
-  // ── Synced tab pulse (Observer guidance spec §4): the suggested tab breathes
-  // on the eye's 2400ms beat. sealed:false is safe — sealing requires a complete
-  // spine, and a complete spine already yields pulseTab null (armed).
-  const [eyeGuidance, setEyeGuidance] = useState(getEyeGuidance);
-  useEffect(() => subscribeGuidance(setEyeGuidance), []);
-  // Task 7: nav beat follows observerStore glance
-  const pulseTab = null;
+  // ── Nav beat (spec §5.7): the glance's tab breathes on the eye's 2400ms beat
+  // while a glance is up, and nothing otherwise.
+  const pulseTab = observer.glance?.tab ?? null;
   const beatDelay = useMemo(() => `-${Math.round(performance.now() % 2400)}ms`, [pulseTab]);
   const beat = (tab) => (pulseTab === tab ? ' nav-beat' : '');
 
@@ -1153,7 +1163,7 @@ const App = () => {
         </div>
       )}
 
-      <header className={`border-b border-cyan-900/30 bg-black md:bg-black/90 p-4 h-24 shrink-0 sticky top-0 z-40 md:backdrop-blur-md shadow-[0_0_15px_rgba(6,182,212,0.1)] overflow-x-hidden w-full transition-opacity duration-500 ${!mobileChrome ? 'opacity-0 pointer-events-none md:opacity-100 md:pointer-events-auto' : ''}`} style={{ willChange: 'opacity, transform', transform: 'translateZ(0)' }}>
+      <header className={`border-b border-cyan-900/30 bg-black md:bg-black/90 p-4 h-24 shrink-0 sticky top-0 z-40 md:backdrop-blur-md shadow-[0_0_15px_rgba(6,182,212,0.1)] overflow-x-hidden w-full transition-opacity duration-500 ${!(mobileChrome || wantsChrome) ? 'opacity-0 pointer-events-none md:opacity-100 md:pointer-events-auto' : ''}`} style={{ willChange: 'opacity, transform', transform: 'translateZ(0)' }}>
         <div className="max-w-[1800px] mx-auto flex flex-row items-center gap-4 w-full min-w-0">
           <style>{`
             .nav-beat {
@@ -1176,10 +1186,11 @@ const App = () => {
               onNavigate={() => handleNav('~/system/mercury', 'mercury')}
               lastKernelAt={lastKernelAt}
               lastLoadAt={lastLoadAt}
+              mobileChrome={mobileChrome}
             />
           )}
           <nav aria-label="Main navigation" className="hidden md:flex items-center gap-1 text-[11px] font-bold tracking-normal overflow-x-auto shrink min-w-0 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', '--beat-delay': beatDelay }}>
-            <button aria-label="Kernel" aria-current={activeTab === 'kernel' ? 'page' : undefined} onClick={() => handleNav('~/system/kernel', 'kernel')} className={`${activeTab === 'kernel' ? 'bg-cyan-500 text-black shadow-[0_0_10px_rgba(6,182,212,0.5)]' : 'text-cyan-500 hover:text-cyan-200 hover:bg-cyan-900/30'} px-2 py-1 transition-all duration-300 flex items-center gap-1.5 uppercase rounded-sm whitespace-nowrap`}><KernelCoreIcon className="w-3 h-3" /> /Kernel</button>
+            <button aria-label="Kernel" aria-current={activeTab === 'kernel' ? 'page' : undefined} onClick={() => handleNav('~/system/kernel', 'kernel')} className={`${activeTab === 'kernel' ? 'bg-cyan-500 text-black shadow-[0_0_10px_rgba(6,182,212,0.5)]' : 'text-cyan-500 hover:text-cyan-200 hover:bg-cyan-900/30'} px-2 py-1 transition-all duration-300 flex items-center gap-1.5 uppercase rounded-sm whitespace-nowrap${beat('kernel')}`}><KernelCoreIcon className="w-3 h-3" /> /Kernel</button>
 
             <button aria-label="BSKY" aria-current={activeTab === 'bsky' ? 'page' : undefined} onClick={() => handleNav('~/system/bsky', 'bsky')} className={`${activeTab === 'bsky' ? 'bg-sky-600 text-sky-50 shadow-[0_0_12px_rgba(56,189,248,0.5)]' : 'text-sky-400/80 hover:text-sky-200 hover:bg-sky-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap${beat('bsky')}`}><NavButterflyIcon /> /BSKY</button>
 
@@ -1187,13 +1198,13 @@ const App = () => {
 
             <button aria-label="Transmission" aria-current={activeTab === 'transmission' ? 'page' : undefined} onClick={() => handleNav('~/system/transmission', 'transmission')} className={`${activeTab === 'transmission' ? 'bg-purple-900 text-purple-100 shadow-[0_0_10px_rgba(168,85,247,0.5)]' : 'text-purple-400/80 hover:text-purple-200 hover:bg-purple-900/30'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap${beat('transmission')}`}><PacketIcon className="w-3 h-3" /> /Transmission</button>
 
-            <button aria-label="Scent" aria-current={activeTab === 'scaling' ? 'page' : undefined} onClick={() => handleNav('~/system/scent', 'scaling')} className={`${activeTab === 'scaling' ? 'bg-fuchsia-500 text-black shadow-[0_0_10px_rgba(217,70,239,0.5)]' : 'text-fuchsia-500 hover:text-fuchsia-200 hover:bg-fuchsia-900/30'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><ScentGlyph className="w-3 h-3" /> /Scent</button>
+            <button aria-label="Scent" aria-current={activeTab === 'scaling' ? 'page' : undefined} onClick={() => handleNav('~/system/scent', 'scaling')} className={`${activeTab === 'scaling' ? 'bg-fuchsia-500 text-black shadow-[0_0_10px_rgba(217,70,239,0.5)]' : 'text-fuchsia-500 hover:text-fuchsia-200 hover:bg-fuchsia-900/30'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap${beat('scaling')}`}><ScentGlyph className="w-3 h-3" /> /Scent</button>
 
-            <button aria-label="Sol" aria-current={activeTab === 'sol' ? 'page' : undefined} onClick={() => handleNav('~/system/sol', 'sol')} className={`${activeTab === 'sol' ? 'bg-yellow-100 text-black shadow-[0_0_10px_rgba(254,249,195,0.5)]' : 'text-yellow-100/80 hover:text-yellow-50 hover:bg-yellow-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><SolGlyph className="w-3 h-3" /> /Sol</button>
+            <button aria-label="Sol" aria-current={activeTab === 'sol' ? 'page' : undefined} onClick={() => handleNav('~/system/sol', 'sol')} className={`${activeTab === 'sol' ? 'bg-yellow-100 text-black shadow-[0_0_10px_rgba(254,249,195,0.5)]' : 'text-yellow-100/80 hover:text-yellow-50 hover:bg-yellow-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap${beat('sol')}`}><SolGlyph className="w-3 h-3" /> /Sol</button>
 
-            <button aria-label="Surveillance" aria-current={activeTab === 'surveillance' ? 'page' : undefined} onClick={() => handleNav('~/system/surveillance', 'surveillance')} className={`${activeTab === 'surveillance' ? 'bg-red-900 text-red-100 shadow-[0_0_10px_rgba(248,113,113,0.4)]' : 'text-red-500/70 hover:text-red-300 hover:bg-red-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><InterceptIcon className="w-3 h-3" /> /Surveillance</button>
+            <button aria-label="Surveillance" aria-current={activeTab === 'surveillance' ? 'page' : undefined} onClick={() => handleNav('~/system/surveillance', 'surveillance')} className={`${activeTab === 'surveillance' ? 'bg-red-900 text-red-100 shadow-[0_0_10px_rgba(248,113,113,0.4)]' : 'text-red-500/70 hover:text-red-300 hover:bg-red-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap${beat('surveillance')}`}><InterceptIcon className="w-3 h-3" /> /Surveillance</button>
 
-            <button aria-label="Cryptography" aria-current={activeTab === 'cryptography' ? 'page' : undefined} onClick={() => handleNav('~/system/cryptography', 'cryptography')} className={`${activeTab === 'cryptography' ? 'bg-orange-950 text-orange-200 shadow-[0_0_12px_rgba(249,115,22,0.5)]' : 'text-orange-500/70 hover:text-orange-300 hover:bg-orange-950/30'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap`}><LatticeIcon className="w-3 h-3" /> /Cryptography</button>
+            <button aria-label="Cryptography" aria-current={activeTab === 'cryptography' ? 'page' : undefined} onClick={() => handleNav('~/system/cryptography', 'cryptography')} className={`${activeTab === 'cryptography' ? 'bg-orange-950 text-orange-200 shadow-[0_0_12px_rgba(249,115,22,0.5)]' : 'text-orange-500/70 hover:text-orange-300 hover:bg-orange-950/30'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap${beat('cryptography')}`}><LatticeIcon className="w-3 h-3" /> /Cryptography</button>
 
             <button aria-label="Chaos" aria-current={activeTab === 'art' ? 'page' : undefined} onClick={() => handleNav('~/system/chaos', 'art')} className={`${activeTab === 'art' ? 'text-black shadow-[0_0_14px_rgba(255,215,0,0.6)]' : 'hover:text-amber-300 hover:bg-amber-900/20'} px-2 py-1 transition-all duration-300 uppercase rounded-sm flex items-center gap-1.5 whitespace-nowrap${beat('art')}`} style={activeTab === 'art' ? { background: 'linear-gradient(90deg,#FF8C00,#FFD700)' } : { color: 'rgba(251,191,36,0.6)' }}><CascadeIcon className="w-3 h-3" /> /Chaos</button>
 
@@ -1431,7 +1442,7 @@ const App = () => {
         style={{ willChange: 'opacity, transform', transform: 'translateZ(0)', scrollbarWidth: 'none', msOverflowStyle: 'none', '--beat-delay': beatDelay }}
       >
         <style>{`nav[aria-label="Mobile navigation"]::-webkit-scrollbar { display: none; }`}</style>
-        <button onClick={() => handleNav('~/system/kernel', 'kernel')} aria-label="Kernel" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'kernel' ? 'text-cyan-400' : 'text-cyan-400/50'}`}>
+        <button onClick={() => handleNav('~/system/kernel', 'kernel')} aria-label="Kernel" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'kernel' ? 'text-cyan-400' : 'text-cyan-400/50'}${beat('kernel')}`}>
           <KernelCoreIcon className="w-5 h-5" />
         </button>
         <button onClick={() => handleNav('~/system/bsky', 'bsky')} aria-label="BSKY" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'bsky' ? 'text-sky-400' : 'text-sky-400/50'}${beat('bsky')}`}>
@@ -1443,16 +1454,16 @@ const App = () => {
         <button onClick={() => handleNav('~/system/transmission', 'transmission')} aria-label="Transmission" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'transmission' ? 'text-purple-400' : 'text-purple-400/50'}${beat('transmission')}`}>
           <PacketIcon className="w-5 h-5" />
         </button>
-        <button onClick={() => handleNav('~/system/scent', 'scaling')} aria-label="Scent" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'scaling' ? 'text-fuchsia-400' : 'text-fuchsia-400/50'}`}>
+        <button onClick={() => handleNav('~/system/scent', 'scaling')} aria-label="Scent" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'scaling' ? 'text-fuchsia-400' : 'text-fuchsia-400/50'}${beat('scaling')}`}>
           <ScentGlyph className="w-5 h-5" />
         </button>
-        <button onClick={() => handleNav('~/system/sol', 'sol')} aria-label="Sol" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'sol' ? 'text-yellow-100' : 'text-yellow-100/50'}`}>
+        <button onClick={() => handleNav('~/system/sol', 'sol')} aria-label="Sol" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'sol' ? 'text-yellow-100' : 'text-yellow-100/50'}${beat('sol')}`}>
           <SolGlyph className="w-5 h-5" />
         </button>
-        <button onClick={() => handleNav('~/system/surveillance', 'surveillance')} aria-label="Surveillance" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'surveillance' ? 'text-red-400' : 'text-red-400/50'}`}>
+        <button onClick={() => handleNav('~/system/surveillance', 'surveillance')} aria-label="Surveillance" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'surveillance' ? 'text-red-400' : 'text-red-400/50'}${beat('surveillance')}`}>
           <InterceptIcon className="w-5 h-5" />
         </button>
-        <button onClick={() => handleNav('~/system/cryptography', 'cryptography')} aria-label="Cryptography" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'cryptography' ? 'text-orange-400' : 'text-orange-400/50'}`}>
+        <button onClick={() => handleNav('~/system/cryptography', 'cryptography')} aria-label="Cryptography" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'cryptography' ? 'text-orange-400' : 'text-orange-400/50'}${beat('cryptography')}`}>
           <LatticeIcon className="w-5 h-5" />
         </button>
         <button onClick={() => handleNav('~/system/chaos', 'art')} aria-label="Chaos" className={`flex shrink-0 w-14 items-center justify-center transition-all duration-200 ${activeTab === 'art' ? 'text-amber-400' : 'text-amber-400/40'}${beat('art')}`}>

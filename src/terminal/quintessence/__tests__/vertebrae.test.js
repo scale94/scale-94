@@ -1,7 +1,7 @@
 // src/terminal/quintessence/__tests__/vertebrae.test.js — the spine's table (spec §4).
 import { describe, it, expect, beforeEach } from 'vitest';
 import { VERTEBRAE, truncate, PREVIEW_MAX } from '../vertebrae';
-import { NAV_TINTS } from '../guidanceStore';
+import { NAV_TINTS } from '../observerStore';
 import { getSpine, missingVertebrae, setTrend, setCouncil, setPhase, _resetSpineForTests } from '../spineStore';
 
 const EMPTY = { trend: null, council: null, phase: null, element: null };

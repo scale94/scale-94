@@ -3,7 +3,7 @@
 import { describe, it, expect } from 'vitest';
 import { resolveEyeState } from '../resolveEyeState';
 import { VERTEBRAE } from '../../quintessence/vertebrae';
-import { NAV_TINTS } from '../../quintessence/guidanceStore';
+import { NAV_TINTS } from '../../quintessence/observerStore';
 
 const empty = { trend: null, council: null, phase: null, element: null };
 const partial = { ...empty, trend: { label: 'x' } };

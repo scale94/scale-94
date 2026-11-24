@@ -1,5 +1,5 @@
 // src/terminal/quintessence/observerStore.js — the eye's agency reducer (spec §5.1–§5.3, §5.5, §5.7, §5.8).
-// Bus-adjacent store, same discipline as spineStore / guidanceStore: no React,
+// Bus-adjacent store, same discipline as spineStore: no React,
 // listener Sets, per-listener try/catch. Bus and spine activity become impulses
 // (transient reactions); flash / glance / whisper / ignition / seal are state.
 // Only a hand moves the eye: sim kinds are dropped, mixed kinds pass only with
