@@ -73,9 +73,10 @@ const mount = (props = {}) => render(
 describe('MercuryEyeIndicator — observerStore wiring', () => {
   it('impulse_calls_kick_with_kind_tint_duration', () => {
     mount();
-    act(() => store.impulse({ piece: 'scent.collide', kind: 3, tier: 'witness', tint: [217, 70, 239], dir: 1, durationMs: 1100, at: 0 }));
+    // An unchoreographed piece (no eyeReactions entry) passes through as a plain kick.
+    act(() => store.impulse({ piece: 'ledger.write', kind: 8, tier: 'witness', tint: [217, 70, 239], dir: 1, durationMs: 1100, at: 0 }));
     expect(eye.kicks).toHaveLength(1);
-    expect(eye.kicks[0]).toMatchObject({ kind: 3, tint: [217, 70, 239], dir: 1, durationMs: 1100 });
+    expect(eye.kicks[0]).toMatchObject({ kind: 8, tint: [217, 70, 239], dir: 1, durationMs: 1100 });
     expect(eye.detonations).toBe(0);
     act(() => store.impulse({ piece: 'kernel.run', kind: 2, tier: 'witness', tint: [167, 139, 250], tint2: [122, 184, 0], dir: 1, durationMs: 1100, at: 0 }));
     expect(eye.kicks[1]).toMatchObject({ tint: [167, 139, 250], tint2: [122, 184, 0] });

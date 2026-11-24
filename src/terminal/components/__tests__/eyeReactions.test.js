@@ -1,6 +1,6 @@
 // eyeReactions.test.js — the per-piece choreography table and how an impulse becomes a kick.
 import { describe, it, expect } from 'vitest';
-import { REACTIONS, reactionKick, BSKY_EXIT, TX_IGNITE, ACC_TAG, EJECT_OUT } from '../eyeReactions';
+import { REACTIONS, reactionKick, BSKY_EXIT, TX_IGNITE, ACC_TAG, EJECT_OUT, SCENT_HIT } from '../eyeReactions';
 import { KICK, SHAPE } from '../observerEyeShader';
 
 const last = (keys, f) => keys.slice().sort((a, b) => a.t - b.t).at(-1)[f];
@@ -143,6 +143,35 @@ describe('eyeReactions', () => {
     const xs = Array.from({ length: 300 }, (_, i) => i / 299);
     const T = xs.map((x) => r.curve(x, {}).turn);
     T.slice(1).forEach((t, i) => expect(t).toBeGreaterThanOrEqual(T[i] - 1e-12));
+  });
+
+  it('scent_lobes_spiral_in_collide_and_shock_out', () => {
+    const r = REACTIONS['scent.collide'];
+    expect(r.shape).toBe(SHAPE.accord);
+    const D = r.durationMs / 1000;
+    const at = (t) => r.curve(t / D, {});
+    // Inspiral: the orbit only shrinks, the angle only advances, and faster as they close.
+    const pre = Array.from({ length: 200 }, (_, i) => (i / 200) * SCENT_HIT);
+    const A = pre.map((t) => at(t).shapeA), B = pre.map((t) => at(t).shapeB);
+    A.slice(1).forEach((a, i) => expect(a).toBeLessThanOrEqual(A[i]));
+    B.slice(1).forEach((b, i) => expect(b).toBeGreaterThan(B[i]));
+    const w = (t) => (at(t + 1e-4).shapeB - at(t - 1e-4).shapeB) / 2e-4;
+    expect(w(0.85)).toBeGreaterThan(w(0.2) * 2);
+    expect(Math.abs(w(SCENT_HIT + 1e-3) / w(SCENT_HIT - 1e-3) - 1)).toBeLessThan(0.02);  // no jolt at the hit
+    // They meet at the hit; the wave clock only runs after it, in real seconds.
+    expect(at(SCENT_HIT - 1e-3).shapeA).toBeLessThan(0.01);
+    expect(at(SCENT_HIT - 0.01).shapeC).toBe(0);
+    expect(at(SCENT_HIT + 0.5).shapeC).toBeCloseTo(0.5, 2);
+    // The third wave (0.30 s behind; radius 0.02 + 1.15·(1-(1-te/0.55)³) reaches the rim, 0.95,
+    // at te ≈ 0.24 s) is out before the figure starts to fade.
+    const third = SCENT_HIT + 0.3 + 0.25;
+    expect(at(third).shapeK).toBeGreaterThan(0.95);
+    // Forward all the way, resting and silver at the end.
+    const xs = Array.from({ length: 300 }, (_, i) => i / 299);
+    const T = xs.map((x) => r.curve(x, {}).turn);
+    T.slice(1).forEach((t, i) => expect(t).toBeGreaterThanOrEqual(T[i] - 1e-12));
+    expect(at(D).level).toBe(0);
+    expect(at(D).shapeK).toBe(0);
   });
 
   it('impulse_overlays_its_choreography', () => {

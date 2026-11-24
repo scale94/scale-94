@@ -153,7 +153,36 @@ export function accretionEject(x, d) {
   return d;
 }
 
+// /SCENT — the two accords collide, in their own colours (the impulse's tint / tint2 are the
+// collider's hsl(hue, 70%, 60%) for domain A and B). The iris splits into a two-arm swirl,
+// half A, half B; two lobes in those colours orbit and spiral into each other, faster as
+// they close (the swirl winds up with them); they collide in a flash, three waves pulse out
+// 0.15 s apart like the collider's own (accord-tinted, each weaker), and the two colours blend
+// into one accord; then it coasts forward to silver.
+// shapeA = lobe orbit radius, shapeB = orbit angle, shapeC = seconds since the hit (0 = not yet;
+// the shader derives each wave's radius from it).
+const SCENT_MS = 1900;
+export const SCENT_HIT = 0.95;   // s: the lobes meet
+export function scentCollide(x, d) {
+  const D = SCENT_MS / 1000, t = x * D;
+  const u = Math.min(1, t / SCENT_HIT);
+  const pre = t < SCENT_HIT;
+  d.shapeA = pre ? 0.55 * (1 - u * u) : 0;
+  const B0 = 2 * PI * (0.8 * SCENT_HIT + 1.6), w1 = 2 * PI * (0.8 + 4.8 / SCENT_HIT);
+  d.shapeB = pre ? 2 * PI * (0.8 * t + 1.6 * u * u * u) : B0 + w1 * 0.35 * (1 - Math.exp(-(t - SCENT_HIT) / 0.35));
+  d.shapeC = pre ? 0 : t - SCENT_HIT + 1e-3;
+  // The swirl winds up with the lobes (∝ u³), then coasts forward to rest by the end.
+  const T = 4 * PI, v0 = (3 * T) / SCENT_HIT, L = D - SCENT_HIT, s = Math.max(0, (t - SCENT_HIT) / L);
+  d.turn = pre ? T * u * u * u : T + (v0 * L * (1 - (1 - s) ** 3)) / 3;
+  d.level = sm(t / 0.15) * (1 - sm((t - 1.3) / 0.6));
+  d.shapeK = sm(t / 0.12) * (1 - sm((t - 1.72) / 0.18));    // the third wave clears the rim by ~1.75 s
+  d.turb = pre ? 0.4 * u * u : 0.6 * Math.exp(-(t - SCENT_HIT) / 0.25);
+  d.focus = 0; d.gazeX = 0; d.gazeY = 0;
+  return d;
+}
+
 export const REACTIONS = {
+  'scent.collide': { kind: KICK.inhale, shape: SHAPE.accord, durationMs: SCENT_MS, curve: scentCollide },
   'accretion.prime':   { kind: KICK.spiral, durationMs: PRIME_MS, curve: accretionPrime, tag: ACC_TAG },
   'accretion.infall':  { kind: KICK.spiral, shape: SHAPE.horizon, durationMs: SWALLOW_MS, curve: accretionSwallow, tag: ACC_TAG },
   'accretion.collide': { kind: KICK.spiral, shape: SHAPE.horizon, durationMs: EJECT_MS, curve: accretionEject, tag: ACC_TAG },

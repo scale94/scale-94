@@ -419,6 +419,15 @@ const PLANET_DOMAINS = [
 const ALL_DOMAINS = [...DOMAINS, ...ELEM_DOMAINS, ...PHIL_MATH_DOMAINS, ...LIFE_HUM_DOMAINS, ...COGN_SYNTH_DOMAINS, ...FSK_DOMAINS, ...PLANET_DOMAINS];
 const domainById = (id) => ALL_DOMAINS.find(d => d.id === id);
 
+// A domain's colour as the collider draws it (hsl(hue, 70%, ~60%)), in 0..255 RGB: the
+// masthead eye swirls the two colliding accords in these (observerStore -> eyeReactions).
+function domainRgb(id) {
+  const h = (((domainById(id)?.hue ?? 0) % 360) + 360) % 360, s = 0.7, l = 0.6;
+  const k = (n) => (n + h / 30) % 12, a = s * Math.min(l, 1 - l);
+  const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1));
+  return [f(0), f(8), f(4)].map((x) => Math.round(x * 255));
+}
+
 // ── Domain → sphere node mapping ─────────────────────────────────────────────
 // Maps each collider domain index to the closest sphere node ID and cluster.
 // Used to derive the chimera's 16D feature tensor and cluster assignment.
@@ -1143,6 +1152,7 @@ export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {})
       cardName: card.name, nodeIdA: result?.nodeIdA ?? null, nodeIdB: result?.nodeIdB ?? null,
       vClass: result?.vClass ?? null, viability: result?.viability ?? null,
       archetype: narrative?.archetype ?? null,
+      colors: [domainRgb(domainA), domainRgb(domainB)],
     });
     try {
       const ids = JSON.parse(localStorage.getItem('ck_ids') || '[]');
@@ -1452,6 +1462,7 @@ export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {})
         // accord.accords = the four families with an intensity; "notes" are those audibly sounding
         noteCount: Array.isArray(parsed.accord?.accords) ? parsed.accord.accords.filter(a => a.intensity >= 0.25).length : null,
         dominant: parsed.accord?.dominant?.id ?? null,
+        colors: [domainRgb(a), domainRgb(b)],   // the two accords' colours, for the eye
       });
       onPolarity?.(parsed.accord?.polarityClass?.label ?? null);
       setPhase('colliding');

@@ -18,7 +18,7 @@ export const KICK = {
 
 // Shape morphs (u_shape). The pupil/disc *become* a figure by SDF blends, the nebula
 // keeps flowing inside it. u_shapeK 0..1 = how far; u_shapeA/B are per-shape params.
-export const SHAPE = { kernel: 1, butterfly: 2, antenna: 3, horizon: 4 };
+export const SHAPE = { kernel: 1, butterfly: 2, antenna: 3, horizon: 4, accord: 5 };
 
 export const VS = 'attribute vec2 a;varying vec2 v;void main(){v=a;gl_Position=vec4(a,0.,1.);}';
 export const FS = [
@@ -186,6 +186,27 @@ export const FS = [
   '    col+=k*eb*mix(c0,vec3(1.0),0.75)*2.4;',
   '    col+=k*exp(-r*r/0.006)*exp(-E*9.0)*vec3(1.0,0.95,1.0)*2.0;',   // the core flash as it leaves
   '    a=max(a,k*eb*0.8);}',
+  '  }else if(u_shape<5.5){',                              // accord: A = lobe orbit radius, B = orbit angle, C = seconds since the collision (0 = not yet)
+  '   float mg=smoothstep(0.0,0.08,u_shapeC);',            // after the collision the two are one accord
+  '   float sd=smoothstep(-0.3,0.3,sin(ang+3.5*r-u_shapeB));', // a two-arm swirl: half accord A, half B
+  '   vec3 tn=mix(mix(c0,c1,sd),mix(c0,c1,0.5),mg);',
+  '   vec3 lw=vec3(0.30,0.59,0.11);',                      // recolour, keeping the nebula's light + pupil
+  '   col=mix(col,tn*(dot(col,lw)/max(dot(tn,lw),0.05)),k*0.9);',
+  '   if(u_shapeA>0.001){vec2 p=u_shapeA*vec2(cos(u_shapeB),sin(u_shapeB));', // the two lobes, spiralling in
+  '    vec2 d1=uv-p,d2=uv+p;float g1=exp(-dot(d1,d1)/0.024),g2=exp(-dot(d2,d2)/0.024);',
+  // Each glows in its own accord's colour; only a small hot centre goes white.
+  '    col+=k*(1.0-mg)*(1.25*(g1*c0+g2*c1)+0.45*(g1*g1*g1+g2*g2*g2)*vec3(1.0));}',
+  // The collision: a flash, then three waves 0.15 s apart, like the collider's own pulses,
+  // in the blended accord colour, each weaker than the last (radius eases out over 0.55 s).
+  '   if(u_shapeC>0.0){float C=u_shapeC,ec=1.0-smoothstep(0.80,0.97,max(abs(v.x),abs(v.y)));',
+  '    vec3 acc=mix(mix(c0,c1,0.5),vec3(1.0),0.3);float wv=0.0;',
+  '    for(int i=0;i<3;i++){float te=C-float(i)*0.15;if(te>0.0){',
+  '     float e=min(1.0,te/0.55);float E=0.02+1.15*(1.0-(1.0-e)*(1.0-e)*(1.0-e));float er=r-E;',
+  '     wv+=pow(0.62,float(i))*exp(-er*er/0.0035)*(1.0-smoothstep(0.75,1.15,E));}}',
+  '    wv*=ec;',
+  '    col+=k*wv*acc*2.2;',
+  '    col+=k*exp(-r*r/0.008)*exp(-C*16.0)*vec3(1.0,0.97,0.92)*2.2;',   // the merge flash
+  '    a=max(a,k*min(wv,1.0)*0.8);}',
   '  }',
   ' }',
   ' gl_FragColor=vec4(col,a);',

@@ -758,6 +758,21 @@ describe('observerStore — whispers', () => {
     expect(JSON.parse(localStorage.getItem('observer_trail_v1') || '{}').touched?.['accretion.release']).toBeUndefined();
   });
 
+  it('scent_collision_carries_both_accord_colours', async () => {
+    boot('essences');
+    emit('essences', 'collision_fired', { colors: [[230, 80, 200], [40, 200, 120]] });
+    await flush();
+    expect(impulses.at(-1)).toMatchObject({ piece: 'scent.collide', tint: [230, 80, 200], tint2: [40, 200, 120] });
+  });
+
+  it('scent_collision_without_colours_keeps_the_tab_tint', async () => {
+    boot('essences');
+    emit('essences', 'collision_fired', { colors: [[999, 0, 0], 'x'] });
+    await flush();
+    expect(impulses.at(-1).tint2).toBeNull();
+    expect(impulses.at(-1).tint).not.toEqual([999, 0, 0]);
+  });
+
   it('whisper_waits_while_kernel_phrase_busy', async () => {
     boot(QUIET_TAB);
     emit('transmissions', 'kernel_loaded', {});

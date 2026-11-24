@@ -277,6 +277,10 @@ function onSpine(next) {
   schedule();
 }
 
+// /SCENT carries the two colliding accords' colours: two [r, g, b] triples, 0..255.
+const isRgb = c => Array.isArray(c) && c.length === 3 && c.every(x => Number.isFinite(x) && x >= 0 && x <= 255);
+const isRgbPair = cs => Array.isArray(cs) && cs.length === 2 && isRgb(cs[0]) && isRgb(cs[1]);
+
 function onBus({ category, kind, payload }) {
   const p = payload ?? {};
   const key = `${category}/${kind}`;
@@ -307,6 +311,7 @@ function onBus({ category, kind, payload }) {
   if (rule.mixed && p.hand !== true) return;
   if (PHRASE_KINDS.has(key)) phraseBusyUntil = now() + PHRASE_BUSY_MS;
   const opts = rule.piece === 'mercury.flick' ? { dir: p.dir < 0 ? -1 : 1 }
+    : rule.piece === 'scent.collide' && isRgbPair(p.colors) ? { tint: p.colors[0], tint2: p.colors[1] }
     : rule.tint ? { tint: rule.tint, tint2: rule.tint2 } : undefined;
   react(rule.piece, 'witness', opts);
 }
