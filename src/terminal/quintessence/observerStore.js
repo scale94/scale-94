@@ -346,11 +346,30 @@ function showWhisper(w, idleTab, t) {
   startGlance(tab, mercury ? null : NAV_TINTS[tab] || null, mercury, 'whisper', t);
 }
 
+// A hidden document is treated like hidden chrome: nobody would see the whisper.
+const docHidden = () => typeof document !== 'undefined' && document.hidden === true;
+const canShow = () => chromeVisible && !docHidden();
+
 function fireWhisper(piece, idleTab, t) {
   const w = riddleFor(piece);
-  if (chromeVisible) showWhisper(w, idleTab, t);
-  else held = { ...w, idleTab, since: t };       // mobile: wait for the masthead
+  if (canShow()) showWhisper(w, idleTab, t);
+  else held = { ...w, idleTab, since: t };       // wait for the masthead / the tab (not spent)
 }
+
+// The chrome or the document came back: a held whisper still in its window shows now.
+function releaseHeld() {
+  if (!held || !canShow()) return;
+  const t = now();
+  const w = held;
+  held = null;
+  if (t < w.since + MOBILE_HOLD_MS) {
+    showWhisper({ id: w.id, text: w.text, piece: w.piece }, w.idleTab, t);
+    ping();
+  }
+  schedule();
+}
+
+function onVisibility() { if (started) releaseHeld(); }
 
 // No whisper (and its hue) starts until AFTER_REACTION_MS past the last flash: the eye rests
 // in silver between the nav hue and the whisper's, instead of jumping from one to the other.
@@ -475,6 +494,7 @@ export function startObserver({ tab } = {}) {
   unsubSpine = subscribeSpine(onSpine);
   unsubBus = subscribe(onBus);
   if (typeof window !== 'undefined') INPUT_EVENTS.forEach(ev => window.addEventListener(ev, onInput, INPUT_OPTS));
+  if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisibility);
   ping();
   schedule();
 }
@@ -498,15 +518,7 @@ export function notifyNav(tab) {
 // The masthead's visibility (mobile hides it): a held whisper shows when it returns.
 export function setChromeVisible(v) {
   chromeVisible = !!v;
-  if (!chromeVisible || !held) return;
-  const t = now();
-  const w = held;
-  held = null;
-  if (t < w.since + MOBILE_HOLD_MS) {
-    showWhisper({ id: w.id, text: w.text, piece: w.piece }, w.idleTab, t);
-    ping();
-  }
-  schedule();
+  releaseHeld();
 }
 
 export function _resetObserverForTests({ random, now: clock } = {}) {
@@ -516,6 +528,7 @@ export function _resetObserverForTests({ random, now: clock } = {}) {
   if (unsubBus) { unsubBus(); unsubBus = null; }
   if (unsubSpine) { unsubSpine(); unsubSpine = null; }
   if (typeof window !== 'undefined') INPUT_EVENTS.forEach(ev => window.removeEventListener(ev, onInput, INPUT_OPTS));
+  if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisibility);
   flash = null; flashUntil = 0; igniting = false; sealed = false; sealedAt = null; remarkedSinceSeal = false;
   activeTab = null; spine = null; active = null;
   pending = new Map(); flushQueued = false; started = false;

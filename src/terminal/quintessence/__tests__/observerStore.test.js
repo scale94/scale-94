@@ -594,6 +594,44 @@ describe('observerStore — whispers', () => {
     expect(getObserver().wantsChrome).toBe(false);
   });
 
+  it('a hidden document holds the whisper (not spent) and showing it releases it', async () => {
+    let hidden = true;
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => hidden });
+    try {
+      boot(QUIET_TAB);
+      await act();
+      await step(SETTLE);
+      expect(getObserver().whisper).toBeNull();
+      await step(5000);
+      expect(getObserver().whisper).toBeNull();
+      hidden = false;
+      document.dispatchEvent(new Event('visibilitychange'));
+      expect(getObserver().whisper).toMatchObject({ id: 'mercury.flick:0' });
+    } finally {
+      delete document.hidden;
+    }
+  });
+
+  it('a whisper held by a hidden document and dropped after 30 s is never spent', async () => {
+    let hidden = true;
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => hidden });
+    try {
+      boot(QUIET_TAB);
+      await act();
+      await step(SETTLE);
+      expect(getObserver()).toMatchObject({ whisper: null, wantsChrome: true });
+      await step(MOBILE_HOLD_MS);
+      hidden = false;
+      document.dispatchEvent(new Event('visibilitychange'));
+      expect(getObserver().whisper).toBeNull();
+      await act();
+      await step(SETTLE);
+      expect(getObserver().whisper).toMatchObject({ id: 'mercury.flick:0' });
+    } finally {
+      delete document.hidden;
+    }
+  });
+
   it('a held whisper dropped after 30 s stops asking for chrome', async () => {
     boot(QUIET_TAB);
     setChromeVisible(false);
