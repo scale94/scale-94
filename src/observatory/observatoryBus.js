@@ -136,3 +136,9 @@ function updateTotals(evt) {
       break;
   }
 }
+
+// DEV escape hatch, same pattern as window.__quintessenceSpine: lets the scripted
+// eye tour (scripts/eyeQuestTour.mjs) drive the bus from CDP. Stripped from prod.
+if (import.meta.env?.DEV && typeof window !== 'undefined') {
+  window.__observatoryEmit = emit;
+}
