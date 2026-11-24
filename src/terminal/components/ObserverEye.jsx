@@ -26,13 +26,14 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import { useShaderCanvas } from '../gl/useShaderCanvas';
 import { VS, FS, UNIFORMS, KICK } from './observerEyeShader';
+import { eyeDrive, live } from './eyeDrive';
 
 const RESTING_COLS = [[210,220,232],[150,170,185],[120,200,220]];
 const AETHER = { irid: 1, cols: RESTING_COLS, speed: 0.06, focus: 0.08, gaze: [0, 0], core: 0.85, orbit: 1, shimmer: 1 };
 
 const STATES = {
   resting:   { irid: 1, cols: RESTING_COLS, speed: 0.05, focus: 0.00, gaze: [0, 0] },
-  leaning:   { irid: 0, cols: [[56,189,248],[6,182,212],[170,235,255]],    speed: 0.11, focus: 0.34, gaze: [0.12, -0.08] },
+  leaning:   { irid: 0, cols: [[56,189,248],[6,182,212],[170,235,255]],    speed: 0.11, focus: 0.52, gaze: [0.12, -0.08] },
   armed:     { irid: 0, cols: [[255,215,0],[217,70,239],[255,150,60]],     speed: 0.14, focus: 0.58, gaze: [0, 0] },
   compiling: { irid: 0, cols: [[167,139,250],[122,184,0],[205,180,255]],   speed: 0.20, focus: 0.86, gaze: [0, 0] },
   complete:  { irid: 0, cols: [[20,184,166],[185,240,228],[70,205,185]],   speed: 0.07, focus: 0.22, gaze: [0, 0] },
@@ -57,6 +58,19 @@ const WHITE_GOLD = [255, 236, 180];
 const WHITE_GOLD_COLS = deriveCols(WHITE_GOLD);
 // Turbulence also speeds the swirl: phase rate = speed + TURB_SPEED·turb.
 const TURB_SPEED = 0.25;
+// Back-spin (the CDJ unwind): when the eye leaves a coloured state for silver, the
+// swirl gets a reverse angular velocity that coasts out exponentially. Total reverse
+// travel = BACKSPIN_TURN · (how coloured the eye was), here ~2/3 of a turn from full
+// colour, launched at 17.5 rad/s and spent in ~τ. It is integrated off dt, so it is the same at any uptime (the old
+// u_t·u_speed version made it, by accident, scale with how long the page was open).
+const BACKSPIN_TURN = 4.2;     // rad of reverse travel from a fully coloured eye
+const BACKSPIN_TAU = 0.24;     // s, the coast's time constant
+// The colour bleeds back to silver slower than the other eases, so it runs under the spin.
+const IRID_RETURN = 0.05;      // per-second residual (e = 1 - IRID_RETURN^dt), vs 0.004
+// eyeDrive (live channels, `driven` eyes only) eases in and out at this residual.
+const DRIVE_EASE = 0.002;
+// Keyed kick fields (Phase 0d). `level` defaults to 1, the rest to 0 (additive).
+const KEY_FIELDS = ['level', 'turn', 'focus', 'shapeK', 'shapeA', 'shapeB', 'gazeX', 'gazeY', 'turb'];
 // Reduced motion: how long the crescendo's static flash holds.
 const RM_FLASH_MS = (IMPLODE_S + DETONATE_S + STORM_S) * 1000;
 
@@ -82,6 +96,34 @@ function kickCols(tint, tint2) {
   const cols = deriveCols(tint);
   if (tint2) cols[1] = [tint2[0], tint2[1], tint2[2]];
   return cols;
+}
+
+// A keyed timeline -> per-field arrays over sorted times (allocated once, at kick time).
+function normaliseKeys(keys) {
+  const ks = keys.slice().sort((a, b) => a.t - b.t);
+  const out = { t: ks.map(k => clamp01(k.t)), f: {} };
+  for (const name of KEY_FIELDS) {
+    if (!ks.some(k => k[name] != null)) continue;
+    const dflt = name === 'level' ? 1 : 0;
+    out.f[name] = ks.map(k => (k[name] == null ? dflt : k[name]));
+  }
+  return out;
+}
+
+// Sample a normalised timeline at x (0..1) into `dst`, smoothstep between keys.
+// A field no key names samples as 0 (level: NaN, meaning "use the envelope").
+function sampleKeys(K, x, dst) {
+  const t = K.t;
+  let i = 0;
+  while (i < t.length - 1 && x > t[i + 1]) i++;
+  const j = Math.min(i + 1, t.length - 1);
+  const span = t[j] - t[i];
+  const u = span > 0 ? smooth(Math.min(1, Math.max(0, (x - t[i]) / span))) : 0;
+  for (const name of KEY_FIELDS) {
+    const f = K.f[name];
+    dst[name] = f ? lerp(f[i], f[j], u) : (name === 'level' ? NaN : 0);
+  }
+  return dst;
 }
 
 function kickLevel(k, tsec) {
@@ -132,7 +174,9 @@ function makeScratch() {
     o: {
       cols: cols3(), speed: 0, focus: 0, irid: 0, pulse: 0, gaze: [0, 0], core: 0, orbit: 0,
       shimmer: 0, thread: 0, turb: 0, kick: 0, kickKind: 0, kickDir: 0, phase: 0,
+      shape: 0, shapeK: 0, shapeA: 0, shapeB: 0, turn: 0,
     },
+    key: {},                                    // a keyed kick's sample this frame
     cres: { core: 0, focus: 0, turb: 0, speedMul: 1, jitter: 0, kick: 0, w: 1 },
     T: { tgt: null, tCols: null, tGaze: null, tCore: 0, tOrbit: 0, tShimmer: 0, tThread: 0, tPulse: 0 },
     leanTgt: { speed: 0, focus: 0, irid: 0 },
@@ -147,7 +191,7 @@ function makeScratch() {
 // lean (0..1, default 1) eases an overlay in: the leaning tint / gaze / pulse / shimmer blend
 // toward `baseState` (the state without the overlay) by 1 - lean. `getLean`, when given, is read
 // every frame instead (a glance's slow ease without a React render per frame). A flash passes 1.
-function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, pulse = false, lens = true, constrict = null, thread = 0, shimmer = 0, lean = 1, getLean = null, baseState = null, onClick, title, className = '', ariaLabel }, ref) {
+function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, pulse = false, lens = true, constrict = null, thread = 0, shimmer = 0, lean = 1, getLean = null, baseState = null, driven = false, onClick, title, className = '', ariaLabel }, ref) {
   const canvasRef = useRef(null);
   const stateRef  = useRef(state);
   const tintRef   = useRef(tint);
@@ -159,6 +203,7 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
   const leanRef = useRef(lean);
   const getLeanRef = useRef(getLean);
   const baseStateRef = useRef(baseState);
+  const drivenRef = useRef(driven);
   const aliveRef = useRef(false);
   const holdTimerRef = useRef(0);
 
@@ -195,6 +240,9 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
         shimmer: Math.max(start.shimmer || 0, clamp01(shimmerRef.current)),
         thread: clamp01(threadRef.current),
         chargeT0: null, kick: null, cres: null, hold: null, kickOut: 0, phase: 0,
+        spinV: 0, iridTgt: start.irid,
+        // eased eyeDrive state: spin rad/s, palette weight + cols, gaze, mood, shape
+        dv: { spin: 0, pal: 0, cols: cols3(), gx: 0, gy: 0, mood: 0, shapeK: 0, shapeId: 0, shapeA: 0, shapeB: 0, palLive: false },
       };
     },
 
@@ -215,7 +263,14 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
         const focusTarget = constrictRef.current != null
           ? Math.max(tgt.focus, constrictRef.current) : tgt.focus;
         cur.focus = lerp(cur.focus, focusTarget, e);
-        cur.irid = lerp(cur.irid, tgt.irid, e);
+        // Crossing into silver (target irid up through 0.5) throws the back-spin,
+        // scaled by how much colour there is to unwind.
+        if (cur.iridTgt < 0.5 && tgt.irid >= 0.5) {
+          cur.spinV = -(BACKSPIN_TURN / BACKSPIN_TAU) * clamp01(1 - cur.irid);
+        }
+        cur.iridTgt = tgt.irid;
+        const eIrid = tgt.irid > cur.irid ? 1 - Math.pow(IRID_RETURN, dt) : e;
+        cur.irid = lerp(cur.irid, tgt.irid, eIrid);
         cur.pulse = lerp(cur.pulse, tPulse, e);
         cur.gaze[0] = lerp(cur.gaze[0], tGaze[0], e);
         cur.gaze[1] = lerp(cur.gaze[1], tGaze[1], e);
@@ -223,12 +278,19 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
         cur.orbit = lerp(cur.orbit, tOrbit, e);
         cur.shimmer = lerp(cur.shimmer, tShimmer, e);
         cur.thread = lerp(cur.thread, tThread, e);
+        if (drivenRef.current) easeDrive(cur, dt);
       }
       // The swirl phase is integrated, so a speed change (state ease,
       // detonation ×4, storm turbulence) never jumps it by u_t·Δspeed.
       const o = overlay(cur, tsec);
-      if (dt > 0) cur.phase += (o.speed + TURB_SPEED * o.turb) * dt;
-      o.phase = cur.phase;
+      if (dt > 0) {
+        // The back-spin coasts out exactly: ∫ v0·e^(-t/τ) over this dt.
+        const decay = Math.exp(-dt / BACKSPIN_TAU);
+        cur.phase += (o.speed + TURB_SPEED * o.turb + cur.dv.spin) * dt + cur.spinV * BACKSPIN_TAU * (1 - decay);
+        cur.spinV *= decay;
+        if (Math.abs(cur.spinV) < 1e-4) cur.spinV = 0;
+      }
+      o.phase = cur.phase + o.turn;
       paint(host, o, tsec);
     },
 
@@ -245,7 +307,7 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
       cur.speed = tgt.speed;
       cur.focus = constrictRef.current != null
         ? Math.max(tgt.focus, constrictRef.current) : tgt.focus;
-      cur.irid = tgt.irid;
+      cur.irid = hold ? 0 : tgt.irid;      // a held reaction's colour must show over silver
       cur.pulse = pulseRef.current ? 1 : 0;
       cur.gaze = tGaze.slice();
       cur.core = hold && hold.core != null ? hold.core : tCore;
@@ -313,13 +375,55 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
     o.speed = cur.speed; o.focus = cur.focus; o.irid = cur.irid; o.pulse = cur.pulse;
     o.core = cur.core; o.orbit = cur.orbit; o.shimmer = cur.shimmer; o.thread = cur.thread;
     o.turb = 0; o.kick = 0; o.kickKind = 0; o.kickDir = 0; o.phase = 0;
+    o.shape = 0; o.shapeK = 0; o.shapeA = 0; o.shapeB = 0; o.turn = 0;
     return o;
+  }
+
+  // eyeDrive -> cur.dv, eased; a channel past its hold eases back to rest. Releasing a
+  // palette that had taken the eye over throws the back-spin, like any return to silver.
+  function easeDrive(cur, dt) {
+    const d = cur.dv;
+    const D = eyeDrive;
+    const t = performance.now();
+    const e = 1 - Math.pow(DRIVE_EASE, dt);
+    d.spin = lerp(d.spin, live(D.spin, t) ? D.spin.v : 0, e);
+    const palLive = live(D.palette, t);
+    if (palLive) for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) d.cols[i][j] = D.palette.cols[i][j];
+    if (d.palLive && !palLive && d.pal > 0.5 && cur.irid > 0.5) {
+      cur.spinV = -(BACKSPIN_TURN / BACKSPIN_TAU) * d.pal;
+    }
+    d.palLive = palLive;
+    d.pal = lerp(d.pal, palLive ? 1 : 0, palLive ? e : 1 - Math.pow(IRID_RETURN, dt));
+    const gLive = live(D.gaze, t);
+    d.gx = lerp(d.gx, gLive ? D.gaze.x : 0, e);
+    d.gy = lerp(d.gy, gLive ? D.gaze.y : 0, e);
+    d.mood = lerp(d.mood, live(D.mood, t) ? D.mood.m : 0, e);
+    const sLive = live(D.shape, t);
+    if (sLive) { d.shapeId = D.shape.id; d.shapeA = D.shape.a; d.shapeB = D.shape.b; }
+    d.shapeK = lerp(d.shapeK, sLive ? D.shape.k : 0, e);
+  }
+
+  // The drive laid over the baseline (before any kick): palette takes the eye off silver,
+  // mood contracts and agitates (+) or dilates and slows (-), gaze offsets, shape morphs.
+  function applyDrive(cur, o) {
+    const d = cur.dv;
+    if (d.pal > 0.001) {
+      for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) o.cols[i][j] = lerp(o.cols[i][j], d.cols[i][j], d.pal);
+      o.irid *= 1 - d.pal;
+    }
+    const ang = Math.max(0, d.mood), calm = Math.max(0, -d.mood);
+    o.focus = Math.min(1, Math.max(0, o.focus + 0.45 * ang - 0.25 * calm));
+    o.speed *= 1 + 1.2 * ang - 0.5 * calm;
+    o.turb = Math.max(o.turb, 0.6 * ang);
+    o.gaze[0] += d.gx; o.gaze[1] += d.gy;
+    if (d.shapeK > 0.001) { o.shape = d.shapeId; o.shapeK = d.shapeK; o.shapeA = d.shapeA; o.shapeB = d.shapeB; }
   }
 
   // The baseline with the crescendo, or else the live kick, laid over it.
   function overlay(cur, tsec) {
     const S = scratchRef.current;
     const o = still(cur, S.o);
+    if (drivenRef.current) applyDrive(cur, o);
     let hue = null, level = 0;
     const c = cur.cres;
     if (c) {
@@ -343,9 +447,22 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
     } else if (cur.kick) {
       const k = cur.kick;
       if (k.t0 == null) k.t0 = tsec;
-      const v = kickLevel(k, tsec);
+      let v = kickLevel(k, tsec);
       if (tsec - k.t0 >= k.dur) cur.kick = null;
       else {
+        if (k.keys) {
+          const s = sampleKeys(k.keys, (tsec - k.t0) / k.dur, S.key);
+          if (!Number.isNaN(s.level)) v = s.level * k.peak;
+          o.turn = s.turn * k.dir;
+          o.focus = Math.min(1, Math.max(0, o.focus + s.focus));
+          o.gaze[0] += s.gazeX; o.gaze[1] += s.gazeY;
+          o.turb = Math.max(o.turb, s.turb);
+          if (k.shape) { o.shape = k.shape; o.shapeK = s.shapeK; o.shapeA = s.shapeA; o.shapeB = s.shapeB; }
+        } else if (k.cols && !k.spun && tsec - k.t0 > ATTACK_S && v < 0.5 * k.peak) {
+          // The colour is unwinding back to silver: the same back-spin a state return gets.
+          k.spun = true;
+          if (cur.irid > 0.5) cur.spinV = -(BACKSPIN_TURN / BACKSPIN_TAU) * k.peak * cur.irid;
+        }
         o.kick = v; o.kickKind = k.kind; o.kickDir = k.dir;
         hue = k.cols; level = v;
       }
@@ -353,7 +470,11 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
     if (hue && level > 0) {
       const kc = hue;
       const t = Math.min(1, level);
-      for (let i = 0; i < 3; i++) for (let jj = 0; jj < 3; jj++) o.cols[i][jj] = lerp(cur.cols[i][jj], kc[i][jj], t);
+      for (let i = 0; i < 3; i++) for (let jj = 0; jj < 3; jj++) o.cols[i][jj] = lerp(o.cols[i][jj], kc[i][jj], t);
+      // A tinted kick owns the colour: silver steps aside by its level, or the hue is
+      // invisible on a resting eye (irid 1 replaces the nebula outright). The crescendo's
+      // white-gold rides on its ring term, so aether keeps its silver.
+      if (!c) o.irid *= 1 - t;
     }
     cur.kickOut = o.kick;
     return o;
@@ -386,6 +507,12 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
     gl.uniform1f(U.u_kickKind, o.kickKind);
     gl.uniform1f(U.u_kickDir, o.kickDir);
     gl.uniform1f(U.u_phase, o.phase);
+    gl.uniform1f(U.u_shape, o.shape);
+    gl.uniform1f(U.u_shapeK, o.shapeK);
+    gl.uniform1f(U.u_shapeA, o.shapeA);
+    gl.uniform1f(U.u_shapeB, o.shapeB);
+    gl.uniform1f(U.u_px, 2 / Math.max(1, gl.drawingBufferWidth || 1));
+    gl.uniform1f(U.u_fore, 1);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
 
@@ -404,7 +531,10 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
 
   // Imperative reactions write into curRef only: no React render.
   useImperativeHandle(ref, () => ({
-    kick({ kind, tint: kTint = null, tint2 = null, dir = 1, durationMs, strength = 1 } = {}) {
+    // keys: optional timeline [{ t: 0..1, level, turn (rad), focus (+), shapeK, shapeA, shapeB,
+    // gazeX, gazeY, turb }] for scripted multi-stage reactions (collapse -> rebound, 360 turns).
+    // shape: the SHAPE id the keys' shapeK/A/B drive.
+    kick({ kind, tint: kTint = null, tint2 = null, dir = 1, durationMs, strength = 1, keys = null, shape = 0 } = {}) {
       const cur = curRef.current;
       if (!cur || !aliveRef.current) return;
       if (prefersReducedMotion()) {
@@ -417,6 +547,7 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
         kind, cols: kTint ? kickCols(kTint, tint2) : null, dir: dir < 0 ? -1 : 1, t0: null,
         dur: Math.max((durationMs || 0) / 1000, ATTACK_S + 0.05),
         peak: clamp01(strength), from: Math.min(1, cur.kickOut || 0),
+        keys: Array.isArray(keys) && keys.length ? normaliseKeys(keys) : null, shape: shape || 0, spun: false,
       };
     },
     detonate() {
@@ -443,8 +574,9 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
     stateRef.current = state; tintRef.current = tint; gazeRef.current = gaze; pulseRef.current = pulse;
     constrictRef.current = constrict; threadRef.current = thread; shimmerRef.current = shimmer;
     leanRef.current = lean; getLeanRef.current = getLean; baseStateRef.current = baseState;
+    drivenRef.current = driven;
     snap();
-  }, [state, tint, gaze, pulse, constrict, thread, shimmer, lean, getLean, baseState]);
+  }, [state, tint, gaze, pulse, constrict, thread, shimmer, lean, getLean, baseState, driven]);
 
   // The lens viewBox is 280 wide, so a stroke in user units shrinks with `size`
   // (1.3 → 0.3px at 64px: paper thin, pixelated on 1440p). Non-scaling px strokes

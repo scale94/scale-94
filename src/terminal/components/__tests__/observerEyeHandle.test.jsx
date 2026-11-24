@@ -175,6 +175,95 @@ describe('ObserverEye imperative handle', () => {
     expect(Math.abs(late.advance - early.advance) / early.advance).toBeLessThan(0.01);
   });
 
+  it('return_to_silver_back_spins_uptime_independently', () => {
+    // Leaving a coloured state for silver throws the swirl into a reverse coast
+    // (the CDJ back-spin the u_t*u_speed bug used to make by accident), then it
+    // resumes forward. Same impulse 4 s or 1 h after load.
+    const backspin = (mountAtMs) => {
+      vi.advanceTimersByTime(mountAtMs - performance.now());
+      const { rerender, unmount } = render(<ObserverEye state="leaning" tint={[255, 120, 40]} size={64} />);
+      frames(90);
+      const mark = rec.log.length;
+      act(() => { rerender(<ObserverEye state="resting" size={64} />); });
+      frames(180);
+      const ph = valuesOf('u_phase', mark);
+      unmount();
+      rec.log.length = 0;
+      const d = ph.slice(1).map((p, i) => p - ph[i]);
+      const reverse = d.filter((x) => x < 0).reduce((a, b) => a + b, 0);
+      return { reverse, endsForward: d.slice(-10).every((x) => x > 0) };
+    };
+    const early = backspin(4000);
+    const late = backspin(3599000);
+    expect(early.reverse).toBeLessThan(-2);           // a real turn backwards, not a flicker
+    expect(early.reverse).toBeGreaterThan(-6);        // controlled: about one turn at most
+    expect(early.endsForward).toBe(true);
+    expect(Math.abs(late.reverse - early.reverse)).toBeLessThan(0.02);
+  });
+
+  it('no_back_spin_without_a_colour_to_leave', () => {
+    const { rerender } = render(<ObserverEye state="resting" size={64} />);
+    frames(30);
+    const mark = rec.log.length;
+    act(() => { rerender(<ObserverEye state="aether" size={64} />); });
+    frames(60);
+    const ph = valuesOf('u_phase', mark);
+    expect(ph.slice(1).every((p, i) => p >= ph[i])).toBe(true);
+  });
+
+  it('tinted_kick_shows_over_silver_then_back_spins', () => {
+    // At rest u_irid = 1 replaces the nebula outright, so a kick's hue was invisible.
+    // A tinted kick now steps silver aside by its level, and its unwind back-spins.
+    const ref = createRef();
+    render(<ObserverEye ref={ref} size={64} />);
+    frames(30);
+    const mark = rec.log.length;
+    ref.current.kick({ kind: KICK.ring, tint: [239, 68, 68], durationMs: 1400 });
+    const f = frames(Math.ceil(1600 / FRAME_MS));
+    expect(Math.min(...f.map((x) => x.u.u_irid))).toBeLessThan(0.05);
+    expect(f.at(-1).u.u_irid).toBeGreaterThan(0.99);
+    const ph = valuesOf('u_phase', mark);
+    const reverse = ph.slice(1).map((p, i) => p - ph[i]).filter((d) => d < 0).reduce((a, b) => a + b, 0);
+    expect(reverse).toBeLessThan(-1.5);
+  });
+
+  it('untinted_kick_keeps_silver', () => {
+    const ref = createRef();
+    render(<ObserverEye ref={ref} size={64} />);
+    frames(30);
+    ref.current.kick({ kind: KICK.ring, durationMs: 900 });
+    expect(frames(20).every((x) => x.u.u_irid > 0.99)).toBe(true);
+  });
+
+  it('keyed_kick_runs_its_timeline', () => {
+    // A scripted full turn and a shape morph that peak mid-kick and return to 0.
+    const ref = createRef();
+    render(<ObserverEye ref={ref} size={64} />);
+    frames(10);
+    ref.current.kick({
+      kind: KICK.flutter, durationMs: 1500, shape: 2,
+      keys: [{ t: 0, turn: 0, shapeK: 0 }, { t: 0.5, turn: Math.PI * 2, shapeK: 1, shapeA: 0.5 }, { t: 1, turn: Math.PI * 2, shapeK: 0, shapeA: 1 }],
+    });
+    const f = frames(Math.ceil(1600 / FRAME_MS));
+    const mid = f[Math.round(750 / FRAME_MS) - 1].u;
+    expect(mid.u_shape).toBe(2);
+    expect(mid.u_shapeK).toBeGreaterThan(0.95);
+    expect(Math.max(...f.map((x) => x.u.u_shapeK))).toBeLessThanOrEqual(1);
+    expect(f.at(-1).u.u_shapeK).toBe(0);
+    expect(f.at(-1).u.u_shape).toBe(0);
+  });
+
+  it('reduced_motion_hold_shows_its_colour', () => {
+    window.matchMedia = () => ({ matches: true, addEventListener() {}, removeEventListener() {} });
+    const ref = createRef();
+    render(<ObserverEye ref={ref} size={64} />);
+    const mark = rec.log.length;
+    ref.current.kick({ kind: KICK.ring, tint: [239, 68, 68], durationMs: 900 });
+    expect(valuesOf('u_irid', mark).at(-1)).toBe(0);
+    vi.advanceTimersByTime(1000);
+    expect(valuesOf('u_irid').at(-1)).toBe(1);
+  });
+
   it('handle_is_noop_without_host', () => {
     hostless.on = true;
     const ref = createRef();

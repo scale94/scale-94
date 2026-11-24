@@ -102,22 +102,22 @@ describe('MercuryEyeIndicator — observerStore wiring', () => {
   });
 
   it('whisper_renders_in_phrase_slot_with_riddle_colour', () => {
-    const { container } = mount();
+    mount();
     act(() => store.set({ whisper: { id: 'sol.release:0', text: 'the sun waits to be let go', piece: 'sol.release' } }));
-    expect(container.textContent).toContain('the sun waits to be let go');
-    const span = [...container.querySelectorAll('span')].find(s => s.textContent === 'the sun waits to be let go');
+    expect(document.body.textContent).toContain('the sun waits to be let go');
+    const span = [...document.body.querySelectorAll('span')].find(s => s.textContent === 'the sun waits to be let go');
     expect(span.style.color).not.toBe('');
     expect(span.style.color).not.toBe(AMBER);
     expect(span.style.color).toBe('rgba(200, 196, 232, 0.75)');
   });
 
   it('a kernel phrase preempts a showing whisper (the visitor\'s own act wins)', () => {
-    const { container, rerender } = mount();
+    const { rerender } = mount();
     act(() => store.set({ whisper: { id: 'w:0', text: 'a riddle in silver', piece: 'scent.collide' } }));
-    expect(container.textContent).toContain('a riddle in silver');
+    expect(document.body.textContent).toContain('a riddle in silver');
     rerender(<MercuryEyeIndicator activeTab="kernel" onNavigate={() => {}} lastKernelAt={1234} lastLoadAt={null} mobileChrome />);
-    expect(container.textContent).not.toContain('a riddle in silver');
-    const amber = [...container.querySelectorAll('span')].find(s => s.style.color === AMBER);
+    expect(document.body.textContent).not.toContain('a riddle in silver');
+    const amber = [...document.body.querySelectorAll('span')].find(s => s.style.color === AMBER);
     expect(amber).toBeDefined();
   });
 

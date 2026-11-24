@@ -16,11 +16,20 @@ export const KICK = {
   ripple: 8, packet: 9, stare: 10, shove: 11, spiral: 12, sweep: 13, flutter: 14,
 };
 
+// Shape morphs (u_shape). The pupil/disc *become* a figure by SDF blends, the nebula
+// keeps flowing inside it. u_shapeK 0..1 = how far; u_shapeA/B are per-shape params.
+export const SHAPE = { kernel: 1, butterfly: 2 };
+
 export const VS = 'attribute vec2 a;varying vec2 v;void main(){v=a;gl_Position=vec4(a,0.,1.);}';
 export const FS = [
   'precision highp float;varying vec2 v;',
   'uniform float u_t,u_focus,u_irid,u_speed,u_pulse;uniform vec3 c0,c1,c2;uniform vec2 u_gaze;',
   'uniform float u_core,u_orbit,u_shimmer,u_thread,u_turb,u_kick,u_kickKind,u_kickDir,u_phase;',
+  'uniform float u_shape,u_shapeK,u_shapeA,u_shapeB,u_px,u_fore;',
+  'float aa(float d){return clamp(0.5-d/max(u_px,1e-4),0.,1.);}',  // 1 inside (d<0), ~1px AA
+  'float sdBox(vec2 p,vec2 b){vec2 d=abs(p)-b;return length(max(d,0.))+min(max(d.x,d.y),0.);}',
+  'float sdEll(vec2 p,vec2 c,vec2 r,float a){p-=c;float cs=cos(a),sn=sin(a);p=mat2(cs,sn,-sn,cs)*p;',
+  ' return (length(p/r)-1.0)*min(r.x,r.y);}',
   'float hash(vec2 p){p=fract(p*vec2(123.34,345.45));p+=dot(p,p+34.5);return fract(p.x*p.y);}',
   'float vn(vec2 p){vec2 i=floor(p),f=fract(p);vec2 u=f*f*(3.-2.*f);',
   ' float a=hash(i),b=hash(i+vec2(1,0)),c=hash(i+vec2(0,1)),d=hash(i+vec2(1,1));',
@@ -40,6 +49,9 @@ export const FS = [
   '  if(u_kickKind>11.5) fk=mix(fk,0.75,K);',              // vertebrae: deep contraction
   ' }',
   ' vec2 uv=v-g;',
+  // Foreshortening: a gazing eye narrows along its gaze so the shifted disc (radius 1)
+  // still ends at the canvas edge instead of being sliced flat. 0 = v1 (parity).
+  ' float gl=length(g);if(u_fore>0.0&&gl>1e-4){vec2 gd=g/gl;uv+=gd*dot(uv,gd)*(u_fore*gl/(1.0-min(gl,0.9)));}',
   ' float r=length(uv);',
   ' float ang=atan(uv.y,uv.x);',
   ' float sw=u_phase+(1.0/(r+0.16))*(0.55+fk*1.5)*(1.0+0.6*u_orbit);',
@@ -93,18 +105,45 @@ export const FS = [
   '  vec3 sc=(vec3(1.0,0.92,0.7)*w.x+vec3(0.85,0.95,1.0)*w.y+vec3(0.8,0.7,1.0)*w.z)/(w.x+w.y+w.z+1e-4);',
   '  col+=u_shimmer*smoothstep(0.78,0.92,n)*sc*0.9;',
   ' }',
-  ' if(u_thread>0.0){',                                  // teal filament riding the silver sweep
-  '  float ph=ang+u_t*0.16667+r*2.5+(n-0.5)*0.7;',
-  '  float ln=exp(-(1.0-cos(ph))/0.006)*smoothstep(0.12,0.22,r)*(1.0-smoothstep(0.78,0.9,r));',
-  '  col=mix(col,vec3(0.078,0.722,0.651),u_thread*0.35*ln);',
+  // Sealed cue: a broad thin-film sheen drifting over the silver, never a drawn line.
+  // Resting-only: × u_irid (0 in every coloured state), killed by any reaction or storm.
+  ' float thG=u_thread*u_irid*(1.0-clamp(u_kick,0.,1.))*(1.0-clamp(u_turb,0.,1.));',
+  ' if(thG>0.001){',
+  '  float ph=ang-u_t*0.11+r*1.6+(n-0.5)*1.2;',
+  '  float band=pow(0.5+0.5*cos(ph),4.0)*smoothstep(0.16,0.34,r)*(1.0-smoothstep(0.70,0.90,r));',
+  '  vec3 film=0.5+0.5*cos(6.2831*(n*1.4+r*0.9+u_t*0.025+vec3(0.0,0.33,0.67)));',
+  '  col+=thG*band*(film-0.35)*0.22*(0.5+0.5*n);',
   ' }',
   ' col+=u_core*(exp(-r*r/0.001225)+0.25*exp(-r*r/0.0144))*vec3(1.0,0.9,0.62);', // star-core pinpoint
   ' col*=1.0+u_pulse*0.08*(1.0-cos(u_t*2.61799));',   // raised-cosine on 2π/2.4s — co-peaks with nav-beat's 50% keyframe
   ' float a=1.0-smoothstep(0.93,1.0,r);',
+  ' if(u_shape>0.5&&u_shapeK>0.0){float k=clamp(u_shapeK,0.,1.);vec3 lit=mix(c0,vec3(1.0),0.55);',
+  '  if(u_shape<1.5){',                                    // kernel: disc -> chip package, pupil -> diamond die
+  '   float frame=sdBox(uv,vec2(0.62))-0.14;',
+  '   float pins=1e3;for(int i=-1;i<=1;i++){pins=min(pins,sdBox(uv-vec2(float(i)*0.36,0.0),vec2(0.055,0.97)));}',
+  '   a=mix(a,aa(min(frame,pins)),k);',
+  '   float die=(abs(uv.x)+abs(uv.y))*0.7071-0.26;',
+  '   col*=mix(1.0,0.55+0.45*smoothstep(-0.02,0.12,frame+0.12),k);',
+  '   col=mix(col,col*0.08,k*aa(die));',
+  '   col=mix(col,lit*(0.45+0.9*n),k*aa(abs(frame+0.06)-0.055));',
+  '   col=mix(col,lit*(0.55+0.7*m),k*aa(abs(die)-0.035));',
+  '   col=mix(col,lit*(0.4+0.8*n),k*aa(pins)*(1.0-aa(frame)));',
+  '  }else if(u_shape<2.5){',                              // butterfly: A = rise 0..1, B = wing flap phase
+  '   vec2 p=(uv-vec2(0.0,u_shapeA*0.62))/mix(1.0,0.55,u_shapeA);',
+  '   float fl=0.55+0.45*abs(cos(u_shapeB));',
+  '   vec2 q=vec2(abs(p.x)/fl,p.y);',
+  '   float w=min(sdEll(q,vec2(0.25,0.15),vec2(0.25,0.17),0.35),sdEll(q,vec2(0.16,-0.15),vec2(0.15,0.11),-0.45));',
+  '   float sd=min(w*fl,sdEll(p,vec2(0.0),vec2(0.028,0.20),0.0));',
+  '   float fade=k*(1.0-smoothstep(0.7,1.0,u_shapeA));',
+  '   col=mix(col,vec3(0.015,0.02,0.035),fade*aa(sd));',
+  '   col+=fade*aa(abs(sd+0.03)-0.012)*c2*0.25*(0.5+n);',
+  '  }',
+  ' }',
   ' gl_FragColor=vec4(col,a);',
   '}'].join('\n');
 
 export const UNIFORMS = [
   'u_t', 'u_focus', 'u_irid', 'u_speed', 'u_pulse', 'c0', 'c1', 'c2', 'u_gaze',
   'u_core', 'u_orbit', 'u_shimmer', 'u_thread', 'u_turb', 'u_kick', 'u_kickKind', 'u_kickDir', 'u_phase',
+  'u_shape', 'u_shapeK', 'u_shapeA', 'u_shapeB', 'u_px', 'u_fore',
 ];

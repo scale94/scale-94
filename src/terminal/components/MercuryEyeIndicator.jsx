@@ -7,15 +7,19 @@
 // impulses (bus/spine reactions) become imperative kick()s, the crescendo a
 // detonate(). The kernel flare is the store's KICK.miosis impulse.
 //
-// One phrase slot right of the eye: the existentialist lines on kernel
-// load/run (amber) and the whispers (pale silver-violet). A kernel phrase
-// preempts a showing whisper: the visitor's own act wins.
+// One phrase slot under the masthead border, left-aligned with the eye: the
+// existentialist lines on kernel load/run (amber) and the whispers (pale
+// silver-violet). A kernel phrase preempts a showing whisper: the visitor's own
+// act wins. It used to run rightward from the eye across /KERNEL /BSKY
+// /ACCRETION for up to 6 s; the header clips (overflow hidden), so the slot is
+// portalled to <body>, position: fixed, placed from the eye + header rects.
 //
 // Telemetry: edge/eye_phase {phase: silver|aether|charging|crescendo|sealed}
 // on change, deferred out of render. edge/eye_whisper {target} is the store's (showWhisper).
 // Suppression: handled by parent (boot / sanctuary / breach).
 
-import React, { useState, useEffect, useRef, useSyncExternalStore } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
 import { emit as emitObs } from '../../observatory/observatoryBus';
 import ObserverEye from './ObserverEye';
 import { getSpine, subscribeSpine } from '../quintessence/spineStore';
@@ -27,6 +31,9 @@ const getLean = () => overlayLean(getObserver(), Date.now());
 
 const PHRASE_COLOR  = 'rgba(232,210,138,0.65)';
 const WHISPER_COLOR = 'rgba(200,196,232,0.75)';
+// The slot's hairline border + caret: its text colour, faint.
+const PHRASE_EDGE   = 'rgba(232,210,138,0.28)';
+const WHISPER_EDGE  = 'rgba(200,196,232,0.30)';
 
 // ── Observer phrase pools ────────────────────────────────────────────────────
 const OBSERVER_PHRASES_LOAD = [
@@ -94,6 +101,20 @@ export default function MercuryEyeIndicator({ activeTab, onNavigate, lastKernelA
   const isOnMercury = activeTab === 'mercury';
   const eyeRef = useRef(null);
   const [slot, setSlot] = useState(null);       // { text, whisper, key } | null
+  const anchorRef = useRef(null);
+  const [slotPos, setSlotPos] = useState(null); // { left, top, caret } in viewport px, under the header border
+  // Place the slot when it opens: the eye's left edge, 7 px under the masthead's border,
+  // its caret on the eye's centre line so the line reads as said by the eye.
+  useLayoutEffect(() => {
+    if (!slot) return;
+    const eye = anchorRef.current;
+    if (!eye) return;
+    const r = eye.getBoundingClientRect();
+    const header = eye.closest('header');
+    const bottom = header ? header.getBoundingClientRect().bottom : r.bottom;
+    const left = Math.max(8, Math.round(r.left));
+    setSlotPos({ left, top: Math.round(bottom + 7), caret: Math.round(r.left + r.width / 2) - left });
+  }, [slot]);
   const slotKey      = useRef(0);
   const lastRunIdx   = useRef(-1);
   const lastLoadIdx  = useRef(-1);
@@ -172,31 +193,56 @@ export default function MercuryEyeIndicator({ activeTab, onNavigate, lastKernelA
 
   return (
     <div
+      ref={anchorRef}
       className="relative shrink-0 select-none cursor-pointer group"
       onClick={onNavigate}
       role="button"
       aria-label="Open Mercury — observer view"
       title="◉ COMPILE YOUR DENIAL"
     >
-      {/* ── Observer phrase — extends rightward from the eye on kernel load/run
-          (the eye is the masthead's left edge now; leftward would run off-screen) ── */}
-      {slot && (
+      {/* ── Observer phrase — under the masthead border, left-aligned with the eye ── */}
+      {slot && slotPos && typeof document !== 'undefined' && createPortal(
         <div
           key={slot.key}
-          className="absolute left-full top-1/2 px-2 py-0.5 pointer-events-none"
+          data-eye-phrase
+          className="fixed px-2 py-[3px] pointer-events-none"
           style={{
+            left: slotPos.left, top: slotPos.top, zIndex: 45,
             animation: `mei-phrase ${slot.whisper ? '6s' : '5.1s'} ease forwards`,
-            background: 'rgba(0,0,0,0.88)',
+            background: 'rgba(4,4,8,0.92)',
+            border: `1px solid ${slot.whisper ? WHISPER_EDGE : PHRASE_EDGE}`,
+            boxShadow: '0 2px 10px rgba(0,0,0,0.6)',
           }}
           onAnimationEnd={() => setSlot(null)}
         >
+          {/* Tether: an upward caret on the eye's centre line, its tip at the masthead border. */}
+          <span
+            aria-hidden
+            data-eye-caret
+            className="absolute"
+            style={{
+              left: slotPos.caret - 5, top: -6, width: 0, height: 0,
+              borderLeft: '5px solid transparent', borderRight: '5px solid transparent',
+              borderBottom: `6px solid ${slot.whisper ? WHISPER_EDGE : PHRASE_EDGE}`,
+            }}
+          />
+          <span
+            aria-hidden
+            className="absolute"
+            style={{
+              left: slotPos.caret - 4, top: -4, width: 0, height: 0,
+              borderLeft: '4px solid transparent', borderRight: '4px solid transparent',
+              borderBottom: '5px solid rgba(4,4,8,0.92)',
+            }}
+          />
           <span
             className="font-mono text-[9px] tracking-[0.12em] block text-left whitespace-nowrap"
             style={{ color: slot.whisper ? WHISPER_COLOR : PHRASE_COLOR }}
           >
             {slot.text}
           </span>
-        </div>
+        </div>,
+        document.body,
       )}
       <style>{`
         @keyframes mei-tooltip-in {
@@ -204,10 +250,10 @@ export default function MercuryEyeIndicator({ activeTab, onNavigate, lastKernelA
           to   { opacity: 1; transform: translateY(0); }
         }
         @keyframes mei-phrase {
-          0%   { opacity: 0; transform: translateX(-5px) translateY(-50%); }
-          6%   { opacity: 1; transform: translateX(0)   translateY(-50%); }
-          78%  { opacity: 1; transform: translateX(0)   translateY(-50%); }
-          100% { opacity: 0; transform: translateX(0)   translateY(-50%); }
+          0%   { opacity: 0; transform: translateY(-4px); }
+          6%   { opacity: 1; transform: translateY(0); }
+          78%  { opacity: 1; transform: translateY(0); }
+          100% { opacity: 0; transform: translateY(0); }
         }
       `}</style>
       {/* The living eye — WebGL nebula pupil in a hexagon lens. */}
@@ -221,6 +267,7 @@ export default function MercuryEyeIndicator({ activeTab, onNavigate, lastKernelA
         shimmer={shimmer}
         baseState={baseState}
         getLean={getLean}
+        driven
         size={64}
         className="transition-transform duration-300 group-hover:scale-110"
       />
