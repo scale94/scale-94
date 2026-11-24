@@ -1,6 +1,6 @@
 # The Observer Eye as quest-giver — design
 
-2026-11-24 · branch `feature/eye-ambient` · status: DRAFT v2 (builder check folded in), awaiting author approval.
+2026-11-24 · branch `feature/eye-ambient` · status: APPROVED 2026-11-24 (draft v2).
 Input: `docs/superpowers/audits/2026-11-24-quintessence-wiring-audit.md` (read it for the per-tab wiring).
 
 ## 1. Intent
