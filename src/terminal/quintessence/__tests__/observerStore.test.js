@@ -444,6 +444,7 @@ describe('observerStore — whispers', () => {
     await step(30000);
     expect(getObserver().whisper).toBeNull();     // browsing alone never earns a forward whisper
     notifyNav('mercury');
+    await step(FLASH_MS + AFTER_REACTION_MS);      // the flash and its silver rest are over
     await act();
     await step(SETTLE - 1);
     expect(getObserver().whisper).toBeNull();
@@ -560,20 +561,28 @@ describe('observerStore — whispers', () => {
     expect(getObserver().wantsChrome).toBe(false);
   });
 
-  it('no forward-whisper glance during a nav flash', async () => {
+  it('no forward-whisper glance during a nav flash, and silver between the flash and the whisper', async () => {
     boot(QUIET_TAB);
-    await act();
+    // The act touches mercury.flick, so the forward target is bsky: a real hue that would jump.
+    emit('gaze', 'mercury_flick', { speed: 3, dir: 1, hand: true });
+    await flush();
     await step(SETTLE - 600);
     notifyNav('ledger');                           // flash outlives the forward deadline
+    const flashEnd = t + FLASH_MS;
     for (let left = FLASH_MS; left > 0; left -= 100) {
       await step(100);
       const o = getObserver();
       if (o.flash) expect(o.glance).toBeNull();
     }
     expect(getObserver().flash).toBeNull();
-    await step(0);
-    expect(getObserver().whisper).toMatchObject({ piece: 'mercury.flick' });   // deferred, not lost
-    expect(getObserver().glance).toMatchObject({ reason: 'whisper', tab: 'mercury' });
+    // Flash over: the eye rests in silver for AFTER_REACTION_MS before the whisper's hue leans in.
+    while (t < flashEnd + AFTER_REACTION_MS - 100) {
+      await step(100);
+      expect(getObserver()).toMatchObject({ flash: null, glance: null, whisper: null });
+    }
+    await step(flashEnd + AFTER_REACTION_MS - t);
+    expect(getObserver().whisper).toMatchObject({ piece: 'bsky.trend' });   // deferred, not lost
+    expect(getObserver().glance).toMatchObject({ reason: 'whisper', tab: 'bsky', tint: NAV_TINTS.bsky });
   });
 
   it('wantsChrome_true_during_whisper_and_crescendo', async () => {

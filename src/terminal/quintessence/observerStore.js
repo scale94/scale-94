@@ -101,7 +101,7 @@ const TIER_MS = { witness: WITNESS_MS, vertebra: VERTEBRA_MS, crescendo: CRESCEN
 const emptyTrail = () => ({ touched: {}, spent: {}, idleSpent: {}, lastWhisperAt: null, actedOnce: false });
 
 let flash = null;               // { tab, tint } | null
-let flashUntil = 0;             // no whisper (and its glance) starts before the flash ends
+let flashUntil = 0;             // when the last nav flash ends (0: none yet this run)
 let igniting = false;
 let sealed = false;
 let sealedAt = null;            // this visit's seal (a reload's seal plays no crescendo)
@@ -109,7 +109,7 @@ let remarkedSinceSeal = false;
 let activeTab = null;           // the tab the visitor stands on
 let spine = null;               // the spine as last seen
 let active = null;              // { rank, until } of the reaction still playing
-let pending = new Map();        // piece → impulse, flushed once per macrotask
+let pending = new Map();        // piece → impulse, flushed once per microtask
 let flushQueued = false;
 let started = false;
 let flashTimer = 0;
@@ -219,7 +219,7 @@ function tintOf(piece) {
 
 // ---- reactions -------------------------------------------------------------
 
-// Queue an impulse. Same piece within one macrotask → one impulse, highest tier
+// Queue an impulse. Same piece within one microtask → one impulse, highest tier
 // (the /ACCRETION spine write + council_collision fire in the same handler).
 // The act is recorded here, before the tier gate: a reaction drawn over by a
 // higher tier still counts as the visitor's act.
@@ -344,6 +344,10 @@ function fireWhisper(piece, idleTab, t) {
   else held = { ...w, idleTab, since: t };       // mobile: wait for the masthead
 }
 
+// No whisper (and its hue) starts until AFTER_REACTION_MS past the last flash: the eye rests
+// in silver between the nav hue and the whisper's, instead of jumping from one to the other.
+const flashClearAt = () => (flashUntil ? flashUntil + AFTER_REACTION_MS : 0);
+
 const idleEligible = () => !!activeTab && !trail.idleSpent[activeTab] && !!pickPiece({ onlyTab: activeTab });
 
 // Run every rule that is due at `now()`, then re-arm the one timeout.
@@ -368,8 +372,9 @@ function tick() {
     lastInputAt = t;                               // the idle clock starts over, no tight retry
   }
 
-  // Never during a nav flash: a whisper glance would put a third hue up beside the flash.
-  if (!whisper && !held && t >= phraseBusyUntil && t >= flashUntil) {
+  // Never during a nav flash (a whisper glance would put a third hue up beside it), nor
+  // straight after one.
+  if (!whisper && !held && t >= phraseBusyUntil && t >= flashClearAt()) {
     if (forwardAt !== null && t >= forwardAt) {
       forwardAt = null;
       const piece = trail.actedOnce && t >= cooldownEnd() ? pickPiece({ skipTab: activeTab }) : null;
@@ -408,8 +413,8 @@ function schedule() {
   if (held) due.push(held.since + MOBILE_HOLD_MS);
   if (sealedAt !== null) due.push(sealedAt + CRESCENDO_MS);
   if (!whisper && !held) {
-    if (forwardAt !== null) due.push(Math.max(forwardAt, phraseBusyUntil, flashUntil));
-    if (idleEligible()) due.push(Math.max(lastInputAt + IDLE_MS, cooldownEnd(), phraseBusyUntil, flashUntil));
+    if (forwardAt !== null) due.push(Math.max(forwardAt, phraseBusyUntil, flashClearAt()));
+    if (idleEligible()) due.push(Math.max(lastInputAt + IDLE_MS, cooldownEnd(), phraseBusyUntil, flashClearAt()));
   }
   if (compassTarget() && !glance && !whisper) due.push(Math.max(quietFrom + QUIET_MS, compassEndAt + GLANCE_GAP_MS));
   // Every deadline listed here is consumed or moved by tick, so an overdue one runs at 0 ms
@@ -464,7 +469,7 @@ export function notifyNav(tab) {
   flash = { tab, tint: NAV_TINTS[tab] || NAV_TINTS.mercury };
   flashUntil = t + FLASH_MS;
   quietFrom = Math.max(quietFrom, flashUntil);
-  if (forwardAt !== null) forwardAt = Math.max(forwardAt, flashUntil);   // deferred past the flash, not lost
+  if (forwardAt !== null) forwardAt = Math.max(forwardAt, flashClearAt());   // deferred past the flash, not lost
   if (glance) endGlance(t);                        // a flash cancels a glance, and nothing reasserts it
   flashTimer = setTimeout(() => { flash = null; ping(); }, FLASH_MS);
   ping();
