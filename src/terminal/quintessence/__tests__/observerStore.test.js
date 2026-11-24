@@ -209,6 +209,18 @@ describe('observerStore — seal', () => {
     expect(impulses).toHaveLength(0);
   });
 
+  it('a seal in storage is in the very first snapshot, before startObserver', () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ hash: 'old' }));
+    expect(getObserver().sealed).toBe(true);
+  });
+
+  it('a volatile seal is in the first snapshot too; no seal reads unsealed', () => {
+    expect(getObserver().sealed).toBe(false);
+    _resetObserverForTests({ now: () => t, random: () => 0 });
+    holdVolatile({ hash: 'v' });
+    expect(getObserver().sealed).toBe(true);
+  });
+
   it('remark_after_seal_sets_remarkedSinceSeal', async () => {
     boot();
     emit('edge', 'kernel_sealed', { hash: 'h' });

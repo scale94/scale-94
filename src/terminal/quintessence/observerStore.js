@@ -132,7 +132,7 @@ let held = null;                // a whisper waiting for the chrome: { id, text,
 let forwardAt = null;           // when the settled reaction may earn a forward whisper
 let phraseBusyUntil = 0;
 let chromeVisible = true;
-let snap = buildSnap();
+let snap = null;                // built lazily by the first getObserver() (no work at import)
 const listeners = new Set();
 const impulseListeners = new Set();
 
@@ -436,7 +436,18 @@ function onInput() {
 
 // ---- public ----------------------------------------------------------------
 
-export function getObserver() { return snap; }
+// The first read (a render, before the boot sequence starts the store) already knows a
+// reload's seal, so the eye never shows the armed spine's Aether for a frame.
+export function getObserver() {
+  if (!snap) {
+    if (!started) {
+      sealed = !!(loadSealedArtifact() || heldVolatile());
+      spine = getSpine();
+    }
+    snap = buildSnap();
+  }
+  return snap;
+}
 
 export function subscribeObserver(fn) {
   listeners.add(fn);
@@ -513,5 +524,5 @@ export function _resetObserverForTests({ random, now: clock } = {}) {
   listeners.clear(); impulseListeners.clear();
   now = clock || Date.now;
   rng = random || Math.random;
-  snap = buildSnap();
+  snap = null;
 }
