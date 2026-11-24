@@ -1,6 +1,6 @@
 // eyeReactions.test.js — the per-piece choreography table and how an impulse becomes a kick.
 import { describe, it, expect } from 'vitest';
-import { REACTIONS, reactionKick, BSKY_EXIT } from '../eyeReactions';
+import { REACTIONS, reactionKick, BSKY_EXIT, TX_IGNITE } from '../eyeReactions';
 import { KICK, SHAPE } from '../observerEyeShader';
 
 const last = (keys, f) => keys.slice().sort((a, b) => a.t - b.t).at(-1)[f];
@@ -61,6 +61,30 @@ describe('eyeReactions', () => {
     expect(at(1).level).toBe(0);
     expect(at(1).shapeK).toBe(0);
     expect(at(1).turn).toBeGreaterThan(2 * Math.PI);
+  });
+
+  it('transmission_raises_an_antenna_and_broadcasts_outward', () => {
+    const r = REACTIONS['transmission.mark'];
+    expect(r.shape).toBe(SHAPE.antenna);
+    const at = (x) => r.curve(x, {});
+    // The mast is up and lit before the beacon ignites, and back in the pupil at the end.
+    expect(at(TX_IGNITE).shapeA).toBeGreaterThan(0.95);
+    expect(at(0).shapeA).toBe(0);
+    expect(at(1).shapeA).toBe(0);
+    expect(at(1).shapeK).toBe(0);
+    expect(at(1).level).toBe(0);
+    // Unlit until ignition, then the broadcast clock only runs forward (rings travel OUT).
+    expect(at(TX_IGNITE - 0.01).shapeB).toBeLessThan(0);
+    const xs = Array.from({ length: 300 }, (_, i) => TX_IGNITE + (i / 300) * (1 - TX_IGNITE));
+    const B = xs.map((x) => at(x).shapeB);
+    B.slice(1).forEach((b, i) => expect(b).toBeGreaterThan(B[i]));
+    // All three pulses (0.45 apart, faded by 1.9) have left and faded while the mast still stands.
+    const third = TX_IGNITE + (2 * 0.45 + 1.9) / 4.6;
+    expect(third).toBeLessThan(0.9);
+    // Each pulse shoves the liquid forward: a continuous turn, never backwards.
+    const T = xs.map((x) => at(x).turn);
+    T.slice(1).forEach((t, i) => expect(t).toBeGreaterThanOrEqual(T[i] - 1e-12));
+    expect(at(1).turn).toBeCloseTo(0.9, 2);
   });
 
   it('impulse_overlays_its_choreography', () => {

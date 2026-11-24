@@ -18,7 +18,7 @@ export const KICK = {
 
 // Shape morphs (u_shape). The pupil/disc *become* a figure by SDF blends, the nebula
 // keeps flowing inside it. u_shapeK 0..1 = how far; u_shapeA/B are per-shape params.
-export const SHAPE = { kernel: 1, butterfly: 2 };
+export const SHAPE = { kernel: 1, butterfly: 2, antenna: 3 };
 
 export const VS = 'attribute vec2 a;varying vec2 v;void main(){v=a;gl_Position=vec4(a,0.,1.);}';
 export const FS = [
@@ -143,6 +143,36 @@ export const FS = [
   // an outline reads as four hollow rings at 64 px).
   '   vec3 wing=vec3(0.015,0.02,0.035)+c2*0.22*smoothstep(0.08,0.42,abs(p.x))*(0.6+0.6*n);',
   '   col=mix(col,wing,fade*aa(sd));',
+  '  }else if(u_shape<3.5){',                              // antenna: A = mast extension 0..1, B = broadcast clock (<0: unlit)
+  '   float km=k*smoothstep(0.0,0.08,u_shapeA);',
+  // The whole assembly sits 0.19 (~3.5 CSS px) low: the base inside the pupil, not on its rim.
+  '   vec2 au=uv+vec2(0.0,0.19);',
+  '   float h=0.76*u_shapeA;vec2 tip=vec2(0.0,h-0.19);',   // the beacon, in the iris' upper third
+  // Telescoping, tapered: a lower section out of the pupil (half-width .074 -> .062) and a
+  // slimmer upper one (.050 -> .042), each a trapezoid clipped to its span. At 37 CSS px the
+  // stem is ~2.7 -> 1.5 px wide: thick enough that the edge ramp is not most of its width.
+  '   float yl=clamp(au.y/max(h,1e-3),0.0,1.0);',
+  '   float lo=max(abs(au.x)-mix(0.074,0.062,yl/0.6),max(-au.y,au.y-h*0.6));',
+  '   float hi=max(abs(au.x)-mix(0.050,0.042,(yl-0.55)/0.45),max(h*0.55-au.y,au.y-h));',
+  '   float node=length(uv-tip)-0.072*smoothstep(0.2,0.6,u_shapeA);',
+  '   float B=u_shapeB,fl=0.0,rg=0.0,wk=0.0;',
+  '   if(B>0.0){float d=length(uv-tip);',                   // three pulses leave the tip, 0.45 apart
+  '    for(int i=0;i<3;i++){float b=B-float(i)*0.45;if(b>0.0){',
+  '     fl+=exp(-b*7.0);',                                   // the beacon flashes as each one leaves
+  '     float fa=1.0-smoothstep(1.1,1.9,b);',
+  '     rg+=fa*exp(-pow((d-b)/0.045,2.0));',
+  '     wk+=fa*exp(-pow((d-b+0.12)/0.14,2.0));}}}',
+  '   rg*=1.0-smoothstep(0.80,0.97,max(abs(v.x),abs(v.y)));', // fade before the square canvas edge cuts it
+  '   vec3 hot=mix(c0,vec3(1.0),0.65);',
+  '   col*=1.0+k*0.45*wk*(0.6+0.8*n);',                     // the liquid lifts in each wave's wake
+  '   col+=k*rg*hot*1.4;',
+  '   a=max(a,k*clamp(rg,0.,1.)*0.85);',                    // the waves carry on past the rim
+  // Pitch-black mast: the pupil itself reaching up. Only the tip is lit.
+  '   float dt=length(uv-tip);',
+  '   col+=km*exp(-dt*dt/0.012)*hot*(0.35+0.9*fl);',       // the beacon's glow on the liquid (under the mast,
+  // so the stem stays black up to the beacon)
+  '   col=mix(col,vec3(0.0),km*clamp(0.5-min(lo,hi)/(0.6*max(u_px,1e-4)),0.,1.));', // hard edge: 0.6 px ramp
+  '   col=mix(col,mix(hot,vec3(1.0),0.35)*(1.3+2.2*fl),km*aa(node));',
   '  }',
   ' }',
   ' gl_FragColor=vec4(col,a);',

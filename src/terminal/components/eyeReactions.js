@@ -60,7 +60,37 @@ function bskyVortex(x, d) {
   return d;
 }
 
+// /TRANSMISSION — broadcast. As the iris tints violet an antenna telescopes up out of the
+// pupil (two extensions, a beacon node at the tip). The beacon ignites and three pulse rings
+// leave the tip OUTWARD, across the iris and on past the rim, each giving the liquid a lift
+// in its wake and a small forward shove. Then the mast retracts into the pupil and the colour
+// bleeds back to silver. shapeA = mast extension, shapeB = broadcast clock (<0 = unlit; the
+// rings sit 0.45 apart on it and fade by 1.9).
+const TX_MS = 1500;
+export const TX_IGNITE = 0.24;   // x at which the beacon lights and the first pulse leaves
+const TX_RATE = 4.6;             // broadcast clock per x: the third pulse has faded by x ≈ 0.85
+const TX_GAP = 0.45;
+function transmissionBroadcast(x, d) {
+  const B = x < TX_IGNITE ? -1 : (x - TX_IGNITE) * TX_RATE;
+  let turn = 0, turb = 0;
+  for (let i = 0; i < 3; i++) {
+    const b = B - i * TX_GAP;
+    turn += 0.3 * sm(b / 0.15);
+    turb += B < 0 ? 0 : 0.35 * Math.exp(-((b / 0.12) ** 2));
+  }
+  const up = 0.55 * sm((x - 0.03) / 0.1) + 0.45 * sm((x - 0.11) / 0.1);   // telescoping, two stages
+  d.shapeA = up * (1 - sm((x - 0.7) / 0.2));                               // retract
+  d.shapeB = B;
+  d.shapeK = sm(x / 0.06) * (1 - sm((x - 0.9) / 0.1));
+  d.level = sm(x / 0.1) * (1 - sm((x - 0.82) / 0.18));
+  d.turn = turn;
+  d.turb = turb;
+  d.focus = 0; d.gazeX = 0; d.gazeY = 0;
+  return d;
+}
+
 export const REACTIONS = {
+  'transmission.mark': { kind: KICK.inhale, shape: SHAPE.antenna, durationMs: TX_MS, curve: transmissionBroadcast },
   // inhale, not flutter: a vertebra kind contracts the iris, and the butterfly needs the open pupil.
   'bsky.trend':   { kind: KICK.inhale, shape: SHAPE.butterfly, durationMs: BSKY_MS, curve: bskyVortex },
   'kernel.load':  { kind: KICK.miosis, shape: SHAPE.kernel, durationMs: 1700, keys: kernelKeys({ spins: 1.5, turn: 7.5 }) },
