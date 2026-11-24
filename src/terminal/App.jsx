@@ -58,7 +58,6 @@ import { emit as emitObs } from '../observatory/observatoryBus';
 import { usePrivacyDrawer } from './hooks/usePrivacyDrawer';
 import { notifyNav, getGuidance as getEyeGuidance, subscribeGuidance } from './quintessence/guidanceStore';
 import { getSpine as getSpineSnap, subscribeSpine as subscribeSpineSnap } from './quintessence/spineStore';
-import { pulseTabFor } from './components/resolveEyeState';
 
 // Hooks
 import useSystemLog           from './hooks/useSystemLog';
@@ -619,10 +618,9 @@ const App = () => {
   // on the eye's 2400ms beat. sealed:false is safe — sealing requires a complete
   // spine, and a complete spine already yields pulseTab null (armed).
   const [eyeGuidance, setEyeGuidance] = useState(getEyeGuidance);
-  const [spineSnap, setSpineSnap] = useState(getSpineSnap);
   useEffect(() => subscribeGuidance(setEyeGuidance), []);
-  useEffect(() => subscribeSpineSnap(() => setSpineSnap(getSpineSnap())), []);
-  const pulseTab = pulseTabFor({ sealed: false, flaring: false, spine: spineSnap, suggestion: eyeGuidance.suggestion });
+  // Task 7: nav beat follows observerStore glance
+  const pulseTab = null;
   const beatDelay = useMemo(() => `-${Math.round(performance.now() % 2400)}ms`, [pulseTab]);
   const beat = (tab) => (pulseTab === tab ? ' nav-beat' : '');
 
