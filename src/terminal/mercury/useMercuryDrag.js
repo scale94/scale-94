@@ -51,7 +51,9 @@ export default function useMercuryDrag(el) {
       el.releasePointerCapture?.(e.pointerId);
       el.style.cursor = 'grab';
       tracker.up(e.timeStamp);
-      // Only a real release (pointerup / cancel / lost capture of the active pointer) reaches here.
+      // Every end of the active pointer coasts the body; only a hand lifting off (pointerup)
+      // is a flick. A cancel or lost capture (a system gesture, a tab switch) is not the visitor's act.
+      if (e.type !== 'pointerup') return;
       const { speed, dir } = tracker.lastRelease();
       if (speed > FLICK_MIN) emitObs('gaze', 'mercury_flick', { speed, dir, hand: true });
     };

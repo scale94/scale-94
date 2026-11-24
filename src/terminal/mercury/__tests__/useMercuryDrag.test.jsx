@@ -176,7 +176,7 @@ describe('useMercuryDrag', () => {
   });
 
   describe('observer bus flick', () => {
-    const drag = (dxPerStep) => {
+    const drag = (dxPerStep, endType = 'pointerup') => {
       const el = document.createElement('div');
       Object.defineProperty(el, 'clientHeight', { value: 800 });
       el.setPointerCapture = vi.fn();
@@ -191,7 +191,7 @@ describe('useMercuryDrag', () => {
         mockNow = 10 * i;
         el.dispatchEvent(ev('pointermove', { clientX: 400 + dxPerStep * i, clientY: 400 }));
       }
-      el.dispatchEvent(ev('pointerup', {}));
+      el.dispatchEvent(ev(endType, {}));
       off();
       return got.filter(e => e.kind === 'mercury_flick');
     };
@@ -208,6 +208,11 @@ describe('useMercuryDrag', () => {
       expect(drag(2)).toHaveLength(0);
       // leftward fling carries dir -1
       expect(drag(-20)[0].payload.dir).toBe(-1);
+    });
+
+    it('a cancelled or lost-capture fast drag coasts but emits no flick (no hand release)', () => {
+      expect(drag(20, 'pointercancel')).toHaveLength(0);
+      expect(drag(20, 'lostpointercapture')).toHaveLength(0);
     });
   });
 });
