@@ -71,14 +71,16 @@ export const FS = [
   ' float discR=mix(0.98,0.56,fk);',
   ' float coreR=mix(0.14,0.30,fk);',
   ' float cl=clamp(u_core,0.,1.);',                       // star-core lifts the dark pupil
-  ' col*=mix(smoothstep(coreR*0.35,coreR,r),1.0,cl);',
+  // A figure that *is* the pupil (butterfly) lifts the round pupil out from under itself.
+  ' float fig=(u_shape>1.5&&u_shape<2.5)?clamp(u_shapeK,0.,1.):0.0;',
+  ' col*=mix(mix(smoothstep(coreR*0.35,coreR,r),1.0,cl),1.0,fig);',
   ' col*=1.0-smoothstep(discR*0.72,discR,r);',
   ' if(u_irid>0.001){',
   '  float sweep=0.5+0.5*sin(ang*3.0+u_t*0.5);',
   '  vec3 silver=vec3(0.70,0.75,0.80)*(0.45+0.7*n);',
   '  vec3 spec=0.5+0.5*cos(6.2831*(vec3(0.0,0.33,0.66)+ang/6.2831+u_t*0.04));',
   '  vec3 rec=silver+spec*0.20*sweep;',
-  '  rec*=mix(smoothstep(0.05,0.14,r),1.0,cl);',
+  '  rec*=mix(mix(smoothstep(0.05,0.14,r),1.0,cl),1.0,fig);',
   '  rec*=1.0-smoothstep(0.90,1.0,r);',
   '  col=mix(col,rec,u_irid);',
   ' }',
@@ -130,14 +132,17 @@ export const FS = [
   '   col=mix(col,lit*(0.55+0.7*m),k*aa(abs(die)-0.035));',
   '   col=mix(col,lit*(0.4+0.8*n),k*aa(pins)*(1.0-aa(frame)));',
   '  }else if(u_shape<2.5){',                              // butterfly: A = rise 0..1, B = wing flap phase
-  '   vec2 p=(uv-vec2(0.0,u_shapeA*0.62))/mix(1.0,0.55,u_shapeA);',
+  '   float bs=1.5*mix(1.0,0.55,u_shapeA);',               // size: fills the open pupil, shrinks as it flies
+  '   vec2 p=(uv-vec2(0.0,u_shapeA*0.75))/bs;',
   '   float fl=0.55+0.45*abs(cos(u_shapeB));',
   '   vec2 q=vec2(abs(p.x)/fl,p.y);',
   '   float w=min(sdEll(q,vec2(0.25,0.15),vec2(0.25,0.17),0.35),sdEll(q,vec2(0.16,-0.15),vec2(0.15,0.11),-0.45));',
-  '   float sd=min(w*fl,sdEll(p,vec2(0.0),vec2(0.028,0.20),0.0));',
+  '   float sd=min(w*fl,sdEll(p,vec2(0.0),vec2(0.028,0.20),0.0))*bs;',  // back to uv units for the 1px AA
   '   float fade=k*(1.0-smoothstep(0.7,1.0,u_shapeA));',
-  '   col=mix(col,vec3(0.015,0.02,0.035),fade*aa(sd));',
-  '   col+=fade*aa(abs(sd+0.03)-0.012)*c2*0.25*(0.5+n);',
+  // A solid silhouette, its wings catching the palette toward the tips (no inner outline:
+  // an outline reads as four hollow rings at 64 px).
+  '   vec3 wing=vec3(0.015,0.02,0.035)+c2*0.22*smoothstep(0.08,0.42,abs(p.x))*(0.6+0.6*n);',
+  '   col=mix(col,wing,fade*aa(sd));',
   '  }',
   ' }',
   ' gl_FragColor=vec4(col,a);',

@@ -1,6 +1,6 @@
 // eyeReactions.js — per-piece choreography for the masthead eye (Phase 1 of the thematic
 // pass). observerStore decides *that* a piece reacts (tier, tint); this table says *how*:
-// a keyed timeline for ObserverEye.kick() (see its `keys` doc), an optional SHAPE, and a
+// a keyed timeline (or a continuous `curve`) for ObserverEye.kick(), an optional SHAPE, and a
 // duration that can outrun the tier's default when the gesture needs the room.
 //
 // A piece missing here keeps its plain envelope kick. Timelines are pure data, normalised
@@ -28,7 +28,41 @@ function kernelKeys({ spins, turn, form = 1 }) {
   ];
 }
 
+// /BSKY — a vortex launch. A continuous curve, not keys: keys ease to a stop at every key,
+// which read as the butterfly stuttering upward. The spin catches slowly and winds up like a
+// small tornado (turn ∝ u³); the wingbeat runs continuously and speeds with the spin; the
+// butterfly's rise is the wind's (∝ u⁴), so it builds in the centre and is slung out over
+// the top rim at peak velocity. Then the tornado spends itself: the spin coasts on in the
+// SAME direction and slows to rest as the colour bleeds back to silver — one continuous
+// event. No reverse brake here: the CDJ back-spin is for the mechanical tabs (/KERNEL).
+const BSKY_MS = 1500;
+export const BSKY_EXIT = 0.72;   // x at which the butterfly clears the rim and the coast begins
+const BSKY_TURN = 4 * PI;        // the wind-up: two turns, peak ~35 rad/s at the exit
+const sm = (e) => (e <= 0 ? 0 : e >= 1 ? 1 : e * e * (3 - 2 * e));
+function bskyVortex(x, d) {
+  const u = Math.min(1, x / BSKY_EXIT);
+  const inn = sm(x / 0.08);
+  const out = x <= BSKY_EXIT ? 1 : 1 - sm((x - BSKY_EXIT) / (1 - BSKY_EXIT));
+  // Wind-up: turn ∝ u³ (exit rate 3T/EXIT per x). Coast: rate v0·(1-s)² over the rest, so
+  // the rate is continuous at the exit and reaches exactly 0 at x = 1 (nothing left to fold).
+  const L = 1 - BSKY_EXIT;
+  const sc = Math.max(0, (x - BSKY_EXIT) / L);
+  const v0 = (3 * BSKY_TURN) / BSKY_EXIT;
+  d.turn = x <= BSKY_EXIT ? BSKY_TURN * u * u * u
+    : BSKY_TURN + (v0 * L * (1 - (1 - sc) ** 3)) / 3;
+  d.level = inn * out;
+  d.shapeK = x < BSKY_EXIT ? inn : 0;
+  d.shapeA = u * u * u * u;
+  // 2.2 Hz at rest, plus the spin dragging the wings (+~5 Hz at the exit): never a held beat.
+  d.shapeB = 2 * PI * 2.2 * x * (BSKY_MS / 1000) + 0.9 * d.turn;
+  d.turb = 0.55 * u * u * out;
+  d.focus = 0; d.gazeX = 0; d.gazeY = 0;
+  return d;
+}
+
 export const REACTIONS = {
+  // inhale, not flutter: a vertebra kind contracts the iris, and the butterfly needs the open pupil.
+  'bsky.trend':   { kind: KICK.inhale, shape: SHAPE.butterfly, durationMs: BSKY_MS, curve: bskyVortex },
   'kernel.load':  { kind: KICK.miosis, shape: SHAPE.kernel, durationMs: 1700, keys: kernelKeys({ spins: 1.5, turn: 7.5 }) },
   'kernel.run':   { kind: KICK.miosis, shape: SHAPE.kernel, durationMs: 2100, keys: kernelKeys({ spins: 2.5, turn: 11 }) },
   // tty0:~$ Enter: a flick, not the full ritual — a load/run that follows takes over in form.

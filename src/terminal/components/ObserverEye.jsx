@@ -450,12 +450,17 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
       let v = kickLevel(k, tsec);
       if (tsec - k.t0 >= k.dur) {
         // A timeline may end turned: fold its last turn into the phase, so no snap back.
-        if (k.keys && k.keys.f.turn) cur.phase += k.keys.f.turn[k.keys.f.turn.length - 1] * k.dir;
+        cur.phase += k.endTurn * k.dir;
         cur.kick = null;
       } else {
-        if (k.keys) {
+        if (k.keys || k.curve) {
           const x = (tsec - k.t0) / k.dur;
-          const s = sampleKeys(k.keys, x, S.key);
+          const s = k.curve ? k.curve(x, S.key) : sampleKeys(k.keys, x, S.key);
+          if (k.backspinAt != null && !k.spun && x >= k.backspinAt) {
+            // A scripted brake: the reverse coast a return to silver gets, at the reaction's peak.
+            k.spun = true;
+            cur.spinV = -(BACKSPIN_TURN / BACKSPIN_TAU) * k.peak;
+          }
           if (!Number.isNaN(s.level)) v = s.level * k.peak;
           o.turn = s.turn * k.dir;
           o.focus = Math.min(1, Math.max(0, o.focus + s.focus));
@@ -544,7 +549,10 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
     // keys: optional timeline [{ t: 0..1, level, turn (rad), focus (+), shapeK, shapeA, shapeB,
     // gazeX, gazeY, turb }] for scripted multi-stage reactions (collapse -> rebound, 360 turns).
     // shape: the SHAPE id the keys' shapeK/A/B drive.
-    kick({ kind, tint: kTint = null, tint2 = null, dir = 1, durationMs, strength = 1, keys = null, shape = 0 } = {}) {
+    // curve: instead of keys, a continuous (x 0..1, dst) => dst writing the same fields every
+    // frame (for motion that must never stop at a key: a vortex, a flap). backspinAt: the x
+    // at which the scripted brake fires the reverse coast.
+    kick({ kind, tint: kTint = null, tint2 = null, dir = 1, durationMs, strength = 1, keys = null, shape = 0, curve = null, backspinAt = null } = {}) {
       const cur = curRef.current;
       if (!cur || !aliveRef.current) return;
       if (prefersReducedMotion()) {
@@ -552,12 +560,17 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
         return;
       }
       if (cur.cres) return;   // the crescendo outranks every reaction
+      const nk = !curve && Array.isArray(keys) && keys.length ? normaliseKeys(keys) : null;
+      // The turn a timeline ends on, folded into the phase when it ends (sampled once, here).
+      const endTurn = typeof curve === 'function' ? (curve(1, {}).turn || 0)
+        : nk && nk.f.turn ? nk.f.turn[nk.f.turn.length - 1] : 0;
       // Newest signature wins; its attack starts from wherever the last one is.
       cur.kick = {
         kind, cols: kTint ? kickCols(kTint, tint2) : null, dir: dir < 0 ? -1 : 1, t0: null,
         dur: Math.max((durationMs || 0) / 1000, ATTACK_S + 0.05),
         peak: clamp01(strength), from: Math.min(1, cur.kickOut || 0),
-        keys: Array.isArray(keys) && keys.length ? normaliseKeys(keys) : null, shape: shape || 0, spun: false,
+        keys: nk, curve: typeof curve === 'function' ? curve : null, endTurn,
+        backspinAt: backspinAt == null ? null : clamp01(backspinAt), shape: shape || 0, spun: false,
         shapeFrom: shape && cur.shapeOutId === shape ? clamp01(cur.shapeOutK) : 0,
       };
     },

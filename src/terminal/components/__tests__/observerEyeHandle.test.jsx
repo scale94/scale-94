@@ -12,6 +12,7 @@ import { render, cleanup, act } from '@testing-library/react';
 import { installRecordingGL } from '../../gl/__tests__/recordingGL';
 import ObserverEye from '../ObserverEye';
 import { KICK } from '../observerEyeShader';
+import { REACTIONS } from '../eyeReactions';
 
 const hostless = vi.hoisted(() => ({ on: false }));
 vi.mock('../../gl/glHost', async (importOriginal) => {
@@ -266,6 +267,32 @@ describe('ObserverEye imperative handle', () => {
     expect(Math.min(...steps)).toBeGreaterThan(-0.05);   // never a step backwards
     expect(ph.at(-1) - p0).toBeGreaterThan(6);
     expect(ph.at(-1) - p0).toBeLessThan(6.6);
+  });
+
+  it('curve_kick_runs_continuously_and_brakes_into_back_spin', () => {
+    const ref = createRef();
+    render(<ObserverEye ref={ref} size={64} />);
+    frames(10);
+    const curve = (x, d) => Object.assign(d, { level: 1, turn: 8 * x * x, focus: 0, shapeK: 0, shapeA: 0, shapeB: 0, gazeX: 0, gazeY: 0, turb: 0 });
+    ref.current.kick({ kind: KICK.inhale, tint: [56, 189, 248], durationMs: 1000, curve, backspinAt: 0.7 });
+    const ph = frames(Math.ceil(1600 / FRAME_MS)).map((x) => x.u.u_phase);
+    const d = ph.slice(1).map((p, i) => p - ph[i]);
+    const brake = Math.round(700 / FRAME_MS);
+    expect(Math.min(...d.slice(2, brake - 2))).toBeGreaterThan(0);          // winding up, no stall
+    expect(Math.min(...d.slice(brake, brake + 15))).toBeLessThan(-0.05);   // the brake reverses
+    expect(Math.min(...d.slice(-5))).toBeGreaterThan(-0.01);               // and coasts out
+  });
+
+  it('bsky_vortex_never_turns_backwards', () => {
+    // The tornado coasts out forward: no reverse brake anywhere in the arc or after it.
+    const ref = createRef();
+    render(<ObserverEye ref={ref} size={64} />);
+    frames(10);
+    ref.current.kick({ tint: [56, 189, 248], dir: 1, ...REACTIONS['bsky.trend'] });
+    const ph = frames(Math.ceil(2600 / FRAME_MS)).map((x) => x.u.u_phase);
+    const d = ph.slice(1).map((p, i) => p - ph[i]);
+    expect(Math.min(...d)).toBeGreaterThan(0);
+    expect(Math.max(...d)).toBeGreaterThan(0.3);                          // it really winds up
   });
 
   it('same_shape_rekick_holds_its_form', () => {
