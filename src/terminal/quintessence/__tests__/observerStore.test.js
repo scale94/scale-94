@@ -101,6 +101,23 @@ describe('observerStore — agency filter', () => {
     });
   });
 
+  it('verdict_issued (the AuditCascade timer, no hand) yields no impulse', async () => {
+    boot();
+    emit('transmissions', 'verdict_issued', { verdict: 'x' });
+    await flush();
+    expect(impulses).toHaveLength(0);
+  });
+
+  it('kernel.run keeps the violet x lime compiling look', async () => {
+    boot();
+    emit('transmissions', 'kernel_completed', {});
+    await flush();
+    expect(impulses).toHaveLength(1);
+    expect(impulses[0]).toMatchObject({
+      piece: 'kernel.run', kind: KICK.miosis, tint: [167, 139, 250], tint2: [122, 184, 0],
+    });
+  });
+
   it('nothing is heard before startObserver, and start is idempotent', async () => {
     subscribeImpulse(imp => impulses.push(imp));
     emit('essences', 'collision_fired', {});

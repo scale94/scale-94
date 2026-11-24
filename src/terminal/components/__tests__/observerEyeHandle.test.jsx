@@ -226,6 +226,16 @@ describe('ObserverEye imperative handle', () => {
     expect(valuesOf('u_phase').every((p) => p === 0)).toBe(true);
   });
 
+  it('a second tint (kernel run violet x lime) becomes the middle shade of the kick palette', () => {
+    window.matchMedia = () => ({ matches: true });
+    const ref = createRef();
+    render(<ObserverEye ref={ref} size={64} />);
+    const mark = rec.log.length;
+    ref.current.kick({ kind: KICK.miosis, tint: [167, 139, 250], tint2: [122, 184, 0], durationMs: 800 });
+    expect(valuesOf('c0', mark)).toEqual([asVec3([167, 139, 250])]);
+    expect(valuesOf('c1', mark)).toEqual([asVec3([122, 184, 0])]);
+  });
+
   it('reduced_motion_detonate_holds_flash_then_baseline', () => {
     window.matchMedia = () => ({ matches: true });
     const ref = createRef();

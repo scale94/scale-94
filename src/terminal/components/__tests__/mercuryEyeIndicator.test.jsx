@@ -77,6 +77,8 @@ describe('MercuryEyeIndicator — observerStore wiring', () => {
     expect(eye.kicks).toHaveLength(1);
     expect(eye.kicks[0]).toMatchObject({ kind: 3, tint: [217, 70, 239], dir: 1, durationMs: 1100 });
     expect(eye.detonations).toBe(0);
+    act(() => store.impulse({ piece: 'kernel.run', kind: 2, tier: 'witness', tint: [167, 139, 250], tint2: [122, 184, 0], dir: 1, durationMs: 1100, at: 0 }));
+    expect(eye.kicks[1]).toMatchObject({ tint: [167, 139, 250], tint2: [122, 184, 0] });
   });
 
   it('crescendo_impulse_calls_detonate', () => {

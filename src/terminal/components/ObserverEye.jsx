@@ -54,6 +54,7 @@ const DECAY_FLOOR = Math.exp(-4);
 const IMPLODE_S = 0.25, DETONATE_S = 0.35, STORM_S = 2.0, SETTLE_S = 3.0;
 const CRESCENDO_S = IMPLODE_S + DETONATE_S + STORM_S + SETTLE_S;
 const WHITE_GOLD = [255, 236, 180];
+const WHITE_GOLD_COLS = deriveCols(WHITE_GOLD);
 // Turbulence also speeds the swirl: phase rate = speed + TURB_SPEED·turb.
 const TURB_SPEED = 0.25;
 // Reduced motion: how long the crescendo's static flash holds.
@@ -73,6 +74,14 @@ function deriveCols(t) {
     [Math.round(t[0] * 0.5), Math.round(t[1] * 0.5), Math.round(t[2] * 0.62)],
     [Math.round((t[0] + 230) / 2), Math.round((t[1] + 240) / 2), Math.round((t[2] + 255) / 2)],
   ];
+}
+
+// A reaction's palette: the tint's 3 shades, or (kernel run's violet x lime) the
+// tint, a second colour, and the tint's pale shade.
+function kickCols(tint, tint2) {
+  const cols = deriveCols(tint);
+  if (tint2) cols[1] = [tint2[0], tint2[1], tint2[2]];
+  return cols;
 }
 
 function kickLevel(k, tsec) {
@@ -254,7 +263,7 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
         o.gaze = [cur.gaze[0] + j * Math.sin(tsec * 47.3), cur.gaze[1] + j * Math.sin(tsec * 39.1 + 1.3)];
         if (x.kick > 0) {
           o.kick = x.kick; o.kickKind = KICK.ring; o.kickDir = 1;
-          hue = WHITE_GOLD; level = x.kick;
+          hue = WHITE_GOLD_COLS; level = x.kick;
         }
       }
     } else if (cur.kick) {
@@ -264,11 +273,11 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
       if (tsec - k.t0 >= k.dur) cur.kick = null;
       else {
         o.kick = v; o.kickKind = k.kind; o.kickDir = k.dir;
-        hue = k.tint; level = v;
+        hue = k.cols; level = v;
       }
     }
     if (hue && level > 0) {
-      const kc = deriveCols(hue);
+      const kc = hue;
       const t = Math.min(1, level);
       o.cols = cur.cols.map((col, i) => col.map((x, jj) => lerp(x, kc[i][jj], t)));
     }
@@ -319,17 +328,17 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
 
   // Imperative reactions write into curRef only: no React render.
   useImperativeHandle(ref, () => ({
-    kick({ kind, tint: kTint = null, dir = 1, durationMs, strength = 1 } = {}) {
+    kick({ kind, tint: kTint = null, tint2 = null, dir = 1, durationMs, strength = 1 } = {}) {
       const cur = curRef.current;
       if (!cur || !aliveRef.current) return;
       if (prefersReducedMotion()) {
-        if (kTint) holdStatic({ cols: deriveCols(kTint) }, durationMs);
+        if (kTint) holdStatic({ cols: kickCols(kTint, tint2) }, durationMs);
         return;
       }
       if (cur.cres) return;   // the crescendo outranks every reaction
       // Newest signature wins; its attack starts from wherever the last one is.
       cur.kick = {
-        kind, tint: kTint, dir: dir < 0 ? -1 : 1, t0: null,
+        kind, cols: kTint ? kickCols(kTint, tint2) : null, dir: dir < 0 ? -1 : 1, t0: null,
         dur: Math.max((durationMs || 0) / 1000, ATTACK_S + 0.05),
         peak: clamp01(strength), from: Math.min(1, cur.kickOut || 0),
       };

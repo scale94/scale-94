@@ -113,7 +113,7 @@ export default function MercuryEyeIndicator({ activeTab, onNavigate, lastKernelA
         crescendoTimer = setTimeout(() => setCrescendo(false), CRESCENDO_MS);
         return;
       }
-      eyeRef.current?.kick({ kind: imp.kind, tint: imp.tint, dir: imp.dir, durationMs: imp.durationMs });
+      eyeRef.current?.kick({ kind: imp.kind, tint: imp.tint, tint2: imp.tint2, dir: imp.dir, durationMs: imp.durationMs });
     });
     return () => { off(); clearTimeout(crescendoTimer); };
   }, []);

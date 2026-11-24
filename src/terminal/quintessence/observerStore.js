@@ -45,11 +45,15 @@ const TRAIL_KEY = 'observer_trail_v1';
 const INPUT_EVENTS = ['pointerdown', 'keydown', 'wheel', 'touchstart'];
 const INPUT_OPTS = { capture: true, passive: true };
 
+// kernel.run keeps today's violet x lime "compiling" look (spec §5.2, §5.5), not the /KERNEL cyan.
+const COMPILING_VIOLET = [167, 139, 250];
+const COMPILING_LIME   = [122, 184, 0];
+
 // Spec §5.2, keyed `category/kind`. `mixed` kinds need `payload.hand === true`.
 // The ignition trio and tab_navigated are handled by name in onBus.
 const RULES = {
   'transmissions/kernel_loaded':    { piece: 'kernel.load' },
-  'transmissions/kernel_completed': { piece: 'kernel.run' },
+  'transmissions/kernel_completed': { piece: 'kernel.run', tint: COMPILING_VIOLET, tint2: COMPILING_LIME },
   'edge/council_collision':         { piece: 'accretion.collide' }, // tier comes from the spine write
   'essences/collision_fired':       { piece: 'scent.collide' },
   'essences/crystallized':          { piece: 'scent.collide' },
@@ -63,7 +67,7 @@ const RULES = {
   'ciphers/verify':                 { piece: 'crypto.seal' },
   'transmissions/signal_marked':    { piece: 'transmission.mark' },
   'transmissions/ledger_appended':  { piece: 'ledger.write' },
-  'transmissions/verdict_issued':   { piece: 'ledger.write' },
+  // verdict_issued is left out: AuditCascade's timer fires it after the append (no hand).
   'gaze/sol_release':               { piece: 'sol.release', mixed: true },
   'gaze/mercury_flick':             { piece: 'mercury.flick' },
 };
@@ -223,13 +227,13 @@ function tintOf(piece) {
 // (the /ACCRETION spine write + council_collision fire in the same handler).
 // The act is recorded here, before the tier gate: a reaction drawn over by a
 // higher tier still counts as the visitor's act.
-function react(piece, tier, { kind = PIECE_KICK[piece], tint = tintOf(piece), dir = 1 } = {}) {
+function react(piece, tier, { kind = PIECE_KICK[piece], tint = tintOf(piece), tint2 = null, dir = 1 } = {}) {
   const t = now();
   trail.touched[piece] = true;
   trail.actedOnce = true;
   saveTrail();
   lastInputAt = t;                                 // an act is deliberate input
-  const imp = { piece, kind, tier, tint, dir, durationMs: TIER_MS[tier], at: t };
+  const imp = { piece, kind, tier, tint, tint2, dir, durationMs: TIER_MS[tier], at: t };
   const prev = pending.get(piece);
   if (!prev || TIER_RANK[tier] > TIER_RANK[prev.tier]) pending.set(piece, imp);
   if (!flushQueued) { flushQueued = true; queueMicrotask(flush); }
@@ -298,7 +302,9 @@ function onBus({ category, kind, payload }) {
   if (!rule) return;
   if (rule.mixed && p.hand !== true) return;
   if (PHRASE_KINDS.has(key)) phraseBusyUntil = now() + PHRASE_BUSY_MS;
-  react(rule.piece, 'witness', rule.piece === 'mercury.flick' ? { dir: p.dir < 0 ? -1 : 1 } : undefined);
+  const opts = rule.piece === 'mercury.flick' ? { dir: p.dir < 0 ? -1 : 1 }
+    : rule.tint ? { tint: rule.tint, tint2: rule.tint2 } : undefined;
+  react(rule.piece, 'witness', opts);
 }
 
 // ---- glances + whispers ----------------------------------------------------
