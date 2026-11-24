@@ -295,6 +295,25 @@ describe('ObserverEye imperative handle', () => {
     expect(Math.max(...d)).toBeGreaterThan(0.3);                          // it really winds up
   });
 
+  it('tagged_release_fades_the_held_kick_gracefully', () => {
+    const ref = createRef();
+    render(<ObserverEye ref={ref} size={64} />);
+    frames(10);
+    const curve = (x, d) => Object.assign(d, { level: 1, turn: 20 * x, focus: 0, shapeK: 1, shapeA: 0.3, shapeB: 0.5, shapeC: 0, gazeX: 0, gazeY: 0, turb: 0 });
+    ref.current.kick({ kind: KICK.spiral, tint: [139, 92, 246], durationMs: 10000, shape: 4, curve, tag: 'acc' });
+    expect(frames(30).at(-1).u.u_shapeK).toBeCloseTo(1, 5);
+    ref.current.kick({ release: true, tag: 'other', durationMs: 500 });     // another family: ignored
+    expect(frames(5).at(-1).u.u_shapeK).toBeCloseTo(1, 5);
+    ref.current.kick({ release: true, tag: 'acc', durationMs: 500 });
+    const f = frames(Math.ceil(700 / FRAME_MS));
+    const K = f.map((x) => x.u.u_shapeK), ph = f.map((x) => x.u.u_phase);
+    K.slice(1).forEach((k, i) => expect(k).toBeLessThanOrEqual(K[i] + 1e-9));   // fades, never pops
+    expect(K[Math.round(250 / FRAME_MS)]).toBeGreaterThan(0.2);
+    expect(K.at(-1)).toBe(0);
+    const d = ph.slice(1).map((p, i) => p - ph[i]);
+    expect(Math.min(...d)).toBeGreaterThan(-0.05);                          // the turn folds, no snap back
+  });
+
   it('same_shape_rekick_holds_its_form', () => {
     // load -> run in quick succession: the chip does not melt to a disc for a frame.
     const ref = createRef();

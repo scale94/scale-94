@@ -89,7 +89,75 @@ function transmissionBroadcast(x, d) {
   return d;
 }
 
+// /ACCRETION — the eye follows the synthesis lifecycle (useCouncilCollider's reducer modes):
+//   ARMED (first mind)  -> 'accretion.prime':   a quiet gravitational prime, held
+//   FIRING (second)     -> 'accretion.infall':  the swallow into an event horizon, HELD
+//                          for the whole ~4.1 s flight, the photon ring humming
+//   SYNTHESIZED         -> 'accretion.collide': a burst out of the dark core through the
+//                          ring; only then does the horizon collapse and coast to silver
+//   disarm / reset / timeout / leaving the tab -> 'accretion.release': fade out, gracefully
+// The held stages are long kicks (curves in seconds) that hold until the next stage
+// replaces them or the release fades them; their tails are only safety nets. No reverse
+// brake anywhere: a black hole is not a turntable.
+export const ACC_TAG = 'accretion';
+const ACC_T = 3 * PI;            // the infall wind-up
+const ACC_IN = 0.78;             // s, swallow entry: spiral in, horizon open
+const ACC_SPIN = 1.6;            // rad/s, the held horizon's slow forward turn
+const ACC_R = 0.34;              // horizon radius (the photon ring sits at ×1.16)
+const ACC_FRONT = 0.5;           // where the dark front stops
+
+const PRIME_MS = 45000;          // the reducer's ARMED timeout
+function accretionPrime(x, d) {
+  const t = x * (PRIME_MS / 1000);
+  const env = sm(t / 0.8) * (1 - sm((t - 43.5) / 1.5));
+  d.level = 0.32 * env * (1 + 0.15 * Math.sin(t * 1.9));     // a slow expectant breath
+  d.turn = 0.6 * t * sm(t / 0.8);                            // the inward pull: a slow forward draw
+  d.focus = 0.1 * env;
+  d.shapeK = 0; d.shapeA = 0; d.shapeB = 0; d.shapeC = 0; d.turb = 0; d.gazeX = 0; d.gazeY = 0;
+  return d;
+}
+
+const SWALLOW_MS = 7500;         // safety: the flight is ~4.1 s; the collapse tail starts at 6.8 s
+export function accretionSwallow(x, d) {
+  const t = x * (SWALLOW_MS / 1000);
+  const u = Math.min(1, t / ACC_IN);
+  const v0 = (3 * ACC_T) / ACC_IN, tau = 0.25, th = Math.max(0, t - ACC_IN);
+  d.turn = t <= ACC_IN ? ACC_T * u * u * u
+    : ACC_T + ACC_SPIN * th + (v0 - ACC_SPIN) * tau * (1 - Math.exp(-th / tau));
+  const gone = sm((t - 6.8) / 0.7);
+  d.shapeA = ACC_R * sm((t - 0.3) / (ACC_IN - 0.3)) * (1 - gone);
+  d.shapeB = 1.05 - (1.05 - ACC_FRONT) * u * u * (1 - gone);
+  d.shapeC = 0;
+  d.shapeK = sm(t / 0.09) * (1 - sm((t - 7.3) / 0.2));
+  d.level = sm(t / 0.15) * (1 - gone);
+  d.turb = (t <= ACC_IN ? 0.4 * u * u : 0.15 + 0.25 * Math.exp(-th / 0.3)) * (1 - gone);
+  d.focus = 0; d.gazeX = 0; d.gazeY = 0;
+  return d;
+}
+
+const EJECT_MS = 1700;
+export const EJECT_OUT = 0.6;    // s: the burst has left the eye; the horizon starts to collapse
+export function accretionEject(x, d) {
+  const D = EJECT_MS / 1000, t = x * D;
+  const e = Math.min(1, t / EJECT_OUT);
+  d.shapeC = t < EJECT_OUT + 0.02 ? 0.02 + 1.1 * (1 - (1 - e) ** 3) : 0;   // out of the core, fast
+  const c = sm((t - EJECT_OUT) / 0.65);                                    // then the collapse
+  d.shapeA = ACC_R * (1 - c);
+  d.shapeB = ACC_FRONT + (1.05 - ACC_FRONT) * c;
+  d.shapeK = 1 - sm((t - 1.5) / 0.2);
+  d.level = 1 - sm((t - 0.75) / 0.95);
+  // Picks up the held horizon's forward turn and coasts it to rest, plus the burst's shove.
+  d.turn = (ACC_SPIN * D * (1 - (1 - x) ** 3)) / 3 + 1.5 * sm(t / 0.5);
+  d.turb = 0.5 * Math.exp(-t / 0.3);
+  d.focus = 0; d.gazeX = 0; d.gazeY = 0;
+  return d;
+}
+
 export const REACTIONS = {
+  'accretion.prime':   { kind: KICK.spiral, durationMs: PRIME_MS, curve: accretionPrime, tag: ACC_TAG },
+  'accretion.infall':  { kind: KICK.spiral, shape: SHAPE.horizon, durationMs: SWALLOW_MS, curve: accretionSwallow, tag: ACC_TAG },
+  'accretion.collide': { kind: KICK.spiral, shape: SHAPE.horizon, durationMs: EJECT_MS, curve: accretionEject, tag: ACC_TAG },
+  'accretion.release': { release: true, tag: ACC_TAG, durationMs: 600 },
   'transmission.mark': { kind: KICK.inhale, shape: SHAPE.antenna, durationMs: TX_MS, curve: transmissionBroadcast },
   // inhale, not flutter: a vertebra kind contracts the iris, and the butterfly needs the open pupil.
   'bsky.trend':   { kind: KICK.inhale, shape: SHAPE.butterfly, durationMs: BSKY_MS, curve: bskyVortex },

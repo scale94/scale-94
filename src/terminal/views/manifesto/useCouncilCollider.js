@@ -11,6 +11,7 @@ import { councilLedger } from './councilLedger';
 import { initialCouncilState, councilReducer } from './councilStateMachine';
 import { mindEntry, synthesize } from './councilSynthesis';
 import { setCouncil } from '../../quintessence/spineStore';
+import { notifyAccretion } from '../../quintessence/observerStore';
 import { emit as emitObs } from '../../../observatory/observatoryBus';
 
 const CX = 320, CY = 320;
@@ -226,6 +227,26 @@ export function useCouncilCollider({ seated, enabled }) {
     sim.phase = 'IDLE';
     sim.particles = [];
   }, [startUserCycle, runCollision, completeUserSynthesis]);
+
+  // The masthead eye follows the lifecycle (observerStore.notifyAccretion): ARMED primes it,
+  // FIRING swallows and holds the horizon through the flight, SYNTHESIZED is the eject (the
+  // council_collision reaction). Leaving ARMED / FIRING any other way, or this tab, releases.
+  const eyeModeRef = useRef(null);
+  useEffect(() => {
+    const prev = eyeModeRef.current;
+    eyeModeRef.current = ui.mode;
+    if (prev === null || prev === ui.mode) return;           // mount / hydrate: no transition
+    try {
+      if (ui.mode === 'ARMED') notifyAccretion('prime');
+      else if (ui.mode === 'FIRING') notifyAccretion('infall');
+      else if ((prev === 'ARMED' || prev === 'FIRING') && ui.mode !== 'SYNTHESIZED') notifyAccretion('release');
+    } catch (_) { /* the eye is ancillary: never break the council */ }
+  }, [ui.mode]);
+  useEffect(() => () => {
+    if (eyeModeRef.current === 'ARMED' || eyeModeRef.current === 'FIRING') {
+      try { notifyAccretion('release'); } catch (_) { /* ancillary */ }
+    }
+  }, []);
 
   // When the reducer enters FIRING, stage the user pair for the RAF loop.
   useEffect(() => {

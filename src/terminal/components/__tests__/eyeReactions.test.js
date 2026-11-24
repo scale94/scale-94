@@ -1,6 +1,6 @@
 // eyeReactions.test.js — the per-piece choreography table and how an impulse becomes a kick.
 import { describe, it, expect } from 'vitest';
-import { REACTIONS, reactionKick, BSKY_EXIT, TX_IGNITE } from '../eyeReactions';
+import { REACTIONS, reactionKick, BSKY_EXIT, TX_IGNITE, ACC_TAG, EJECT_OUT } from '../eyeReactions';
 import { KICK, SHAPE } from '../observerEyeShader';
 
 const last = (keys, f) => keys.slice().sort((a, b) => a.t - b.t).at(-1)[f];
@@ -85,6 +85,64 @@ describe('eyeReactions', () => {
     const T = xs.map((x) => at(x).turn);
     T.slice(1).forEach((t, i) => expect(t).toBeGreaterThanOrEqual(T[i] - 1e-12));
     expect(at(1).turn).toBeCloseTo(0.9, 2);
+  });
+
+  it('accretion_lifecycle_stages_share_one_tag', () => {
+    for (const p of ['accretion.prime', 'accretion.infall', 'accretion.collide', 'accretion.release']) {
+      expect(REACTIONS[p].tag).toBe(ACC_TAG);
+    }
+    expect(REACTIONS['accretion.release'].release).toBe(true);
+    expect(REACTIONS['accretion.prime'].durationMs).toBeGreaterThanOrEqual(45000);   // the ARMED timeout
+  });
+
+  it('accretion_prime_is_quiet_and_holds', () => {
+    const r = REACTIONS['accretion.prime'];
+    const at = (s) => r.curve(s / (r.durationMs / 1000), {});
+    for (const s of [2, 10, 30]) {
+      expect(at(s).level).toBeGreaterThan(0.2);
+      expect(at(s).level).toBeLessThan(0.4);                   // subtle, never a full tint
+      expect(at(s).shapeK).toBe(0);
+    }
+    expect(at(20).turn).toBeGreaterThan(at(10).turn);          // the slow inward draw keeps going
+  });
+
+  it('accretion_swallow_holds_the_horizon_through_the_flight', () => {
+    const r = REACTIONS['accretion.infall'];
+    expect(r.shape).toBe(SHAPE.horizon);
+    const at = (s) => r.curve(s / (r.durationMs / 1000), {});
+    expect(at(0).shapeB).toBeGreaterThan(1);                   // the front starts at the rim
+    for (const s of [1, 2.5, 4.1, 5.5]) {                      // held: dark, ringed, violet
+      expect(at(s).shapeA).toBeGreaterThan(0.33);
+      expect(at(s).shapeB).toBeLessThan(0.52);
+      expect(at(s).level).toBeGreaterThan(0.99);
+      expect(at(s).shapeC).toBe(0);
+    }
+    expect(at(4.2).turn).toBeGreaterThan(at(4.0).turn);        // still turning, slowly, forward
+    expect(at(7.5).shapeA).toBe(0);                            // the safety tail closes it
+  });
+
+  it('accretion_eject_leaves_the_core_before_the_horizon_collapses', () => {
+    const r = REACTIONS['accretion.collide'];
+    expect(r.shape).toBe(SHAPE.horizon);
+    const D = r.durationMs / 1000;
+    const at = (s) => r.curve(s / D, {});
+    // It starts from the held horizon, exactly.
+    expect(at(0).shapeA).toBeCloseTo(0.34, 6);
+    expect(at(0).shapeB).toBeCloseTo(0.5, 6);
+    expect(at(0).level).toBe(1);
+    // The burst grows out of the core, through the ring (0.39), past the rim, and is gone.
+    expect(at(0).shapeC).toBeLessThan(0.05);
+    expect(at(0.2).shapeC).toBeGreaterThan(0.39);
+    expect(at(EJECT_OUT).shapeC).toBeGreaterThan(1);
+    expect(at(EJECT_OUT + 0.05).shapeC).toBe(0);
+    // Only after it is out does the horizon collapse.
+    expect(at(EJECT_OUT).shapeA).toBeCloseTo(0.34, 6);
+    expect(at(D).shapeA).toBe(0);
+    expect(at(D).level).toBe(0);
+    // Forward all the way, coasting to rest.
+    const xs = Array.from({ length: 300 }, (_, i) => i / 299);
+    const T = xs.map((x) => r.curve(x, {}).turn);
+    T.slice(1).forEach((t, i) => expect(t).toBeGreaterThanOrEqual(T[i] - 1e-12));
   });
 
   it('impulse_overlays_its_choreography', () => {

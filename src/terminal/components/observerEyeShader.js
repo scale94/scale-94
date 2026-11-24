@@ -18,14 +18,14 @@ export const KICK = {
 
 // Shape morphs (u_shape). The pupil/disc *become* a figure by SDF blends, the nebula
 // keeps flowing inside it. u_shapeK 0..1 = how far; u_shapeA/B are per-shape params.
-export const SHAPE = { kernel: 1, butterfly: 2, antenna: 3 };
+export const SHAPE = { kernel: 1, butterfly: 2, antenna: 3, horizon: 4 };
 
 export const VS = 'attribute vec2 a;varying vec2 v;void main(){v=a;gl_Position=vec4(a,0.,1.);}';
 export const FS = [
   'precision highp float;varying vec2 v;',
   'uniform float u_t,u_focus,u_irid,u_speed,u_pulse;uniform vec3 c0,c1,c2;uniform vec2 u_gaze;',
   'uniform float u_core,u_orbit,u_shimmer,u_thread,u_turb,u_kick,u_kickKind,u_kickDir,u_phase;',
-  'uniform float u_shape,u_shapeK,u_shapeA,u_shapeB,u_px,u_fore;',
+  'uniform float u_shape,u_shapeK,u_shapeA,u_shapeB,u_shapeC,u_px,u_fore;',
   'float aa(float d){return clamp(0.5-d/max(u_px,1e-4),0.,1.);}',  // 1 inside (d<0), ~1px AA
   'float sdBox(vec2 p,vec2 b){vec2 d=abs(p)-b;return length(max(d,0.))+min(max(d.x,d.y),0.);}',
   'float sdEll(vec2 p,vec2 c,vec2 r,float a){p-=c;float cs=cos(a),sn=sin(a);p=mat2(cs,sn,-sn,cs)*p;',
@@ -173,6 +173,19 @@ export const FS = [
   // so the stem stays black up to the beacon)
   '   col=mix(col,vec3(0.0),km*clamp(0.5-min(lo,hi)/(0.6*max(u_px,1e-4)),0.,1.));', // hard edge: 0.6 px ramp
   '   col=mix(col,mix(hot,vec3(1.0),0.35)*(1.3+2.2*fl),km*aa(node));',
+  '  }else if(u_shape<4.5){',                              // horizon: A = event-horizon radius, B = the swallowing front
+  '   col*=mix(1.0,1.0-smoothstep(u_shapeB-0.10,u_shapeB+0.02,r),k);', // the rim goes dark, outside in
+  '   float pr=r-u_shapeA*1.16;',                          // photon ring, just outside the horizon
+  // A charged hum while it holds: brightness running round the ring, and a fine flicker.
+  '   float hum=0.80+0.20*sin(ang*3.0-u_t*4.2)+0.07*sin(u_t*19.0+ang);',
+  '   col+=k*smoothstep(0.03,0.14,u_shapeA)*exp(-pr*pr/0.0011)*mix(c0,vec3(1.0),0.6)*2.0*hum;',
+  '   col=mix(col,vec3(0.0),k*aa(r-u_shapeA));',
+  '   if(u_shapeC>0.0){float E=u_shapeC,er=r-E;',           // C = the ejection: a burst out of the dark core
+  '    float ef=(1.0-smoothstep(0.75,1.15,E))*(1.0-smoothstep(0.80,0.97,max(abs(v.x),abs(v.y))));',
+  '    float eb=exp(-er*er/0.004)*ef;',
+  '    col+=k*eb*mix(c0,vec3(1.0),0.75)*2.4;',
+  '    col+=k*exp(-r*r/0.006)*exp(-E*9.0)*vec3(1.0,0.95,1.0)*2.0;',   // the core flash as it leaves
+  '    a=max(a,k*eb*0.8);}',
   '  }',
   ' }',
   ' gl_FragColor=vec4(col,a);',
@@ -181,5 +194,5 @@ export const FS = [
 export const UNIFORMS = [
   'u_t', 'u_focus', 'u_irid', 'u_speed', 'u_pulse', 'c0', 'c1', 'c2', 'u_gaze',
   'u_core', 'u_orbit', 'u_shimmer', 'u_thread', 'u_turb', 'u_kick', 'u_kickKind', 'u_kickDir', 'u_phase',
-  'u_shape', 'u_shapeK', 'u_shapeA', 'u_shapeB', 'u_px', 'u_fore',
+  'u_shape', 'u_shapeK', 'u_shapeA', 'u_shapeB', 'u_shapeC', 'u_px', 'u_fore',
 ];

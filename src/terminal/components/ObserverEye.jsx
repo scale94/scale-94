@@ -70,7 +70,7 @@ const IRID_RETURN = 0.05;      // per-second residual (e = 1 - IRID_RETURN^dt), 
 // eyeDrive (live channels, `driven` eyes only) eases in and out at this residual.
 const DRIVE_EASE = 0.002;
 // Keyed kick fields (Phase 0d). `level` defaults to 1, the rest to 0 (additive).
-const KEY_FIELDS = ['level', 'turn', 'focus', 'shapeK', 'shapeA', 'shapeB', 'gazeX', 'gazeY', 'turb'];
+const KEY_FIELDS = ['level', 'turn', 'focus', 'shapeK', 'shapeA', 'shapeB', 'shapeC', 'gazeX', 'gazeY', 'turb'];
 // Reduced motion: how long the crescendo's static flash holds.
 const RM_FLASH_MS = (IMPLODE_S + DETONATE_S + STORM_S) * 1000;
 
@@ -174,7 +174,7 @@ function makeScratch() {
     o: {
       cols: cols3(), speed: 0, focus: 0, irid: 0, pulse: 0, gaze: [0, 0], core: 0, orbit: 0,
       shimmer: 0, thread: 0, turb: 0, kick: 0, kickKind: 0, kickDir: 0, phase: 0,
-      shape: 0, shapeK: 0, shapeA: 0, shapeB: 0, turn: 0,
+      shape: 0, shapeK: 0, shapeA: 0, shapeB: 0, shapeC: 0, turn: 0,
     },
     key: {},                                    // a keyed kick's sample this frame
     cres: { core: 0, focus: 0, turb: 0, speedMul: 1, jitter: 0, kick: 0, w: 1 },
@@ -375,7 +375,7 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
     o.speed = cur.speed; o.focus = cur.focus; o.irid = cur.irid; o.pulse = cur.pulse;
     o.core = cur.core; o.orbit = cur.orbit; o.shimmer = cur.shimmer; o.thread = cur.thread;
     o.turb = 0; o.kick = 0; o.kickKind = 0; o.kickDir = 0; o.phase = 0;
-    o.shape = 0; o.shapeK = 0; o.shapeA = 0; o.shapeB = 0; o.turn = 0;
+    o.shape = 0; o.shapeK = 0; o.shapeA = 0; o.shapeB = 0; o.shapeC = 0; o.turn = 0;
     return o;
   }
 
@@ -456,6 +456,16 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
         if (k.keys || k.curve) {
           const x = (tsec - k.t0) / k.dur;
           const s = k.curve ? k.curve(x, S.key) : sampleKeys(k.keys, x, S.key);
+          // A graceful release (kick({ release, tag })): everything the timeline drives fades
+          // out over rel.dur; the swirl keeps its current turn (folded in when it ends).
+          let f = 1;
+          if (k.rel) {
+            if (k.rel.t0 == null) k.rel.t0 = tsec;
+            f = 1 - smooth(clamp01((tsec - k.rel.t0) / k.rel.dur));
+            if (f <= 0) { cur.phase += s.turn * k.dir; cur.kick = null; cur.kickOut = 0; return o; }
+            s.level = (Number.isNaN(s.level) ? 1 : s.level) * f;
+            s.shapeK *= f; s.focus *= f; s.turb *= f; s.gazeX *= f; s.gazeY *= f;
+          }
           if (k.backspinAt != null && !k.spun && x >= k.backspinAt) {
             // A scripted brake: the reverse coast a return to silver gets, at the reaction's peak.
             k.spun = true;
@@ -467,10 +477,10 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
           o.gaze[0] += s.gazeX; o.gaze[1] += s.gazeY;
           o.turb = Math.max(o.turb, s.turb);
           if (k.shape) {
-            o.shape = k.shape; o.shapeA = s.shapeA; o.shapeB = s.shapeB;
+            o.shape = k.shape; o.shapeA = s.shapeA; o.shapeB = s.shapeB; o.shapeC = s.shapeC;
             // The same figure re-kicked mid-morph holds its form while the new timeline takes over.
             // Held whole until x 0.2, gone by 0.4 (every figure timeline has formed by then).
-            o.shapeK = Math.max(s.shapeK, k.shapeFrom * (1 - smooth(clamp01((x - 0.2) / 0.2))));
+            o.shapeK = Math.max(s.shapeK, f * k.shapeFrom * (1 - smooth(clamp01((x - 0.2) / 0.2))));
           }
         } else if (k.cols && !k.spun && tsec - k.t0 > ATTACK_S && v < 0.5 * k.peak) {
           // The colour is unwinding back to silver: the same back-spin a state return gets.
@@ -526,6 +536,7 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
     gl.uniform1f(U.u_shapeK, o.shapeK);
     gl.uniform1f(U.u_shapeA, o.shapeA);
     gl.uniform1f(U.u_shapeB, o.shapeB);
+    gl.uniform1f(U.u_shapeC, o.shapeC);
     gl.uniform1f(U.u_px, 2 / Math.max(1, gl.drawingBufferWidth || 1));
     gl.uniform1f(U.u_fore, 1);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
@@ -552,11 +563,21 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
     // curve: instead of keys, a continuous (x 0..1, dst) => dst writing the same fields every
     // frame (for motion that must never stop at a key: a vortex, a flap). backspinAt: the x
     // at which the scripted brake fires the reverse coast.
-    kick({ kind, tint: kTint = null, tint2 = null, dir = 1, durationMs, strength = 1, keys = null, shape = 0, curve = null, backspinAt = null } = {}) {
+    // tag: names a family of sustained kicks (a lifecycle). release: true fades out the
+    // running kick of that tag over durationMs instead of starting a new one.
+    kick({ kind, tint: kTint = null, tint2 = null, dir = 1, durationMs, strength = 1, keys = null, shape = 0, curve = null, backspinAt = null, tag = null, release = false } = {}) {
       const cur = curRef.current;
       if (!cur || !aliveRef.current) return;
+      if (release) {
+        const k = cur.kick;
+        if (k && k.tag === tag && !k.rel) k.rel = { t0: null, dur: Math.max(0.1, (durationMs || 0) / 1000) };
+        if (cur.hold && cur.holdTag === tag) {   // reduced motion: drop the static hold now
+          clearTimeout(holdTimerRef.current); cur.hold = null; cur.holdTag = null; snap();
+        }
+        return;
+      }
       if (prefersReducedMotion()) {
-        if (kTint) holdStatic({ cols: kickCols(kTint, tint2) }, durationMs);
+        if (kTint) { holdStatic({ cols: kickCols(kTint, tint2) }, durationMs); cur.holdTag = tag; }
         return;
       }
       if (cur.cres) return;   // the crescendo outranks every reaction
@@ -572,6 +593,7 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
         keys: nk, curve: typeof curve === 'function' ? curve : null, endTurn,
         backspinAt: backspinAt == null ? null : clamp01(backspinAt), shape: shape || 0, spun: false,
         shapeFrom: shape && cur.shapeOutId === shape ? clamp01(cur.shapeOutK) : 0,
+        tag, rel: null,
       };
     },
     detonate() {
