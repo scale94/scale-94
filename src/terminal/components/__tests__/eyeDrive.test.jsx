@@ -7,6 +7,8 @@ import { render, cleanup } from '@testing-library/react';
 import { installRecordingGL } from '../../gl/__tests__/recordingGL';
 import ObserverEye from '../ObserverEye';
 import { drivePalette, driveSpin, driveMood, release, HOLD_MS } from '../eyeDrive';
+import { KICK } from '../observerEyeShader';
+import { createRef } from 'react';
 
 const FRAME_MS = 16;
 let rec;
@@ -51,6 +53,19 @@ describe('eyeDrive', () => {
     const ph = after.map((u) => u.u_phase);
     const reverse = ph.slice(1).map((p, i) => p - ph[i]).filter((d) => d < 0).reduce((a, b) => a + b, 0);
     expect(reverse).toBeLessThan(-2);
+  });
+
+  it('a_running_reaction_owns_the_unwind', () => {
+    // /SOL: the hold's palette lapses while the snap's burst runs; no reverse brake under it.
+    const ref = createRef();
+    render(<ObserverEye ref={ref} size={64} driven />);
+    frames(10);
+    frames(40, () => drivePalette(ORANGE, TEAL));
+    const curve = (x, d) => Object.assign(d, { level: 1, turn: 3 * x, focus: 0, shapeK: 0, shapeA: 0, shapeB: 0, shapeC: 0, gazeX: 0, gazeY: 0, turb: 0 });
+    ref.current.kick({ kind: KICK.inhale, tint: ORANGE, durationMs: 1600, curve });
+    const ph = frames(Math.ceil(1500 / FRAME_MS)).map((u) => u.u_phase);
+    const d = ph.slice(1).map((p, i) => p - ph[i]);
+    expect(Math.min(...d)).toBeGreaterThan(-0.01);
   });
 
   it('spin_adds_and_coasts_out', () => {

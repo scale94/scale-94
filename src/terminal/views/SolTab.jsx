@@ -15,6 +15,7 @@ import { cloudStatus } from '../sol/cloudClock';
 import { launchCloud, getClouds, sweep, subscribeClouds, markWitnessed } from '../sol/cloudStore';
 import { auroraUniforms } from '../sol/aurora';
 import { emit as emitObs } from '../../observatory/observatoryBus';
+import { createSolEyeFeed, feedSolEye } from '../sol/solEye';
 
 const HUD_POLL_MS = 100;       // tension readout; React state only when the integer changes
 const STILL_SNAP_MS = 1200;     // reduced motion: how long the still snap frame holds
@@ -125,7 +126,11 @@ const SolTab = () => {
   const star = useSolStar({ onSnap, getRect, reducedMotion, requestDraw });
   starRef.current = star;
 
+  const eyeFeedRef = useRef(null);
+  if (eyeFeedRef.current === null) eyeFeedRef.current = createSolEyeFeed();
   const onFrame = useCallback((dt) => {
+    // The masthead eye becomes the sun's surface while a region is held (ancillary).
+    try { feedSolEye(starRef.current?.hold?.(), dt, eyeFeedRef.current); } catch (_) { /* the eye is ancillary */ }
     const fx = fxRef.current;
     stepSnapFx(fx, dt, { still: stillRef.current });
     const out = fx.out;

@@ -18,7 +18,7 @@ export const KICK = {
 
 // Shape morphs (u_shape). The pupil/disc *become* a figure by SDF blends, the nebula
 // keeps flowing inside it. u_shapeK 0..1 = how far; u_shapeA/B are per-shape params.
-export const SHAPE = { kernel: 1, butterfly: 2, antenna: 3, horizon: 4, accord: 5 };
+export const SHAPE = { kernel: 1, butterfly: 2, antenna: 3, horizon: 4, accord: 5, sun: 6 };
 
 export const VS = 'attribute vec2 a;varying vec2 v;void main(){v=a;gl_Position=vec4(a,0.,1.);}';
 export const FS = [
@@ -26,7 +26,11 @@ export const FS = [
   'uniform float u_t,u_focus,u_irid,u_speed,u_pulse;uniform vec3 c0,c1,c2;uniform vec2 u_gaze;',
   'uniform float u_core,u_orbit,u_shimmer,u_thread,u_turb,u_kick,u_kickKind,u_kickDir,u_phase;',
   'uniform float u_shape,u_shapeK,u_shapeA,u_shapeB,u_shapeC,u_px,u_fore;',
-  'float aa(float d){return clamp(0.5-d/max(u_px,1e-4),0.,1.);}',  // 1 inside (d<0), ~1px AA
+  'float aa(float d){return clamp(0.5-d/max(u_px,1e-4),0.,1.);}',  // Convection cells (/SOL): F1 Worley over a 3x3 neighbourhood, the cell centres drifting.
+  'vec2 h22(vec2 p){return fract(sin(vec2(dot(p,vec2(127.1,311.7)),dot(p,vec2(269.5,183.3))))*43758.5453);}',
+  'float wor(vec2 p,float t){vec2 i=floor(p),f=fract(p);float d=1.0;',
+  ' for(int y=-1;y<=1;y++)for(int x=-1;x<=1;x++){vec2 g=vec2(float(x),float(y));',
+  '  vec2 o=0.5+0.42*sin(t+6.2831*h22(i+g));d=min(d,length(g+o-f));}return d;}',  // 1 inside (d<0), ~1px AA
   'float sdBox(vec2 p,vec2 b){vec2 d=abs(p)-b;return length(max(d,0.))+min(max(d.x,d.y),0.);}',
   'float sdEll(vec2 p,vec2 c,vec2 r,float a){p-=c;float cs=cos(a),sn=sin(a);p=mat2(cs,sn,-sn,cs)*p;',
   ' return (length(p/r)-1.0)*min(r.x,r.y);}',
@@ -207,6 +211,26 @@ export const FS = [
   '    col+=k*wv*acc*2.2;',
   '    col+=k*exp(-r*r/0.008)*exp(-C*16.0)*vec3(1.0,0.97,0.92)*2.2;',   // the merge flash
   '    a=max(a,k*min(wv,1.0)*0.8);}',
+  '  }else if(u_shape<6.5){',                              // sun: A = magnetic tension 0..1, C = seconds since the snap (0 = held)
+  // The cells turn with the eye's spin (u_phase, which the stir drives) - not the swirl
+  // frame, whose radial twist smears them into a pinwheel - plus tension's own twist.
+  '   float A=clamp(u_shapeA,0.,1.),tw=u_phase+A*2.6*(1.0-r)*(1.0-r);',
+  '   vec2 gp=mat2(cos(tw),-sin(tw),sin(tw),cos(tw))*uv;',
+  '   float g=wor(gp*mix(5.2,7.0,A),u_t*0.7);',
+  '   float cell=1.0-smoothstep(0.42,0.78,g);',               // packed granules, thin dark lanes
+  '   vec3 sun=mix(c1*0.45,c0*1.4,cell)*(0.75+0.5*n);',
+  '   sun+=A*A*cell*vec3(1.0,0.92,0.75)*0.55*(0.6+0.4*sin(u_t*23.0+n*9.0));', // near the snap: white-hot, flickering
+  '   sun*=(1.0-smoothstep(discR*0.72,discR,r))*mix(smoothstep(coreR*0.35,coreR,r),1.0,cl);',
+  '   col=mix(col,sun,k);',
+  '   if(u_shapeC>0.0){float C=u_shapeC,e=min(1.0,C/0.6);',   // the snap: a solar-wind burst outward
+  '    float E=0.05+1.2*(1.0-(1.0-e)*(1.0-e)*(1.0-e)),er=r-E;',
+  '    float fo=(1.0-smoothstep(0.8,1.2,E))*(1.0-smoothstep(0.80,0.97,max(abs(v.x),abs(v.y))));',
+  '    float rg=exp(-er*er/0.004);',
+  '    float st=pow(0.5+0.5*cos(ang*13.0+2.0*sin(ang*5.0+1.3)),6.0)*smoothstep(E-0.55,E-0.03,r)*(1.0-smoothstep(E-0.03,E+0.04,r));',
+  '    float w=(rg+0.9*st)*fo;',
+  '    col+=k*w*mix(c0,vec3(1.0),0.5)*2.1;',
+  '    col+=k*exp(-r*r/0.01)*exp(-C*10.0)*vec3(1.0,0.95,0.8)*2.0;',   // the flare at the core
+  '    a=max(a,k*min(w,1.0)*0.85);}',
   '  }',
   ' }',
   ' gl_FragColor=vec4(col,a);',

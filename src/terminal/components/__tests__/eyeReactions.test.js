@@ -174,6 +174,23 @@ describe('eyeReactions', () => {
     expect(at(D).shapeK).toBe(0);
   });
 
+  it('sol_snap_bursts_from_the_held_surface_and_coasts_forward', () => {
+    const r = REACTIONS['sol.release'];
+    expect(r.shape).toBe(SHAPE.sun);
+    expect(r.tint).toBeTruthy();                         // the solar palette, not the nav's pale yellow
+    const D = r.durationMs / 1000;
+    const at = (t) => r.curve(t / D, {});
+    expect(at(0).shapeK).toBe(1);                         // takes over the held surface in form
+    expect(at(0).shapeA).toBeGreaterThan(0.8);
+    expect(at(0.5).shapeA).toBeLessThan(0.05);            // the twist lets go at once
+    expect(at(0.3).shapeC).toBeCloseTo(0.3, 2);           // the burst clock, in seconds
+    expect(at(D).shapeK).toBe(0);
+    expect(at(D).level).toBe(0);
+    const xs = Array.from({ length: 300 }, (_, i) => i / 299);
+    const T = xs.map((x) => r.curve(x, {}).turn);
+    T.slice(1).forEach((t, i) => expect(t).toBeGreaterThanOrEqual(T[i] - 1e-12));
+  });
+
   it('impulse_overlays_its_choreography', () => {
     const imp = { piece: 'kernel.run', kind: KICK.miosis, tint: [167, 139, 250], tint2: [122, 184, 0], dir: 1, durationMs: 1100 };
     const k = reactionKick(imp);

@@ -269,6 +269,16 @@ function createSolStar(onSnapRef, getRectRef, optsRef) {
     return out;
   }
 
+  // The held region, for the masthead eye (SolTab's frame loop): refilled in place.
+  const holdOut = { held: false, tension01: 0, turns: 0 };
+  function hold() {
+    const r = mode === 'stir' ? findRegion(heldId) : null;
+    holdOut.held = !!r;
+    holdOut.tension01 = r ? fin(tension01(r)) : 0;
+    holdOut.turns = r ? fin(r.handTurns) : 0;
+    return holdOut;
+  }
+
   function hud() {
     const held = findRegion(heldId);
     if (held) return { tensionG: fin(tensionG(regionTurns(held))) };
@@ -282,6 +292,7 @@ function createSolStar(onSnapRef, getRectRef, optsRef) {
     uniforms,
     handlers,
     hud,
+    hold,
     // Inspection for tests and DEV tooling; not part of the drawing contract.
     _debug: () => ({ star, cam }),
   };

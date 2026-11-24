@@ -7,6 +7,7 @@
 // to 0..1 of durationMs; a final `turn` is folded into the swirl phase (no snap back).
 
 import { KICK, SHAPE } from './observerEyeShader';
+import { SUN_COLS } from '../sol/solEye';
 
 const PI = Math.PI;
 
@@ -181,7 +182,28 @@ export function scentCollide(x, d) {
   return d;
 }
 
+// /SOL — the snap. While a region is held the eye is the sun's surface (solEye.js drives it
+// live: SHAPE.sun, tension twisting and heating the cells, the spin following the stir).
+// The snap takes over from that: the tension lets go (the twist unwinds into a forward
+// shove), a flare at the core and a solar-wind burst — a ring with radial streaks — blows
+// out past the rim, then the surface melts and the spin coasts forward to silver.
+// shapeA = tension, shapeC = seconds since the snap.
+const SOL_MS = 1600;
+export function solRelease(x, d) {
+  const D = SOL_MS / 1000, t = x * D;
+  d.shapeA = 0.85 * Math.exp(-t / 0.12);                  // the held twist lets go at once
+  d.shapeB = 0;
+  d.shapeC = t + 1e-3;
+  d.shapeK = 1 - sm((t - 0.9) / 0.6);
+  d.level = 1 - sm((t - 0.8) / 0.8);
+  d.turn = 2.2 * sm(t / 0.35) + (2.5 * D * (1 - (1 - x) ** 3)) / 3;   // the unwinding shove, then a coast
+  d.turb = 0.55 * Math.exp(-t / 0.3);
+  d.focus = 0; d.gazeX = 0; d.gazeY = 0;
+  return d;
+}
+
 export const REACTIONS = {
+  'sol.release': { kind: KICK.inhale, shape: SHAPE.sun, durationMs: SOL_MS, curve: solRelease, tint: SUN_COLS[0], tint2: SUN_COLS[1] },
   'scent.collide': { kind: KICK.inhale, shape: SHAPE.accord, durationMs: SCENT_MS, curve: scentCollide },
   'accretion.prime':   { kind: KICK.spiral, durationMs: PRIME_MS, curve: accretionPrime, tag: ACC_TAG },
   'accretion.infall':  { kind: KICK.spiral, shape: SHAPE.horizon, durationMs: SWALLOW_MS, curve: accretionSwallow, tag: ACC_TAG },

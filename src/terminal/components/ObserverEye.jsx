@@ -389,7 +389,8 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
     d.spin = lerp(d.spin, live(D.spin, t) ? D.spin.v : 0, e);
     const palLive = live(D.palette, t);
     if (palLive) for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) d.cols[i][j] = D.palette.cols[i][j];
-    if (d.palLive && !palLive && d.pal > 0.5 && cur.irid > 0.5) {
+    // A reaction running at the release owns the unwind (e.g. /SOL's burst coasts forward).
+    if (d.palLive && !palLive && d.pal > 0.5 && cur.irid > 0.5 && !cur.kick) {
       cur.spinV = -(BACKSPIN_TURN / BACKSPIN_TAU) * d.pal;
     }
     d.palLive = palLive;
