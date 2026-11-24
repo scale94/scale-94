@@ -236,9 +236,14 @@ function GrowthSlider({ value, disabled, color, mandateActive, onChange }) {
   const handlePointer = useCallback((e) => {
     if (disabled) return;
     e.preventDefault();
-    onChange(valueFromEvent(e));
-    const move = (me) => { me.preventDefault(); onChange(valueFromEvent(me)); };
-    const up   = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    let last = valueFromEvent(e);
+    onChange(last);
+    const move = (me) => { me.preventDefault(); last = valueFromEvent(me); onChange(last); };
+    const up   = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      emitObs('gaze', 'ecocide_growth_set', { growthRate: last, hand: true }); // release only, never per move
+    };
     window.addEventListener('pointermove', move, { passive: false });
     window.addEventListener('pointerup', up);
   }, [disabled, onChange, valueFromEvent]);

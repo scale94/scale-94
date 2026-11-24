@@ -6,8 +6,16 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import QuintessenceAltar from '../../mercury/QuintessenceAltar';
 import { setTrend, setCouncil, setPhase, _resetSpineForTests } from '../spineStore';
-import { emit, _resetForTests as resetBus } from '../../../observatory/observatoryBus';
+import { emit, subscribe, _resetForTests as resetBus } from '../../../observatory/observatoryBus';
+import { compileKernel } from '../compileKernel';
 import { launchCloud, _resetCloudsForTests } from '../../sol/cloudStore';
+
+// Ignition doubles: the real engine is wasm, the real compile is crypto.subtle.
+vi.mock('../engineWitness', async (orig) => ({ ...(await orig()), witnessEngine: vi.fn(async () => ({ stub: true })) }));
+vi.mock('../compileKernel', async (orig) => ({
+  ...(await orig()),
+  compileKernel: vi.fn(async () => ({ hash: 'abc123def456', meta: { element: 'FIRE' }, text: 'k' })),
+}));
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -272,5 +280,53 @@ describe('QuintessenceAltar — the sun', () => {
   it('a landed cloud is not in flight', () => {
     act(() => { launchCloud({ energyErg: 5e32, handedness: 'ccw', origin: 'hand' }, Date.now() - 100 * H); });
     expect(solLines()).toEqual([]);
+  });
+});
+
+// The deliberate act, announced on the bus (observer quest): ignition, seal, and the unsealed end.
+describe('QuintessenceAltar — bus emits', () => {
+  let events;
+  let offBus;
+  const edge = () => events.filter(e => e.category === 'edge').map(e => `${e.kind}`);
+  async function holdSeal(id) {
+    const seal = sealFor(id);
+    act(() => { seal.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0 })); });
+    act(() => { vi.advanceTimersByTime(1200); });
+  }
+  const flush = async (ms) => { await act(async () => { await vi.advanceTimersByTimeAsync(ms); }); };
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    events = [];
+    offBus = subscribe(e => events.push(e));
+    vi.mocked(compileKernel).mockClear();
+    completeSpine();
+  });
+  afterEach(() => { offBus(); vi.useRealTimers(); });
+
+  it('emits_kernel_sealed_same_tick_as_stage6', async () => {
+    await holdSeal('FIRE');
+    expect(edge()).toEqual(['kernel_ignited']);
+    expect(events.find(e => e.kind === 'kernel_ignited').payload).toEqual({ element: 'FIRE' });
+    await flush(650 * 6 + 50);
+    expect(container.textContent).toContain('BUILD 0xABC123DE'); // stage 6 rendered
+    expect(edge()).toEqual(['kernel_ignited', 'kernel_sealed']);
+    expect(events.find(e => e.kind === 'kernel_sealed').payload).toEqual({ hash: 'abc123def456' });
+  });
+
+  it('emits_ignite_ended_on_unmount_midway', async () => {
+    await holdSeal('FIRE');
+    act(() => { root.unmount(); });
+    root = createRoot(container); // afterEach unmounts a live root
+    await flush(650 * 7);
+    expect(edge()).toEqual(['kernel_ignited', 'kernel_ignite_ended']);
+    expect(events.find(e => e.kind === 'kernel_ignite_ended').payload).toEqual({ sealed: false });
+  });
+
+  it('emits_ignite_ended_on_compile_throw', async () => {
+    vi.mocked(compileKernel).mockRejectedValueOnce(new Error('no crypto'));
+    await holdSeal('FIRE');
+    await flush(650 * 6 + 50);
+    expect(edge()).toEqual(['kernel_ignited', 'kernel_ignite_ended']);
   });
 });

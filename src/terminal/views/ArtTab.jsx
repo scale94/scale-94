@@ -964,7 +964,7 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
     }
 
     setBifurcCount(c => c + spawned.length);
-    emitObs('gaze', 'art_bifurcation', { count: spawned.length });
+    emitObs('gaze', 'art_bifurcation', { count: spawned.length, hand: true });
   }, [activeEdges, triggerBifurcation]);
 
   // ── Push incoming attractor data ─────────────────────────────────────────

@@ -19,7 +19,7 @@ export function pointerOmega(dxPx, dyPx, dtS, heightPx) {
 
 export function createDragTracker() {
   // wx/wy/wT: where and when the current velocity window started.
-  const s = { dragging: false, wx: 0, wy: 0, wT: 0, lastMoveMs: 0, omega: ZERO, nx: 0, ny: 0, aimed: false, released: false, heightPx: 1, releaseOmega: 0 };
+  const s = { dragging: false, wx: 0, wy: 0, wT: 0, lastMoveMs: 0, omega: ZERO, nx: 0, ny: 0, aimed: false, released: false, heightPx: 1, releaseOmega: 0, releaseDir: 1 };
   // The last RING pointer samples (preallocated ring) for the release pointer ω.
   const ring = { x: new Float64Array(RING), y: new Float64Array(RING), t: new Float64Array(RING), n: 0, head: 0 };
   const push = (x, y, tMs) => {
@@ -39,6 +39,8 @@ export function createDragTracker() {
     }
     if (iO === iN) return 0;
     const w = pointerOmega(ring.x[iN] - ring.x[iO], ring.y[iN] - ring.y[iO], (ring.t[iN] - ring.t[iO]) / 1000, s.heightPx);
+    // sign of the dominant axis of the spin (observer bus: dir is ±1)
+    s.releaseDir = (Math.abs(w[1]) >= Math.abs(w[0]) ? w[1] : w[0]) < 0 ? -1 : 1;
     return Math.hypot(w[0], w[1]);
   };
   // One result object, refilled every sample() so the render loop allocates nothing.
@@ -71,6 +73,10 @@ export function createDragTracker() {
       }
       s.dragging = false;
       s.omega = ZERO;
+    },
+    // The last release, read without consuming the one-shot `released` flag sample() hands the render loop.
+    lastRelease() {
+      return { speed: s.releaseOmega, dir: s.releaseDir };
     },
     sample(nowMs) {
       const live = s.dragging && nowMs - s.lastMoveMs <= POINTER_HOLD_MS;

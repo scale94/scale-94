@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import useMercuryDrag from '../useMercuryDrag';
+import useMercuryDrag, { FLICK_MIN } from '../useMercuryDrag';
+import { subscribe, _resetForTests as resetBus } from '../../../observatory/observatoryBus';
 
 // Pointer events carry their own DOMHighResTimeStamp; the hook reads e.timeStamp, so stamp it from mockNow.
 const ev = (type, props) => {
@@ -172,5 +173,41 @@ describe('useMercuryDrag', () => {
     expect(result.current.sample(mockNow).dragging).toBe(true);
     el.dispatchEvent(ev('lostpointercapture', { pointerId: 2 }));
     expect(result.current.sample(mockNow).dragging).toBe(true);
+  });
+
+  describe('observer bus flick', () => {
+    const drag = (dxPerStep) => {
+      const el = document.createElement('div');
+      Object.defineProperty(el, 'clientHeight', { value: 800 });
+      el.setPointerCapture = vi.fn();
+      el.releasePointerCapture = vi.fn();
+      renderHook(() => useMercuryDrag(el));
+      const got = [];
+      resetBus();
+      const off = subscribe(e => got.push(e));
+      mockNow = 0;
+      el.dispatchEvent(ev('pointerdown', { clientX: 400, clientY: 400 }));
+      for (let i = 1; i <= 5; i++) {
+        mockNow = 10 * i;
+        el.dispatchEvent(ev('pointermove', { clientX: 400 + dxPerStep * i, clientY: 400 }));
+      }
+      el.dispatchEvent(ev('pointerup', {}));
+      off();
+      return got.filter(e => e.kind === 'mercury_flick');
+    };
+
+    it('flick_emits_above_threshold_only', () => {
+      // 20 px / 10 ms = 2000 px/s on an 800 px canvas = 6.25 rad/s > FLICK_MIN
+      const fast = drag(20);
+      expect(fast).toHaveLength(1);
+      expect(fast[0].category).toBe('gaze');
+      expect(fast[0].payload.hand).toBe(true);
+      expect(fast[0].payload.dir).toBe(1);
+      expect(fast[0].payload.speed).toBeGreaterThan(FLICK_MIN);
+      // 2 px / 10 ms = 0.6 rad/s: a steering drag
+      expect(drag(2)).toHaveLength(0);
+      // leftward fling carries dir -1
+      expect(drag(-20)[0].payload.dir).toBe(-1);
+    });
   });
 });

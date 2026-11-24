@@ -3,6 +3,12 @@
 
 import { useEffect, useMemo, useRef } from 'react';
 import { createDragTracker } from './planet/mercuryDrag';
+import { emit as emitObs } from '../../observatory/observatoryBus';
+
+// Release pointer speed (rad/s, the tracker's own unit: a full canvas-height drag = 2.5 rad,
+// so 6 rad/s is ~2.4 canvas heights per second) above which a release counts as a deliberate
+// flick. Half of MAX_OMEGA (12): the body visibly coasts; a slow steering drag stays under ~2.
+export const FLICK_MIN = 6;
 
 export default function useMercuryDrag(el) {
   const tracker = useMemo(() => createDragTracker(), []);
@@ -45,6 +51,9 @@ export default function useMercuryDrag(el) {
       el.releasePointerCapture?.(e.pointerId);
       el.style.cursor = 'grab';
       tracker.up(e.timeStamp);
+      // Only a real release (pointerup / cancel / lost capture of the active pointer) reaches here.
+      const { speed, dir } = tracker.lastRelease();
+      if (speed > FLICK_MIN) emitObs('gaze', 'mercury_flick', { speed, dir, hand: true });
     };
     el.addEventListener('pointerdown', onDown);
     el.addEventListener('pointermove', onMove);

@@ -14,6 +14,7 @@ import { getForgeArchive, subscribeForgeArchive } from '../sol/forgeArchive';
 import { cloudStatus } from '../sol/cloudClock';
 import { launchCloud, getClouds, sweep, subscribeClouds, markWitnessed } from '../sol/cloudStore';
 import { auroraUniforms } from '../sol/aurora';
+import { emit as emitObs } from '../../observatory/observatoryBus';
 
 const HUD_POLL_MS = 100;       // tension readout; React state only when the integer changes
 const STILL_SNAP_MS = 1200;     // reduced motion: how long the still snap frame holds
@@ -104,6 +105,7 @@ const SolTab = () => {
       triggerSnap(fx, snap);
     }
     if (Number.isFinite(ev.energyErg)) setLastReleaseErg(ev.energyErg);
+    emitObs('gaze', 'sol_release', { energyErg: ev.energyErg, handedness: ev.handedness, hand: ev.origin === 'hand' });
     // Only a snap aimed at the viewer sends a cloud this way.
     if (ev.facing && Number.isFinite(ev.energyErg) && ev.energyErg > 0) {
       launchCloud({ energyErg: ev.energyErg, handedness: ev.handedness, origin: ev.origin }, Date.now());

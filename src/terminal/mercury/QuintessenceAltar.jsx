@@ -11,7 +11,7 @@ import { cloudStatus } from '../sol/cloudClock';
 import { holdVolatile } from '../quintessence/volatileHold';
 import { STORAGE_KEY } from '../quintessence/sealedArtifact';
 import { drynessFor } from '../data/lunarAccords';
-import { getTotals, subscribe as subscribeBus } from '../../observatory/observatoryBus';
+import { getTotals, subscribe as subscribeBus, emit as emitObs } from '../../observatory/observatoryBus';
 import ElementSeal from './ElementSeal';
 import SpineMirror from './SpineMirror';
 import { useHoldToSeal } from './useHoldToSeal';
@@ -110,8 +110,10 @@ export default function QuintessenceAltar({ onDeposited, onNavigate }) {
           !window.confirm('the reliquary holds one kernel · recompile and overwrite the seal?')) return;
     } catch (_) { /* no storage → nothing to overwrite */ }
     igniting.current = true;
+    let sealed = false;
     try {
       setElement(elementId);
+      emitObs('edge', 'kernel_ignited', { element: elementId });
       const spine = getSpine();
       const periphery = snapshotPeriphery();
       for (let s = 0; s < 3; s++) {
@@ -145,6 +147,8 @@ export default function QuintessenceAltar({ onDeposited, onNavigate }) {
       }
       setResult(volatile ? { ...artifact, meta: { ...artifact.meta, volatile: true } } : artifact);
       setStage(6);
+      sealed = true;
+      emitObs('edge', 'kernel_sealed', { hash: artifact.hash });
     } catch (err) {
       // The one link that can throw is compileKernel (crypto.subtle on a
       // non-secure origin). The altar must never brick: cool down, name nothing.
@@ -152,6 +156,8 @@ export default function QuintessenceAltar({ onDeposited, onNavigate }) {
       if (alive.current) { setResult(null); setStage(-1); }
     } finally {
       igniting.current = false;
+      // Every exit without a seal (catch, unmount midway) closes the ignition.
+      if (!sealed) emitObs('edge', 'kernel_ignite_ended', { sealed: false });
     }
   }
 
