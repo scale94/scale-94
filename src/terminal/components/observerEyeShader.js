@@ -122,7 +122,8 @@ export const FS = [
   '   float frame=sdBox(uv,vec2(0.62))-0.14;',
   '   float pins=1e3;for(int i=-1;i<=1;i++){pins=min(pins,sdBox(uv-vec2(float(i)*0.36,0.0),vec2(0.055,0.97)));}',
   '   a=mix(a,aa(min(frame,pins)),k);',
-  '   float die=(abs(uv.x)+abs(uv.y))*0.7071-0.26;',
+  '   float cb=cos(u_shapeB),sb=sin(u_shapeB);vec2 du=mat2(cb,-sb,sb,cb)*uv;',  // B = die spin (rad)
+  '   float die=(abs(du.x)+abs(du.y))*0.7071-0.26;',
   '   col*=mix(1.0,0.55+0.45*smoothstep(-0.02,0.12,frame+0.12),k);',
   '   col=mix(col,col*0.08,k*aa(die));',
   '   col=mix(col,lit*(0.45+0.9*n),k*aa(abs(frame+0.06)-0.055));',

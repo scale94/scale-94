@@ -253,6 +253,37 @@ describe('ObserverEye imperative handle', () => {
     expect(f.at(-1).u.u_shape).toBe(0);
   });
 
+  it('keyed_turn_folds_into_phase_without_a_snap', () => {
+    // A timeline that ends turned 6 rad must not jerk back 6 rad when it ends.
+    const ref = createRef();
+    render(<ObserverEye ref={ref} size={64} />);
+    frames(10);
+    const p0 = frames(1)[0].u.u_phase;
+    ref.current.kick({ kind: KICK.miosis, durationMs: 1000, keys: [{ t: 0, turn: 0 }, { t: 0.5, turn: 6 }, { t: 1, turn: 6 }] });
+    const f = frames(Math.ceil(1400 / FRAME_MS));
+    const ph = f.map((x) => x.u.u_phase);
+    const steps = ph.slice(1).map((p, i) => p - ph[i]);
+    expect(Math.min(...steps)).toBeGreaterThan(-0.05);   // never a step backwards
+    expect(ph.at(-1) - p0).toBeGreaterThan(6);
+    expect(ph.at(-1) - p0).toBeLessThan(6.6);
+  });
+
+  it('same_shape_rekick_holds_its_form', () => {
+    // load -> run in quick succession: the chip does not melt to a disc for a frame.
+    const ref = createRef();
+    render(<ObserverEye ref={ref} size={64} />);
+    frames(10);
+    const keys = [{ t: 0, shapeK: 0 }, { t: 0.3, shapeK: 1 }, { t: 0.8, shapeK: 1 }, { t: 1, shapeK: 0 }];
+    ref.current.kick({ kind: KICK.miosis, durationMs: 1500, shape: 1, keys });
+    expect(frames(Math.ceil(700 / FRAME_MS)).at(-1).u.u_shapeK).toBeGreaterThan(0.95);
+    ref.current.kick({ kind: KICK.miosis, durationMs: 1500, shape: 1, keys });
+    const after = frames(Math.ceil(500 / FRAME_MS)).map((x) => x.u.u_shapeK);
+    expect(Math.min(...after)).toBeGreaterThan(0.6);
+    // A different figure starts from its own nothing.
+    ref.current.kick({ kind: KICK.flutter, durationMs: 1500, shape: 2, keys });
+    expect(frames(1)[0].u.u_shapeK).toBeLessThan(0.05);
+  });
+
   it('reduced_motion_hold_shows_its_colour', () => {
     window.matchMedia = () => ({ matches: true, addEventListener() {}, removeEventListener() {} });
     const ref = createRef();

@@ -25,6 +25,7 @@ import ObserverEye from './ObserverEye';
 import { getSpine, subscribeSpine } from '../quintessence/spineStore';
 import { getObserver, subscribeObserver, subscribeImpulse, CRESCENDO_MS } from '../quintessence/observerStore';
 import { resolveEyeState, overlayLean } from './resolveEyeState';
+import { reactionKick } from './eyeReactions';
 
 // The glance's slow ease (D5), read by the eye every frame: no React render per frame.
 const getLean = () => overlayLean(getObserver(), Date.now());
@@ -137,7 +138,7 @@ export default function MercuryEyeIndicator({ activeTab, onNavigate, lastKernelA
         crescendoTimer = setTimeout(() => setCrescendo(false), CRESCENDO_MS);
         return;
       }
-      eyeRef.current?.kick({ kind: imp.kind, tint: imp.tint, tint2: imp.tint2, dir: imp.dir, durationMs: imp.durationMs });
+      eyeRef.current?.kick(reactionKick(imp));   // per-piece choreography (eyeReactions)
     });
     return () => { off(); clearTimeout(crescendoTimer); };
   }, []);

@@ -6,7 +6,7 @@ import {
   NAV_TINTS, FLASH_MS, WITNESS_MS, VERTEBRA_MS, CRESCENDO_MS, _resetObserverForTests,
   setChromeVisible, QUIET_MS, GLANCE_IN_MS, GLANCE_HOLD_MS, GLANCE_OUT_MS, GLANCE_GAP_MS,
   IDLE_MS, COOLDOWN_MIN_MS, COOLDOWN_MAX_MS, AFTER_REACTION_MS, WHISPER_MS, PHRASE_BUSY_MS,
-  MOBILE_HOLD_MS, glanceLevel, GLANCE_TOTAL_MS,
+  MOBILE_HOLD_MS, glanceLevel, GLANCE_TOTAL_MS, notifyTtyEnter,
 } from '../observerStore';
 import { PIECE_TAB, TAB_PIECES, RIDDLES } from '../whispers';
 import { setTrend, setCouncil, setPhase, setElement, _resetSpineForTests } from '../spineStore';
@@ -724,6 +724,17 @@ describe('observerStore — whispers', () => {
     expect(getObserver().wantsChrome).toBe(true);
     await step(1);
     expect(getObserver().wantsChrome).toBe(false);
+  });
+
+  it('tty_enter_flicks_the_kernel_chip_off_the_bus', async () => {
+    boot('kernel');
+    const bus = [];
+    subscribeBus((e) => bus.push(e));
+    notifyTtyEnter();
+    await flush();
+    expect(impulses.map((i) => i.piece)).toEqual(['kernel.enter']);
+    expect(impulses[0]).toMatchObject({ kind: KICK.miosis, tier: 'witness', tint: NAV_TINTS.kernel });
+    expect(bus).toHaveLength(0);                 // a keystroke is not telemetry
   });
 
   it('whisper_waits_while_kernel_phrase_busy', async () => {

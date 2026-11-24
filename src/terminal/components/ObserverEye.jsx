@@ -239,7 +239,7 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
         orbit: start.charge ? CHARGE_ORBIT[0] : (start.orbit || 0),
         shimmer: Math.max(start.shimmer || 0, clamp01(shimmerRef.current)),
         thread: clamp01(threadRef.current),
-        chargeT0: null, kick: null, cres: null, hold: null, kickOut: 0, phase: 0,
+        chargeT0: null, kick: null, cres: null, hold: null, kickOut: 0, shapeOutId: 0, shapeOutK: 0, phase: 0,
         spinV: 0, iridTgt: start.irid,
         // eased eyeDrive state: spin rad/s, palette weight + cols, gaze, mood, shape
         dv: { spin: 0, pal: 0, cols: cols3(), gx: 0, gy: 0, mood: 0, shapeK: 0, shapeId: 0, shapeA: 0, shapeB: 0, palLive: false },
@@ -448,16 +448,25 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
       const k = cur.kick;
       if (k.t0 == null) k.t0 = tsec;
       let v = kickLevel(k, tsec);
-      if (tsec - k.t0 >= k.dur) cur.kick = null;
-      else {
+      if (tsec - k.t0 >= k.dur) {
+        // A timeline may end turned: fold its last turn into the phase, so no snap back.
+        if (k.keys && k.keys.f.turn) cur.phase += k.keys.f.turn[k.keys.f.turn.length - 1] * k.dir;
+        cur.kick = null;
+      } else {
         if (k.keys) {
-          const s = sampleKeys(k.keys, (tsec - k.t0) / k.dur, S.key);
+          const x = (tsec - k.t0) / k.dur;
+          const s = sampleKeys(k.keys, x, S.key);
           if (!Number.isNaN(s.level)) v = s.level * k.peak;
           o.turn = s.turn * k.dir;
           o.focus = Math.min(1, Math.max(0, o.focus + s.focus));
           o.gaze[0] += s.gazeX; o.gaze[1] += s.gazeY;
           o.turb = Math.max(o.turb, s.turb);
-          if (k.shape) { o.shape = k.shape; o.shapeK = s.shapeK; o.shapeA = s.shapeA; o.shapeB = s.shapeB; }
+          if (k.shape) {
+            o.shape = k.shape; o.shapeA = s.shapeA; o.shapeB = s.shapeB;
+            // The same figure re-kicked mid-morph holds its form while the new timeline takes over.
+            // Held whole until x 0.2, gone by 0.4 (every figure timeline has formed by then).
+            o.shapeK = Math.max(s.shapeK, k.shapeFrom * (1 - smooth(clamp01((x - 0.2) / 0.2))));
+          }
         } else if (k.cols && !k.spun && tsec - k.t0 > ATTACK_S && v < 0.5 * k.peak) {
           // The colour is unwinding back to silver: the same back-spin a state return gets.
           k.spun = true;
@@ -477,6 +486,7 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
       if (!c) o.irid *= 1 - t;
     }
     cur.kickOut = o.kick;
+    cur.shapeOutId = o.shape; cur.shapeOutK = o.shapeK;
     return o;
   }
 
@@ -548,6 +558,7 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
         dur: Math.max((durationMs || 0) / 1000, ATTACK_S + 0.05),
         peak: clamp01(strength), from: Math.min(1, cur.kickOut || 0),
         keys: Array.isArray(keys) && keys.length ? normaliseKeys(keys) : null, shape: shape || 0, spun: false,
+        shapeFrom: shape && cur.shapeOutId === shape ? clamp01(cur.shapeOutK) : 0,
       };
     },
     detonate() {

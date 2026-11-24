@@ -88,7 +88,7 @@ const TARGET_ORDER = [
 ];
 
 const PIECE_KICK = {
-  'kernel.load': KICK.inhale, 'kernel.run': KICK.miosis, 'scent.collide': KICK.merge,
+  'kernel.load': KICK.inhale, 'kernel.run': KICK.miosis, 'kernel.enter': KICK.miosis, 'scent.collide': KICK.merge,
   'chaos.pick': KICK.split, 'chaos.fork': KICK.split, 'crypto.seal': KICK.quantize,
   'sol.release': KICK.ring, 'ecocide.growth': KICK.sag, 'ledger.write': KICK.ripple,
   'transmission.mark': KICK.packet, 'surveillance.privacy': KICK.stare,
@@ -97,7 +97,7 @@ const PIECE_KICK = {
 };
 
 // Pieces that react but are not whisper targets, so PIECE_TAB doesn't list them.
-const EXTRA_TAB = { 'kernel.load': 'kernel', 'chaos.fork': 'art' };
+const EXTRA_TAB = { 'kernel.load': 'kernel', 'kernel.enter': 'kernel', 'chaos.fork': 'art' };
 
 const TIER_RANK = { witness: 0, vertebra: 1, crescendo: 2 };
 const TIER_MS = { witness: WITNESS_MS, vertebra: VERTEBRA_MS, crescendo: CRESCENDO_MS };
@@ -497,6 +497,12 @@ export function startObserver({ tab } = {}) {
   if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisibility);
   ping();
   schedule();
+}
+
+// tty0:~$ Enter with a command: the eye flicks its chip (eyeReactions 'kernel.enter').
+// Direct, not via the bus: a keystroke is not telemetry (the journal never sees it).
+export function notifyTtyEnter() {
+  react('kernel.enter', 'witness');
 }
 
 export function notifyNav(tab) {

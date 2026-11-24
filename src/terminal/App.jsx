@@ -56,7 +56,7 @@ import { pinnedKernelArticleIds } from './mercury/pinnedKernels';
 import KuramotoVisualizer   from './components/KuramotoVisualizer';
 import { emit as emitObs } from '../observatory/observatoryBus';
 import { usePrivacyDrawer } from './hooks/usePrivacyDrawer';
-import { startObserver, notifyNav, setChromeVisible, getObserver, subscribeObserver } from './quintessence/observerStore';
+import { startObserver, notifyNav, notifyTtyEnter, setChromeVisible, getObserver, subscribeObserver } from './quintessence/observerStore';
 
 // Hooks
 import useSystemLog           from './hooks/useSystemLog';
@@ -871,6 +871,7 @@ const App = () => {
     const rawCmd = commandInput.trim();
     setCommandInput('');
     if (rawCmd) {
+      notifyTtyEnter();                              // the eye flicks its chip (before any load/run takes over)
       setCmdHistory(prev => [rawCmd, ...prev].slice(0, 50));
       setHistoryIdx(-1);
       setSavedInput('');
