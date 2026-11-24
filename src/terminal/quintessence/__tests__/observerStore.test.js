@@ -4,11 +4,14 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   startObserver, notifyNav, subscribeImpulse, getObserver, subscribeObserver,
   NAV_TINTS, FLASH_MS, WITNESS_MS, VERTEBRA_MS, CRESCENDO_MS, _resetObserverForTests,
+  setChromeVisible, QUIET_MS, GLANCE_IN_MS, GLANCE_HOLD_MS, GLANCE_OUT_MS, GLANCE_GAP_MS,
+  IDLE_MS, COOLDOWN_MIN_MS, COOLDOWN_MAX_MS, AFTER_REACTION_MS, WHISPER_MS, PHRASE_BUSY_MS,
+  MOBILE_HOLD_MS,
 } from '../observerStore';
-import { PIECE_TAB, TAB_PIECES } from '../whispers';
+import { PIECE_TAB, TAB_PIECES, RIDDLES } from '../whispers';
 import { setTrend, setCouncil, setPhase, setElement, _resetSpineForTests } from '../spineStore';
 import { STORAGE_KEY } from '../sealedArtifact';
-import { _resetVolatileForTests } from '../volatileHold';
+import { _resetVolatileForTests, holdVolatile } from '../volatileHold';
 import { emit, _resetForTests as _resetBusForTests } from '../../../observatory/observatoryBus';
 import { KICK } from '../../components/observerEyeShader';
 import { LUNAR_ACCORDS } from '../../data/lunarAccords';
@@ -29,6 +32,7 @@ function boot(tab = 'mercury') {
 beforeEach(() => {
   vi.useFakeTimers();
   localStorage.clear();
+  sessionStorage.clear();
   _resetBusForTests();
   _resetSpineForTests();
   _resetVolatileForTests();
@@ -37,6 +41,7 @@ beforeEach(() => {
   impulses = [];
 });
 afterEach(() => {
+  vi.unstubAllGlobals();
   _resetObserverForTests();
   _resetBusForTests();
   _resetSpineForTests();
@@ -264,5 +269,310 @@ describe('whispers tables', () => {
   it('TAB_PIECES inverts PIECE_TAB', () => {
     expect(TAB_PIECES.mercury.sort()).toEqual(['altar.ignite', 'mercury.flick']);
     for (const [piece, tab] of Object.entries(PIECE_TAB)) expect(TAB_PIECES[tab]).toContain(piece);
+  });
+});
+
+describe('observerStore — Task 4 review minors', () => {
+  it('a null payload does not drop a hand event', async () => {
+    boot();
+    emit('ciphers', 'cipher_sealed', null);         // a kind whose bus totals never read the payload
+    await flush();
+    expect(impulses).toHaveLength(1);
+  });
+
+  it('a repeat kernel_ignited while igniting does not ping', () => {
+    boot();
+    emit('edge', 'kernel_ignited', { element: 'FIRE' });
+    const seen = [];
+    subscribeObserver(s => seen.push(s));
+    emit('edge', 'kernel_ignited', { element: 'FIRE' });
+    expect(seen).toHaveLength(0);
+  });
+
+  it('a volatile seal (localStorage refused) starts sealed without a crescendo', async () => {
+    holdVolatile({ hash: 'v' });
+    const refuse = () => { throw new Error('refused'); };
+    vi.stubGlobal('localStorage', { getItem: refuse, setItem: refuse, removeItem: refuse, clear: refuse });
+    boot();
+    await flush();
+    expect(getObserver().sealed).toBe(true);
+    expect(impulses).toHaveLength(0);
+  });
+
+  it('reset unsubscribes from the bus and the spine', async () => {
+    boot();
+    _resetObserverForTests({ now: () => t, random: () => 0 });
+    subscribeImpulse(imp => impulses.push(imp));
+    const before = getObserver();
+    setTrend({ label: 'x', velocity: 0.5 });
+    emit('essences', 'collision_fired', {});
+    emit('edge', 'kernel_ignited', { element: 'FIRE' });
+    await flush();
+    expect(impulses).toHaveLength(0);
+    expect(getObserver()).toBe(before);
+  });
+});
+
+// A hand act whose reaction settles; the forward whisper is due AFTER_REACTION_MS later.
+const act = async () => { emit('essences', 'collision_fired', {}); await flush(); };
+const SETTLE = WITNESS_MS + AFTER_REACTION_MS;
+const press = (type) => window.dispatchEvent(new Event(type));
+// 'privacy' houses no piece, so no idle whisper interferes with glance / forward tests.
+const QUIET_TAB = 'privacy';
+
+describe('observerStore — constants', () => {
+  it('match the brief', () => {
+    expect({
+      QUIET_MS, GLANCE_IN_MS, GLANCE_HOLD_MS, GLANCE_OUT_MS, GLANCE_GAP_MS, IDLE_MS,
+      COOLDOWN_MIN_MS, COOLDOWN_MAX_MS, AFTER_REACTION_MS, WHISPER_MS, PHRASE_BUSY_MS, MOBILE_HOLD_MS,
+    }).toEqual({
+      QUIET_MS: 8000, GLANCE_IN_MS: 1200, GLANCE_HOLD_MS: 3000, GLANCE_OUT_MS: 1500, GLANCE_GAP_MS: 25000,
+      IDLE_MS: 13000, COOLDOWN_MIN_MS: 60000, COOLDOWN_MAX_MS: 90000, AFTER_REACTION_MS: 2500,
+      WHISPER_MS: 6000, PHRASE_BUSY_MS: 5100, MOBILE_HOLD_MS: 30000,
+    });
+  });
+});
+
+describe('observerStore — glances', () => {
+  it('flash_cancels_glance_and_nothing_reasserts', async () => {
+    boot('mercury');
+    await step(QUIET_MS);
+    expect(getObserver().glance).toMatchObject({ reason: 'compass' });
+    notifyNav('kernel');
+    expect(getObserver().glance).toBeNull();
+    await step(1600);
+    expect(getObserver().flash).toBeNull();
+    expect(getObserver().glance).toBeNull();
+    for (let left = QUIET_MS - 1; left > 0; left -= Math.min(500, left)) {
+      await step(Math.min(500, left));
+      expect(getObserver().glance).toBeNull();
+    }
+  });
+
+  it('compass_glance_waits_quiet_window_and_gap', async () => {
+    boot(QUIET_TAB);
+    await step(5000);
+    notifyNav(QUIET_TAB);                       // the quiet window restarts when this flash ends
+    await step(FLASH_MS + QUIET_MS - 1);
+    expect(getObserver().glance).toBeNull();
+    await step(1);
+    expect(getObserver().glance).toEqual({
+      tab: 'bsky', tint: NAV_TINTS.bsky, shimmer: false, reason: 'compass', phase: 'in',
+    });
+    await step(GLANCE_IN_MS);
+    expect(getObserver().glance.phase).toBe('hold');
+    await step(GLANCE_HOLD_MS);
+    expect(getObserver().glance.phase).toBe('out');
+    await step(GLANCE_OUT_MS);
+    expect(getObserver().glance).toBeNull();
+    await step(GLANCE_GAP_MS - 1);
+    expect(getObserver().glance).toBeNull();
+    await step(1);
+    expect(getObserver().glance).toMatchObject({ reason: 'compass', phase: 'in' });
+    // An impulse during a glance cancels it immediately.
+    await act();
+    await flush();
+    expect(getObserver().glance).toBeNull();
+  });
+
+  it('compass_glance_points_at_first_unmarked_vertebra_before_any_mark', async () => {
+    boot(QUIET_TAB);
+    await step(QUIET_MS);
+    expect(getObserver().glance).toMatchObject({ tab: 'bsky', reason: 'compass' });
+    _resetObserverForTests({ now: () => t, random: () => 0 });
+    setTrend({ label: 'x', velocity: 0.5 });
+    boot(QUIET_TAB);
+    await step(QUIET_MS);
+    expect(getObserver().glance).toMatchObject({ tab: 'manifesto', tint: NAV_TINTS.manifesto });
+  });
+
+  it('no_compass_when_armed_or_sealed', async () => {
+    setTrend({ label: 'x', velocity: 0.5 });
+    setCouncil(COUNCIL);
+    setPhase(PHASE);
+    boot(QUIET_TAB);
+    await step(QUIET_MS + GLANCE_GAP_MS);
+    expect(getObserver().glance).toBeNull();
+
+    _resetObserverForTests({ now: () => t, random: () => 0 });
+    _resetSpineForTests();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ hash: 'old' }));
+    boot(QUIET_TAB);
+    await step(QUIET_MS + GLANCE_GAP_MS);
+    expect(getObserver().glance).toBeNull();
+  });
+});
+
+describe('observerStore — whispers', () => {
+  it('idle_whisper_fires_at_IDLE_MS_on_mercury_without_prior_act', async () => {
+    boot('mercury');
+    await step(IDLE_MS - 1);
+    expect(getObserver().whisper).toBeNull();
+    await step(1);
+    expect(getObserver().whisper).toEqual({
+      id: 'mercury.flick:0', text: RIDDLES['mercury.flick'][0], piece: 'mercury.flick',
+    });
+    expect(getObserver().glance).toEqual({
+      tab: 'mercury', tint: null, shimmer: true, reason: 'whisper', phase: 'in',
+    });
+    await step(WHISPER_MS);
+    expect(getObserver().whisper).toBeNull();
+  });
+
+  it('pointermove_does_not_reset_idle_but_pointerdown_does', async () => {
+    boot('mercury');
+    await step(IDLE_MS - 1000);
+    press('pointerdown');
+    await step(1000);
+    expect(getObserver().whisper).toBeNull();
+    await step(IDLE_MS - 1001);
+    expect(getObserver().whisper).toBeNull();
+    await step(1);
+    expect(getObserver().whisper).toMatchObject({ piece: 'mercury.flick' });
+
+    _resetObserverForTests({ now: () => t, random: () => 0 });
+    sessionStorage.clear();
+    boot('mercury');
+    await step(IDLE_MS - 1000);
+    press('pointermove');
+    await step(1000);
+    expect(getObserver().whisper).toMatchObject({ piece: 'mercury.flick' });
+  });
+
+  it('forward_whisper_needs_first_act_and_skips_current_tab', async () => {
+    boot(QUIET_TAB);
+    await step(30000);
+    expect(getObserver().whisper).toBeNull();     // browsing alone never earns a forward whisper
+    notifyNav('mercury');
+    await act();
+    await step(SETTLE - 1);
+    expect(getObserver().whisper).toBeNull();
+    await step(1);
+    // mercury.flick is first in order but the visitor stands on /MERCURY: skip to the first vertebra.
+    expect(getObserver().whisper).toMatchObject({ id: 'bsky.trend:0', piece: 'bsky.trend' });
+    expect(getObserver().glance).toEqual({
+      tab: 'bsky', tint: NAV_TINTS.bsky, shimmer: false, reason: 'whisper', phase: 'in',
+    });
+  });
+
+  it('cooldown_60_90_between_whispers_except_first', async () => {
+    _resetObserverForTests({ now: () => t, random: () => 0.5 });   // cooldown = 75 s
+    boot(QUIET_TAB);
+    await act();
+    await step(SETTLE);
+    const first = getObserver().whisper;
+    expect(first).toMatchObject({ piece: 'mercury.flick' });      // the first whisper waits for no cooldown
+    const firedAt = t;
+    await step(WHISPER_MS);
+    notifyNav('ledger');                                            // idle-eligible, held by the cooldown
+    await step(30000);
+    await act();                                                          // a forward inside the cooldown: dropped
+    await step(SETTLE);
+    expect(getObserver().whisper).toBeNull();
+    await step(firedAt + 75000 - 1 - t);
+    expect(getObserver().whisper).toBeNull();
+    await step(1);
+    expect(getObserver().whisper).toMatchObject({ piece: 'ledger.write' });
+  });
+
+  it('marked_vertebra_never_whispered', async () => {
+    setTrend({ label: 'x', velocity: 0.5 });
+    boot(QUIET_TAB);
+    emit('gaze', 'mercury_flick', { speed: 3, dir: 1, hand: true });
+    await flush();
+    await step(SETTLE);
+    expect(getObserver().whisper).toMatchObject({ piece: 'accretion.collide' });
+    expect(getObserver().glance).toMatchObject({ tab: 'manifesto' });
+  });
+
+  it('spent_survives_store_restart_within_session', async () => {
+    boot(QUIET_TAB);
+    await act();
+    await step(SETTLE);
+    expect(getObserver().whisper.id).toBe('mercury.flick:0');
+    _resetObserverForTests({ now: () => t, random: () => 0 });
+    boot(QUIET_TAB);
+    await step(COOLDOWN_MAX_MS);
+    await act();
+    await step(SETTLE);
+    expect(getObserver().whisper.id).toBe('mercury.flick:1');
+  });
+
+  it('session_storage_throwing_is_volatile_and_safe', async () => {
+    const refuse = () => { throw new Error('refused'); };
+    vi.stubGlobal('sessionStorage', { getItem: refuse, setItem: refuse, removeItem: refuse, clear: refuse });
+    boot(QUIET_TAB);
+    const ids = [];
+    for (let i = 0; i < 3; i++) {
+      await act();
+      await step(SETTLE);
+      ids.push(getObserver().whisper?.id);
+      await step(COOLDOWN_MAX_MS);
+    }
+    expect(ids).toEqual(['mercury.flick:0', 'mercury.flick:1', 'mercury.flick:2']);
+  });
+
+  it('whisper_waits_for_chrome_and_drops_unspent_after_30s', async () => {
+    boot(QUIET_TAB);
+    setChromeVisible(false);
+    await act();
+    await step(SETTLE);
+    expect(getObserver().whisper).toBeNull();
+    expect(getObserver().wantsChrome).toBe(false);
+    await step(MOBILE_HOLD_MS - 1);
+    setChromeVisible(true);
+    expect(getObserver().whisper).toMatchObject({ id: 'mercury.flick:0' });
+    expect(getObserver().glance).toMatchObject({ reason: 'whisper' });
+
+    await step(COOLDOWN_MAX_MS);
+    setChromeVisible(false);
+    await act();
+    await step(SETTLE);
+    expect(getObserver().whisper).toBeNull();
+    await step(MOBILE_HOLD_MS);
+    setChromeVisible(true);
+    expect(getObserver().whisper).toBeNull();     // dropped
+    await act();
+    await step(SETTLE);
+    expect(getObserver().whisper).toMatchObject({ id: 'mercury.flick:1' });   // the dropped id was never spent
+  });
+
+  it('wantsChrome_true_during_whisper_and_crescendo', async () => {
+    boot(QUIET_TAB);
+    expect(getObserver().wantsChrome).toBe(false);
+    await act();
+    await step(SETTLE);
+    expect(getObserver().wantsChrome).toBe(true);
+    await step(WHISPER_MS);
+    expect(getObserver().wantsChrome).toBe(false);
+    emit('edge', 'kernel_ignited', { element: 'FIRE' });
+    expect(getObserver().wantsChrome).toBe(true);
+    emit('edge', 'kernel_sealed', { hash: 'h' });
+    await step(CRESCENDO_MS - 1);
+    expect(getObserver().wantsChrome).toBe(true);
+    await step(1);
+    expect(getObserver().wantsChrome).toBe(false);
+  });
+
+  it('whisper_waits_while_kernel_phrase_busy', async () => {
+    boot(QUIET_TAB);
+    emit('transmissions', 'kernel_loaded', {});
+    await flush();
+    await step(SETTLE);
+    expect(getObserver().whisper).toBeNull();
+    await step(PHRASE_BUSY_MS - SETTLE - 1);
+    expect(getObserver().whisper).toBeNull();
+    await step(1);
+    expect(getObserver().whisper).toMatchObject({ piece: 'mercury.flick' });
+  });
+
+  it('riddles_have_no_ui_verbs', () => {
+    for (const piece of Object.keys(PIECE_TAB)) expect(RIDDLES[piece]?.length).toBeGreaterThanOrEqual(2);
+    for (const lines of Object.values(RIDDLES)) {
+      for (const line of lines) {
+        expect(line).not.toMatch(/\b(click|press|tap|go to|scroll)\b/i);
+        expect(line).toBe(line.toLowerCase());
+      }
+    }
   });
 });
