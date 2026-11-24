@@ -448,6 +448,20 @@ describe('observerStore — whispers', () => {
     expect(getObserver().whisper).toBeNull();
   });
 
+  it('tab_navigated moves activeTab: the idle whisper targets the new tab', async () => {
+    boot(QUIET_TAB);
+    emit('gaze', 'tab_navigated', { tab: 'ledger' });   // e.g. return-to-root, search
+    await step(IDLE_MS);
+    expect(getObserver().whisper).toMatchObject({ piece: 'ledger.write' });
+  });
+
+  it('tab_navigated to privacy (the drawer) does not move activeTab', async () => {
+    boot('ledger');
+    emit('gaze', 'tab_navigated', { tab: 'privacy' });
+    await step(IDLE_MS + 2000);
+    expect(getObserver().whisper).toMatchObject({ piece: 'ledger.write' });
+  });
+
   it('pointermove_does_not_reset_idle_but_pointerdown_does', async () => {
     boot('mercury');
     await step(IDLE_MS - 1000);

@@ -294,8 +294,10 @@ function onBus({ category, kind, payload }) {
   }
   if (key === 'edge/kernel_ignite_ended') { if (igniting) { igniting = false; ping(); } return; }
   if (key === 'gaze/tab_navigated') {
-    // The privacy drawer emits this and never calls notifyNav: the eye looks back.
+    // The privacy drawer emits this and never calls notifyNav: the eye looks back. The drawer
+    // opens over /SURVEILLANCE, so it is not a place the visitor stands.
     if (p.tab === 'privacy') react('surveillance.privacy', 'witness');
+    else if (typeof p.tab === 'string' && p.tab) { activeTab = p.tab; schedule(); }
     return;
   }
   const rule = RULES[key];

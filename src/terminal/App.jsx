@@ -625,6 +625,7 @@ const App = () => {
     setTagCloudView(false);
     setActiveTab(targetTab);
     emitObs('gaze', 'tab_navigated', { tab: targetTab });
+    setTimeout(() => notifyNav(targetTab), 0);   // deferred like handleNav: the eye flashes the hue
     setCurrentPath('~/' + targetTab);
   }, [originTab]);
 
@@ -718,6 +719,7 @@ const App = () => {
     const path = `~/system/${tab}/${article.id}`;
     setActiveTab(tab);
     emitObs('gaze', 'tab_navigated', { tab });
+    setTimeout(() => notifyNav(tab), 0);         // deferred like handleNav
     if (tab === 'kernel' && article?.id)
       emitObs('gaze', 'kernel_consulted', { articleId: article.id }); // THE LINKER: consult witness
     setOriginTab(tab);
