@@ -518,7 +518,7 @@ describe('observerStore — whispers', () => {
     await act();
     await step(SETTLE);
     expect(getObserver().whisper).toBeNull();
-    expect(getObserver().wantsChrome).toBe(false);
+    expect(getObserver().wantsChrome).toBe(true);    // a held whisper asks for the masthead (D16)
     await step(MOBILE_HOLD_MS - 1);
     setChromeVisible(true);
     expect(getObserver().whisper).toMatchObject({ id: 'mercury.flick:0' });
@@ -535,6 +535,45 @@ describe('observerStore — whispers', () => {
     await act();
     await step(SETTLE);
     expect(getObserver().whisper).toMatchObject({ id: 'mercury.flick:1' });   // the dropped id was never spent
+  });
+
+  it('held whisper asks for chrome; chrome returning shows it', async () => {
+    boot(QUIET_TAB);
+    setChromeVisible(false);
+    await act();
+    await step(SETTLE);
+    expect(getObserver()).toMatchObject({ whisper: null, wantsChrome: true });
+    setChromeVisible(true);
+    expect(getObserver().whisper).toMatchObject({ id: 'mercury.flick:0' });
+    expect(getObserver().wantsChrome).toBe(true);
+    await step(WHISPER_MS);
+    expect(getObserver().wantsChrome).toBe(false);
+  });
+
+  it('a held whisper dropped after 30 s stops asking for chrome', async () => {
+    boot(QUIET_TAB);
+    setChromeVisible(false);
+    await act();
+    await step(SETTLE);
+    expect(getObserver().wantsChrome).toBe(true);
+    await step(MOBILE_HOLD_MS);
+    expect(getObserver().wantsChrome).toBe(false);
+  });
+
+  it('no forward-whisper glance during a nav flash', async () => {
+    boot(QUIET_TAB);
+    await act();
+    await step(SETTLE - 600);
+    notifyNav('ledger');                           // flash outlives the forward deadline
+    for (let left = FLASH_MS; left > 0; left -= 100) {
+      await step(100);
+      const o = getObserver();
+      if (o.flash) expect(o.glance).toBeNull();
+    }
+    expect(getObserver().flash).toBeNull();
+    await step(0);
+    expect(getObserver().whisper).toMatchObject({ piece: 'mercury.flick' });   // deferred, not lost
+    expect(getObserver().glance).toMatchObject({ reason: 'whisper', tab: 'mercury' });
   });
 
   it('wantsChrome_true_during_whisper_and_crescendo', async () => {

@@ -101,6 +101,7 @@ const TIER_MS = { witness: WITNESS_MS, vertebra: VERTEBRA_MS, crescendo: CRESCEN
 const emptyTrail = () => ({ touched: {}, spent: {}, idleSpent: {}, lastWhisperAt: null, actedOnce: false });
 
 let flash = null;               // { tab, tint } | null
+let flashUntil = 0;             // no whisper (and its glance) starts before the flash ends
 let igniting = false;
 let sealed = false;
 let sealedAt = null;            // this visit's seal (a reload's seal plays no crescendo)
@@ -132,7 +133,8 @@ const listeners = new Set();
 const impulseListeners = new Set();
 
 function wantsChromeAt(t) {
-  return !!whisper || igniting || (sealedAt !== null && t < sealedAt + CRESCENDO_MS);
+  // A held whisper asks for the masthead too (D16): App reveals it, setChromeVisible releases it.
+  return !!whisper || !!held || igniting || (sealedAt !== null && t < sealedAt + CRESCENDO_MS);
 }
 
 function buildSnap() {
@@ -366,7 +368,8 @@ function tick() {
     lastInputAt = t;                               // the idle clock starts over, no tight retry
   }
 
-  if (!whisper && !held && t >= phraseBusyUntil) {
+  // Never during a nav flash: a whisper glance would put a third hue up beside the flash.
+  if (!whisper && !held && t >= phraseBusyUntil && t >= flashUntil) {
     if (forwardAt !== null && t >= forwardAt) {
       forwardAt = null;
       const piece = trail.actedOnce && t >= cooldownEnd() ? pickPiece({ skipTab: activeTab }) : null;
@@ -405,8 +408,8 @@ function schedule() {
   if (held) due.push(held.since + MOBILE_HOLD_MS);
   if (sealedAt !== null) due.push(sealedAt + CRESCENDO_MS);
   if (!whisper && !held) {
-    if (forwardAt !== null) due.push(Math.max(forwardAt, phraseBusyUntil));
-    if (idleEligible()) due.push(Math.max(lastInputAt + IDLE_MS, cooldownEnd(), phraseBusyUntil));
+    if (forwardAt !== null) due.push(Math.max(forwardAt, phraseBusyUntil, flashUntil));
+    if (idleEligible()) due.push(Math.max(lastInputAt + IDLE_MS, cooldownEnd(), phraseBusyUntil, flashUntil));
   }
   if (compassTarget() && !glance && !whisper) due.push(Math.max(quietFrom + QUIET_MS, compassEndAt + GLANCE_GAP_MS));
   // Every deadline listed here is consumed or moved by tick, so an overdue one runs at 0 ms
@@ -459,7 +462,9 @@ export function notifyNav(tab) {
   held = null;                                     // a whisper held for the old tab's chrome is moot
   clearTimeout(flashTimer);
   flash = { tab, tint: NAV_TINTS[tab] || NAV_TINTS.mercury };
-  quietFrom = Math.max(quietFrom, t + FLASH_MS);
+  flashUntil = t + FLASH_MS;
+  quietFrom = Math.max(quietFrom, flashUntil);
+  if (forwardAt !== null) forwardAt = Math.max(forwardAt, flashUntil);   // deferred past the flash, not lost
   if (glance) endGlance(t);                        // a flash cancels a glance, and nothing reasserts it
   flashTimer = setTimeout(() => { flash = null; ping(); }, FLASH_MS);
   ping();
@@ -487,7 +492,7 @@ export function _resetObserverForTests({ random, now: clock } = {}) {
   if (unsubBus) { unsubBus(); unsubBus = null; }
   if (unsubSpine) { unsubSpine(); unsubSpine = null; }
   if (typeof window !== 'undefined') INPUT_EVENTS.forEach(ev => window.removeEventListener(ev, onInput, INPUT_OPTS));
-  flash = null; igniting = false; sealed = false; sealedAt = null; remarkedSinceSeal = false;
+  flash = null; flashUntil = 0; igniting = false; sealed = false; sealedAt = null; remarkedSinceSeal = false;
   activeTab = null; spine = null; active = null;
   pending = new Map(); flushQueued = false; started = false;
   trail = emptyTrail(); cooldownMs = COOLDOWN_MIN_MS;
