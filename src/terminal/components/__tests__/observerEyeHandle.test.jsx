@@ -24,6 +24,8 @@ vi.mock('../../gl/glHost', async (importOriginal) => {
 
 const FRAME_MS = 16;
 const NEW_UNIFORMS = ['u_core', 'u_orbit', 'u_shimmer', 'u_thread', 'u_turb', 'u_kick', 'u_kickKind', 'u_kickDir'];
+// u_phase is not in NEW_UNIFORMS: it is the integrated swirl phase, non-zero
+// by design whenever the eye moves (v1's u_t*u_speed).
 const asVec3 = (c) => Array.from(new Float32Array([c[0] / 255, c[1] / 255, c[2] / 255]));
 
 let rec;
@@ -149,6 +151,30 @@ describe('ObserverEye imperative handle', () => {
     expect(f[f.length - 1].u.u_thread).toBeGreaterThan(0.99);
   });
 
+  it('phase_is_uptime_independent', () => {
+    // The swirl phase is integrated (speed·dt), not u_t·speed, so the same
+    // detonation advances it by the same amount 5 s or 1 h after load.
+    // Nothing is mounted while the clock jumps, so no frames are run.
+    const advanceOverDetonation = (mountAtMs) => {
+      vi.advanceTimersByTime(mountAtMs - performance.now());
+      const ref = createRef();
+      const { unmount } = render(<ObserverEye ref={ref} state="aether" size={64} />);
+      frames(60);
+      const before = valuesOf('u_phase').at(-1);
+      ref.current.detonate();
+      frames(Math.ceil(5700 / FRAME_MS));
+      const after = valuesOf('u_phase').at(-1);
+      unmount();
+      rec.log.length = 0;
+      return { start: performance.now(), advance: after - before };
+    };
+    const early = advanceOverDetonation(4000);
+    const late = advanceOverDetonation(3599000);
+    expect(late.start).toBeGreaterThan(3600000);
+    expect(early.advance).toBeGreaterThan(0.5);   // non-vacuous: the storm really spins
+    expect(Math.abs(late.advance - early.advance) / early.advance).toBeLessThan(0.01);
+  });
+
   it('handle_is_noop_without_host', () => {
     hostless.on = true;
     const ref = createRef();
@@ -197,6 +223,7 @@ describe('ObserverEye imperative handle', () => {
     expect(drawCount(mark)).toBe(2);
     expect(valuesOf('c0', mark)[1]).toEqual(asVec3([210, 220, 232]));
     expect(valuesOf('u_t').every((t) => t === 0)).toBe(true);
+    expect(valuesOf('u_phase').every((p) => p === 0)).toBe(true);
   });
 
   it('reduced_motion_detonate_holds_flash_then_baseline', () => {
@@ -213,5 +240,6 @@ describe('ObserverEye imperative handle', () => {
     expect(valuesOf('u_thread', mark)[1]).toBe(1);
     expect(valuesOf('c0', mark)[1]).toEqual(asVec3([210, 220, 232]));
     expect(valuesOf('u_t').every((t) => t === 0)).toBe(true);
+    expect(valuesOf('u_phase').every((p) => p === 0)).toBe(true);
   });
 });

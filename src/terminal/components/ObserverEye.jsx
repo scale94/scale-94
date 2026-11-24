@@ -54,6 +54,8 @@ const DECAY_FLOOR = Math.exp(-4);
 const IMPLODE_S = 0.25, DETONATE_S = 0.35, STORM_S = 2.0, SETTLE_S = 3.0;
 const CRESCENDO_S = IMPLODE_S + DETONATE_S + STORM_S + SETTLE_S;
 const WHITE_GOLD = [255, 236, 180];
+// Turbulence also speeds the swirl: phase rate = speed + TURB_SPEED·turb.
+const TURB_SPEED = 0.25;
 // Reduced motion: how long the crescendo's static flash holds.
 const RM_FLASH_MS = (IMPLODE_S + DETONATE_S + STORM_S) * 1000;
 
@@ -154,7 +156,7 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
         orbit: start.charge ? CHARGE_ORBIT[0] : (start.orbit || 0),
         shimmer: Math.max(start.shimmer || 0, clamp01(shimmerRef.current)),
         thread: clamp01(threadRef.current),
-        chargeT0: null, kick: null, cres: null, hold: null, kickOut: 0,
+        chargeT0: null, kick: null, cres: null, hold: null, kickOut: 0, phase: 0,
       };
     },
 
@@ -184,7 +186,12 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
         cur.shimmer = lerp(cur.shimmer, tShimmer, e);
         cur.thread = lerp(cur.thread, tThread, e);
       }
-      paint(host, overlay(cur, tsec), tsec);
+      // The swirl phase is integrated, so a speed change (state ease,
+      // detonation ×4, storm turbulence) never jumps it by u_t·Δspeed.
+      const o = overlay(cur, tsec);
+      if (dt > 0) cur.phase += (o.speed + TURB_SPEED * o.turb) * dt;
+      o.phase = cur.phase;
+      paint(host, o, tsec);
     },
 
     onSnap(host) {
@@ -225,7 +232,7 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
     return {
       cols: cur.cols, speed: cur.speed, focus: cur.focus, irid: cur.irid, pulse: cur.pulse,
       gaze: cur.gaze, core: cur.core, orbit: cur.orbit, shimmer: cur.shimmer, thread: cur.thread,
-      turb: 0, kick: 0, kickKind: 0, kickDir: 0,
+      turb: 0, kick: 0, kickKind: 0, kickDir: 0, phase: 0,
     };
   }
 
@@ -293,6 +300,7 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
     gl.uniform1f(U.u_kick, o.kick);
     gl.uniform1f(U.u_kickKind, o.kickKind);
     gl.uniform1f(U.u_kickDir, o.kickDir);
+    gl.uniform1f(U.u_phase, o.phase);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
 

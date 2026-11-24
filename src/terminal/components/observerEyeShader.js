@@ -5,6 +5,10 @@
 // multiplied by, or branched on, its own uniform, so all-zero new uniforms
 // reproduce v1's pixels (eyeParity gates it). Budget: still exactly 4 fbm
 // calls × 5 octaves, no textures; the additions are cheap analytic terms.
+//
+// u_phase replaces v1's `u_t*u_speed` swirl phase. JS integrates it
+// (phase += speed·dt), so a speed change never shifts the phase by u_t·Δspeed
+// (which made transitions spin faster the longer the page had been open).
 
 // Reaction primitives (spec §5.5). `u_kickKind` carries one of these.
 export const KICK = {
@@ -16,7 +20,7 @@ export const VS = 'attribute vec2 a;varying vec2 v;void main(){v=a;gl_Position=v
 export const FS = [
   'precision highp float;varying vec2 v;',
   'uniform float u_t,u_focus,u_irid,u_speed,u_pulse;uniform vec3 c0,c1,c2;uniform vec2 u_gaze;',
-  'uniform float u_core,u_orbit,u_shimmer,u_thread,u_turb,u_kick,u_kickKind,u_kickDir;',
+  'uniform float u_core,u_orbit,u_shimmer,u_thread,u_turb,u_kick,u_kickKind,u_kickDir,u_phase;',
   'float hash(vec2 p){p=fract(p*vec2(123.34,345.45));p+=dot(p,p+34.5);return fract(p.x*p.y);}',
   'float vn(vec2 p){vec2 i=floor(p),f=fract(p);vec2 u=f*f*(3.-2.*f);',
   ' float a=hash(i),b=hash(i+vec2(1,0)),c=hash(i+vec2(0,1)),d=hash(i+vec2(1,1));',
@@ -38,7 +42,7 @@ export const FS = [
   ' vec2 uv=v-g;',
   ' float r=length(uv);',
   ' float ang=atan(uv.y,uv.x);',
-  ' float sw=u_t*(u_speed+u_turb*0.25)+(1.0/(r+0.16))*(0.55+fk*1.5)*(1.0+0.6*u_orbit);',
+  ' float sw=u_phase+(1.0/(r+0.16))*(0.55+fk*1.5)*(1.0+0.6*u_orbit);',
   ' if(K>0.0&&isK(4.)) sw+=K*1.3*sin(3.0*ang+kd*u_t*1.5);', // split: the swirl forks into lobes
   ' sw+=swk;',
   ' float ca=cos(sw),sa=sin(sw);vec2 sp=mat2(ca,-sa,sa,ca)*uv;',
@@ -102,5 +106,5 @@ export const FS = [
 
 export const UNIFORMS = [
   'u_t', 'u_focus', 'u_irid', 'u_speed', 'u_pulse', 'c0', 'c1', 'c2', 'u_gaze',
-  'u_core', 'u_orbit', 'u_shimmer', 'u_thread', 'u_turb', 'u_kick', 'u_kickKind', 'u_kickDir',
+  'u_core', 'u_orbit', 'u_shimmer', 'u_thread', 'u_turb', 'u_kick', 'u_kickKind', 'u_kickDir', 'u_phase',
 ];

@@ -3,7 +3,8 @@
 // Compiles the frozen v1 fragment shader (scripts/fixtures/observerEyeFS.v1.glsl)
 // and the current FS (src/terminal/components/observerEyeShader.js) on two
 // 128x128 WebGL canvases, drives both with the same uniforms for every state row,
-// and compares readPixels. Any uniform the current FS has that v1 lacks is set to 0.
+// and compares readPixels. Any uniform the current FS has that v1 lacks is set to 0,
+// except u_phase, which is set to u_t*u_speed (v1's swirl phase at constant speed).
 //
 //   node scripts/eyeParity.mjs     exit 0 = parity, 1 = per-row report
 //
@@ -11,6 +12,7 @@
 // more than 0.1% of its pixels differ, OR if any single channel anywhere is off
 // by more than 16/255 (a few wrong pixels can still be a visible defect).
 import { readFileSync } from 'node:fs';
+import process from 'node:process';
 import { launch } from './cdp.mjs';
 import { VS, FS } from '../src/terminal/components/observerEyeShader.js';
 
@@ -47,7 +49,9 @@ for (const [name, s] of variants) for (const t of [0, 7.3, 41.9]) for (const pul
   rows.push({
     label: `${name} t=${t} pulse=${pulse}`,
     u: {
-      u_t: t, u_focus: s.focus, u_irid: s.irid, u_speed: s.speed, u_pulse: pulse,
+      // u_phase (current FS only) is the swirl phase JS integrates; at constant
+      // speed it is definitionally v1's u_t*u_speed.
+      u_t: t, u_phase: t * s.speed, u_focus: s.focus, u_irid: s.irid, u_speed: s.speed, u_pulse: pulse,
       c0: nrm(s.cols[0]), c1: nrm(s.cols[1]), c2: nrm(s.cols[2]), u_gaze: s.gaze,
     },
   });
@@ -78,7 +82,7 @@ function mk(fs) {
   const U = {}, extra = [];
   const n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS);
   for (let i = 0; i < n; i++) {
-    const info = gl.getActiveUniform(p, i); const name = info.name.replace(/\[0\]$/, '');
+    const info = gl.getActiveUniform(p, i); const name = info.name.replace(/\\[0\\]$/, '');
     U[name] = gl.getUniformLocation(p, info.name);
     if (!V1U.includes(name)) extra.push({ name, type: info.type });
   }
@@ -94,7 +98,8 @@ function draw(h, u) {
     else if (v.length === 2) gl.uniform2fv(loc, new Float32Array(v));
     else gl.uniform3fv(loc, new Float32Array(v));
   }
-  for (const x of h.extra) {   // new uniforms: zero
+  for (const x of h.extra) {   // new uniforms the row does not set: zero
+    if (x.name in u) continue;
     const loc = U[x.name];
     if (x.type === gl.FLOAT) gl.uniform1f(loc, 0);
     else if (x.type === gl.FLOAT_VEC2) gl.uniform2fv(loc, new Float32Array(2));
