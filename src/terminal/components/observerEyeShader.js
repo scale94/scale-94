@@ -14,6 +14,7 @@
 export const KICK = {
   inhale: 1, miosis: 2, merge: 3, split: 4, quantize: 5, ring: 6, sag: 7,
   ripple: 8, packet: 9, stare: 10, shove: 11, spiral: 12, sweep: 13, flutter: 14,
+  watch: 15,   // neutral: no shader term of its own (a timeline moves gaze / focus)
 };
 
 // Shape morphs (u_shape). The pupil/disc *become* a figure by SDF blends, the nebula
@@ -50,7 +51,7 @@ export const FS = [
   '  if(isK(7.)) fk-=0.22*K;',                            // sag: focus drops
   '  if(isK(10.)){fk=mix(fk,0.75,K);g*=1.0-K;}',           // stare: gaze to centre, iris narrows
   '  if(isK(11.)) swk+=kd*2.4*K;',                        // shove: rotation jerks, coasts back
-  '  if(u_kickKind>11.5) fk=mix(fk,0.75,K);',              // vertebrae: deep contraction
+  '  if(u_kickKind>11.5&&u_kickKind<14.5) fk=mix(fk,0.75,K);', // vertebrae: deep contraction
   ' }',
   ' vec2 uv=v-g;',
   // Foreshortening: a gazing eye narrows along its gaze so the shifted disc (radius 1)
@@ -104,7 +105,7 @@ export const FS = [
   '  if(isK(13.)){float e=mix(1.1,-1.1,K);float x=kd<0.0?-uv.x:uv.x;', // terminator sweep (lunar)
   '   col*=1.0-0.8*smoothstep(e-0.1,e+0.1,x);}',
   '  if(isK(14.)) col*=1.0+K*0.55*cos(2.0*ang)*sin(u_t*31.0);', // two-lobed flutter (bsky)
-  '  if(u_kickKind>11.5) col*=1.0+0.6*K*K*K;',             // vertebrae: sharp pulse
+  '  if(u_kickKind>11.5&&u_kickKind<14.5) col*=1.0+0.6*K*K*K;', // vertebrae: sharp pulse
   ' }',
   ' if(u_shimmer>0.0){',                                 // ridge glints: gold / ice / violet
   '  vec3 w=0.5+0.5*cos(6.2831*(ang/6.2831*2.0+u_t*0.07-vec3(0.0,0.3333,0.6667)));w*=w;',

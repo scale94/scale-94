@@ -1,6 +1,6 @@
 // eyeReactions.test.js — the per-piece choreography table and how an impulse becomes a kick.
 import { describe, it, expect } from 'vitest';
-import { REACTIONS, reactionKick, BSKY_EXIT, TX_IGNITE, ACC_TAG, EJECT_OUT, SCENT_HIT } from '../eyeReactions';
+import { REACTIONS, reactionKick, BSKY_EXIT, TX_IGNITE, ACC_TAG, EJECT_OUT, SCENT_HIT, surveillanceTrace } from '../eyeReactions';
 import { KICK, SHAPE } from '../observerEyeShader';
 
 const last = (keys, f) => keys.slice().sort((a, b) => a.t - b.t).at(-1)[f];
@@ -189,6 +189,49 @@ describe('eyeReactions', () => {
     const xs = Array.from({ length: 300 }, (_, i) => i / 299);
     const T = xs.map((x) => r.curve(x, {}).turn);
     T.slice(1).forEach((t, i) => expect(t).toBeGreaterThanOrEqual(T[i] - 1e-12));
+  });
+
+  it('surveillance_gaze_travels_the_route_headings', () => {
+    // SE click: north to DE, then west to US (the plan's example), no source dwell.
+    const data = { heads: [[0, -1], [-1, 0]], dwellMs: 0, hopMs: 700, cues: [700], durationMs: 1400 };
+    const r = surveillanceTrace(data);
+    expect(r.kind).toBe(KICK.watch);
+    const D = r.durationMs / 1000;
+    const at = (t) => r.curve(t / D, {});
+    // Mid first hop: looking south (screen-down), on target.
+    expect(at(0.5).gazeY).toBeCloseTo(-0.22, 3);
+    expect(Math.abs(at(0.5).gazeX)).toBeLessThan(1e-9);
+    // Mid second hop: looking west.
+    expect(at(1.2).gazeX).toBeCloseTo(-0.22, 3);
+    // It travels, never teleports: per-ms change stays small across each bounce.
+    const ts = Array.from({ length: 1600 }, (_, i) => i / 1000);
+    const g = ts.map((t) => at(t));
+    const step = g.slice(1).map((p, i) => Math.hypot(p.gazeX - g[i].gazeX, p.gazeY - g[i].gazeY));
+    expect(Math.max(...step)).toBeLessThan(0.005);
+    // A flinch at the interception cue, and back to centre after landing.
+    expect(at(0.7).focus).toBeGreaterThan(at(0.45).focus + 0.2);
+    expect(Math.hypot(at(D).gazeX, at(D).gazeY)).toBeLessThan(1e-6);
+    expect(at(D).level).toBe(0);
+  });
+
+  it('surveillance_lock_holds_until_replaced_or_released', () => {
+    const r = REACTIONS['surveillance.lock'];
+    expect(r.tag).toBe(REACTIONS['surveillance.release'].tag);
+    expect(r.durationMs).toBeGreaterThanOrEqual(30000);
+    for (const s of [1, 8, 20]) {
+      const d = r.curve(s / (r.durationMs / 1000), {});
+      expect(d.focus).toBeGreaterThan(0.3);
+      expect(d.level).toBeGreaterThan(0.75);
+    }
+    expect(surveillanceTrace({ heads: [], durationMs: 0 }).tag).toBe(r.tag);   // the trace takes over in family
+  });
+
+  it('surveillance_trace_is_built_per_impulse', () => {
+    const k = reactionKick({ piece: 'surveillance.trace', kind: KICK.watch, tint: [1, 2, 3], dir: 1, durationMs: 1100,
+      data: { heads: [[1, 0]], dwellMs: 450, hopMs: 700, cues: [], durationMs: 1150 } });
+    expect(typeof k.curve).toBe('function');
+    expect(k.durationMs).toBeGreaterThan(1150);
+    expect(reactionKick({ piece: 'surveillance.trace', kind: KICK.watch, tint: null, dir: 1, durationMs: 1100 }).curve).toBeUndefined();
   });
 
   it('impulse_overlays_its_choreography', () => {

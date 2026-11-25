@@ -7,8 +7,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   NOW_STEP, route, lawsFiring, packetFate, fateLine, trunkIndex,
 } from '../../lib/interceptLattice';
-import { buildTimeline, FADE_MS } from '../../lib/interceptPacket';
+import { buildTimeline, FADE_MS, HOP_MS } from '../../lib/interceptPacket';
 import { nodeXY } from './interceptGeometry';
+import { notifySurveillance } from '../../quintessence/observerStore';
 
 export const KEPT_CAP = 12;
 export const WORD_MS = 1600;
@@ -17,6 +18,10 @@ const clearTimers = (ref) => {
   ref.current.forEach(clearTimeout);
   ref.current = [];
 };
+
+// The visitor's first input on the lattice: the masthead eye locks on (ancillary).
+const lockEye = () => { try { notifySurveillance('lock'); } catch (_) { /* ancillary */ } };
+const releaseEye = () => { try { notifySurveillance('release'); } catch (_) { /* ancillary */ } };
 
 export function useInterceptSession(laws) {
   const [step, setStep] = useState(NOW_STEP);
@@ -34,7 +39,7 @@ export function useInterceptSession(laws) {
   const timersRef = useRef([]);
   const packetRef = useRef(null);
 
-  useEffect(() => () => clearTimers(timersRef), []);
+  useEffect(() => () => { clearTimers(timersRef); releaseEye(); }, []);
 
   const path = useMemo(() => (src && dst ? route(src, dst, waypoints) : null), [src, dst, waypoints]);
 
@@ -77,6 +82,18 @@ export function useInterceptSession(laws) {
 
     const tl = buildTimeline(path, events, nodeXY);
     packetRef.current = { timeline: tl, start: performance.now() };
+    // The masthead eye follows the packet: each hop's compass heading on the map (screen y
+    // flipped to up), with the timeline's timing. Headings only - no node, no route id - and
+    // straight to the eye, never to storage (spec §1, §7).
+    try {
+      const heads = [];
+      for (let h = 1; h < tl.pts.length; h++) {
+        const dx = tl.pts[h][0] - tl.pts[h - 1][0], dy = tl.pts[h - 1][1] - tl.pts[h][1];
+        const m = Math.hypot(dx, dy);
+        heads.push(m > 1e-6 ? [dx / m, dy / m] : [0, 0]);
+      }
+      notifySurveillance('trace', { heads, dwellMs: tl.srcDwell, hopMs: HOP_MS, cues: tl.cues.map((c) => c.t), durationMs: tl.durationMs });
+    } catch (_) { /* the eye is ancillary */ }
     setHop(0);
     tl.hopTimes.forEach((t, h) => {
       if (h > 0) timersRef.current.push(setTimeout(() => setHop(h), t));
@@ -102,8 +119,8 @@ export function useInterceptSession(laws) {
   // First click picks the source, second the destination; a bend adds a
   // waypoint; clicking the source again clears the route (spec §9).
   const activate = useCallback((id, { bend = false } = {}) => {
-    if (!src) { setSrc(id); return 'src'; }
-    if (id === src) { setSrc(null); setDst(null); setWaypoints([]); return 'reset'; }
+    if (!src) { setSrc(id); lockEye(); return 'src'; }
+    if (id === src) { setSrc(null); setDst(null); setWaypoints([]); releaseEye(); return 'reset'; }
     if (!dst) { setDst(id); return 'dst'; }
     if (bend) {
       if (id === dst || waypoints.includes(id)) return null;
@@ -111,6 +128,7 @@ export function useInterceptSession(laws) {
       return 'bend';
     }
     setSrc(id); setDst(null); setWaypoints([]);
+    lockEye();
     return 'src';
   }, [src, dst, waypoints]);
 

@@ -6,7 +6,7 @@ import {
   NAV_TINTS, FLASH_MS, WITNESS_MS, VERTEBRA_MS, CRESCENDO_MS, _resetObserverForTests,
   setChromeVisible, QUIET_MS, GLANCE_IN_MS, GLANCE_HOLD_MS, GLANCE_OUT_MS, GLANCE_GAP_MS,
   IDLE_MS, COOLDOWN_MIN_MS, COOLDOWN_MAX_MS, AFTER_REACTION_MS, WHISPER_MS, PHRASE_BUSY_MS,
-  MOBILE_HOLD_MS, glanceLevel, GLANCE_TOTAL_MS, notifyTtyEnter, notifyAccretion,
+  MOBILE_HOLD_MS, glanceLevel, GLANCE_TOTAL_MS, notifyTtyEnter, notifyAccretion, notifySurveillance,
 } from '../observerStore';
 import { PIECE_TAB, TAB_PIECES, RIDDLES } from '../whispers';
 import { setTrend, setCouncil, setPhase, setElement, _resetSpineForTests } from '../spineStore';
@@ -756,6 +756,19 @@ describe('observerStore — whispers', () => {
     expect(impulses.map((i) => i.piece)).toEqual(['accretion.release']);   // synchronous, no queue
     expect(impulses[0].kind).not.toBe(0);                                    // 0 would detonate
     expect(JSON.parse(localStorage.getItem('observer_trail_v1') || '{}').touched?.['accretion.release']).toBeUndefined();
+  });
+
+  it('surveillance_reaches_the_eye_but_never_storage', () => {
+    boot('surveillance');
+    const before = localStorage.getItem('observer_trail_v1');
+    notifySurveillance('lock');
+    notifySurveillance('trace', { heads: [[1, 0]], dwellMs: 0, hopMs: 700, cues: [], durationMs: 700 });
+    notifySurveillance('trace');                                     // no route: nothing
+    notifySurveillance('release');
+    expect(impulses.map((i) => i.piece)).toEqual(['surveillance.lock', 'surveillance.trace', 'surveillance.release']);
+    expect(impulses[0]).toMatchObject({ kind: KICK.stare, tint: NAV_TINTS.surveillance });
+    expect(impulses[1].data.heads).toEqual([[1, 0]]);
+    expect(localStorage.getItem('observer_trail_v1')).toBe(before);
   });
 
   it('scent_collision_carries_both_accord_colours', async () => {

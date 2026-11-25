@@ -202,7 +202,60 @@ export function solRelease(x, d) {
   return d;
 }
 
+// /SURVEILLANCE — the eye watches the packet. 'lock' (a source picked): it locks on and
+// HOLDS — iris narrowed, tinted, a slow watchful breath — until the destination sends the
+// packet (the trace takes over) or the route is cleared / the tab left (release). 'trace' (a packet sent): the pupil travels along the route —
+// at each bounce it swings (0.22 s, never a teleport) to look along the next hop's compass
+// heading, holds it while the packet crosses, flinches (a sharp contraction) at every
+// interception the timeline cues, and returns to centre after the packet lands.
+// data (from useInterceptSession): { heads: [[x, y] unit, screen-up = +y] per hop,
+// dwellMs, hopMs, cues: [ms], durationMs }.
+const SV_GAZE = 0.22;      // gaze reach (the foreshortening keeps the disc inside the canvas)
+const SV_SWING = 0.22;     // s, one swing between headings
+const SV_RETURN = 0.45;    // s, back to centre after landing
+export function surveillanceTrace(data) {
+  const heads = Array.isArray(data?.heads) ? data.heads : [];
+  const dwell = (data?.dwellMs ?? 0) / 1000, hop = (data?.hopMs ?? 700) / 1000;
+  const cues = (Array.isArray(data?.cues) ? data.cues : []).map((ms) => ms / 1000);
+  const land = (data?.durationMs ?? 0) / 1000;
+  const D = land + SV_RETURN + 0.15;
+  const target = (i) => (i < 0 || i >= heads.length ? [0, 0] : [heads[i][0] * SV_GAZE, heads[i][1] * SV_GAZE]);
+  const curve = (x, d) => {
+    const t = x * D;
+    let gx = 0, gy = 0;
+    if (heads.length && t >= dwell) {
+      const i = Math.min(heads.length - 1, Math.floor((t - dwell) / hop));
+      const [ax, ay] = target(i - 1), [bx, by] = target(i);
+      const w = sm((t - dwell - i * hop) / SV_SWING);
+      gx = ax + (bx - ax) * w; gy = ay + (by - ay) * w;
+    }
+    const back = 1 - sm((t - land) / SV_RETURN);
+    d.gazeX = gx * back; d.gazeY = gy * back;
+    let flinch = 0;
+    for (let k = 0; k < cues.length; k++) flinch += Math.exp(-(((t - cues[k]) / 0.08) ** 2));
+    d.focus = (0.28 + 0.3 * Math.min(1, flinch)) * sm(t / 0.2) * back;
+    d.level = 0.85 * sm(t / 0.15) * (1 - sm((t - land - 0.1) / (SV_RETURN + 0.05)));
+    d.turn = 0; d.turb = 0; d.shapeK = 0; d.shapeA = 0; d.shapeB = 0; d.shapeC = 0;
+    return d;
+  };
+  return { kind: KICK.watch, durationMs: Math.round(D * 1000), curve, tag: SV_TAG };
+}
+
+export const SV_TAG = 'surveillance';
+const SV_LOCK_MS = 30000;        // safety tail; the trace or a release normally ends it
+function surveillanceLock(x, d) {
+  const t = x * (SV_LOCK_MS / 1000);
+  const env = sm(t / 0.25) * (1 - sm((t - 29) / 1));
+  d.focus = (0.36 + 0.04 * Math.sin(t * 2.4)) * env;     // locked on, breathing
+  d.level = 0.8 * env;
+  d.gazeX = 0; d.gazeY = 0; d.turn = 0; d.turb = 0; d.shapeK = 0; d.shapeA = 0; d.shapeB = 0; d.shapeC = 0;
+  return d;
+}
+
 export const REACTIONS = {
+  'surveillance.lock':  { kind: KICK.watch, durationMs: SV_LOCK_MS, curve: surveillanceLock, tag: SV_TAG },
+  'surveillance.release': { release: true, tag: SV_TAG, durationMs: 500 },
+  'surveillance.trace': (imp) => (imp.data ? surveillanceTrace(imp.data) : null),
   'sol.release': { kind: KICK.inhale, shape: SHAPE.sun, durationMs: SOL_MS, curve: solRelease, tint: SUN_COLS[0], tint2: SUN_COLS[1] },
   'scent.collide': { kind: KICK.inhale, shape: SHAPE.accord, durationMs: SCENT_MS, curve: scentCollide },
   'accretion.prime':   { kind: KICK.spiral, durationMs: PRIME_MS, curve: accretionPrime, tag: ACC_TAG },
@@ -230,6 +283,7 @@ export const REACTIONS = {
 // The kick() options for an impulse: its plain fields, overlaid by the piece's choreography.
 export function reactionKick(imp) {
   const base = { kind: imp.kind, tint: imp.tint, tint2: imp.tint2, dir: imp.dir, durationMs: imp.durationMs };
-  const r = REACTIONS[imp.piece];
+  const entry = REACTIONS[imp.piece];
+  const r = typeof entry === 'function' ? entry(imp) : entry;   // per-impulse choreography (a route)
   return r ? { ...base, ...r } : base;
 }

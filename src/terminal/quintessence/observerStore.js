@@ -97,7 +97,8 @@ const PIECE_KICK = {
 };
 
 // Pieces that react but are not whisper targets, so PIECE_TAB doesn't list them.
-const EXTRA_TAB = { 'kernel.load': 'kernel', 'kernel.enter': 'kernel', 'accretion.infall': 'manifesto', 'accretion.prime': 'manifesto', 'chaos.fork': 'art' };
+const EXTRA_TAB = { 'kernel.load': 'kernel', 'kernel.enter': 'kernel', 'accretion.infall': 'manifesto', 'accretion.prime': 'manifesto',
+  'surveillance.lock': 'surveillance', 'surveillance.trace': 'surveillance', 'chaos.fork': 'art' };
 
 const TIER_RANK = { witness: 0, vertebra: 1, crescendo: 2 };
 const TIER_MS = { witness: WITNESS_MS, vertebra: VERTEBRA_MS, crescendo: CRESCENDO_MS };
@@ -515,9 +516,24 @@ export function startObserver({ tab } = {}) {
 export function notifyAccretion(stage) {
   if (stage === 'prime') return react('accretion.prime', 'witness');
   if (stage === 'infall') return react('accretion.infall', 'witness');
-  if (stage !== 'release') return;
-  const imp = { piece: 'accretion.release', kind: KICK.spiral, tier: 'witness', tint: null, tint2: null, dir: 1, durationMs: 0, at: now() };
+  if (stage === 'release') publishDirect('accretion.release', KICK.spiral, null);
+}
+
+// Straight to the eye: no trail, no whisper clock, no tier gate (not the visitor's act, or
+// - /SURVEILLANCE - a lattice whose spec keeps every session out of storage).
+function publishDirect(piece, kind, data) {
+  const imp = { piece, kind, tier: 'witness', tint: tintOf(piece), tint2: null, dir: 1, durationMs: WITNESS_MS, at: now(), data };
   impulseListeners.forEach(fn => { try { fn(imp); } catch (_) { /* isolated per listener */ } });
+}
+
+// /SURVEILLANCE: 'lock' when the visitor picks a source (the eye locks on and holds);
+// 'release' when the route is cleared or the tab left;
+// 'trace' when a packet is sent, with its route as compass headings + timing (eyeReactions
+// builds the gaze path from it). Never react(): the lattice keeps its sessions out of storage.
+export function notifySurveillance(stage, data = null) {
+  if (stage === 'lock') publishDirect('surveillance.lock', KICK.stare, null);
+  else if (stage === 'release') publishDirect('surveillance.release', KICK.stare, null);
+  else if (stage === 'trace' && data) publishDirect('surveillance.trace', KICK.watch, data);
 }
 
 export function notifyTtyEnter() {
