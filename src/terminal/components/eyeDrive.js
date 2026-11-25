@@ -11,10 +11,12 @@
 // its own; release() lets go at once.
 //
 //   driveSpin(v)               rad/s added to the swirl (signed; follows a planet/sun)
-//   drivePalette(a, b, c?)     RGB 0..255 triples: the eye takes these colours over silver
+//   drivePalette(a, b, c?, { w, quiet }?)  RGB 0..255 triples: the eye takes these colours
+//                              over silver, by weight w (0..1, default 1); quiet: no back-spin
+//                              when it lapses
 //   driveGaze(x, y)            pupil offset, about ±0.25 reads as a clear look
 //   driveMood(m)               -1 relaxed … 0 … +1 angry stare
-//   driveShape(id, k, a, b)    SHAPE id from observerEyeShader, k 0..1, two params
+//   driveShape(id, k, a, b, c) SHAPE id from observerEyeShader, k 0..1, three params
 //   release(name?)             drop one channel (or all) now
 
 export const HOLD_MS = 280;
@@ -23,10 +25,10 @@ const now = () => (typeof performance !== 'undefined' ? performance.now() : Date
 
 const channels = () => ({
   spin:    { at: -Infinity, v: 0 },
-  palette: { at: -Infinity, cols: [[0, 0, 0], [0, 0, 0], [0, 0, 0]] },
+  palette: { at: -Infinity, cols: [[0, 0, 0], [0, 0, 0], [0, 0, 0]], w: 1, quiet: false },
   gaze:    { at: -Infinity, x: 0, y: 0 },
   mood:    { at: -Infinity, m: 0 },
-  shape:   { at: -Infinity, id: 0, k: 0, a: 0, b: 0 },
+  shape:   { at: -Infinity, id: 0, k: 0, a: 0, b: 0, c: 0 },
 });
 
 export const eyeDrive = channels();
@@ -37,8 +39,10 @@ const rgb = (src, dst) => {
 };
 
 export function driveSpin(v) { const c = eyeDrive.spin; c.v = n(v); c.at = now(); }
-export function drivePalette(a, b, c3 = null) {
+export function drivePalette(a, b, c3 = null, { w = 1, quiet = false } = {}) {
   const p = eyeDrive.palette;
+  p.w = Math.min(1, Math.max(0, n(w)));
+  p.quiet = !!quiet;
   rgb(a, p.cols[0]); rgb(b, p.cols[1]);
   if (c3) rgb(c3, p.cols[2]);
   else for (let i = 0; i < 3; i++) p.cols[2][i] = Math.round((n(a[i]) + n(b[i])) / 2 * 0.5 + 120);
@@ -46,8 +50,8 @@ export function drivePalette(a, b, c3 = null) {
 }
 export function driveGaze(x, y) { const c = eyeDrive.gaze; c.x = n(x); c.y = n(y); c.at = now(); }
 export function driveMood(m) { const c = eyeDrive.mood; c.m = Math.max(-1, Math.min(1, n(m))); c.at = now(); }
-export function driveShape(id, k, a = 0, b = 0) {
-  const c = eyeDrive.shape; c.id = n(id); c.k = n(k); c.a = n(a); c.b = n(b); c.at = now();
+export function driveShape(id, k, a = 0, b = 0, cc = 0) {
+  const c = eyeDrive.shape; c.id = n(id); c.k = n(k); c.a = n(a); c.b = n(b); c.c = n(cc); c.at = now();
 }
 export function release(name) {
   for (const key of name ? [name] : Object.keys(eyeDrive)) if (eyeDrive[key]) eyeDrive[key].at = -Infinity;

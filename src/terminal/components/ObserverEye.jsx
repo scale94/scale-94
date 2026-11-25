@@ -242,7 +242,7 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
         chargeT0: null, kick: null, cres: null, hold: null, kickOut: 0, shapeOutId: 0, shapeOutK: 0, phase: 0,
         spinV: 0, iridTgt: start.irid,
         // eased eyeDrive state: spin rad/s, palette weight + cols, gaze, mood, shape
-        dv: { spin: 0, pal: 0, cols: cols3(), gx: 0, gy: 0, mood: 0, shapeK: 0, shapeId: 0, shapeA: 0, shapeB: 0, palLive: false },
+        dv: { spin: 0, pal: 0, cols: cols3(), gx: 0, gy: 0, mood: 0, shapeK: 0, shapeId: 0, shapeA: 0, shapeB: 0, shapeC: 0, palLive: false, palQuiet: false },
       };
     },
 
@@ -388,19 +388,22 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
     const e = 1 - Math.pow(DRIVE_EASE, dt);
     d.spin = lerp(d.spin, live(D.spin, t) ? D.spin.v : 0, e);
     const palLive = live(D.palette, t);
-    if (palLive) for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) d.cols[i][j] = D.palette.cols[i][j];
+    if (palLive) {
+      for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) d.cols[i][j] = D.palette.cols[i][j];
+      d.palQuiet = D.palette.quiet;
+    }
     // A reaction running at the release owns the unwind (e.g. /SOL's burst coasts forward).
-    if (d.palLive && !palLive && d.pal > 0.5 && cur.irid > 0.5 && !cur.kick) {
+    if (d.palLive && !palLive && d.pal > 0.5 && cur.irid > 0.5 && !cur.kick && !d.palQuiet) {
       cur.spinV = -(BACKSPIN_TURN / BACKSPIN_TAU) * d.pal;
     }
     d.palLive = palLive;
-    d.pal = lerp(d.pal, palLive ? 1 : 0, palLive ? e : 1 - Math.pow(IRID_RETURN, dt));
+    d.pal = lerp(d.pal, palLive ? D.palette.w : 0, palLive ? e : 1 - Math.pow(IRID_RETURN, dt));
     const gLive = live(D.gaze, t);
     d.gx = lerp(d.gx, gLive ? D.gaze.x : 0, e);
     d.gy = lerp(d.gy, gLive ? D.gaze.y : 0, e);
     d.mood = lerp(d.mood, live(D.mood, t) ? D.mood.m : 0, e);
     const sLive = live(D.shape, t);
-    if (sLive) { d.shapeId = D.shape.id; d.shapeA = D.shape.a; d.shapeB = D.shape.b; }
+    if (sLive) { d.shapeId = D.shape.id; d.shapeA = D.shape.a; d.shapeB = D.shape.b; d.shapeC = D.shape.c; }
     d.shapeK = lerp(d.shapeK, sLive ? D.shape.k : 0, e);
   }
 
@@ -417,7 +420,7 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
     o.speed *= 1 + 1.2 * ang - 0.5 * calm;
     o.turb = Math.max(o.turb, 0.6 * ang);
     o.gaze[0] += d.gx; o.gaze[1] += d.gy;
-    if (d.shapeK > 0.001) { o.shape = d.shapeId; o.shapeK = d.shapeK; o.shapeA = d.shapeA; o.shapeB = d.shapeB; }
+    if (d.shapeK > 0.001) { o.shape = d.shapeId; o.shapeK = d.shapeK; o.shapeA = d.shapeA; o.shapeB = d.shapeB; o.shapeC = d.shapeC; }
   }
 
   // The baseline with the crescendo, or else the live kick, laid over it.

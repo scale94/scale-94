@@ -1,6 +1,6 @@
 // eyeReactions.test.js — the per-piece choreography table and how an impulse becomes a kick.
 import { describe, it, expect } from 'vitest';
-import { REACTIONS, reactionKick, BSKY_EXIT, TX_IGNITE, ACC_TAG, EJECT_OUT, SCENT_HIT, surveillanceTrace } from '../eyeReactions';
+import { REACTIONS, reactionKick, BSKY_EXIT, TX_IGNITE, ACC_TAG, EJECT_OUT, SCENT_HIT, surveillanceTrace, CRYPTO_SNAP, CRYPTO_TAG } from '../eyeReactions';
 import { KICK, SHAPE } from '../observerEyeShader';
 
 const last = (keys, f) => keys.slice().sort((a, b) => a.t - b.t).at(-1)[f];
@@ -232,6 +232,63 @@ describe('eyeReactions', () => {
     expect(typeof k.curve).toBe('function');
     expect(k.durationMs).toBeGreaterThan(1150);
     expect(reactionKick({ piece: 'surveillance.trace', kind: KICK.watch, tint: null, dir: 1, durationMs: 1100 }).curve).toBeUndefined();
+  });
+
+  it('crypto_scrambles_then_snaps_back_on_a_detent', () => {
+    const r = REACTIONS['crypto.seal']({ data: null });
+    expect(r.shape).toBe(SHAPE.cipher);
+    const D = r.durationMs / 1000;
+    const at = (t) => r.curve(t / D, {});
+    // Scrambled almost at once; the blocks re-deal (the clock crosses integers) while it holds.
+    expect(at(0.1).shapeA).toBeGreaterThan(0.95);
+    expect(Math.floor(at(CRYPTO_SNAP - 0.01).shapeB) - Math.floor(at(0.1).shapeB)).toBeGreaterThanOrEqual(6);
+    // The snap: clean within 50 ms, focused hard, one small forward click.
+    expect(at(CRYPTO_SNAP + 0.05).shapeA).toBeLessThan(1e-9);
+    expect(at(CRYPTO_SNAP + 0.01).focus).toBeGreaterThan(0.35);
+    expect(at(CRYPTO_SNAP - 0.01).focus).toBe(0);
+    expect(at(D).turn).toBeCloseTo(0.35, 6);
+    const xs = Array.from({ length: 300 }, (_, i) => i / 299);
+    const T = xs.map((x) => r.curve(x, {}).turn);
+    T.slice(1).forEach((t, i) => expect(t).toBeGreaterThanOrEqual(T[i] - 1e-12));
+    expect(at(D).level).toBe(0);
+  });
+
+  it('crypto_seal_ends_in_a_burst_out_of_the_core', () => {
+    const r = REACTIONS['crypto.seal']({ data: null });
+    const D = r.durationMs / 1000, at = (t) => r.curve(t / D, {});
+    expect(at(CRYPTO_SNAP - 0.01).shapeB).toBeGreaterThan(0);            // re-dealing
+    expect(at(CRYPTO_SNAP + 0.02).shapeB).toBeLessThan(0);               // the burst
+    expect(-at(CRYPTO_SNAP + 0.3).shapeB).toBeGreaterThan(-at(CRYPTO_SNAP + 0.05).shapeB);
+    expect(-at(CRYPTO_SNAP + 0.5).shapeB).toBeGreaterThan(1.1);          // past the rim
+  });
+
+  it('crypto_keygen_settles_chaos_into_a_held_lattice', () => {
+    const r = REACTIONS['crypto.keygen'];
+    expect(r.tag).toBe(CRYPTO_TAG);
+    expect(REACTIONS['crypto.release']).toMatchObject({ release: true, tag: CRYPTO_TAG });
+    const at = (s) => r.curve(s / (r.durationMs / 1000), {});
+    expect(at(0.05).shapeA).toBeGreaterThan(at(0.05).shapeC);           // still chaotic
+    for (const s of [1, 5, 20]) {                                          // held: ordered, lit, humming
+      expect(at(s).shapeC).toBeGreaterThan(0.99);
+      expect(at(s).shapeA).toBeLessThan(0.01);
+      expect(at(s).level).toBeGreaterThan(0.99);
+    }
+    const f = [0, 0.1, 0.2, 0.3].map((d) => at(5 + d).focus);
+    expect(Math.max(...f) - Math.min(...f)).toBeGreaterThan(0.04);        // the rhythm
+    expect(at(20).turn).toBeGreaterThan(at(10).turn);
+  });
+
+  it('crypto_keyed_seal_locks_the_lattice_on_a_detent', () => {
+    const r = REACTIONS['crypto.seal']({ data: { keyed: true } });
+    expect(r.durationMs).toBeLessThan(1300);
+    const D = r.durationMs / 1000, at = (t) => r.curve(t / D, {});
+    expect(at(0).shapeC).toBeCloseTo(1, 6);                                // picks up the held lattice
+    expect(at(0).level).toBe(1);
+    expect(at(0.12).shapeC).toBe(0);                                        // locked shut
+    expect(at(0.12).shapeA).toBe(0);                                        // no chaos on the way out
+    expect(at(0.15).shapeB).toBeLessThan(0);                                // the burst
+    expect(at(D).level).toBe(0);
+    expect(at(D).shapeK).toBe(0);
   });
 
   it('impulse_overlays_its_choreography', () => {

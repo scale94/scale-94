@@ -252,7 +252,78 @@ function surveillanceLock(x, d) {
   return d;
 }
 
+// /CRYPTOGRAPHY — the eye follows the cryptographic lifecycle (cryptoEye.js + ClassifiedTab):
+//   entropy drag   -> live drive (cryptoEye): amber + the lattice build with the bits, a
+//                     chaotic scramble rides the pointer; a pause holds the charge
+//   keygen         -> 'crypto.keygen': the chaos settles into a tight, structured lattice
+//                     humming in rhythm, HELD until the key is made (tag ACC-style 'crypto')
+//   key_generated  -> 'crypto.seal' (keyed): the lattice locks on a detent, an amber seal
+//                     burst rings out, the spin coasts to silver
+//   file seal / unlock / verify -> 'crypto.seal': scramble, then the same detent + burst
+//   reset / leaving -> 'crypto.release': fades only the held keygen
+// Cipher params: shapeA = chaos, shapeB = re-deal clock (< 0: the burst, radius -B),
+// shapeC = order (the lattice). A dial seating, not a turntable: no back-spin anywhere.
+export const CRYPTO_TAG = 'crypto';
+export const CRYPTO_COLS = [[251, 191, 36], [194, 65, 12], [253, 230, 138]];   // amber · rust · pale gold
+const CRYPTO_MS = 1300;
+export const CRYPTO_SNAP = 0.62;   // s: the detent (the plain seal)
+const KEYED_SNAP = 0.1;            // s: the detent when the lattice was already held
+
+function sealTail(t, snap, d) {     // detent + burst + fade, shared by both seals
+  const dt = t - snap;
+  d.focus = dt < 0 ? 0 : 0.42 * Math.exp(-dt / 0.12);              // seated, focused
+  d.turn = 0.35 * sm(dt / 0.06);                                   // one click forward
+  const e = Math.min(1, Math.max(0, dt / 0.5));
+  if (dt >= 0) d.shapeB = -(0.04 + 1.15 * (1 - (1 - e) ** 3));     // the burst, out of the core
+  d.shapeK = dt < 0.55 ? 1 : 1 - sm((dt - 0.55) / 0.12);
+  d.level = sm(t / 0.08) * (1 - sm((dt - 0.1) / 0.55));
+  d.gazeX = 0; d.gazeY = 0;
+}
+export function cryptoSeal(x, d) {
+  const t = x * (CRYPTO_MS / 1000);
+  const on = sm(t / 0.08) * (1 - sm((t - CRYPTO_SNAP) / 0.05));
+  d.shapeA = on;
+  d.shapeB = 14 * t;
+  d.shapeC = 0;
+  d.turb = 0.3 * on;
+  sealTail(t, CRYPTO_SNAP, d);
+  return d;
+}
+const KEYED_MS = 1100;
+export function cryptoKeyed(x, d) {
+  const t = x * (KEYED_MS / 1000);
+  d.shapeA = 0;
+  d.shapeB = 14 * t;
+  d.shapeC = 1 - sm(t / KEYED_SNAP);                                 // the lattice locks shut
+  d.turb = 0;
+  sealTail(t, KEYED_SNAP, d);
+  d.level = 1 - sm((t - KEYED_SNAP - 0.1) / 0.55);                   // already lit: no fade-in
+  return d;
+}
+
+const KEYGEN_MS = 60000;           // safety tail; the key (or a release) normally ends it
+export function cryptoKeygen(x, d) {
+  const t = x * (KEYGEN_MS / 1000);
+  const settle = sm(t / 0.6);                                        // chaos -> order
+  const env = 1 - sm((t - 58.5) / 1.5);
+  d.shapeA = 0.6 * (1 - settle) * env;
+  d.shapeB = 4 * t;
+  d.shapeC = settle * env;
+  d.shapeK = env;
+  d.level = env;
+  d.focus = (0.22 + 0.05 * Math.sin(t * 13.8)) * settle * env;       // the hum: in step with the lattice
+  d.turn = 0.9 * t;                                                  // a steady, structured turn
+  d.turb = 0.25 * (1 - settle);
+  d.gazeX = 0; d.gazeY = 0;
+  return d;
+}
+
 export const REACTIONS = {
+  'crypto.seal': (imp) => (imp.data?.keyed
+    ? { kind: KICK.watch, shape: SHAPE.cipher, durationMs: KEYED_MS, curve: cryptoKeyed, tint: CRYPTO_COLS[0], tint2: CRYPTO_COLS[1] }
+    : { kind: KICK.watch, shape: SHAPE.cipher, durationMs: CRYPTO_MS, curve: cryptoSeal, tint: CRYPTO_COLS[0], tint2: CRYPTO_COLS[1] }),
+  'crypto.keygen':  { kind: KICK.watch, shape: SHAPE.cipher, durationMs: KEYGEN_MS, curve: cryptoKeygen, tag: CRYPTO_TAG, tint: CRYPTO_COLS[0], tint2: CRYPTO_COLS[1] },
+  'crypto.release': { release: true, tag: CRYPTO_TAG, durationMs: 600 },
   'surveillance.lock':  { kind: KICK.watch, durationMs: SV_LOCK_MS, curve: surveillanceLock, tag: SV_TAG },
   'surveillance.release': { release: true, tag: SV_TAG, durationMs: 500 },
   'surveillance.trace': (imp) => (imp.data ? surveillanceTrace(imp.data) : null),

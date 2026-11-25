@@ -68,6 +68,19 @@ describe('eyeDrive', () => {
     expect(Math.min(...d)).toBeGreaterThan(-0.01);
   });
 
+  it('palette_weight_and_quiet_lapse', () => {
+    render(<ObserverEye size={64} driven />);
+    frames(10);
+    const half = frames(60, () => drivePalette(ORANGE, TEAL, null, { w: 0.5, quiet: true }));
+    expect(half.at(-1).u_irid).toBeGreaterThan(0.45);                    // half over silver
+    expect(half.at(-1).u_irid).toBeLessThan(0.55);
+    const full = frames(60, () => drivePalette(ORANGE, TEAL, null, { quiet: true }));
+    const after = frames(Math.ceil((HOLD_MS + 2500) / FRAME_MS));
+    expect(full.at(-1).u_irid).toBeLessThan(0.02);
+    const ph = after.map((u) => u.u_phase);
+    expect(Math.min(...ph.slice(1).map((p, i) => p - ph[i]))).toBeGreaterThan(-0.01);   // no back-spin
+  });
+
   it('spin_adds_and_coasts_out', () => {
     render(<ObserverEye size={64} driven />);
     frames(10);

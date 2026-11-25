@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { KeyRound, ShieldCheck, Activity, Lock, Unlock, AlertTriangle } from 'lucide-react';
 import { loadWasm } from '../../wasm/wasmSingleton';
 import { emit as emitObs } from '../../observatory/observatoryBus';
+import { notifyCrypto } from '../quintessence/observerStore';
+import { createCryptoEyeFeed, feedCryptoEye, pokeCryptoEye } from './cryptoEye';
 
 // ── Hex rain characters ──────────────────────────────────────────────────────
 const HEX_CHARS = '0123456789ABCDEF'.split('');
@@ -224,6 +226,8 @@ function EntropyGrid({ onComplete }) {
   const [bits, setBits] = useState(0);
   const isDragging = useRef(false);
   const frameRef   = useRef(0);
+  const eyeRef     = useRef(null);   // the masthead eye's live feed (cryptoEye)
+  if (eyeRef.current === null) eyeRef.current = createCryptoEyeFeed();
 
   // Init grid cells + ripples + hex rain columns
   useEffect(() => {
@@ -280,6 +284,10 @@ function EntropyGrid({ onComplete }) {
       frameRef.current++;
       const s = stateRef.current;
       if (!s) { rafRef.current = requestAnimationFrame(draw); return; }
+      // The masthead eye charges with the pool (ancillary: never break the grid).
+      if (!s.lastCompleted) {
+        try { feedCryptoEye(s.totalBits / TARGET_BITS, performance.now(), eyeRef.current); } catch (_) { /* ancillary */ }
+      }
       const { cells, ripples, hexRains } = s;
       const t = frameRef.current;
 
@@ -423,6 +431,7 @@ function EntropyGrid({ onComplete }) {
     const idx  = cy * COLS + cx;
     const cell = s.cells[idx];
 
+    pokeCryptoEye(eyeRef.current);   // the drag is the eye's energy
     // Scramble + glow
     cell.char = GLYPHS[Math.floor(Math.random() * GLYPHS.length)];
     cell.glow = 1;
@@ -726,6 +735,14 @@ function KeygenPhase() {
   const [downloaded,   setDownloaded]   = useState({ ek: false, dk: false });
   const [keyHistory,   setKeyHistory]   = useState(() => loadKeyHistory());
 
+  // The masthead eye holds a humming lattice through the whole keygen; key_generated seals it.
+  // Leaving before that (reset, another tab) fades only this hold.
+  const keyedRef = useRef(false);
+  useEffect(() => {
+    try { notifyCrypto('keygen'); } catch (_) { /* ancillary */ }
+    return () => { if (!keyedRef.current) { try { notifyCrypto('release'); } catch (_) { /* ancillary */ } } };
+  }, []);
+
   useEffect(() => {
     const timers = KEYGEN_LINES.map((line, i) =>
       setTimeout(() => {
@@ -746,6 +763,7 @@ function KeygenPhase() {
       if (dkHex.length !== 4800) throw new Error(`dk: ${dkHex.length / 2}B (expected 2400B)`);
       setKeypair({ ekHex, dkHex });
       setWasmState('done');
+      keyedRef.current = true;
       emitObs('ciphers', 'key_generated', { scheme: 'ML-KEM-768', ekBytes: ekHex.length / 2, dkBytes: dkHex.length / 2 });
       // Record this session in history
       const entry = {

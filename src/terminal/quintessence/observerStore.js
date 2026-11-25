@@ -63,7 +63,7 @@ const RULES = {
   'gaze/ecocide_growth_set':        { piece: 'ecocide.growth' },
   'ciphers/cipher_sealed':          { piece: 'crypto.seal' },
   'ciphers/unlock':                 { piece: 'crypto.seal' },
-  'ciphers/key_generated':          { piece: 'crypto.seal' },
+  'ciphers/key_generated':          { piece: 'crypto.seal', data: { keyed: true } },   // the eye: the held lattice locks
   'ciphers/verify':                 { piece: 'crypto.seal' },
   'transmissions/signal_marked':    { piece: 'transmission.mark' },
   'transmissions/ledger_appended':  { piece: 'ledger.write' },
@@ -98,7 +98,8 @@ const PIECE_KICK = {
 
 // Pieces that react but are not whisper targets, so PIECE_TAB doesn't list them.
 const EXTRA_TAB = { 'kernel.load': 'kernel', 'kernel.enter': 'kernel', 'accretion.infall': 'manifesto', 'accretion.prime': 'manifesto',
-  'surveillance.lock': 'surveillance', 'surveillance.trace': 'surveillance', 'chaos.fork': 'art' };
+  'surveillance.lock': 'surveillance', 'surveillance.trace': 'surveillance',
+  'crypto.keygen': 'cryptography', 'crypto.release': 'cryptography', 'chaos.fork': 'art' };
 
 const TIER_RANK = { witness: 0, vertebra: 1, crescendo: 2 };
 const TIER_MS = { witness: WITNESS_MS, vertebra: VERTEBRA_MS, crescendo: CRESCENDO_MS };
@@ -230,13 +231,13 @@ function tintOf(piece) {
 // (the /ACCRETION spine write + council_collision fire in the same handler).
 // The act is recorded here, before the tier gate: a reaction drawn over by a
 // higher tier still counts as the visitor's act.
-function react(piece, tier, { kind = PIECE_KICK[piece], tint = tintOf(piece), tint2 = null, dir = 1 } = {}) {
+function react(piece, tier, { kind = PIECE_KICK[piece], tint = tintOf(piece), tint2 = null, dir = 1, data = null } = {}) {
   const t = now();
   trail.touched[piece] = true;
   trail.actedOnce = true;
   saveTrail();
   lastInputAt = t;                                 // an act is deliberate input
-  const imp = { piece, kind, tier, tint, tint2, dir, durationMs: TIER_MS[tier], at: t };
+  const imp = { piece, kind, tier, tint, tint2, dir, durationMs: TIER_MS[tier], at: t, data };
   const prev = pending.get(piece);
   if (!prev || TIER_RANK[tier] > TIER_RANK[prev.tier]) pending.set(piece, imp);
   if (!flushQueued) { flushQueued = true; queueMicrotask(flush); }
@@ -313,7 +314,8 @@ function onBus({ category, kind, payload }) {
   if (PHRASE_KINDS.has(key)) phraseBusyUntil = now() + PHRASE_BUSY_MS;
   const opts = rule.piece === 'mercury.flick' ? { dir: p.dir < 0 ? -1 : 1 }
     : rule.piece === 'scent.collide' && isRgbPair(p.colors) ? { tint: p.colors[0], tint2: p.colors[1] }
-    : rule.tint ? { tint: rule.tint, tint2: rule.tint2 } : undefined;
+    : rule.tint ? { tint: rule.tint, tint2: rule.tint2 }
+    : rule.data ? { data: rule.data } : undefined;
   react(rule.piece, 'witness', opts);
 }
 
@@ -524,6 +526,14 @@ export function notifyAccretion(stage) {
 function publishDirect(piece, kind, data) {
   const imp = { piece, kind, tier: 'witness', tint: tintOf(piece), tint2: null, dir: 1, durationMs: WITNESS_MS, at: now(), data };
   impulseListeners.forEach(fn => { try { fn(imp); } catch (_) { /* isolated per listener */ } });
+}
+
+// /CRYPTOGRAPHY: 'keygen' when the pool saturates and ML-KEM key generation starts (the eye
+// holds a humming lattice until key_generated seals it); 'release' when the keygen is left
+// unfinished. Straight to the eye: the hold is never an act, a release never moves whispers.
+export function notifyCrypto(stage) {
+  if (stage === 'keygen') publishDirect('crypto.keygen', KICK.watch, null);
+  else if (stage === 'release') publishDirect('crypto.release', KICK.watch, null);
 }
 
 // /SURVEILLANCE: 'lock' when the visitor picks a source (the eye locks on and holds);

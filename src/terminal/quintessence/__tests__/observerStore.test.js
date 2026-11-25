@@ -6,7 +6,7 @@ import {
   NAV_TINTS, FLASH_MS, WITNESS_MS, VERTEBRA_MS, CRESCENDO_MS, _resetObserverForTests,
   setChromeVisible, QUIET_MS, GLANCE_IN_MS, GLANCE_HOLD_MS, GLANCE_OUT_MS, GLANCE_GAP_MS,
   IDLE_MS, COOLDOWN_MIN_MS, COOLDOWN_MAX_MS, AFTER_REACTION_MS, WHISPER_MS, PHRASE_BUSY_MS,
-  MOBILE_HOLD_MS, glanceLevel, GLANCE_TOTAL_MS, notifyTtyEnter, notifyAccretion, notifySurveillance,
+  MOBILE_HOLD_MS, glanceLevel, GLANCE_TOTAL_MS, notifyTtyEnter, notifyAccretion, notifySurveillance, notifyCrypto,
 } from '../observerStore';
 import { PIECE_TAB, TAB_PIECES, RIDDLES } from '../whispers';
 import { setTrend, setCouncil, setPhase, setElement, _resetSpineForTests } from '../spineStore';
@@ -769,6 +769,25 @@ describe('observerStore — whispers', () => {
     expect(impulses[0]).toMatchObject({ kind: KICK.stare, tint: NAV_TINTS.surveillance });
     expect(impulses[1].data.heads).toEqual([[1, 0]]);
     expect(localStorage.getItem('observer_trail_v1')).toBe(before);
+  });
+
+  it('crypto_keygen_and_release_go_straight_to_the_eye', () => {
+    boot('cryptography');
+    const before = localStorage.getItem('observer_trail_v1');
+    notifyCrypto('keygen');
+    notifyCrypto('release');
+    expect(impulses.map((i) => i.piece)).toEqual(['crypto.keygen', 'crypto.release']);
+    expect(localStorage.getItem('observer_trail_v1')).toBe(before);
+  });
+
+  it('key_generated_seals_the_held_lattice', async () => {
+    boot('cryptography');
+    emit('ciphers', 'key_generated', { scheme: 'ML-KEM-768' });
+    await flush();
+    expect(impulses.at(-1)).toMatchObject({ piece: 'crypto.seal', data: { keyed: true } });
+    emit('ciphers', 'cipher_sealed', { filename: 'x' });
+    await flush();
+    expect(impulses.at(-1).data).toBeNull();
   });
 
   it('scent_collision_carries_both_accord_colours', async () => {

@@ -19,7 +19,7 @@ export const KICK = {
 
 // Shape morphs (u_shape). The pupil/disc *become* a figure by SDF blends, the nebula
 // keeps flowing inside it. u_shapeK 0..1 = how far; u_shapeA/B are per-shape params.
-export const SHAPE = { kernel: 1, butterfly: 2, antenna: 3, horizon: 4, accord: 5, sun: 6 };
+export const SHAPE = { kernel: 1, butterfly: 2, antenna: 3, horizon: 4, accord: 5, sun: 6, cipher: 7 };
 
 export const VS = 'attribute vec2 a;varying vec2 v;void main(){v=a;gl_Position=vec4(a,0.,1.);}';
 export const FS = [
@@ -27,11 +27,12 @@ export const FS = [
   'uniform float u_t,u_focus,u_irid,u_speed,u_pulse;uniform vec3 c0,c1,c2;uniform vec2 u_gaze;',
   'uniform float u_core,u_orbit,u_shimmer,u_thread,u_turb,u_kick,u_kickKind,u_kickDir,u_phase;',
   'uniform float u_shape,u_shapeK,u_shapeA,u_shapeB,u_shapeC,u_px,u_fore;',
-  'float aa(float d){return clamp(0.5-d/max(u_px,1e-4),0.,1.);}',  // Convection cells (/SOL): F1 Worley over a 3x3 neighbourhood, the cell centres drifting.
+  'float aa(float d){return clamp(0.5-d/max(u_px,1e-4),0.,1.);}',  // 1 inside (d<0), ~1px AA
+  // A 2D hash; convection cells (/SOL): F1 Worley over a 3x3 neighbourhood, centres drifting.
   'vec2 h22(vec2 p){return fract(sin(vec2(dot(p,vec2(127.1,311.7)),dot(p,vec2(269.5,183.3))))*43758.5453);}',
   'float wor(vec2 p,float t){vec2 i=floor(p),f=fract(p);float d=1.0;',
   ' for(int y=-1;y<=1;y++)for(int x=-1;x<=1;x++){vec2 g=vec2(float(x),float(y));',
-  '  vec2 o=0.5+0.42*sin(t+6.2831*h22(i+g));d=min(d,length(g+o-f));}return d;}',  // 1 inside (d<0), ~1px AA
+  '  vec2 o=0.5+0.42*sin(t+6.2831*h22(i+g));d=min(d,length(g+o-f));}return d;}',
   'float sdBox(vec2 p,vec2 b){vec2 d=abs(p)-b;return length(max(d,0.))+min(max(d.x,d.y),0.);}',
   'float sdEll(vec2 p,vec2 c,vec2 r,float a){p-=c;float cs=cos(a),sn=sin(a);p=mat2(cs,sn,-sn,cs)*p;',
   ' return (length(p/r)-1.0)*min(r.x,r.y);}',
@@ -53,7 +54,15 @@ export const FS = [
   '  if(isK(11.)) swk+=kd*2.4*K;',                        // shove: rotation jerks, coasts back
   '  if(u_kickKind>11.5&&u_kickKind<14.5) fk=mix(fk,0.75,K);', // vertebrae: deep contraction
   ' }',
-  ' vec2 uv=v-g;',
+  // cipher (/CRYPTOGRAPHY): the eye is cut into ~4 px blocks before anything is sampled.
+  // A = chaos (blocks jump, rows shear and jitter), B >= 0 = the re-deal clock (blocks
+  // re-deal each integer step; B < 0: the seal burst, radius -B), C = order (the lattice).
+  // Skipped unless u_shape is the cipher (v1 parity).
+  ' vec2 vv=v;float cz=(u_shape>6.5&&u_shape<7.5)?clamp(u_shapeK,0.,1.):0.0;',
+  ' if(cz>0.0&&u_shapeA>0.0){float st=floor(max(u_shapeB,0.0));vec2 cb=floor(v/0.22);vec2 hb=h22(cb+st*vec2(1.7,3.1));',
+  '  vv+=cz*u_shapeA*(hb-0.5)*0.42;',
+  '  vv.x+=cz*u_shapeA*0.34*(0.6+0.4*sin(u_t*31.0))*sin(cb.y*2.7+st*1.3);}',
+  ' vec2 uv=vv-g;',
   // Foreshortening: a gazing eye narrows along its gaze so the shifted disc (radius 1)
   // still ends at the canvas edge instead of being sliced flat. 0 = v1 (parity).
   ' float gl=length(g);if(u_fore>0.0&&gl>1e-4){vec2 gd=g/gl;uv+=gd*dot(uv,gd)*(u_fore*gl/(1.0-min(gl,0.9)));}',
@@ -232,6 +241,20 @@ export const FS = [
   '    col+=k*w*mix(c0,vec3(1.0),0.5)*2.1;',
   '    col+=k*exp(-r*r/0.01)*exp(-C*10.0)*vec3(1.0,0.95,0.8)*2.0;',   // the flare at the core
   '    a=max(a,k*min(w,1.0)*0.85);}',
+  '  }else if(u_shape<7.5){',                              // cipher: chaos flickers + tears; order is a humming lattice
+  '   float st=floor(max(u_shapeB,0.0));vec2 cb=floor(v/0.22);vec2 hb=h22(cb+st*vec2(1.7,3.1));',
+  '   vec3 hot=mix(c0,vec3(1.0),0.4);',
+  '   col*=1.0+k*u_shapeA*0.6*(hb.x-0.5);',
+  '   col+=k*u_shapeA*0.55*step(0.92,fract(v.y*8.0+st*0.37))*hot;',
+  '   float O=clamp(u_shapeC,0.,1.);',
+  '   if(O>0.0){vec2 fq=abs(fract(v/0.22)-0.5);',              // the lattice: block edges, a travelling beat
+  '    float ln=aa(0.5-max(fq.x,fq.y)-0.035);',
+  '    float pz=0.5+0.5*sin(u_t*13.8-(cb.x+cb.y)*0.9);',     // ~2.2 Hz, running diagonally (the NTT butterflies)
+  '    col*=1.0+k*O*0.22*(pz-0.5);',
+  '    col+=k*O*ln*hot*(0.25+0.75*pz*pz)*0.9*(1.0-smoothstep(0.86,1.0,r));}',
+  '   if(u_shapeB<0.0){float E=-u_shapeB,er=r-E;',            // the seal burst: one crisp ring out
+  '    float eb=exp(-er*er/0.0035)*(1.0-smoothstep(0.8,1.15,E))*(1.0-smoothstep(0.80,0.97,max(abs(v.x),abs(v.y))));',
+  '    col+=k*eb*hot*2.3;a=max(a,k*eb*0.8);}',
   '  }',
   ' }',
   ' gl_FragColor=vec4(col,a);',
