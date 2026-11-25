@@ -74,7 +74,7 @@ describe('MercuryEyeIndicator — observerStore wiring', () => {
   it('impulse_calls_kick_with_kind_tint_duration', () => {
     mount();
     // An unchoreographed piece (no eyeReactions entry) passes through as a plain kick.
-    act(() => store.impulse({ piece: 'ledger.write', kind: 8, tier: 'witness', tint: [217, 70, 239], dir: 1, durationMs: 1100, at: 0 }));
+    act(() => store.impulse({ piece: 'mercury.flick', kind: 8, tier: 'witness', tint: [217, 70, 239], dir: 1, durationMs: 1100, at: 0 }));
     expect(eye.kicks).toHaveLength(1);
     expect(eye.kicks[0]).toMatchObject({ kind: 8, tint: [217, 70, 239], dir: 1, durationMs: 1100 });
     expect(eye.detonations).toBe(0);

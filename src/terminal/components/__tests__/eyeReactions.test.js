@@ -1,6 +1,6 @@
 // eyeReactions.test.js — the per-piece choreography table and how an impulse becomes a kick.
 import { describe, it, expect } from 'vitest';
-import { REACTIONS, reactionKick, BSKY_EXIT, TX_IGNITE, ACC_TAG, EJECT_OUT, SCENT_HIT, surveillanceTrace, CRYPTO_SNAP, CRYPTO_TAG, FEIGEN_DELTA, FORK_TIMES, FORK_ACCUM } from '../eyeReactions';
+import { REACTIONS, reactionKick, BSKY_EXIT, TX_IGNITE, ACC_TAG, EJECT_OUT, SCENT_HIT, surveillanceTrace, CRYPTO_SNAP, CRYPTO_TAG, FEIGEN_DELTA, FORK_TIMES, FORK_ACCUM, LEDGER_TAG, MURK_COLS, MURK_IN, MURK_TINT_FROM, murkClearMs, ledgerMurk } from '../eyeReactions';
 import { KICK, SHAPE } from '../observerEyeShader';
 
 const last = (keys, f) => keys.slice().sort((a, b) => a.t - b.t).at(-1)[f];
@@ -335,7 +335,51 @@ describe('eyeReactions', () => {
   });
 
   it('unchoreographed_piece_keeps_its_plain_kick', () => {
-    const imp = { piece: 'ledger.write', kind: KICK.ripple, tint: [1, 2, 3], tint2: null, dir: -1, durationMs: 1100, at: 5 };
-    expect(reactionKick(imp)).toEqual({ kind: KICK.ripple, tint: [1, 2, 3], tint2: null, dir: -1, durationMs: 1100 });
+    const imp = { piece: 'mercury.flick', kind: KICK.shove, tint: [1, 2, 3], tint2: null, dir: -1, durationMs: 1100, at: 5 };
+    expect(reactionKick(imp)).toEqual({ kind: KICK.shove, tint: [1, 2, 3], tint2: null, dir: -1, durationMs: 1100 });
+  });
+
+  it('ledger_murk_clouds_in_from_the_rim_as_badly_as_the_audit', () => {
+    const kick = (severity) => reactionKick({ piece: 'ledger.write', kind: KICK.watch, tint: [20, 184, 166], tint2: null, dir: 1, durationMs: 1100, data: { severity } });
+    const veto = kick(0.96);
+    expect(veto).toMatchObject({ shape: SHAPE.murk, tag: LEDGER_TAG, tint: MURK_COLS[0], tint2: MURK_COLS[1] });
+    const at = (r, s) => r.curve(s / (r.durationMs / 1000), {});
+    expect(at(veto, 0).shapeA).toBe(0);                             // starts at the rim
+    expect(at(veto, 0.6).shapeA).toBeGreaterThan(at(veto, 0.2).shapeA);   // comes in
+    expect(at(veto, MURK_IN).shapeA).toBeGreaterThan(0.95);         // in by MURK_IN
+    for (const s of [3, 8, 15]) {                                   // polluted water: held through any cascade
+      const d = at(veto, s);
+      expect(d.shapeA).toBeGreaterThan(0.9);                        // choked to the pupil
+      expect(d.level).toBeGreaterThan(0.95);                        // the tint owns the colour: irid drops
+      expect(d.shapeK).toBeCloseTo(1, 6);
+      expect(d.turb).toBeGreaterThan(0.6);
+    }
+    const rej = kick(0.6), ok = kick(0.05);
+    expect(at(rej, 3).shapeA).toBeGreaterThan(0.5);                 // well past mid-iris
+    expect(at(rej, 3).shapeA).toBeLessThan(at(veto, 3).shapeA);
+    expect(at(rej, 3).turb).toBeLessThan(at(veto, 3).turb);
+    expect(at(rej, 3).shapeC).toBeLessThan(at(veto, 3).shapeC);     // thinner silt
+    // Clean water: a silt whisper at the rim, untinted (silver stays), settled on its own.
+    expect(ok.tint).toBeNull();
+    expect(0.05).toBeLessThan(MURK_TINT_FROM);
+    expect(at(ok, 1.5).shapeA).toBeLessThan(0.4);                  // a rim band
+    expect(at(ok, 1.5).turb).toBeLessThan(0.15);
+    expect(at(ok, 4.5).shapeK).toBe(0);                             // settled before the verdict
+    for (const r of [ok, rej, veto]) {                              // forward only: never a back-spin
+      let prev = at(r, 0).turn;
+      for (let s = 0.05; s < 30; s += 0.05) { const t = at(r, s).turn; expect(t).toBeGreaterThan(prev); prev = t; }
+      expect(at(r, 29.99).shapeK).toBeLessThan(0.01);                // a forgotten hold still clears
+    }
+    expect(ledgerMurk(NaN)(0, {}).shapeC).toBe(0.5);                // no severity: a middling murk
+  });
+
+  it('ledger_clear_is_slower_the_worse_the_water', () => {
+    const clear = (severity) => reactionKick({ piece: 'ledger.clear', kind: KICK.watch, data: { severity } });
+    expect(clear(0.96)).toMatchObject({ release: true, tag: LEDGER_TAG, durationMs: murkClearMs(0.96) });
+    expect(murkClearMs(0.96)).toBeGreaterThan(murkClearMs(0.6));
+    expect(murkClearMs(0.6)).toBeGreaterThan(murkClearMs(0.05));
+    expect(murkClearMs(0.96)).toBeGreaterThanOrEqual(8000);
+    expect(REACTIONS['ledger.release']).toMatchObject({ release: true, tag: LEDGER_TAG });
+    expect(REACTIONS['ledger.release'].durationMs).toBeLessThan(murkClearMs(0));
   });
 });

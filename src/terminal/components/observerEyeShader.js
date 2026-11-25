@@ -19,7 +19,7 @@ export const KICK = {
 
 // Shape morphs (u_shape). The pupil/disc *become* a figure by SDF blends, the nebula
 // keeps flowing inside it. u_shapeK 0..1 = how far; u_shapeA/B are per-shape params.
-export const SHAPE = { kernel: 1, butterfly: 2, antenna: 3, horizon: 4, accord: 5, sun: 6, cipher: 7, feigen: 8, vessels: 9 };
+export const SHAPE = { kernel: 1, butterfly: 2, antenna: 3, horizon: 4, accord: 5, sun: 6, cipher: 7, feigen: 8, vessels: 9, murk: 10 };
 
 export const VS = 'attribute vec2 a;varying vec2 v;void main(){v=a;gl_Position=vec4(a,0.,1.);}';
 export const FS = [
@@ -300,6 +300,26 @@ export const FS = [
   '   if(C>0.001){float halo=smoothstep(pR,pR*1.6,r)*(1.0-smoothstep(0.55,0.95,r));',
   '    col+=k*C*vec3(0.30,1.0,0.58)*(0.18+0.32*n)*halo;',
   '    col+=k*C*vec3(0.45,1.0,0.7)*0.5*exp(-pow((r-pR*1.25)/0.05,2.0));}',
+  // murk (/LEDGER): pollution clouding the fluid. A = how far the silt front has come in from
+  // the rim (0 = at the rim, 1 = at the pupil), B = the silt's drift clock, C = density. The front's reach
+  // is A·k, so the clear (k fading) draws it back out to the rim as it thins. Nothing is drawn
+  // on the metal: the front billows with the fluid's own fields (m, the warp q), the silt
+  // settles thickest in the troughs (low n), the whole disc dims under it, and the ridges keep
+  // a dulled glint so the liquid's depth survives the murk.
+  '  }else if(u_shape<10.5){',
+  '   float A=clamp(u_shapeA,0.,1.)*k;',
+  '   float front=mix(1.05,0.16,A);',
+  '   float bil=r+0.34*(m-0.5)+0.24*(q.y-0.5)+0.05*sin(ang*5.0+u_shapeB*0.8+n*4.0);',
+  '   float cov=smoothstep(front-0.08,front+0.22,bil);',
+  '   float body=mix(smoothstep(coreR*0.35,coreR,r),1.0,cl)*(1.0-smoothstep(0.90,1.0,r));',   // the silver's own edge
+  '   float silt=clamp((0.45+0.8*(1.0-n))*(0.7+0.6*q.x),0.,1.);',
+  // Lit like the silver record (0.45+0.7n), so the metal's depth carries through the murk;
+  // the silt only dims it (thickest in the troughs) and turns it sepia-grey in the warp.
+  '   vec3 sep=mix(vec3(0.60,0.59,0.56),vec3(0.80,0.63,0.42),smoothstep(0.35,0.75,q.x+0.15*sin(u_shapeB*0.5+ang)));',
+  '   float C=clamp(u_shapeC,0.,1.);',                    // C = density: dimmer, thicker the worse the water
+  '   vec3 mk=sep*(0.45+0.7*n)*(0.84-0.16*C-(0.16+0.24*C)*silt)*body;',
+  '   col=mix(col,mk,k*cov*(0.62+0.38*C));',
+  '   col+=k*cov*body*smoothstep(0.70,0.94,n)*vec3(0.90,0.80,0.62)*0.30*(1.0-0.3*A);',
   '  }',
   ' }',
   // Rim (eyeDrive driveRim; /ECOCIDE's protection protocol): a luminous corona hugging the

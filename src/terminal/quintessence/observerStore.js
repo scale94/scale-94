@@ -67,7 +67,8 @@ const RULES = {
   'ciphers/key_generated':          { piece: 'crypto.seal', data: { keyed: true } },   // the eye: the held lattice locks
   'ciphers/verify':                 { piece: 'crypto.seal' },
   'transmissions/signal_marked':    { piece: 'transmission.mark' },
-  'transmissions/ledger_appended':  { piece: 'ledger.write' },
+  // ledger_appended is left out: the eye wakes once the kernel has ruled (notifyLedger 'audit'),
+  // so the murk can be as bad as the audit.
   // verdict_issued is left out: AuditCascade's timer fires it after the append (no hand).
   'gaze/sol_release':               { piece: 'sol.release', mixed: true },
   'gaze/mercury_flick':             { piece: 'mercury.flick' },
@@ -100,7 +101,15 @@ const PIECE_KICK = {
 // Pieces that react but are not whisper targets, so PIECE_TAB doesn't list them.
 const EXTRA_TAB = { 'kernel.load': 'kernel', 'kernel.enter': 'kernel', 'accretion.infall': 'manifesto', 'accretion.prime': 'manifesto',
   'surveillance.lock': 'surveillance', 'surveillance.trace': 'surveillance',
-  'crypto.keygen': 'cryptography', 'crypto.release': 'cryptography', 'chaos.fork': 'art' };
+  'crypto.keygen': 'cryptography', 'crypto.release': 'cryptography', 'chaos.fork': 'art',
+  'ledger.clear': 'ledger', 'ledger.release': 'ledger' };
+
+// A reaction that holds the eye longer than its tier: the whisper clock (forward whisper,
+// compass quiet) counts from when the eye is clear again, not from the tier's end.
+// ledger.write: murk in + the audit cascade (~3.8 s + the WASM load) + a clear that is slower
+// the worse the water (clean water has settled by the time the verdict shows).
+export const ledgerSettleMs = (severity) => 5000 + 9000 * (Number.isFinite(severity) ? severity : 0.5);
+const PIECE_SETTLE_MS = { 'ledger.write': (imp) => ledgerSettleMs(imp.data?.severity) };
 
 const TIER_RANK = { witness: 0, vertebra: 1, crescendo: 2 };
 const TIER_MS = { witness: WITNESS_MS, vertebra: VERTEBRA_MS, crescendo: CRESCENDO_MS };
@@ -261,7 +270,8 @@ function publish(imp) {
   const rank = TIER_RANK[imp.tier];
   // Tier order crescendo > vertebra > witness: a lower tier never interrupts a higher one.
   if (active && imp.at < active.until && rank < active.rank) return;
-  active = { rank, until: imp.at + imp.durationMs };
+  const settle = PIECE_SETTLE_MS[imp.piece];
+  active = { rank, until: imp.at + (settle ? settle(imp) : imp.durationMs) };
   impulseListeners.forEach(fn => { try { fn(imp); } catch (_) { /* isolated per listener */ } });
 }
 
@@ -545,6 +555,19 @@ export function notifySurveillance(stage, data = null) {
   if (stage === 'lock') publishDirect('surveillance.lock', KICK.stare, null);
   else if (stage === 'release') publishDirect('surveillance.release', KICK.stare, null);
   else if (stage === 'trace' && data) publishDirect('surveillance.trace', KICK.watch, data);
+}
+
+// /LEDGER: the eye takes the audit's pollution (eyeReactions 'ledger.write'). LedgerTab calls
+//   'audit'   once the kernel has ruled on the hand's submit, with the audit's severity 0..1
+//             (ledgerSeverity): the act, so it goes through react() (trail, whisper clock)
+//   'clear'   when the cascade's verdict lands (the slow clear, slower the worse the water)
+//   'release' when the run fails or the tab is left (quick)
+// clear / release are not acts: straight to the eye, each only fading a murk that is up.
+export function notifyLedger(stage, severity = null) {
+  const s = Number.isFinite(severity) ? Math.min(1, Math.max(0, severity)) : null;
+  if (stage === 'audit') react('ledger.write', 'witness', { data: { severity: s ?? 0.5 } });
+  else if (stage === 'clear') publishDirect('ledger.clear', KICK.watch, { severity: s });
+  else if (stage === 'release') publishDirect('ledger.release', KICK.watch, null);
 }
 
 export function notifyTtyEnter() {

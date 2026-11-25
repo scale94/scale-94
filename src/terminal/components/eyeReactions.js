@@ -376,7 +376,60 @@ export function chaosPick(x, d) {
   return d;
 }
 
+// /LEDGER — the audit pollutes the eye, as badly as the audit rules (LedgerTab):
+//   the kernel rules on the hand's submit -> 'ledger.write' (data.severity 0..1, ledgerSeverity:
+//                     the verdict tier shaded by the DO deficit / BOD / nitrate / thermal load):
+//                     sepia-grey silt clouds in from the rim through the liquid metal, the
+//                     swirl turns turbulent and dim. Clean water (APPROVED) is a brief silt
+//                     whisper at the rim that settles on its own; a REJECTED river clouds in
+//                     well past mid-iris; an EMERGENCY_VETO chokes the iris to the pupil, dims
+//                     it deepest and churns hardest. Polluted water is HELD until the verdict.
+//   the cascade's verdict lands -> 'ledger.clear': a slow release, slower the worse the water
+//   a failed run / leaving the tab -> 'ledger.release': the same, quickly
+// Below MURK_TINT_FROM the eye keeps its silver (no tint, so reduced motion shows nothing
+// either); above it the murk's own tint takes the colour and silver steps aside (Phase 0a).
+// A clearing, not a brake: no back-spin anywhere.
+// shapeA = front reach, shapeB = drift clock, shapeC = density (the severity).
+export const LEDGER_TAG = 'ledger';
+export const MURK_COLS = [[150, 126, 94], [88, 85, 80]];   // sepia · silt grey
+export const MURK_IN = 1.8;        // s: the front has come in from the rim
+export const MURK_TINT_FROM = 0.25;
+const MURK_MS = 30000;             // safety tail: a hold nobody releases still clears, slowly
+const sev01 = (s) => (Number.isFinite(s) ? Math.min(1, Math.max(0, s)) : 0.5);
+export const murkClearMs = (s) => Math.round(2500 + 6000 * sev01(s));   // 2.5 s clean … 8.5 s vetoed
+export function ledgerMurk(severity) {
+  const s = sev01(severity);
+  const reach = 0.36 + 0.64 * s;                   // how far the front comes in (clean water: a rim band)
+  const settle = 2.6 + 70 * s * s;                 // clean water settles before the verdict
+  return (x, d) => {
+    const t = x * (MURK_MS / 1000);
+    const u = Math.min(1, t / MURK_IN);
+    const env = (1 - sm((t - settle) / 1.5)) * (1 - sm((t - 24) / 6));
+    const A = 1 - (1 - u) ** 3;                    // fast off the rim, easing in
+    d.shapeA = reach * A;
+    d.shapeB = t;
+    d.shapeC = s;
+    d.shapeK = sm(t / 0.3) * env;
+    d.level = (0.25 + 0.75 * s) * sm(t / 0.5) * env;
+    d.turb = (0.08 + 0.72 * s) * A * (0.85 + 0.15 * Math.sin(t * 2.3)) * env;   // churning, unsteady
+    d.turn = (0.15 + 0.3 * s) * t + 0.22 * s * Math.sin(t * 1.3);              // forward, in lurches
+    d.focus = 0; d.gazeX = 0; d.gazeY = 0;
+    return d;
+  };
+}
+function ledgerWrite(imp) {
+  const s = sev01(imp.data?.severity);
+  const tinted = s >= MURK_TINT_FROM;
+  return {
+    kind: KICK.watch, shape: SHAPE.murk, durationMs: MURK_MS, curve: ledgerMurk(s), tag: LEDGER_TAG,
+    tint: tinted ? MURK_COLS[0] : null, tint2: tinted ? MURK_COLS[1] : null,
+  };
+}
+
 export const REACTIONS = {
+  'ledger.write':   ledgerWrite,
+  'ledger.clear':   (imp) => ({ release: true, tag: LEDGER_TAG, durationMs: murkClearMs(imp.data?.severity) }),
+  'ledger.release': { release: true, tag: LEDGER_TAG, durationMs: 600 },
   'chaos.fork': { kind: KICK.watch, shape: SHAPE.feigen, durationMs: FORK_MS, curve: chaosFork },
   'chaos.pick': { kind: KICK.watch, shape: SHAPE.feigen, durationMs: PICK_MS, curve: chaosPick },
   'crypto.seal': (imp) => (imp.data?.keyed

@@ -35,11 +35,13 @@ vi.mock('../../../wasm/wasmSingleton', () => ({
   loadWasm: async () => ({ run_chrono_actuary: () => 'RULING' }),
 }));
 vi.mock('../../../observatory/observatoryBus', () => ({ emit: vi.fn() }));
+vi.mock('../../quintessence/observerStore', () => ({ notifyLedger: vi.fn() }));
 
 import LedgerTab from '../LedgerTab';
 import { ledgerBus } from '../../ledger/ledgerBus';
 import { getAllVerdicts } from '../../ledger/verdictStore';
 import { emit as emitObs } from '../../../observatory/observatoryBus';
+import { notifyLedger } from '../../quintessence/observerStore';
 
 describe('LedgerTab — ocean hero (phase 3a)', () => {
   beforeEach(() => { h.oceanProps.length = 0; });
@@ -159,5 +161,21 @@ describe('LedgerTab — ocean hero (phase 3a)', () => {
     act(() => { h.oceanProps.at(-1).onSealDone(); });
     expect(h.oceanProps.at(-1).sealHash).toBeNull();
     expect(h.oceanProps.at(-1).holdClock).toBe(false);
+  });
+
+  it('the eye: the ruling wakes the murk, the verdict clears it, leaving the tab releases it', async () => {
+    notifyLedger.mockClear();
+    const { unmount } = render(<LedgerTab />);
+    fireEvent.click(screen.getByText('stub-submit'));
+    const complete = await screen.findByText('stub-complete');
+    // The kernel ruled: the eye takes the audit's severity, then holds while the cascade runs.
+    expect(notifyLedger.mock.calls).toEqual([['audit', expect.any(Number)]]);
+    const sev = notifyLedger.mock.calls[0][1];
+    expect(sev).toBeGreaterThanOrEqual(0);
+    expect(sev).toBeLessThanOrEqual(1);
+    act(() => { fireEvent.click(complete); });
+    expect(notifyLedger.mock.calls.at(-1)).toEqual(['clear', sev]);
+    unmount();
+    expect(notifyLedger.mock.calls.at(-1)).toEqual(['release']);
   });
 });

@@ -6,7 +6,7 @@ import {
   NAV_TINTS, FLASH_MS, WITNESS_MS, VERTEBRA_MS, CRESCENDO_MS, _resetObserverForTests,
   setChromeVisible, QUIET_MS, GLANCE_IN_MS, GLANCE_HOLD_MS, GLANCE_OUT_MS, GLANCE_GAP_MS,
   IDLE_MS, COOLDOWN_MIN_MS, COOLDOWN_MAX_MS, AFTER_REACTION_MS, WHISPER_MS, PHRASE_BUSY_MS,
-  MOBILE_HOLD_MS, glanceLevel, GLANCE_TOTAL_MS, notifyTtyEnter, notifyAccretion, notifySurveillance, notifyCrypto,
+  MOBILE_HOLD_MS, glanceLevel, GLANCE_TOTAL_MS, notifyTtyEnter, notifyAccretion, notifySurveillance, notifyCrypto, notifyLedger, ledgerSettleMs,
 } from '../observerStore';
 import { PIECE_TAB, TAB_PIECES, RIDDLES } from '../whispers';
 import { setTrend, setCouncil, setPhase, setElement, _resetSpineForTests } from '../spineStore';
@@ -778,6 +778,43 @@ describe('observerStore — whispers', () => {
     notifyCrypto('release');
     expect(impulses.map((i) => i.piece)).toEqual(['crypto.keygen', 'crypto.release']);
     expect(localStorage.getItem('observer_trail_v1')).toBe(before);
+  });
+
+  it('ledger_eye_wakes_when_the_kernel_rules_with_the_audit_severity', async () => {
+    boot('ledger');
+    emit('transmissions', 'ledger_appended', { depth: 1 });       // telemetry only now
+    emit('transmissions', 'verdict_issued', { verdict: 'X' });
+    await flush();
+    expect(impulses).toHaveLength(0);
+    notifyLedger('audit', 0.9);                                     // the kernel ruled on the submit
+    await flush();
+    expect(impulses.map((i) => i.piece)).toEqual(['ledger.write']);
+    expect(impulses[0].data).toEqual({ severity: 0.9 });
+    expect(JSON.parse(sessionStorage.getItem('observer_trail_v1')).touched['ledger.write']).toBe(true);   // the act
+    const before = sessionStorage.getItem('observer_trail_v1');
+    notifyLedger('clear', 0.9);
+    notifyLedger('release');
+    notifyLedger('bogus');
+    expect(impulses.slice(1).map((i) => [i.piece, i.data])).toEqual([['ledger.clear', { severity: 0.9 }], ['ledger.release', null]]);
+    expect(sessionStorage.getItem('observer_trail_v1')).toBe(before);
+    notifyLedger('audit', 7);                                       // clamped
+    await flush();
+    expect(impulses.at(-1).data).toEqual({ severity: 1 });
+  });
+
+  it('no_forward_whisper_while_the_audit_murk_is_up', async () => {
+    for (const sev of [0.05, 0.96]) {
+      _resetObserverForTests({ now: () => t, random: () => 0 });
+      localStorage.clear(); sessionStorage.clear();
+      boot(QUIET_TAB);
+      notifyLedger('audit', sev);
+      await flush();
+      await step(ledgerSettleMs(sev) + AFTER_REACTION_MS - 1);
+      expect(getObserver().whisper).toBeNull();
+      await step(1);
+      expect(getObserver().whisper).not.toBeNull();
+    }
+    expect(ledgerSettleMs(0.96)).toBeGreaterThan(ledgerSettleMs(0.05));
   });
 
   it('key_generated_seals_the_held_lattice', async () => {

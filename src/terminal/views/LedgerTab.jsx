@@ -10,6 +10,8 @@ import { createVerdict } from '../ledger/verdictModel';
 import { storeVerdict, getAllVerdicts, getVerdictCount } from '../ledger/verdictStore';
 import { ledgerBus } from '../ledger/ledgerBus';
 import { emit as emitObs } from '../../observatory/observatoryBus';
+import { notifyLedger } from '../quintessence/observerStore';
+import { auditSeverity } from './ledger/ledgerSeverity';
 import { loadWasm } from '../../wasm/wasmSingleton';
 import wasmRegistry from '../../wasm/wasm.generated';
 
@@ -131,6 +133,9 @@ export default function LedgerTab() {
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
   }, []);
 
+  // The eye: an audit's murk (woken by the submit) never outlives the tab.
+  useEffect(() => () => { try { notifyLedger('release'); } catch (_) { /* ancillary */ } }, []);
+
   // Inject keyframes once
   useEffect(() => {
     if (stylesInjected.current) return;
@@ -168,6 +173,8 @@ export default function LedgerTab() {
       ];
       const result = mod[CHRONO_ENTRY.fn](...args);
       const verdict = createVerdict(input, result, CHRONO_ENTRY.id);
+      // The kernel has ruled: the eye takes the audit's pollution, as bad as it is.
+      try { notifyLedger('audit', auditSeverity(verdict)); } catch (_) { /* ancillary */ }
       const stored = await storeVerdict(verdict);
 
       // Show cascade animation instead of immediately switching view
@@ -175,6 +182,7 @@ export default function LedgerTab() {
       setCascadeVisible(true);
     } catch (err) {
       console.error('Audit execution failed:', err);
+      try { notifyLedger('release'); } catch (_) { /* ancillary */ }
     } finally {
       setLoading(false);
     }
@@ -194,6 +202,7 @@ export default function LedgerTab() {
     setView('archive');
     ledgerBus.emit({ type: 'VERDICT_ISSUED', verdict: cascadeVerdict });
     emitObs('transmissions', 'verdict_issued', { verdict: cascadeVerdict.status ?? 'UNKNOWN' });
+    try { notifyLedger('clear', auditSeverity(cascadeVerdict)); } catch (_) { /* ancillary */ }   // the verdict lands: the murk clears
 
     // Reset cascade after a beat
     setTimeout(() => {
