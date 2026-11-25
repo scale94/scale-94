@@ -174,7 +174,7 @@ function makeScratch() {
     o: {
       cols: cols3(), speed: 0, focus: 0, irid: 0, pulse: 0, gaze: [0, 0], core: 0, orbit: 0,
       shimmer: 0, thread: 0, turb: 0, kick: 0, kickKind: 0, kickDir: 0, phase: 0,
-      shape: 0, shapeK: 0, shapeA: 0, shapeB: 0, shapeC: 0, turn: 0,
+      shape: 0, shapeK: 0, shapeA: 0, shapeB: 0, shapeC: 0, turn: 0, rim: 0, rimCol: [0, 0, 0],
     },
     key: {},                                    // a keyed kick's sample this frame
     cres: { core: 0, focus: 0, turb: 0, speedMul: 1, jitter: 0, kick: 0, w: 1 },
@@ -242,7 +242,7 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
         chargeT0: null, kick: null, cres: null, hold: null, kickOut: 0, shapeOutId: 0, shapeOutK: 0, phase: 0,
         spinV: 0, iridTgt: start.irid,
         // eased eyeDrive state: spin rad/s, palette weight + cols, gaze, mood, shape
-        dv: { spin: 0, pal: 0, cols: cols3(), gx: 0, gy: 0, mood: 0, shapeK: 0, shapeId: 0, shapeA: 0, shapeB: 0, shapeC: 0, palLive: false, palQuiet: false },
+        dv: { spin: 0, pal: 0, cols: cols3(), gx: 0, gy: 0, mood: 0, shapeK: 0, shapeId: 0, shapeA: 0, shapeB: 0, shapeC: 0, palLive: false, palQuiet: false, rim: 0, rimCol: [0, 0, 0] },
       };
     },
 
@@ -375,7 +375,7 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
     o.speed = cur.speed; o.focus = cur.focus; o.irid = cur.irid; o.pulse = cur.pulse;
     o.core = cur.core; o.orbit = cur.orbit; o.shimmer = cur.shimmer; o.thread = cur.thread;
     o.turb = 0; o.kick = 0; o.kickKind = 0; o.kickDir = 0; o.phase = 0;
-    o.shape = 0; o.shapeK = 0; o.shapeA = 0; o.shapeB = 0; o.shapeC = 0; o.turn = 0;
+    o.shape = 0; o.shapeK = 0; o.shapeA = 0; o.shapeB = 0; o.shapeC = 0; o.turn = 0; o.rim = 0;
     return o;
   }
 
@@ -405,6 +405,9 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
     const sLive = live(D.shape, t);
     if (sLive) { d.shapeId = D.shape.id; d.shapeA = D.shape.a; d.shapeB = D.shape.b; d.shapeC = D.shape.c; }
     d.shapeK = lerp(d.shapeK, sLive ? D.shape.k : 0, e);
+    const rLive = live(D.rim, t);
+    if (rLive) for (let i = 0; i < 3; i++) d.rimCol[i] = D.rim.col[i];   // the colour stays while it fades
+    d.rim = lerp(d.rim, rLive ? D.rim.w : 0, e);
   }
 
   // The drive laid over the baseline (before any kick): palette takes the eye off silver,
@@ -416,10 +419,11 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
       o.irid *= 1 - d.pal;
     }
     const ang = Math.max(0, d.mood), calm = Math.max(0, -d.mood);
-    o.focus = Math.min(1, Math.max(0, o.focus + 0.45 * ang - 0.25 * calm));
+    o.focus = Math.min(1, Math.max(0, o.focus + 0.62 * ang - 0.25 * calm));   // a hard, angry stare
     o.speed *= 1 + 1.2 * ang - 0.5 * calm;
-    o.turb = Math.max(o.turb, 0.6 * ang);
+    o.turb = Math.max(o.turb, 0.85 * ang);
     o.gaze[0] += d.gx; o.gaze[1] += d.gy;
+    if (d.rim > 0.001) { o.rim = d.rim; for (let i = 0; i < 3; i++) o.rimCol[i] = d.rimCol[i]; }
     if (d.shapeK > 0.001) { o.shape = d.shapeId; o.shapeK = d.shapeK; o.shapeA = d.shapeA; o.shapeB = d.shapeB; o.shapeC = d.shapeC; }
   }
 
@@ -543,6 +547,8 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
     gl.uniform1f(U.u_shapeC, o.shapeC);
     gl.uniform1f(U.u_px, 2 / Math.max(1, gl.drawingBufferWidth || 1));
     gl.uniform1f(U.u_fore, 1);
+    gl.uniform1f(U.u_rim, o.rim);
+    gl.uniform3fv(U.u_rimCol, nrm(o.rimCol, f3[0]));
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
 

@@ -17,6 +17,7 @@
 //   driveGaze(x, y)            pupil offset, about ±0.25 reads as a clear look
 //   driveMood(m)               -1 relaxed … 0 … +1 angry stare
 //   driveShape(id, k, a, b, c) SHAPE id from observerEyeShader, k 0..1, three params
+//   driveRim(w, rgb)           a luminous corona hugging the iris edge, w 0..1, RGB 0..255
 //   release(name?)             drop one channel (or all) now
 
 export const HOLD_MS = 280;
@@ -29,9 +30,15 @@ const channels = () => ({
   gaze:    { at: -Infinity, x: 0, y: 0 },
   mood:    { at: -Infinity, m: 0 },
   shape:   { at: -Infinity, id: 0, k: 0, a: 0, b: 0, c: 0 },
+  rim:     { at: -Infinity, w: 0, col: [0, 0, 0] },
 });
 
-export const eyeDrive = channels();
+// One drive for the whole page, even if hot reload leaves two copies of this module alive
+// (seen in dev: a tab writing to one copy while the eye reads the other does nothing at all).
+const G = typeof globalThis !== 'undefined' ? globalThis : {};
+export const eyeDrive = G.__scaleEyeDrive || (G.__scaleEyeDrive = channels());
+// A page that kept an older drive across a hot reload gains any channel added since.
+for (const [k, v] of Object.entries(channels())) if (!eyeDrive[k]) eyeDrive[k] = v;
 
 const n = (x) => (Number.isFinite(x) ? x : 0);
 const rgb = (src, dst) => {
@@ -52,6 +59,9 @@ export function driveGaze(x, y) { const c = eyeDrive.gaze; c.x = n(x); c.y = n(y
 export function driveMood(m) { const c = eyeDrive.mood; c.m = Math.max(-1, Math.min(1, n(m))); c.at = now(); }
 export function driveShape(id, k, a = 0, b = 0, cc = 0) {
   const c = eyeDrive.shape; c.id = n(id); c.k = n(k); c.a = n(a); c.b = n(b); c.c = n(cc); c.at = now();
+}
+export function driveRim(w, col) {
+  const c = eyeDrive.rim; c.w = Math.min(1, Math.max(0, n(w))); rgb(col, c.col); c.at = now();
 }
 export function release(name) {
   for (const key of name ? [name] : Object.keys(eyeDrive)) if (eyeDrive[key]) eyeDrive[key].at = -Infinity;

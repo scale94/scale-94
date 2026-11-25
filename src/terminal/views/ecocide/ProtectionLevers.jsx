@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import './ProtectionLevers.css';
+import { LEVER_ACCENTS } from './protectionProtocol';
 
 // Shared pointer engine — custom track works on iPad (native range does not).
 function useLeverPointer(onChange, disabled) {
@@ -65,21 +66,21 @@ export function ProtectionLevers({ levers, isGated, onChange }) {
 
   return (
     <div className={wrapClass} data-testid="protection-levers">
-      <LeverRow label="TOXICITY_CAP" color="#5a8ac0" value={levers.toxicityCap} disabled={isGated} onChange={(v) => onChange('toxicityCap', v)}>
+      <LeverRow label="TOXICITY_CAP" color={LEVER_ACCENTS.toxicityCap} value={levers.toxicityCap} disabled={isGated} onChange={(v) => onChange('toxicityCap', v)}>
         {(pct) => (<>
           <div className="pl-tox-poison" />
           <div className="pl-tox-membrane" style={{ width: `${pct}%` }} />
         </>)}
       </LeverRow>
 
-      <LeverRow label="SANCTUARY" color="#5fbf3a" value={levers.sanctuary} disabled={isGated} onChange={(v) => onChange('sanctuary', v)}>
+      <LeverRow label="SANCTUARY" color={LEVER_ACCENTS.sanctuary} value={levers.sanctuary} disabled={isGated} onChange={(v) => onChange('sanctuary', v)}>
         {(pct) => (<>
           <div className="pl-sanc-fill" style={{ width: `${pct}%` }} />
           <div className="pl-sanc-ring" style={{ left: `${pct}%` }} />
         </>)}
       </LeverRow>
 
-      <LeverRow label="RESTORATION" color="#3fd06a" value={levers.restoration} disabled={isGated} onChange={(v) => onChange('restoration', v)}>
+      <LeverRow label="RESTORATION" color={LEVER_ACCENTS.restoration} value={levers.restoration} disabled={isGated} onChange={(v) => onChange('restoration', v)}>
         {(pct) => (
           <div className="pl-rest-fill" style={{ width: `${pct}%` }}>
             <svg className="pl-rest-svg" viewBox="0 0 200 22" preserveAspectRatio="none">
@@ -89,7 +90,7 @@ export function ProtectionLevers({ levers, isGated, onChange }) {
         )}
       </LeverRow>
 
-      <LeverRow label="NATIVE_BIODIV" color="#7fe08a" value={levers.nativeBio} disabled={isGated} onChange={(v) => onChange('nativeBio', v)}>
+      <LeverRow label="NATIVE_BIODIV" color={LEVER_ACCENTS.nativeBio} value={levers.nativeBio} disabled={isGated} onChange={(v) => onChange('nativeBio', v)}>
         {(pct) => (
           <div className="pl-nat-fill" style={{ width: `${pct}%` }}>
             <svg className="pl-nat-svg" viewBox="0 0 200 22" preserveAspectRatio="none">

@@ -44,6 +44,8 @@ import { readHealing, subscribeHealing } from '../lib/healingSignal';
 import { healingGrowthOffset, healingSargLift } from '../lib/inverseEngine';
 import { stepVitalityHybrid, deriveFracs, socialPenaltyLevel, growthToGdp, bloomPhase, REGEN_NAME } from '../lib/ecocideEngine';
 import { ProtectionLevers } from './ecocide/ProtectionLevers';
+import { lockEcocideEye } from './ecocide/ecocideEye';
+import { LEVER_GATE } from './ecocide/protectionProtocol';
 import SeraphineScale from './ecocide/SeraphineScale';
 import { emit as emitObs } from '../../observatory/observatoryBus';
 
@@ -334,6 +336,7 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
   const growthRateRef  = useRef(2.5);
   useEffect(() => { growthRateRef.current = growthRate; }, [growthRate]);
 
+
   const toxicityCapRef = useRef(0.0);
   const sanctuaryRef   = useRef(0.0);
   const restorationRef = useRef(0.0);
@@ -342,6 +345,21 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
   useEffect(() => { sanctuaryRef.current   = sanctuary;   }, [sanctuary]);
   useEffect(() => { restorationRef.current = restoration; }, [restoration]);
   useEffect(() => { nativeBioRef.current   = nativeBio;   }, [nativeBio]);
+
+  // The masthead eye is locked to the slider value and the protection levers while this tab is
+  // open (ecocideEye).
+  // Reset lets it go back to silver until the next touch; leaving the tab lets it go for good.
+  const eyeLockRef = useRef(null);
+  const readLevers = useCallback(() => ({
+    toxicityCap: toxicityCapRef.current, sanctuary: sanctuaryRef.current,
+    restoration: restorationRef.current, nativeBio: nativeBioRef.current,
+  }), []);
+  const engageEye = useCallback(() => {
+    if (!eyeLockRef.current) eyeLockRef.current = lockEcocideEye(() => growthRateRef.current, readLevers);
+  }, [readLevers]);
+  const releaseEye = useCallback(() => { eyeLockRef.current?.(); eyeLockRef.current = null; }, []);
+  useEffect(() => { engageEye(); return releaseEye; }, [engageEye, releaseEye]);
+  const onGrowth = useCallback((v) => { growthRateRef.current = v; setGrowthRate(v); engageEye(); }, [engageEye]);
 
   // ── TRANSMISSION healing signal — Inverse Extinction Engine coupling ──────
   const [healingIdx, setHealingIdx] = useState(() => readHealing()?.healingIndex ?? 0);
@@ -526,6 +544,7 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
 
   // ── Reset ─────────────────────────────────────────────────────────────────
   const handleReset = useCallback(() => {
+    releaseEye();
     setGrowthRate(0.0);
     growthRateRef.current    = 0.0;
     // Disarm the protocol too. Growth drops to 0, so the degrowth gate is wide
@@ -563,7 +582,7 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
     setLastViralMsg('');
 
     setMapState({ deadFrac: 0, phase: 0, exergyNorm: 0, trophicV: 0, metabolicFat: 0, bloomFrac: 0 });
-  }, []);
+  }, [releaseEye]);
 
   // ── Per-country cell state (driven by WASM kernel metrics) ──────────────────
   // Computed 10 Hz; CSS transitions on the SVG elements interpolate to 60 fps.
@@ -833,16 +852,13 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
 
         {/* ── Paradox governance overlay — desktop only ───────────────── */}
         <div
-          className="absolute left-0 top-0 bottom-0 overflow-hidden pointer-events-none hidden md:block"
+          className="absolute left-0 top-0 bottom-0 overflow-hidden pointer-events-none hidden md:block pt-2"
           style={{
             width: '280px',
             background: 'linear-gradient(90deg, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.50) 72%, rgba(0,0,0,0) 100%)',
             textShadow: glitchShadow,
           }}
         >
-          <div className="px-3 pt-3 pb-1 tracking-[0.2em] uppercase" style={{ color: '#4a6a10', lineHeight: '1.5', fontSize: '10.5px', fontWeight: 800 }}>
-            Seraphine-8.8.8.8.8.8.8.8 {'\u00b7'} Paradox Governance
-          </div>
           {PARADOXES.map((p, i) => {
             const active = uiPhase >= p.phaseMin;
             if (!active) return null;
@@ -1003,7 +1019,7 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
             disabled={isCollapse}
             color={sliderColor}
             mandateActive={mandateActive}
-            onChange={setGrowthRate}
+            onChange={onGrowth}
           />
           <span
             className="w-14 text-right shrink-0"
@@ -1116,15 +1132,16 @@ export default function EcocideTab({ onLog, articles = [], onOpenArticle }) {
         </button>
         {protocolOpen && (
           <div className="mt-2 flex flex-col gap-2">
-            {growthRate >= 3.0 && (
+            {growthRate >= LEVER_GATE && (
               <div style={{ color: '#7a5a00', fontSize: '9px', fontWeight: 800, letterSpacing: '0.08em' }}>
                 {'▶'} GATE CLOSED {'—'} protections inert above 2.0% growth. Tame throughput to unlock healing.
               </div>
             )}
             <ProtectionLevers
               levers={{ toxicityCap, sanctuary, restoration, nativeBio }}
-              isGated={growthRate >= 3.0}
+              isGated={growthRate >= LEVER_GATE}
               onChange={(key, val) => {
+                engageEye();
                 if (key === 'toxicityCap')      setToxicityCap(val);
                 else if (key === 'sanctuary')   setSanctuary(val);
                 else if (key === 'restoration') setRestoration(val);

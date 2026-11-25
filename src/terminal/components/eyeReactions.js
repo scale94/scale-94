@@ -394,6 +394,11 @@ export const REACTIONS = {
   'accretion.collide': { kind: KICK.spiral, shape: SHAPE.horizon, durationMs: EJECT_MS, curve: accretionEject, tag: ACC_TAG },
   'accretion.release': { release: true, tag: ACC_TAG, durationMs: 600 },
   'transmission.mark': { kind: KICK.inhale, shape: SHAPE.antenna, durationMs: TX_MS, curve: transmissionBroadcast },
+  // /ECOCIDE: the drag itself drove the eye (ecocideEye); letting go clears it on the drive's
+  // own ease. The release still counts as the act, but plays nothing over that fade (a plain
+  // tinted envelope here would back-spin as it unwound). Keyed at level 0, the tab tint only
+  // shows where the drive does not: reduced motion's static colour hold.
+  'ecocide.growth': { kind: KICK.sag, durationMs: 400, keys: [{ t: 0, level: 0 }, { t: 1, level: 0 }] },
   // inhale, not flutter: a vertebra kind contracts the iris, and the butterfly needs the open pupil.
   'bsky.trend':   { kind: KICK.inhale, shape: SHAPE.butterfly, durationMs: BSKY_MS, curve: bskyVortex },
   'kernel.load':  { kind: KICK.miosis, shape: SHAPE.kernel, durationMs: 1700, keys: kernelKeys({ spins: 1.5, turn: 7.5 }) },

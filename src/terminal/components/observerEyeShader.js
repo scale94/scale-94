@@ -19,7 +19,7 @@ export const KICK = {
 
 // Shape morphs (u_shape). The pupil/disc *become* a figure by SDF blends, the nebula
 // keeps flowing inside it. u_shapeK 0..1 = how far; u_shapeA/B are per-shape params.
-export const SHAPE = { kernel: 1, butterfly: 2, antenna: 3, horizon: 4, accord: 5, sun: 6, cipher: 7, feigen: 8 };
+export const SHAPE = { kernel: 1, butterfly: 2, antenna: 3, horizon: 4, accord: 5, sun: 6, cipher: 7, feigen: 8, vessels: 9 };
 
 export const VS = 'attribute vec2 a;varying vec2 v;void main(){v=a;gl_Position=vec4(a,0.,1.);}';
 export const FS = [
@@ -27,6 +27,7 @@ export const FS = [
   'uniform float u_t,u_focus,u_irid,u_speed,u_pulse;uniform vec3 c0,c1,c2;uniform vec2 u_gaze;',
   'uniform float u_core,u_orbit,u_shimmer,u_thread,u_turb,u_kick,u_kickKind,u_kickDir,u_phase;',
   'uniform float u_shape,u_shapeK,u_shapeA,u_shapeB,u_shapeC,u_px,u_fore;',
+  'uniform float u_rim;uniform vec3 u_rimCol;',
   'float aa(float d){return clamp(0.5-d/max(u_px,1e-4),0.,1.);}',  // 1 inside (d<0), ~1px AA
   // A 2D hash; convection cells (/SOL): F1 Worley over a 3x3 neighbourhood, centres drifting.
   'vec2 h22(vec2 p){return fract(sin(vec2(dot(p,vec2(127.1,311.7)),dot(p,vec2(269.5,183.3))))*43758.5453);}',
@@ -62,6 +63,13 @@ export const FS = [
   ' if(cz>0.0&&u_shapeA>0.0){float st=floor(max(u_shapeB,0.0));vec2 cb=floor(v/0.22);vec2 hb=h22(cb+st*vec2(1.7,3.1));',
   '  vv+=cz*u_shapeA*(hb-0.5)*0.42;',
   '  vv.x+=cz*u_shapeA*0.34*(0.6+0.4*sin(u_t*31.0))*sin(cb.y*2.7+st*1.3);}',
+  // vessels (/ECOCIDE), all inside the fluid: A = arterial pressure, B = haemorrhage,
+  // C = calm. The pupil follows (pinprick under pressure, wide when soothed) and a breach
+  // strains the whole eye. Every term is x vz, so any other shape is untouched (v1 parity).
+  ' float vz=(u_shape>8.5&&u_shape<9.5)?clamp(u_shapeK,0.,1.):0.0;',
+  ' float vA=vz*clamp(u_shapeA,0.,1.),vB=vz*clamp(u_shapeB,0.,1.),vC=vz*clamp(u_shapeC,0.,1.);',
+  ' float ps=1.0-0.66*clamp(0.5*vA+0.7*vB,0.,1.)+0.95*vC;',
+  ' vv+=vB*0.025*vec2(sin(u_t*53.0)+0.5*sin(u_t*97.0),sin(u_t*47.0+1.3)+0.5*sin(u_t*89.0));',
   ' vec2 uv=vv-g;',
   // Foreshortening: a gazing eye narrows along its gaze so the shifted disc (radius 1)
   // still ends at the canvas edge instead of being sliced flat. 0 = v1 (parity).
@@ -83,7 +91,7 @@ export const FS = [
   ' col=mix(col,c2,smoothstep(0.55,0.98,m)*0.7);',
   ' col*=(0.30+1.25*n);',
   ' float discR=mix(0.98,0.56,fk);',
-  ' float coreR=mix(0.14,0.30,fk);',
+  ' float coreR=mix(0.14,0.30,fk)*ps;',
   ' float cl=clamp(u_core,0.,1.);',                       // star-core lifts the dark pupil
   // A figure that *is* the pupil (butterfly) lifts the round pupil out from under itself.
   ' float fig=(u_shape>1.5&&u_shape<2.5)?clamp(u_shapeK,0.,1.):0.0;',
@@ -94,7 +102,7 @@ export const FS = [
   '  vec3 silver=vec3(0.70,0.75,0.80)*(0.45+0.7*n);',
   '  vec3 spec=0.5+0.5*cos(6.2831*(vec3(0.0,0.33,0.66)+ang/6.2831+u_t*0.04));',
   '  vec3 rec=silver+spec*0.20*sweep;',
-  '  rec*=mix(mix(smoothstep(0.05,0.14,r),1.0,cl),1.0,fig);',
+  '  rec*=mix(mix(smoothstep(0.05*ps,0.14*ps,r),1.0,cl),1.0,fig);',
   '  rec*=1.0-smoothstep(0.90,1.0,r);',
   '  col=mix(col,rec,u_irid);',
   ' }',
@@ -268,7 +276,48 @@ export const FS = [
   '   float C=clamp(u_shapeC,0.,1.);P=mix(P,n*n*1.6,C);',      // past the accumulation point: chaos
   '   col*=mix(1.0,0.28+1.45*P,k);',
   '   col+=k*P*(1.0-0.6*C)*mix(c0,vec3(1.0),0.3)*0.35*smoothstep(0.1,0.3,r)*(1.0-smoothstep(discR*0.7,discR,r));',
+  // vessels: nothing is drawn on the metal; the blood is in it. Pressure (A) catches a deep
+  // arterial crimson in the fluid's own ridges (n), lit by the metal's own luminance, beating
+  // faster as it climbs. Haemorrhage (B): dark ink-blooms in the swirled frame (sp, warped by
+  // q), so the rotation carries and shears them like dye in spinning mercury; each region
+  // swells and bursts in turn. C: a luminous sage-emerald calm around a wide pupil.
+  '  }else if(u_shape<9.5){',
+  '   float A=clamp(u_shapeA,0.,1.),B=clamp(u_shapeB,0.,1.),C=clamp(u_shapeC,0.,1.);',
+  '   float pR=0.14*ps;',
+  '   float body=smoothstep(pR*1.05,pR*1.8,r)*(1.0-smoothstep(0.86,0.97,r));',
+  '   float lum=dot(col,vec3(0.30,0.59,0.11));',
+  '   if(A>0.001){float ridge=smoothstep(0.34,0.76,n);',
+  '    float beat=0.80+0.20*sin(u_t*(2.6+5.0*A+5.0*B));',
+  '    vec3 art=vec3(0.80,0.02,0.06);',
+  '    col=mix(col,art*(0.25+1.2*lum)*beat,k*body*clamp(1.5*A*(0.35+0.65*ridge),0.,1.));',
+  '    col+=k*body*A*ridge*art*0.22*beat;}',
+  '   if(B>0.001){vec2 ip=sp*2.4+q*2.6;',
+  '    float I=fbm(ip+vec2(7.3,2.1));',
+  '    float pop=0.5+0.5*sin(u_t*1.3+6.2831*vn(sp*1.1+vec2(4.0,9.0)));',
+  '    float th=0.70-0.22*B-0.08*pop;',
+  '    float ink=smoothstep(th,th+0.07,I)*body;',
+  '    col=mix(col,vec3(0.24,0.0,0.02)*(0.45+0.9*lum),k*clamp(ink*(0.6+0.5*B),0.,1.));}',
+  '   if(C>0.001){float halo=smoothstep(pR,pR*1.6,r)*(1.0-smoothstep(0.55,0.95,r));',
+  '    col+=k*C*vec3(0.30,1.0,0.58)*(0.18+0.32*n)*halo;',
+  '    col+=k*C*vec3(0.45,1.0,0.7)*0.5*exp(-pow((r-pR*1.25)/0.05,2.0));}',
   '  }',
+  ' }',
+  // Rim (eyeDrive driveRim; /ECOCIDE's protection protocol): a luminous corona hugging the
+  // iris edge, made of the fluid: lit by n, its light running round the ring through the
+  // swirl, a bright refractive lip at the edge and a dark groove inside it. The hue is lifted to
+  // full light and saturated (pale accents must still part from silver); the strength
+  // is drawn on a sqrt curve (a quarter pull already reads). 0: off.
+  ' if(u_rim>0.0){',
+  '  vec3 rc=u_rimCol/max(max(u_rimCol.r,u_rimCol.g),max(u_rimCol.b,1e-3));',
+  '  rc=clamp(mix(vec3(dot(rc,vec3(0.30,0.59,0.11))),rc,1.9),0.,1.);',
+  '  float rw=sqrt(clamp(u_rim,0.,1.));',
+  '  float band=exp(-pow((r-0.835)/0.105,2.0));',
+  '  float flow=0.55+0.45*sin(ang*5.0-u_t*0.7+n*5.0);',
+  '  vec3 glow=rc*(0.45+0.85*n);',
+  '  col*=1.0-0.4*rw*exp(-pow((r-0.70)/0.035,2.0));',
+  '  col=mix(col,glow,rw*band*0.85);',
+  '  col+=rw*band*rc*flow*0.35;',
+  '  col+=rw*exp(-pow((r-0.93)/0.025,2.0))*mix(rc,vec3(1.0),0.4)*0.8;',
   ' }',
   ' gl_FragColor=vec4(col,a);',
   '}'].join('\n');
@@ -276,5 +325,5 @@ export const FS = [
 export const UNIFORMS = [
   'u_t', 'u_focus', 'u_irid', 'u_speed', 'u_pulse', 'c0', 'c1', 'c2', 'u_gaze',
   'u_core', 'u_orbit', 'u_shimmer', 'u_thread', 'u_turb', 'u_kick', 'u_kickKind', 'u_kickDir', 'u_phase',
-  'u_shape', 'u_shapeK', 'u_shapeA', 'u_shapeB', 'u_shapeC', 'u_px', 'u_fore',
+  'u_shape', 'u_shapeK', 'u_shapeA', 'u_shapeB', 'u_shapeC', 'u_px', 'u_fore', 'u_rim', 'u_rimCol',
 ];
