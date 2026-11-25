@@ -60,6 +60,7 @@ const RULES = {
   'gaze/art_resonance':             { piece: 'chaos.pick' },
   'gaze/art_node_selected':         { piece: 'chaos.pick' },
   'gaze/art_bifurcation':           { piece: 'chaos.fork', mixed: true },
+  'gaze/art_orthogonal':            { piece: 'chaos.fork', mixed: true },   // right-click: + resonance
   'gaze/ecocide_growth_set':        { piece: 'ecocide.growth' },
   'ciphers/cipher_sealed':          { piece: 'crypto.seal' },
   'ciphers/unlock':                 { piece: 'crypto.seal' },

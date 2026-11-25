@@ -4108,6 +4108,8 @@ export default function ArtTab({ onRunKernel, onCueNode, associativeField, spect
       onOrthogonalBridge(node.id, result);
       bgFlashRef.current = 0.7; // orthogonal bridge → brief void flash
       spawnEffect(node.id, { soft: false, rightClick: true });  // right-click → complementary hue burst
+      // The masthead eye answers the orthogonal shift with the full Feigenbaum cascade.
+      emitObs('gaze', 'art_orthogonal', { nodeA: node.id, nodeB: result?.id ?? null, hand: true });
     }
   }, [canvasCoords, nodeAt, onOrthogonalBridge, activeEdges, spawnEffect]);
 

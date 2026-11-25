@@ -1,6 +1,6 @@
 // eyeReactions.test.js — the per-piece choreography table and how an impulse becomes a kick.
 import { describe, it, expect } from 'vitest';
-import { REACTIONS, reactionKick, BSKY_EXIT, TX_IGNITE, ACC_TAG, EJECT_OUT, SCENT_HIT, surveillanceTrace, CRYPTO_SNAP, CRYPTO_TAG } from '../eyeReactions';
+import { REACTIONS, reactionKick, BSKY_EXIT, TX_IGNITE, ACC_TAG, EJECT_OUT, SCENT_HIT, surveillanceTrace, CRYPTO_SNAP, CRYPTO_TAG, FEIGEN_DELTA, FORK_TIMES, FORK_ACCUM } from '../eyeReactions';
 import { KICK, SHAPE } from '../observerEyeShader';
 
 const last = (keys, f) => keys.slice().sort((a, b) => a.t - b.t).at(-1)[f];
@@ -289,6 +289,42 @@ describe('eyeReactions', () => {
     expect(at(0.15).shapeB).toBeLessThan(0);                                // the burst
     expect(at(D).level).toBe(0);
     expect(at(D).shapeK).toBe(0);
+  });
+
+  it('chaos_fork_doubles_at_feigenbaum_intervals_then_smears', () => {
+    // The intervals between doublings shrink by δ, piling into the accumulation point.
+    const gaps = FORK_TIMES.slice(1).map((T, i) => T - FORK_TIMES[i]);
+    gaps.slice(1).forEach((g, i) => expect(gaps[i] / g).toBeCloseTo(FEIGEN_DELTA, 6));
+    expect(FORK_TIMES.at(-1)).toBeLessThan(FORK_ACCUM);
+    const r = REACTIONS['chaos.fork'];
+    expect(r.shape).toBe(SHAPE.feigen);
+    const D = r.durationMs / 1000, at = (t) => r.curve(t / D, {});
+    // 1 -> 2 -> 4 -> 8 -> 16 lobes: one more doubling after each split has run.
+    expect(at(FORK_TIMES[0] - 0.01).shapeA).toBe(0);
+    expect(at(FORK_TIMES[1] - 0.01).shapeA).toBeCloseTo(1, 3);
+    expect(at(FORK_ACCUM + 0.05).shapeA).toBeCloseTo(4, 3);
+    // Chaos only past the accumulation point; the figure then settles away.
+    expect(at(FORK_ACCUM - 0.05).shapeC).toBe(0);
+    expect(at(FORK_ACCUM + 0.2).shapeC).toBeGreaterThan(0.95);
+    expect(at(D).shapeK).toBe(0);
+    expect(at(D).level).toBe(0);
+    // The spin doubles with each period, always forward, and comes to rest.
+    const rate = (t) => (at(t + 0.002).turn - at(t - 0.002).turn) / 0.004;
+    expect(rate(0.6)).toBeGreaterThan(rate(0.1) * 1.8);
+    expect(rate(FORK_ACCUM + 0.1)).toBeGreaterThan(rate(0.6) * 3);
+    const xs = Array.from({ length: 400 }, (_, i) => i / 399);
+    const T = xs.map((x) => r.curve(x, {}).turn);
+    T.slice(1).forEach((t, i) => expect(t).toBeGreaterThanOrEqual(T[i] - 1e-12));
+    expect(rate(D - 0.005)).toBeLessThan(0.05);
+  });
+
+  it('chaos_pick_splits_once_and_merges_back', () => {
+    const r = REACTIONS['chaos.pick'];
+    const D = r.durationMs / 1000, at = (t) => r.curve(t / D, {});
+    const A = Array.from({ length: 200 }, (_, i) => at((i / 199) * D).shapeA);
+    expect(Math.max(...A)).toBeCloseTo(1, 2);                       // one doubling, never more
+    expect(at(D).shapeA).toBe(0);                                    // merged back
+    expect(Math.max(...Array.from({ length: 200 }, (_, i) => at((i / 199) * D).shapeC))).toBe(0);
   });
 
   it('impulse_overlays_its_choreography', () => {

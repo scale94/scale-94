@@ -790,6 +790,16 @@ describe('observerStore — whispers', () => {
     expect(impulses.at(-1).data).toBeNull();
   });
 
+  it('art_right_click_runs_the_full_cascade_only_by_hand', async () => {
+    boot('art');
+    emit('gaze', 'art_orthogonal', { nodeA: 'a', nodeB: 'b' });          // no hand: ignored
+    await flush();
+    expect(impulses).toHaveLength(0);
+    emit('gaze', 'art_orthogonal', { nodeA: 'a', nodeB: 'b', hand: true });
+    await flush();
+    expect(impulses.at(-1).piece).toBe('chaos.fork');
+  });
+
   it('scent_collision_carries_both_accord_colours', async () => {
     boot('essences');
     emit('essences', 'collision_fired', { colors: [[230, 80, 200], [40, 200, 120]] });

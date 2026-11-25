@@ -19,7 +19,7 @@ export const KICK = {
 
 // Shape morphs (u_shape). The pupil/disc *become* a figure by SDF blends, the nebula
 // keeps flowing inside it. u_shapeK 0..1 = how far; u_shapeA/B are per-shape params.
-export const SHAPE = { kernel: 1, butterfly: 2, antenna: 3, horizon: 4, accord: 5, sun: 6, cipher: 7 };
+export const SHAPE = { kernel: 1, butterfly: 2, antenna: 3, horizon: 4, accord: 5, sun: 6, cipher: 7, feigen: 8 };
 
 export const VS = 'attribute vec2 a;varying vec2 v;void main(){v=a;gl_Position=vec4(a,0.,1.);}';
 export const FS = [
@@ -255,6 +255,19 @@ export const FS = [
   '   if(u_shapeB<0.0){float E=-u_shapeB,er=r-E;',            // the seal burst: one crisp ring out
   '    float eb=exp(-er*er/0.0035)*(1.0-smoothstep(0.8,1.15,E))*(1.0-smoothstep(0.80,0.97,max(abs(v.x),abs(v.y))));',
   '    col+=k*eb*hot*2.3;a=max(a,k*eb*0.8);}',
+  // feigen (/CHAOS): period doubling. A = doublings (floor = level, 2^level lobes; fract =
+  // the split in progress), B = lobe phase, C = chaos. Every lobe at c splits to c ± π/2L and
+  // narrows as it goes, so a finished split IS the next level's lobes (no jump between them).
+  '  }else if(u_shape<8.5){',
+  '   float lv=floor(u_shapeA),sp=smoothstep(0.0,1.0,fract(u_shapeA)),L=exp2(lv);',
+  '   float an=ang+2.2*r+u_shapeB,o=sp*3.14159265/(2.0*L),w=1.7279/(L*exp2(sp));',
+  '   float cf=lv<0.5?0.0:3.14159265/L,P=0.0;',
+  '   for(int i=0;i<16;i++){if(float(i)>=L)break;float cc=cf+6.2831853*float(i)/L;',
+  '    float d1=mod(an-cc-o+3.14159265,6.2831853)-3.14159265,d2=mod(an-cc+o+3.14159265,6.2831853)-3.14159265;',
+  '    P=max(P,exp(-min(d1*d1,d2*d2)/(w*w)));}',
+  '   float C=clamp(u_shapeC,0.,1.);P=mix(P,n*n*1.6,C);',      // past the accumulation point: chaos
+  '   col*=mix(1.0,0.28+1.45*P,k);',
+  '   col+=k*P*(1.0-0.6*C)*mix(c0,vec3(1.0),0.3)*0.35*smoothstep(0.1,0.3,r)*(1.0-smoothstep(discR*0.7,discR,r));',
   '  }',
   ' }',
   ' gl_FragColor=vec4(col,a);',

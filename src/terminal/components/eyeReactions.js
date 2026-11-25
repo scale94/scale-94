@@ -318,7 +318,67 @@ export function cryptoKeygen(x, d) {
   return d;
 }
 
+// /CHAOS — the Feigenbaum cascade. Hand bifurcations and the right-click orthogonal shift
+// ('chaos.fork') run the full, violent cascade: the swirl's lobes double 1 -> 2 -> 4 -> 8 ->
+// 16 at intervals shrinking by δ ≈ 4.669 (they pile into the accumulation point), the spin
+// doubling with every period; past it the figure smears into chaos, then settles to silver.
+// A node pick or a resonance pair ('chaos.pick') is the modest version: one split, then it
+// merges back (a period halving). shapeA = doublings, shapeB = lobe phase, shapeC = chaos.
+export const FEIGEN_DELTA = 4.669201609;
+const FORK_MS = 2000;
+const FORK_T0 = 0.15, FORK_D1 = 0.55;                   // s: the first doubling, the first interval
+export const FORK_TIMES = [0, 1, 2, 3].map((k) =>          // each interval 1/δ of the last
+  FORK_T0 + (k === 0 ? 0 : FORK_D1 * (1 - FEIGEN_DELTA ** -k) / (1 - 1 / FEIGEN_DELTA)));
+export const FORK_ACCUM = FORK_T0 + FORK_D1 / (1 - 1 / FEIGEN_DELTA);   // the accumulation point
+const forkSplit = (k) => (k === 0 ? 0.12 : Math.min(0.12, 0.6 * FORK_D1 * FEIGEN_DELTA ** -(k - 1)));
+const forkA = (t) => FORK_TIMES.reduce((s, T, k) => s + sm((t - T) / forkSplit(k)), 0);
+const forkC = (t) => sm((t - FORK_ACCUM + 0.02) / 0.14);
+// The spin doubles with each period (ω = 1.1 · 2^A rad/s), then coasts out over the settle.
+const FORK_TURN = (() => {
+  const N = 800, D = FORK_MS / 1000, out = new Float64Array(N + 1);
+  let th = 0, w = 0;
+  for (let i = 1; i <= N; i++) {
+    const t = (i / N) * D, dt = D / N;
+    const settle = 1 - sm((t - 1.25) / 0.7);
+    w = 1.1 * 2 ** forkA(t) * (1 + 0.6 * forkC(t)) * settle;
+    th += w * dt;
+    out[i] = th;
+  }
+  return out;
+})();
+export function chaosFork(x, d) {
+  const D = FORK_MS / 1000, t = x * D;
+  const fi = Math.min(FORK_TURN.length - 1, Math.max(0, x * (FORK_TURN.length - 1)));
+  const i0 = Math.floor(fi), i1 = Math.min(FORK_TURN.length - 1, i0 + 1);
+  d.turn = FORK_TURN[i0] + (FORK_TURN[i1] - FORK_TURN[i0]) * (fi - i0);
+  d.shapeA = forkA(t);
+  d.shapeB = 0;
+  d.shapeC = forkC(t);
+  d.shapeK = 1 - sm((t - 1.35) / 0.4);
+  d.level = sm(t / 0.1) * (1 - sm((t - 1.3) / 0.7));
+  let kick = 0;
+  for (const T of FORK_TIMES) kick += Math.exp(-(((t - T) / 0.05) ** 2));
+  d.focus = 0.12 * Math.min(1.5, kick);                  // the iris flinches at every doubling
+  d.turb = 0.12 * d.shapeA / 4 + 0.75 * d.shapeC * (1 - sm((t - 1.3) / 0.6));
+  d.gazeX = 0; d.gazeY = 0;
+  return d;
+}
+const PICK_MS = 1000;
+export function chaosPick(x, d) {
+  const t = x * (PICK_MS / 1000);
+  d.shapeA = sm((t - 0.12) / 0.2) * (1 - sm((t - 0.55) / 0.25));   // one split, merged back
+  d.shapeB = 0; d.shapeC = 0;
+  d.shapeK = 1 - sm((t - 0.82) / 0.15);
+  d.level = 0.75 * sm(t / 0.1) * (1 - sm((t - 0.6) / 0.38));
+  d.turn = 0.7 * sm(t / 0.9);
+  d.focus = 0.1 * Math.exp(-(((t - 0.22) / 0.06) ** 2));
+  d.turb = 0; d.gazeX = 0; d.gazeY = 0;
+  return d;
+}
+
 export const REACTIONS = {
+  'chaos.fork': { kind: KICK.watch, shape: SHAPE.feigen, durationMs: FORK_MS, curve: chaosFork },
+  'chaos.pick': { kind: KICK.watch, shape: SHAPE.feigen, durationMs: PICK_MS, curve: chaosPick },
   'crypto.seal': (imp) => (imp.data?.keyed
     ? { kind: KICK.watch, shape: SHAPE.cipher, durationMs: KEYED_MS, curve: cryptoKeyed, tint: CRYPTO_COLS[0], tint2: CRYPTO_COLS[1] }
     : { kind: KICK.watch, shape: SHAPE.cipher, durationMs: CRYPTO_MS, curve: cryptoSeal, tint: CRYPTO_COLS[0], tint2: CRYPTO_COLS[1] }),
