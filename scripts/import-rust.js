@@ -1379,23 +1379,26 @@ const KERNEL_MAP = [
     aliases: ['matrix','matrix_kernel','no_spoon','filter_bypass','lucke','unbent','sps','adhd_i'],
   },
   {
-    // Fade Doctrine — Zero White Fade · Crystalline Phase Lock v2.0.0
-    // Seven axioms, color semiotic system, transition grammar, boot sequence timing.
-    // entropy_level:         args[0]  flags: --entropy, --e
-    // crystalline_threshold: args[1]  flags: --threshold, --t
-    // axiom_index:           args[2]  flags: --axiom, --ax (1–7)
+    // Fade Doctrine — Lindblad Decoherence Engine v2.0.0 (fade_doctrine.rs)
+    // Depolarizing-channel purity over time, with a Kauffman NK criticality readout.
+    // gamma:       args[0]  flags: --gamma, --g
+    // hilbert_dim: args[1]  flags: --dim, --n, --hilbert
+    // kauffman_k:  args[2]  flags: --k, --kauffman
+    // drive_omega: args[3]  flags: --omega, --drive
     id:      'FADE-DOCTRINE-KERNEL-2.0.0',
-    fn:      'run_fade_doctrine',
-    args:    [0.1, 0.5, 7.0],
+    fn:      'run_lindblad_fade',
+    args:    [0.1, 16, 2.0, 1.0],
     argMap:  {
-      entropy: 0, e: 0,
-      threshold: 1, t: 1,
-      axiom: 2, ax: 2,
+      gamma: 0, g: 0,
+      dim: 1, n: 1, hilbert: 1,
+      k: 2, kauffman: 2,
+      omega: 3, drive: 3,
     },
     params: [
-      { name: 'entropy_level',         default: 0.1, desc: 'current entropy level 0–1 (0=crystalline locked, 1=full entropy collapse)' },
-      { name: 'crystalline_threshold', default: 0.5, desc: 'threshold for crystalline lock 0–1 (containment = (threshold−entropy)/threshold)' },
-      { name: 'axiom_index',           default: 7.0, desc: '1=transmute 2=sustain 3=integrity 4=entropy 5=sovereignty 6=crystalline 7=apex_7.7.7.7.7.7.7' },
+      { name: 'gamma',       default: 0.1, desc: 'decoherence rate γ (0.001–20)' },
+      { name: 'hilbert_dim', default: 16,  desc: 'Hilbert space dimension N (2–64)' },
+      { name: 'kauffman_k',  default: 2.0, desc: 'mean network connectivity K (1–5); 2 is the critical point' },
+      { name: 'drive_omega', default: 1.0, desc: 'Rabi drive strength Ω (0–10); 0 is pure decay' },
     ],
     label:   'Fade Doctrine · Zero White Fade v2.0.0',
     type:    'rust',

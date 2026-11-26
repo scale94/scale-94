@@ -129,8 +129,8 @@ export default function KernelManual() {
               <div className="text-[10px] text-cyan-600/40 pl-2">Necromantic Aristocrat · Gold Posture · Anti-Mercury · Reference Voltage · Bouligand 36°</div>
               <div className="mt-2"><span className="text-fuchsia-400">run sss</span> <span className="text-cyan-700">[--kinetic 0.0] [--freq 4] [--precommit 0.9]</span></div>
               <div className="text-[10px] text-cyan-600/40 pl-2">SSS Doctrine · literary deterrent · Schelling ironic calculus · precommitment as sovereignty</div>
-              <div className="mt-2"><span className="text-fuchsia-400">run fade</span> <span className="text-cyan-700">[--entropy 0.1] [--threshold 0.5] [--axiom 7]</span></div>
-              <div className="text-[10px] text-cyan-600/40 pl-2">Fade Doctrine · Zero White Fade · crystalline lock · seven axioms · apex 7.7.7.7.7.7.7</div>
+              <div className="mt-2"><span className="text-fuchsia-400">run fade</span> <span className="text-cyan-700">[--gamma 0.1] [--dim 16] [--k 2] [--omega 1]</span></div>
+              <div className="text-[10px] text-cyan-600/40 pl-2">Fade Doctrine · Zero White Fade · Lindblad decoherence · purity decay · Kauffman criticality</div>
               <div className="mt-2"><span className="text-fuchsia-400">run i_am_stiller</span> <span className="text-cyan-700">[--k 0.4] [--gamma 0.3] [--sigma 0.15]</span></div>
               <div className="text-[10px] text-cyan-600/40 pl-2">I_AM_STILLER · Ontological Baseline · Frisch / Ich Bin · oscillation cease · Langevin depth</div>
               <div className="mt-2"><span className="text-fuchsia-400">run logitbias</span> <span className="text-cyan-700">[--pirarucu 0.7] [--levamisole 0.3] [--temp 1]</span></div>
