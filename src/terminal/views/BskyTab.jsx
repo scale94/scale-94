@@ -101,10 +101,9 @@ export const ButterflyIcon = ({ className, style }) => (
 );
 
 // ── GraphTracks config ─────────────────────────────────────────────────────────
-const GT_BASE    = 'https://api.graphtracks.com';
+// The API key stays on the server: api/graphtracks/top-posts.js.
+const GT_ROUTE   = '/api/graphtracks/top-posts';
 const GT_NETWORK = 'BlueSky';
-const GT_DID     = import.meta.env.VITE_GRAPHTRACKS_DID || null;
-const GT_KEY     = import.meta.env.VITE_GRAPHTRACKS_KEY || null;
 
 // ── Resource manifest ──────────────────────────────────────────────────────────
 // // PROTOCOL_LAYER — core spec + identity infrastructure
@@ -285,7 +284,10 @@ const BskyTab = () => {
     setTrend({ label: topic, velocity, volume: null });
   }, []);
 
-  const apiEnabled = Boolean(GT_DID && GT_KEY);
+  // Reported by the server route: whether GraphTracks is set up, and for which account.
+  const [graphTracks, setGraphTracks] = useState({ configured: false, did: null });
+  const apiEnabled = graphTracks.configured;
+  const accountDid = graphTracks.did;
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -307,16 +309,12 @@ const BskyTab = () => {
         suggested: Array.isArray(trendingRes.suggested) ? trendingRes.suggested.slice(0, 12) : [],
       });
 
-      // Top-posts require GraphTracks
-      if (apiEnabled) {
-        const headers = { 'X-API-Key': GT_KEY };
-        const base    = `${GT_BASE}/v1/api/networks/${GT_NETWORK}/accounts/${GT_DID}`;
-        const top = await fetch(`${base}/top-posts`, { headers }).then(r => r.json());
-        const live = Array.isArray(top)
-          ? top.filter(p => p.details?.record?.text || p.details?.embed?.images?.length)
-          : [];
-        setTopPosts(live.slice(0, 6));
-      }
+      // Top posts come through the server route; if it fails, the rest of the tab still works.
+      const gt = await fetch(GT_ROUTE)
+        .then(r => r.json())
+        .catch(() => null);
+      setGraphTracks({ configured: Boolean(gt?.configured), did: gt?.did ?? null });
+      setTopPosts(Array.isArray(gt?.posts) ? gt.posts : []);
 
       setLastSync(new Date().toLocaleTimeString());
     } catch (e) {
@@ -324,7 +322,7 @@ const BskyTab = () => {
     } finally {
       setLoading(false);
     }
-  }, [apiEnabled]);
+  }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -469,7 +467,7 @@ const BskyTab = () => {
             <div className="text-xl font-bold text-sky-200 tracking-tight mb-0.5">scale_9.4</div>
             <div className="text-[11px] text-sky-400/50 font-mono mb-1">@scale94.com</div>
             <div className="text-[9px] text-sky-400/20 font-mono truncate max-w-xs mb-3">
-              DID: {GT_DID || 'did:plc:··············'}
+              DID: {accountDid || 'did:plc:··············'}
             </div>
             <a
               href="https://bsky.app/profile/scale94.com"
@@ -772,13 +770,13 @@ const BskyTab = () => {
           <div className="px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-2">
             <div className="flex items-center gap-2">
               <span className="text-sky-400/30">└─</span>
-              <span className="text-sky-400/40">VITE_GRAPHTRACKS_KEY</span>
+              <span className="text-sky-400/40">GRAPHTRACKS_KEY</span>
               <code className="text-cyan-400/70 bg-cyan-950/20 border border-cyan-900/20 px-1.5 py-0.5">[NOT SET]</code>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-sky-400/30">└─</span>
-              <span className="text-sky-400/40">VITE_GRAPHTRACKS_DID</span>
-              <code className="text-cyan-400/70 bg-cyan-950/20 border border-cyan-900/20 px-1.5 py-0.5">{GT_DID || '[NOT SET]'}</code>
+              <span className="text-sky-400/40">GRAPHTRACKS_DID</span>
+              <code className="text-cyan-400/70 bg-cyan-950/20 border border-cyan-900/20 px-1.5 py-0.5">{accountDid || '[NOT SET]'}</code>
             </div>
             <a
               href="https://github.com/graphtracks/docs"
@@ -1006,7 +1004,7 @@ const BskyTab = () => {
           <div className="px-4 py-3 flex flex-col gap-1">
             <div className="text-[9px] text-sky-400/25 font-bold tracking-[0.25em] uppercase mb-0.5">DID</div>
             <div className="text-[11px] font-mono text-sky-300/40 truncate">
-              {GT_DID || 'set VITE_GRAPHTRACKS_DID'}
+              {accountDid || 'set GRAPHTRACKS_DID'}
             </div>
           </div>
           <div className="px-4 py-3 flex flex-col gap-1">
