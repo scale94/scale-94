@@ -439,6 +439,17 @@ describe('observerStore — glances', () => {
     expect(getObserver().whisper).not.toBeNull();
   });
 
+  it('a_held_eye_with_idle_still_gets_its_own_tabs_riddle_but_no_compass', async () => {
+    boot('ecocide');
+    holdEyeQuiet(true, { idle: true });                  // /ECOCIDE's lock, from the moment it opens
+    await step(QUIET_MS);
+    expect(getObserver().glance).toBeNull();             // the compass would have glanced by now
+    await step(IDLE_MS - QUIET_MS);
+    expect(getObserver().whisper).toMatchObject({ piece: 'ecocide.growth' });   // the riddle at the slider
+    holdEyeQuiet(true);                                  // tightening the hold in place is allowed
+    holdEyeQuiet(false);
+  });
+
   it('compass_glance_points_at_first_unmarked_vertebra_before_any_mark', async () => {
     boot(QUIET_TAB);
     await step(QUIET_MS);

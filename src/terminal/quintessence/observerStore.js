@@ -145,6 +145,7 @@ let forwardAt = null;           // when the settled reaction may earn a forward 
 let phraseBusyUntil = 0;
 let chromeVisible = true;
 let eyeHeld = false;            // a tab drives the eye live (holdEyeQuiet): no glance / whisper starts over it
+let heldIdleOk = false;         // ...except that tab's own idle riddle (holdEyeQuiet(true, { idle: true }))
 let snap = null;                // built lazily by the first getObserver() (no work at import)
 const listeners = new Set();
 const impulseListeners = new Set();
@@ -425,8 +426,8 @@ function tick() {
 
   // Never during a nav flash (a whisper glance would put a third hue up beside it), nor
   // straight after one.
-  if (!eyeHeld && !whisper && !held && t >= phraseBusyUntil && t >= flashClearAt()) {
-    if (forwardAt !== null && t >= forwardAt) {
+  if ((!eyeHeld || heldIdleOk) && !whisper && !held && t >= phraseBusyUntil && t >= flashClearAt()) {
+    if (!eyeHeld && forwardAt !== null && t >= forwardAt) {
       forwardAt = null;
       const piece = trail.actedOnce && t >= cooldownEnd() ? pickPiece({ skipTab: activeTab }) : null;
       if (piece) { fireWhisper(piece, null, t); changed = true; }
@@ -459,9 +460,9 @@ function schedule() {
   if (whisper) due.push(whisper.until);
   if (held) due.push(held.since + MOBILE_HOLD_MS);
   if (sealedAt !== null) due.push(sealedAt + CRESCENDO_MS);
-  if (!eyeHeld && !whisper && !held) {
-    if (forwardAt !== null) due.push(Math.max(forwardAt, phraseBusyUntil, flashClearAt()));
-    if (idleEligible()) due.push(Math.max(lastInputAt + IDLE_MS, cooldownEnd(), phraseBusyUntil, flashClearAt()));
+  if (!whisper && !held) {
+    if (!eyeHeld && forwardAt !== null) due.push(Math.max(forwardAt, phraseBusyUntil, flashClearAt()));
+    if ((!eyeHeld || heldIdleOk) && idleEligible()) due.push(Math.max(lastInputAt + IDLE_MS, cooldownEnd(), phraseBusyUntil, flashClearAt()));
   }
   if (!eyeHeld && compassTarget() && !glance && !whisper) due.push(Math.max(quietFrom + QUIET_MS, compassEndAt + GLANCE_GAP_MS));
   // Every deadline listed here is consumed or moved by tick, so an overdue one runs at 0 ms
@@ -575,10 +576,16 @@ export function notifyLedger(stage, severity = null) {
 // glance or whisper would tint and turn the eye over the tab's figure. A glance in progress
 // ends at once; nothing new starts until the hold lifts, and then the usual gaps run from
 // there (the compass's quiet window, AFTER_REACTION_MS before a forward whisper).
-export function holdEyeQuiet(on) {
+// { idle: true } still lets the held tab's own idle riddle through (/ECOCIDE holds the eye
+// from the moment it opens, before the visitor has found the slider the riddle points at).
+export function holdEyeQuiet(on, { idle = false } = {}) {
   const v = !!on;
-  if (v === eyeHeld) return;
+  const idleOk = v && !!idle;
+  if (v === eyeHeld && idleOk === heldIdleOk) return;
+  const was = eyeHeld;
   eyeHeld = v;
+  heldIdleOk = idleOk;
+  if (v === was) { schedule(); return; }
   const t = now();
   if (v) {
     if (glance) { endGlance(t); ping(); }
@@ -629,7 +636,7 @@ export function _resetObserverForTests({ random, now: clock } = {}) {
   trail = emptyTrail(); cooldownMs = COOLDOWN_MIN_MS;
   lastInputAt = 0; quietFrom = 0; compassEndAt = -Infinity;
   glance = null; whisper = null; held = null; forwardAt = null;
-  phraseBusyUntil = 0; chromeVisible = true; eyeHeld = false;
+  phraseBusyUntil = 0; chromeVisible = true; eyeHeld = false; heldIdleOk = false;
   listeners.clear(); impulseListeners.clear();
   now = clock || Date.now;
   rng = random || Math.random;

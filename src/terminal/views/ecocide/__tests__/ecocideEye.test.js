@@ -2,6 +2,9 @@
 // pressure to 5 %, haemorrhage past it; the protection levers ring the iris until the gate;
 // unlocking lets go.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+
+const q = vi.hoisted(() => ({ calls: [] }));
+vi.mock('../../../quintessence/observerStore', () => ({ holdEyeQuiet: (...a) => q.calls.push(a) }));
 import { ecocideLook, ecocideRim, lockEcocideEye, resetEcocideEye, CALM_EDGE, BREACH } from '../ecocideEye';
 import { LEVER_ACCENTS, LEVER_GATE, hexRgb } from '../protectionProtocol';
 import { eyeDrive, live, release, HOLD_MS } from '../../../components/eyeDrive';
@@ -9,7 +12,7 @@ import { SHAPE } from '../../../components/observerEyeShader';
 import { reactionKick } from '../../../components/eyeReactions';
 
 const FAKE = ['requestAnimationFrame', 'cancelAnimationFrame', 'performance', 'setTimeout', 'clearTimeout'];
-beforeEach(() => { resetEcocideEye(); vi.useFakeTimers({ toFake: FAKE }); });
+beforeEach(() => { resetEcocideEye(); q.calls.length = 0; vi.useFakeTimers({ toFake: FAKE }); });
 afterEach(() => { release(); vi.useRealTimers(); });
 const anyLive = () => {
   const t = performance.now();
@@ -105,6 +108,21 @@ describe('lockEcocideEye', () => {
     unlock();
     vi.advanceTimersByTime(HOLD_MS + 50);
     expect(anyLive()).toBe(false);
+  });
+
+  it('the_lock_holds_glances_off_the_eye_but_lets_the_idle_riddle_through', () => {
+    const unlock = lockEcocideEye(() => 3);
+    expect(q.calls).toEqual([[true, { idle: true }]]);
+    unlock();
+    unlock();                                            // idempotent: released once
+    expect(q.calls).toEqual([[true, { idle: true }], [false, { idle: true }]]);
+  });
+
+  it('reduced_motion_takes_no_lock_and_no_hold', () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: true }));
+    lockEcocideEye(() => 3)();
+    expect(q.calls).toEqual([]);
+    vi.unstubAllGlobals();
   });
 
   it('the_slider_release_reaction_plays_nothing_over_the_lock', () => {

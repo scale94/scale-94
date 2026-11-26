@@ -8,6 +8,8 @@
 //                the rotation; a strained pinprick pupil; the fluid churns on
 // The PROTECTION_PROTOCOL levers frame the iris in a luminous rim: as bright as their mean pull,
 // in their accents mixed by pull, and gone (fading) once growth passes the lever gate.
+// While locked, the store holds compass glances and forward whispers off the eye (they would
+// tint and turn it over the biosphere); the tab's own idle riddle may still show.
 // Unlocking (tab exit, reset) lets every channel lapse: the eye eases back to silver on its
 // own, quietly (palette quiet: no back-spin). The slider's release reaction is silent
 // (eyeReactions 'ecocide.growth').
@@ -15,6 +17,7 @@
 import { driveMood, drivePalette, driveSpin, driveShape, driveRim } from '../../components/eyeDrive';
 import { SHAPE } from '../../components/observerEyeShader';
 import { protocolRim, LEVER_GATE } from './protectionProtocol';
+import { holdEyeQuiet } from '../../quintessence/observerStore';
 
 export const CALM_EDGE = 2;                             // % growth: calm below, pressure above
 export const BREACH = 5;                                // % growth: the planetary boundary
@@ -94,6 +97,8 @@ export function lockEcocideEye(readGrowth, readLevers = () => null) {
   if (reducedMotion()) return () => {};
   let alive = true, raf = 0, timer = 0;
   resetEcocideEye();
+  const quiet = (on) => { try { holdEyeQuiet(on, { idle: true }); } catch (_) { /* ancillary */ } };
+  quiet(true);
   const tick = () => {
     if (!alive) return;
     cancelAnimationFrame(raf); clearTimeout(timer);
@@ -104,5 +109,9 @@ export function lockEcocideEye(readGrowth, readLevers = () => null) {
     timer = setTimeout(tick, WATCHDOG_MS);
   };
   tick();
-  return () => { alive = false; cancelAnimationFrame(raf); clearTimeout(timer); resetEcocideEye(); };
+  return () => {
+    if (!alive) return;
+    alive = false; cancelAnimationFrame(raf); clearTimeout(timer); resetEcocideEye();
+    quiet(false);
+  };
 }
