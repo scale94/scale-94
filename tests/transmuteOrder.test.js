@@ -23,6 +23,7 @@ vi.mock('@vercel/kv', () => ({
 
 // Secret set on purpose: a browser cannot sign, so an unsigned order must still pass.
 process.env.TRANSMUTE_WEBHOOK_SECRET = 'stale-server-secret';
+process.env.RATE_LIMIT_SALT = 'test-rate-limit-salt';
 const { default: handler } = await import('../api/transmute/order.js');
 
 const hashOf = n => n.toString(16).padStart(64, '0');
@@ -123,6 +124,27 @@ describe('/api/transmute/order', () => {
   it('does not store the raw address', async () => {
     await post(order());
     expect([...store.keys()].join(' ')).not.toContain('203.0.113.7');
+  });
+
+  it('keys the address hash with RATE_LIMIT_SALT, not a constant from the public repo', async () => {
+    const { createHmac } = await import('node:crypto');
+    const hmac = key => createHmac('sha256', key).update('203.0.113.7').digest('hex').slice(0, 32);
+    await post(order());
+    const keys = [...store.keys()].join(' ');
+    expect(keys).toContain(`ratelimit:order:${hmac('test-rate-limit-salt')}`);
+    expect(keys).not.toContain(hmac('order-rate-limit'));
+  });
+
+  it('refuses orders with 503 when RATE_LIMIT_SALT is not set', async () => {
+    const saved = process.env.RATE_LIMIT_SALT;
+    delete process.env.RATE_LIMIT_SALT;
+    try {
+      const res = await post(order());
+      expect(res.statusCode).toBe(503);
+      expect(store.size).toBe(0);
+    } finally {
+      process.env.RATE_LIMIT_SALT = saved;
+    }
   });
 
   it('caps new orders at 200 a day across all addresses', async () => {

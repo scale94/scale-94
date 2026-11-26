@@ -89,9 +89,12 @@ async function underLimit(key, limit, windowSeconds) {
 
 // KV holds only a keyed hash of the caller's address, and only for the window.
 // Vercel sets x-forwarded-for itself, so a caller cannot choose it there.
-function addressKey(req) {
+// The key must be secret: with a known key, all of IPv4 can be hashed in minutes
+// and the stored keys reversed. So there is no fallback; the handler refuses
+// orders while RATE_LIMIT_SALT is unset.
+function addressKey(req, salt) {
   const address = String(req.headers['x-forwarded-for'] ?? '').split(',')[0].trim() || 'unknown';
-  return createHmac('sha256', BOT_TOKEN || 'order-rate-limit').update(address).digest('hex').slice(0, 32);
+  return createHmac('sha256', salt).update(address).digest('hex').slice(0, 32);
 }
 
 // ── Discord REST ──────────────────────────────────────────────────────────────
@@ -214,7 +217,13 @@ export default async function handler(req, res) {
   const problem = findProblem(body);
   if (problem) return res.status(400).json({ error: problem });
 
-  if (!(await underLimit(`ratelimit:order:${addressKey(req)}`, HOURLY_PER_ADDRESS, 3600))) {
+  const salt = process.env.RATE_LIMIT_SALT;
+  if (!salt) {
+    console.error('[transmute/order] RATE_LIMIT_SALT not set — refusing orders');
+    return res.status(503).json({ error: 'Ordering unavailable' });
+  }
+
+  if (!(await underLimit(`ratelimit:order:${addressKey(req, salt)}`, HOURLY_PER_ADDRESS, 3600))) {
     return res.status(429).json({ error: 'Too many requests' });
   }
 
