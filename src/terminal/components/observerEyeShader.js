@@ -9,6 +9,7 @@
 // u_phase replaces v1's `u_t*u_speed` swirl phase. JS integrates it
 // (phase += speed·dt), so a speed change never shifts the phase by u_t·Δspeed
 // (which made transitions spin faster the longer the page had been open).
+import { ELEMENT_EYE_COLS, ELEMENT_IDS } from '../mercury/elementEyePalette.js';
 
 // Reaction primitives (spec §5.5). `u_kickKind` carries one of these.
 export const KICK = {
@@ -19,7 +20,14 @@ export const KICK = {
 
 // Shape morphs (u_shape). The pupil/disc *become* a figure by SDF blends, the nebula
 // keeps flowing inside it. u_shapeK 0..1 = how far; u_shapeA/B are per-shape params.
-export const SHAPE = { kernel: 1, butterfly: 2, antenna: 3, horizon: 4, accord: 5, sun: 6, cipher: 7, feigen: 8, vessels: 9, murk: 10, moon: 11, aether: 12 };
+export const SHAPE = { kernel: 1, butterfly: 2, antenna: 3, horizon: 4, accord: 5, sun: 6, cipher: 7, feigen: 8, vessels: 9, murk: 10, moon: 11, aether: 12, element: 13 };
+
+// /MERCURY's four elements, ids in ELEMENT_IDS order, each its core hue (ELEMENT_EYE_COLS[..][0]).
+const glv = (c) => `vec3(${c.map((x) => (x / 255).toFixed(4)).join(',')})`;
+const EL_GLSL = (() => {
+  const cs = Object.keys(ELEMENT_IDS).sort((a, b) => ELEMENT_IDS[a] - ELEMENT_IDS[b]).map((k) => glv(ELEMENT_EYE_COLS[k][0]));
+  return `vec3 elC(float id){return id<0.5?${cs[0]}:id<1.5?${cs[1]}:id<2.5?${cs[2]}:${cs[3]};}`;
+})();
 
 export const VS = 'attribute vec2 a;varying vec2 v;void main(){v=a;gl_Position=vec4(a,0.,1.);}';
 export const FS = [
@@ -37,6 +45,19 @@ export const FS = [
   'float sdBox(vec2 p,vec2 b){vec2 d=abs(p)-b;return length(max(d,0.))+min(max(d.x,d.y),0.);}',
   'float sdEll(vec2 p,vec2 c,vec2 r,float a){p-=c;float cs=cos(a),sn=sin(a);p=mat2(cs,sn,-sn,cs)*p;',
   ' return (length(p/r)-1.0)*min(r.x,r.y);}',
+  // A capillary ripple train out of the pupil (/MERCURY element strike), echoing the planet's
+  // own (mercuryWaves: ω² = σk³/ρ). Three crests, the shortest leading because it runs fastest
+  // (phase speed ∝ λ^-1/2) and dying first (damping ∝ k²); round crests, sharp troughs just
+  // ahead of each. Returns (height, d height / d r) at radius r, T seconds after the impact.
+  'vec2 capR(float r,float T){vec2 o=vec2(0.0);',
+  ' for(int i=0;i<3;i++){float fi=float(i),lam=0.055*pow(1.36,fi);',
+  '  float R=0.06+1.30*pow(1.36,-0.5*fi)*T;',
+  '  float a=(1.0-0.25*fi)*exp(-3.0*pow(1.36,-2.0*fi)*T)*(1.0-smoothstep(0.84,0.99,R));',
+  '  float w=0.30*lam,x=r-R,e=exp(-x*x/(w*w));',
+  '  float wt=0.16*lam,xt=x+0.62*lam,et=exp(-xt*xt/(wt*wt));',
+  '  o.x+=a*(e-0.55*et);o.y+=a*(-2.0*x/(w*w)*e+1.1*xt/(wt*wt)*et);}',
+  ' return o;}',
+  EL_GLSL,
   'float hash(vec2 p){p=fract(p*vec2(123.34,345.45));p+=dot(p,p+34.5);return fract(p.x*p.y);}',
   'float vn(vec2 p){vec2 i=floor(p),f=fract(p);vec2 u=f*f*(3.-2.*f);',
   ' float a=hash(i),b=hash(i+vec2(1,0)),c=hash(i+vec2(0,1)),d=hash(i+vec2(1,1));',
@@ -70,6 +91,15 @@ export const FS = [
   ' float vA=vz*clamp(u_shapeA,0.,1.),vB=vz*clamp(u_shapeB,0.,1.),vC=vz*clamp(u_shapeC,0.,1.);',
   ' float ps=1.0-0.66*clamp(0.5*vA+0.7*vB,0.,1.)+0.95*vC;',
   ' vv+=vB*0.025*vec2(sin(u_t*53.0)+0.5*sin(u_t*97.0),sin(u_t*47.0+1.3)+0.5*sin(u_t*89.0));',
+  // element (/MERCURY): the strike's bead lenses the fluid it crosses; after the impact the
+  // capillary train refracts the iris as it runs out and the whole iris recoils along the
+  // strike and springs back. All x ez (v1 parity).
+  ' float ez=(u_shape>12.5&&u_shape<13.5)?clamp(u_shapeK,0.,1.):0.0;vec2 eD=vec2(0.0);',
+  ' if(ez>0.0){float eid=floor(u_shapeA);eD=eid<0.5?vec2(0.,1.):eid<1.5?vec2(1.,0.):eid<2.5?vec2(-1.,0.):vec2(0.,-1.);',
+  '  if(u_shapeC>0.0){float T=u_shapeC,rv=length(vv);vec2 cr=capR(rv,T);',
+  '   vv+=ez*(vv/max(rv,1e-3))*clamp(0.0006*cr.y,-0.03,0.03);',
+  '   vv+=ez*eD*0.06*exp(-T/0.2)*sin(T*20.0);}',
+  '  else{vec2 bp=eD*mix(0.98,0.0,fract(u_shapeA)),dv=vv-bp;vv-=ez*dv*0.45*exp(-dot(dv,dv)/0.012);}}',
   ' vec2 uv=vv-g;',
   // Foreshortening: a gazing eye narrows along its gaze so the shifted disc (radius 1)
   // still ends at the canvas edge instead of being sliced flat. 0 = v1 (parity).
@@ -95,6 +125,7 @@ export const FS = [
   ' float cl=clamp(u_core,0.,1.);',                       // star-core lifts the dark pupil
   // A figure that *is* the pupil (butterfly) lifts the round pupil out from under itself.
   ' float fig=(u_shape>1.5&&u_shape<2.5)?clamp(u_shapeK,0.,1.):0.0;',
+  ' fig=max(fig,ez*smoothstep(0.0,0.3,u_shapeB));',          // an element's silhouette is the pupil
   ' col*=mix(mix(smoothstep(coreR*0.35,coreR,r),1.0,cl),1.0,fig);',
   ' col*=1.0-smoothstep(discR*0.72,discR,r);',
   ' if(u_irid>0.001){',
@@ -351,6 +382,37 @@ export const FS = [
   '   vec3 wg=vec3(1.0,0.94,0.78);',
   '   col*=1.0-k*0.25*A*(1.0-smoothstep(0.0,hw*1.6,r));',      // the nebula steps back behind the light
   '   col+=k*wg*((1.4+0.9*fl)*exp(-r*r/(cr*cr))+(0.22+0.40*A)*exp(-r*r/(hw*hw))+(0.15+0.95*A+0.5*fl)*ry);',
+  // element (/MERCURY element tap): A = id + the strike's progress (fract), B = the pupil's morph
+  // 0..1, C = seconds since the impact (0 = still in flight). The strike: a liquid bead of the
+  // element with its streak, rim to pupil from its cardinal side on the stage. Then nothing is
+  // painted on the metal: the ripple is relief in it (crests lit, slopes shaded by the metal's
+  // own light) and the pupil BECOMES the element - flooded with its liquid, flowing with n,
+  // a lit meniscus lip and a dark groove round it, like the rim.
+  '  }else if(u_shape<13.5){',
+  '   float id=floor(u_shapeA),B=clamp(u_shapeB,0.,1.);vec3 el=elC(id),hot=mix(el,vec3(1.0),0.45);',
+  '   if(u_shapeC<=0.0){float s=fract(u_shapeA);vec2 bp=eD*mix(0.98,0.0,s),dv=uv-bp;',
+  '    float al=dot(dv,eD),ac=abs(dv.x*eD.y-dv.y*eD.x);',
+  '    float tail=exp(-ac*ac/0.0012)*(1.0-smoothstep(0.0,0.18+0.3*s,al))*step(0.0,al);',
+  '    vec2 sp2=dv-vec2(-0.025,0.025);',
+  '    col+=k*(tail*el*0.9+exp(-dot(dv,dv)/0.0045)*hot*1.4+exp(-dot(sp2,sp2)/0.0006)*0.8);',
+  '   }else{float T=u_shapeC;vec2 cr=capR(r,T);',
+  '    float lt=0.5+0.5*dot(uv/max(r,1e-3),vec2(-0.6,0.8));',
+  '    col*=1.0+k*(0.55*cr.x-0.004*clamp(cr.y,-60.0,60.0)*lt);',
+  '    col+=k*hot*exp(-T/0.06)*exp(-r*r/0.02);}',                // the impact's flash at the pupil
+  '   if(B>0.001){float S=0.36*(0.75+0.25*B);vec2 p=uv/S;float d,face=1.0;',
+  '    if(id<0.5){float tw=0.6*length(p)-u_t*1.6,ct=cos(tw),st=sin(tw);',   // air: a wind-slit, twisted into a vortex
+  '     d=sdEll(mat2(ct,-st,st,ct)*p,vec2(0.0),vec2(0.82,0.22),0.0);',
+  '    }else if(id<1.5){vec2 q=p;q.x+=0.10*sin(u_t*19.0+q.y*5.0)*max(q.y,0.0);q.x=abs(q.x);', // fire: a sharp flame
+  '     d=max(0.891*q.x+0.455*q.y-0.4455,0.740*q.x-0.673*q.y-0.370);',
+  '    }else if(id<2.5){vec2 q=vec2(p.x*(1.0+0.05*sin(u_t*9.0)),p.y);',        // water: a teardrop
+  '     d=q.y>0.017?dot(vec2(abs(q.x),q.y-0.92),vec2(0.890,0.456)):length(q-vec2(0.0,-0.22))-0.52;',
+  '    }else{float d1=0.669*abs(p.x)+0.743*abs(p.y)-0.669,d2=abs(p.x)-0.5;d=max(d1,d2);', // earth: a faceted crystal
+  '     face=d1>d2?(p.y>0.0?(p.x>0.0?1.30:1.05):(p.x>0.0?0.70:0.55)):(p.x>0.0?0.95:0.80);}',
+  '    float dm=mix(r-coreR,d*S,B),on=smoothstep(0.0,0.3,B),f=aa(dm)*on;',
+  '    vec3 liq=(hot*(0.40+1.05*n)+0.25*pow(n,3.0))*face;',
+  '    col=mix(col,liq,k*f);',
+  '    col*=1.0-k*on*0.55*exp(-pow((dm-2.6*u_px)/(1.4*u_px),2.0));',     // the groove
+  '    col+=k*on*exp(-pow(dm/(1.3*u_px),2.0))*mix(el,vec3(1.0),0.7)*0.8;}', // the meniscus lip
   '  }',
   ' }',
   // Rim (eyeDrive driveRim; /ECOCIDE's protection protocol): a luminous corona hugging the

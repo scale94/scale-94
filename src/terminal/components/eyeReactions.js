@@ -8,7 +8,7 @@
 
 import { KICK, SHAPE } from './observerEyeShader';
 import { SUN_COLS } from '../sol/solEye';
-import { ELEMENT_EYE_COLS } from '../mercury/mercuryEye';
+import { ELEMENT_EYE_COLS, ELEMENT_IDS } from '../mercury/mercuryEye';
 
 const PI = Math.PI;
 
@@ -427,20 +427,45 @@ function ledgerWrite(imp) {
   };
 }
 
-// /MERCURY — an element node lit by a tap: the eye focuses into that element's own palette.
-// The iris draws in as the colour floods over the silver, holds a beat with a slow inward
-// turn, then lets go; the tinted kick's end is a return to silver, so the back-spin follows.
-// (The planet's spin is not here: mercuryEye drives it live, eyeDrive spin.)
+// /MERCURY — an element node lit by a tap strikes the eye, as physical as the planet itself
+// (SHAPE.element; shapeA = element id + the strike's progress, B = the pupil morph, C = seconds
+// since the impact):
+//   0 → 140 ms     the strike: a liquid bead of the element shoots in from its side of the
+//                  stage (AIR top, FIRE right, WATER left, EARTH bottom), accelerating, lensing
+//                  the fluid it crosses; the silver barely warms
+//   140 → 600 ms   the pupil becomes the element (flame, teardrop, wind-slit vortex, faceted
+//                  crystal) flooded with its liquid, the palette taking the iris
+//   140 → 1400 ms  a capillary ripple train runs from the pupil to the rim, refracting the iris,
+//                  which recoils along the strike and springs back; all of it damps to silver
 export const MERCURY_ELEMENT_MS = 1400;
-function mercuryElement(x, d) {
-  const t = x * (MERCURY_ELEMENT_MS / 1000);
-  const out = 1 - sm((t - 0.8) / 0.6);
-  d.level = sm(t / 0.18) * out;
-  d.focus = 0.46 * sm(t / 0.24) * out;
-  d.turn = 0.7 * sm(t / 0.9);
-  d.turb = 0; d.gazeX = 0; d.gazeY = 0;
-  d.shapeK = 0; d.shapeA = 0; d.shapeB = 0; d.shapeC = 0;
-  return d;
+export const ELEMENT_IMPACT_S = 0.14;
+export const ELEMENT_FLOOD = 0.86;
+export function mercuryElementCurve(id) {
+  return (x, d) => {
+    const t = x * (MERCURY_ELEMENT_MS / 1000);
+    const I = ELEMENT_IMPACT_S;
+    if (t < I) {
+      const u = t / I;
+      d.shapeA = id + Math.min(0.999, u * u);            // accelerating in
+      d.shapeB = 0; d.shapeC = 0;
+      d.level = 0.12 * u;                                 // the silver barely warms
+      d.turn = 0; d.turb = 0;
+    } else {
+      const a = t - I;
+      d.shapeA = id;
+      d.shapeC = a + 1e-3;
+      d.shapeB = sm(a / 0.08) * (1 - sm((t - 0.48) / 0.14));   // snaps in on impact, gone by ~620 ms
+      // Capped below 1: some of the silver record stays, so the metal keeps its relief under
+      // the element's colour (the ecocide lesson: the colour is in the metal, never a flat wash).
+      d.level = ELEMENT_FLOOD * (0.12 / ELEMENT_FLOOD + (1 - 0.12 / ELEMENT_FLOOD) * sm(a / 0.1) - sm((t - 0.7) / 0.7));
+      d.turn = 0.35 * sm(a / 0.6);                        // the impact nudges the swirl
+      d.turb = 0.25 * Math.exp(-a / 0.25);
+    }
+    d.level = Math.max(0, d.level);
+    d.shapeK = 1 - sm((t - 1.25) / 0.15);
+    d.focus = 0; d.gazeX = 0; d.gazeY = 0;
+    return d;
+  };
 }
 
 // The quintessence compile (QuintessenceAltar -> observerStore.notifyAltarStage): six stages,
@@ -519,8 +544,9 @@ export const REACTIONS = {
   'altar.stage': (imp) => altarStage(imp.data?.stage),
   'altar.release': { release: true, tag: ALTAR_TAG, durationMs: 600 },
   'mercury.element': (imp) => {
-    const cols = ELEMENT_EYE_COLS[imp.data?.phase];
-    return cols ? { kind: KICK.inhale, durationMs: MERCURY_ELEMENT_MS, curve: mercuryElement, tint: cols[0], tint2: cols[1] } : null;
+    const phase = imp.data?.phase;
+    const cols = ELEMENT_EYE_COLS[phase];
+    return cols ? { kind: KICK.inhale, shape: SHAPE.element, durationMs: MERCURY_ELEMENT_MS, curve: mercuryElementCurve(ELEMENT_IDS[phase]), tint: cols[0], tint2: cols[1] } : null;
   },
   // /MERCURY: the planet's spin drives the eye live (mercuryEye); the flick still counts as the
   // act but plays nothing over it (the old shove would add a second turn on top of the coast).

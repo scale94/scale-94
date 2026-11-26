@@ -4,19 +4,16 @@
 //            drives it: the latch opens on a drag and closes once the coast has died below
 //            SPIN_FLOOR, so the ephemeris recapture (the planet re-seating itself on the Sun's
 //            yaw, no hand anywhere) never turns the eye.
-//   element  a tap that lights an element node focuses the eye into that element's own
-//            palette (eyeReactions 'mercury.element'); the tap that returns to neutral is not one.
+//   element  a tap that lights an element node strikes the eye (eyeReactions 'mercury.element',
+//            SHAPE.element): a liquid bead of the element shoots in from its side of the stage,
+//            the pupil becomes the element's silhouette flooded with its liquid, and a capillary
+//            ripple train runs out to the rim; the tap that returns to neutral is not one.
 // Reduced motion (calm): no drive at all (the eye keeps its static fallbacks).
 
 import { driveSpin } from '../components/eyeDrive';
 
-// Each element's palette: [core, deep, light] RGB 0..255, built around elements.js's hue.
-export const ELEMENT_EYE_COLS = {
-  air:     [[56, 189, 248], [14, 116, 144], [224, 242, 254]],   // pale cyan · deep teal · near-white sky
-  thermal: [[249, 115, 22], [185, 28, 28], [254, 215, 170]],    // ember · blood-red · flame-tip cream
-  fluid:   [[99, 102, 241], [30, 41, 120], [165, 180, 252]],    // indigo · abyss · pale periwinkle
-  earth:   [[217, 119, 6], [120, 53, 15], [253, 224, 140]],     // amber · umber · ochre light
-};
+// The palette, ids and sides live in a leaf module the shader can import (node scripts too).
+export { ELEMENT_EYE_COLS, ELEMENT_IDS, ELEMENT_SIDE } from './elementEyePalette.js';
 
 export const SPIN_GAIN = 1;      // eye rad/s per planet rad/s: the eye turns as fast as the planet
 export const SPIN_MAX = 9;       // rad/s either way (the planet tops out at 12)

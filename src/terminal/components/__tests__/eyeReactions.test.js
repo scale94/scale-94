@@ -1,8 +1,8 @@
 // eyeReactions.test.js — the per-piece choreography table and how an impulse becomes a kick.
 import { describe, it, expect } from 'vitest';
-import { REACTIONS, reactionKick, BSKY_EXIT, TX_IGNITE, ACC_TAG, EJECT_OUT, SCENT_HIT, surveillanceTrace, CRYPTO_SNAP, CRYPTO_TAG, FEIGEN_DELTA, FORK_TIMES, FORK_ACCUM, LEDGER_TAG, MURK_COLS, MURK_IN, MURK_TINT_FROM, murkClearMs, ledgerMurk, MERCURY_ELEMENT_MS, altarStage, dialStep, ALTAR_TAG, DIAL_STEP, DIAL_CLICK_S, DIAL_OVERSHOOT, sealStar, SEAL_TIGHT } from '../eyeReactions';
-import { ELEMENT_EYE_COLS } from '../../mercury/mercuryEye';
-import { KICK, SHAPE } from '../observerEyeShader';
+import { REACTIONS, reactionKick, BSKY_EXIT, TX_IGNITE, ACC_TAG, EJECT_OUT, SCENT_HIT, surveillanceTrace, CRYPTO_SNAP, CRYPTO_TAG, FEIGEN_DELTA, FORK_TIMES, FORK_ACCUM, LEDGER_TAG, MURK_COLS, MURK_IN, MURK_TINT_FROM, murkClearMs, ledgerMurk, MERCURY_ELEMENT_MS, ELEMENT_IMPACT_S, ELEMENT_FLOOD, altarStage, dialStep, ALTAR_TAG, DIAL_STEP, DIAL_CLICK_S, DIAL_OVERSHOOT, sealStar, SEAL_TIGHT } from '../eyeReactions';
+import { ELEMENT_EYE_COLS, ELEMENT_IDS, ELEMENT_SIDE } from '../../mercury/mercuryEye';
+import { KICK, SHAPE, FS } from '../observerEyeShader';
 
 const last = (keys, f) => keys.slice().sort((a, b) => a.t - b.t).at(-1)[f];
 
@@ -247,22 +247,47 @@ describe('eyeReactions', () => {
     expect(sealStar(END, P).size).toBe(0);
   });
 
-  it('mercury_element_focuses_into_its_own_palette_and_lets_go', () => {
+  it('mercury_element_strikes_morphs_the_pupil_and_ripples_out', () => {
+    const D = MERCURY_ELEMENT_MS / 1000;
     for (const phase of ['air', 'thermal', 'fluid', 'earth']) {
+      const id = ELEMENT_IDS[phase];
       const k = reactionKick({ piece: 'mercury.element', kind: KICK.inhale, tint: [192, 192, 192], data: { phase } });
+      expect(k.shape).toBe(SHAPE.element);
       expect(k.tint).toEqual(ELEMENT_EYE_COLS[phase][0]);
       expect(k.tint2).toEqual(ELEMENT_EYE_COLS[phase][1]);
       expect(k.durationMs).toBe(MERCURY_ELEMENT_MS);
-      const D = MERCURY_ELEMENT_MS / 1000;
       const at = (t) => k.curve(t / D, {});
-      expect(at(0).level).toBe(0);
-      expect(at(0.5).level).toBeGreaterThan(0.95);         // the colour floods over the silver
-      expect(at(0.5).focus).toBeGreaterThan(0.4);          // the iris draws in
+      // the strike: in flight, accelerating, no ripple yet, the silver barely warmed
+      const s1 = at(0.05), s2 = at(0.10);
+      expect(Math.floor(s1.shapeA)).toBe(id);
+      expect(s1.shapeC).toBe(0);
+      expect(s2.shapeA - id).toBeGreaterThan(2 * (s1.shapeA - id));
+      expect(s2.level).toBeLessThan(0.15);
+      // the impact at 140 ms: the ripple clock starts, the pupil morphs, the palette floods
+      expect(at(ELEMENT_IMPACT_S + 0.01).shapeC).toBeGreaterThan(0);
+      expect(at(0.3).shapeB).toBeGreaterThan(0.95);
+      expect(at(0.3).level).toBeCloseTo(ELEMENT_FLOOD, 2);      // flooded, but the metal stays
+      expect(at(0.3).shapeA).toBe(id);
+      expect(at(0.7).shapeB).toBe(0);                     // the silhouette is gone by ~620 ms
+      expect(at(1.0).shapeK).toBe(1);                     // the ripple still runs
+      // and it all damps back to silver
       expect(at(D).level).toBe(0);
+      expect(at(D).shapeK).toBe(0);
       expect(at(D).focus).toBe(0);
     }
     // neutral (or anything else) plays the plain envelope
     expect(reactionKick({ piece: 'mercury.element', kind: KICK.inhale, tint: null, data: { phase: 'neutral' } }).curve).toBeUndefined();
+  });
+
+  it('element_shader_colours_and_sides_come_from_the_one_palette', () => {
+    for (const [phase, id] of Object.entries(ELEMENT_IDS)) {
+      const c = ELEMENT_EYE_COLS[phase][0].map((x) => (x / 255).toFixed(4)).join(',');
+      expect(FS).toContain(`vec3(${c})`);
+      expect(id).toBeGreaterThanOrEqual(0);
+    }
+    expect(ELEMENT_SIDE).toEqual({ air: 'top', thermal: 'right', fluid: 'left', earth: 'bottom' });
+    // the shader's strike directions in id order: AIR (0,1), FIRE (1,0), WATER (-1,0), EARTH (0,-1)
+    expect(FS).toContain('eD=eid<0.5?vec2(0.,1.):eid<1.5?vec2(1.,0.):eid<2.5?vec2(-1.,0.):vec2(0.,-1.)');
   });
 
   it('mercury_flick_plays_nothing_over_the_live_spin', () => {
