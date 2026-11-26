@@ -3,42 +3,42 @@ tesseract_private.pem
 decrypt_formula.js
 *.pem
 
-Logs
+# Logs
 
 logs
-.log
-npm-debug.log
+*.log
 yarn-debug.log*
 yarn-error.log*
 
-Runtime data
+# Runtime data
 
 pids
 *.pid
 *.seed
 *.pid.lock
 
-Dependency directories
+# Dependency directories
 
 node_modules/
 jspm_packages/
 
-Build directory
+# Build directory
 
 dist/
 build/
 
-Environment variables
+# Environment variables
 
 .env
 .env.*
-.env.test
-.env.local
-.env.production
+!.env.example
 
-MacOS garbage
+# MacOS garbage
 
 .DS_Store
+
+# Claude Code per-machine settings: local paths and permission grants
+**/.claude/settings.local.json
 
 # IDE — Visual Studio
 **/.vs/

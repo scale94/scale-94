@@ -4,7 +4,9 @@
 // Discord POSTs here for every button click on order embeds.
 // Register this URL at: Discord Developer Portal → Your App → Interactions Endpoint URL
 //
-// Security: Ed25519 signature verified against DISCORD_APPLICATION_PUBLIC_KEY.
+// Security: Ed25519 signature verified against DISCORD_APPLICATION_PUBLIC_KEY,
+// over the raw bytes and before anything is parsed. Without the key every
+// request is refused.
 // Must respond within 3 seconds — heavy work happens after deferring the update.
 //
 // State machine: QUEUED → ACKNOWLEDGED → MACERATING → SHIPPED (one-way only).
@@ -15,30 +17,46 @@ import { kv } from '@vercel/kv';
 import { waitUntil } from '@vercel/functions';
 
 const BOT_TOKEN  = process.env.DISCORD_BOT_TOKEN;
-const PUBLIC_KEY = process.env.DISCORD_APPLICATION_PUBLIC_KEY;
 const DISCORD_API = 'https://discord.com/api/v10';
+
+const MAX_BODY_BYTES   = 64 * 1024;
+const MAX_SKEW_SECONDS = 5 * 60;
 
 // ── Ed25519 signature verification ───────────────────────────────────────────
 // Discord signs every request with the app's Ed25519 private key.
 // We verify with the public key registered in the Developer Portal.
 // DER prefix 302a300506032b6570032100 wraps the raw 32-byte key for Node crypto.
-function verifyDiscordSignature(signature, timestamp, rawBody) {
-  if (!PUBLIC_KEY) {
-    console.warn('[interactions] DISCORD_APPLICATION_PUBLIC_KEY not set — skipping verify');
-    return true;
-  }
+function verifyDiscordSignature(publicKey, signature, timestamp, rawBody) {
   try {
-    const derHex = '302a300506032b6570032100' + PUBLIC_KEY;
+    const derHex = '302a300506032b6570032100' + publicKey;
     const pubKey = createPublicKey({ key: Buffer.from(derHex, 'hex'), format: 'der', type: 'spki' });
     return verify(
       null,
-      Buffer.from(timestamp + rawBody),
+      Buffer.concat([Buffer.from(timestamp), rawBody]),
       pubKey,
       Buffer.from(signature, 'hex'),
     );
   } catch {
     return false;
   }
+}
+
+// A captured request stops being replayable once its timestamp ages out.
+function isFresh(timestamp) {
+  return /^\d+$/.test(timestamp)
+    && Math.abs(Date.now() / 1000 - Number(timestamp)) <= MAX_SKEW_SECONDS;
+}
+
+// Resolves to null once the body passes MAX_BODY_BYTES.
+async function readBody(req) {
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of req) {
+    size += chunk.length;
+    if (size > MAX_BODY_BYTES) return null;
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks);
 }
 
 // ── Discord REST helpers ──────────────────────────────────────────────────────
@@ -111,18 +129,28 @@ const ORDER      = ['QUEUED', 'ACKNOWLEDGED', 'MACERATING', 'SHIPPED'];
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
+  const publicKey = process.env.DISCORD_APPLICATION_PUBLIC_KEY;
+  if (!publicKey) {
+    console.error('[interactions] DISCORD_APPLICATION_PUBLIC_KEY not set — refusing interactions');
+    return res.status(500).json({ error: 'Interactions unavailable' });
+  }
+
   const signature = req.headers['x-signature-ed25519']  ?? '';
   const timestamp = req.headers['x-signature-timestamp'] ?? '';
 
   // Read raw bytes from the stream — Discord signs the exact wire bytes,
   // not a re-serialised JSON string, so we cannot use JSON.stringify(req.body).
-  const chunks = [];
-  for await (const chunk of req) chunks.push(chunk);
-  const rawBody = Buffer.concat(chunks).toString('utf-8');
-  const body    = JSON.parse(rawBody);
+  const rawBody = await readBody(req);
+  if (rawBody === null) return res.status(413).json({ error: 'Body too large' });
 
-  if (!verifyDiscordSignature(signature, timestamp, rawBody)) {
+  if (!isFresh(timestamp) || !verifyDiscordSignature(publicKey, signature, timestamp, rawBody)) {
     return res.status(401).send('Invalid signature');
+  }
+
+  let body;
+  try { body = JSON.parse(rawBody.toString('utf-8')); } catch { /* rejected below */ }
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+    return res.status(400).json({ error: 'Invalid JSON' });
   }
 
   const { type, data, token, application_id } = body;
@@ -164,8 +192,10 @@ export default async function handler(req, res) {
       await kv.hset(`order:${orderId}`, { fulfillmentState: nextState });
       order.fulfillmentState = nextState;
 
-      // SHIPPED → atomically increment production threshold counter
-      if (nextState === 'SHIPPED') {
+      // SHIPPED → count the order once. Two clicks can both pass the guard
+      // above, so the NX claim decides which one increments.
+      if (nextState === 'SHIPPED'
+          && await kv.set(`threshold:counted:${orderId}`, 1, { nx: true })) {
         await kv.incr('threshold:current');
       }
 

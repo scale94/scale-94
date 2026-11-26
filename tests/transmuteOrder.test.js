@@ -9,6 +9,10 @@ import { sealForVault } from '../src/terminal/lib/vaultSeal.js';
 
 const store = new Map();
 const ttls = new Map();
+const scripts = [];
+// No incr/expire here on purpose: a counter bumped in two calls would throw.
+// eval stands in for the counter script (count one hit, give a key with no TTL
+// one); the Lua itself only runs on a real Redis.
 vi.mock('@vercel/kv', () => ({
   kv: {
     get:    async k => store.get(k) ?? null,
@@ -16,8 +20,13 @@ vi.mock('@vercel/kv', () => ({
     setnx:  async (k, v) => { if (!store.has(k)) store.set(k, v); },
     hset:   async (k, v) => { store.set(k, { ...(store.get(k) ?? {}), ...v }); },
     sadd:   async (k, v) => { store.set(k, [...(store.get(k) ?? []), v]); },
-    incr:   async k => { const n = (store.get(k) ?? 0) + 1; store.set(k, n); return n; },
-    expire: async (k, s) => { ttls.set(k, s); },
+    eval:   async (script, [k], [windowSeconds]) => {
+      scripts.push(script);
+      const n = (store.get(k) ?? 0) + 1;
+      store.set(k, n);
+      if (!ttls.has(k)) ttls.set(k, Number(windowSeconds));
+      return n;
+    },
   },
 }));
 
@@ -46,11 +55,11 @@ const order = (over = {}) => ({
   ...over,
 });
 
-async function post(body, { ip = '203.0.113.7' } = {}) {
+async function post(body, { ip = '203.0.113.7', headers = {}, method = 'POST' } = {}) {
   const raw = typeof body === 'string' ? body : JSON.stringify(body);
   const req = Readable.from([Buffer.from(raw)]);
-  req.method = 'POST';
-  req.headers = { 'x-forwarded-for': ip };
+  req.method = method;
+  req.headers = { 'x-forwarded-for': ip, ...headers };
   const res = { statusCode: 200, body: null, headers: {} };
   res.status = c => { res.statusCode = c; return res; };
   res.json = b => { res.body = b; return res; };
@@ -62,7 +71,12 @@ async function post(body, { ip = '203.0.113.7' } = {}) {
 
 const savedOrder = res => store.get(`order:${res.body.orderId}`);
 
-beforeEach(() => { store.clear(); ttls.clear(); });
+beforeEach(() => { store.clear(); ttls.clear(); scripts.length = 0; });
+
+const bucketKey = async address => {
+  const { createHmac } = await import('node:crypto');
+  return createHmac('sha256', 'test-rate-limit-salt').update(address).digest('hex').slice(0, 32);
+};
 
 describe('/api/transmute/order', () => {
   it('accepts an unsigned order of the shape the browser sends', async () => {
@@ -159,6 +173,133 @@ describe('/api/transmute/order', () => {
   it('still answers 409 for a duplicate hash', async () => {
     await post(order());
     expect((await post(order())).statusCode).toBe(409);
+  });
+});
+
+describe('/api/transmute/order IPv6 buckets', () => {
+  async function fillHour(ips) {
+    for (const [i, ip] of ips.entries()) {
+      expect((await post(order({ formulaHash: hashOf(i + 1) }), { ip })).statusCode).toBe(201);
+    }
+  }
+  const sixth = ip => post(order({ formulaHash: hashOf(6) }), { ip });
+
+  it('counts every address in one /64 as the same caller', async () => {
+    await fillHour([1, 2, 3, 4, 5].map(i => `2001:db8:abcd:12::${i}`));
+    expect((await sixth('2001:db8:abcd:12:ffff:ffff:ffff:ffff')).statusCode).toBe(429);
+  });
+
+  it('ignores how the same /64 is spelled', async () => {
+    await fillHour([
+      '2001:db8:abcd:12::1',
+      '2001:0DB8:ABCD:0012:0000:0000:0000:0002',
+      '2001:db8:abcd:12:0:0:0:3',
+      '2001:db8:abcd:12::192.0.2.4',
+      '2001:db8:abcd:12::5%eth0',
+    ]);
+    expect((await sixth('2001:db8:abcd:12:a:b:c:d')).statusCode).toBe(429);
+  });
+
+  it('keeps the neighbouring /64 separate', async () => {
+    await fillHour([1, 2, 3, 4, 5].map(i => `2001:db8:abcd:12::${i}`));
+    expect((await sixth('2001:db8:abcd:13::1')).statusCode).toBe(201);
+  });
+
+  it.each([
+    ['2001:db8:abcd:12::1', '2001:db8:abcd:12::/64'],
+    ['2001:db8::',          '2001:db8:0:0::/64'],
+    ['::1',                 '0:0:0:0::/64'],
+    ['::ffff:203.0.113.7',  '203.0.113.7'],
+    ['::ffff:cb00:7107',    '203.0.113.7'],
+    ['not-an-address',      'not-an-address'],
+  ])('hashes %s as %s', async (ip, bucket) => {
+    await post(order(), { ip });
+    expect(store.has(`ratelimit:order:${await bucketKey(bucket)}`)).toBe(true);
+  });
+});
+
+describe('/api/transmute/order counters', () => {
+  it('bumps each window with one script that also repairs a missing TTL', async () => {
+    await post(order());
+    const counters = [...store.keys()].filter(k => k.startsWith('ratelimit:'));
+    expect(counters).toHaveLength(3);
+    expect(scripts).toHaveLength(3);
+    for (const script of scripts) {
+      expect(script).toMatch(/'INCR', KEYS\[1\]/);
+      expect(script).toMatch(/'TTL', KEYS\[1\]\) < 0/);
+      expect(script).toMatch(/'EXPIRE', KEYS\[1\], ARGV\[1\]/);
+    }
+    expect(counters.map(k => ttls.get(k)).sort((a, b) => a - b)).toEqual([3600, 86400, 86400]);
+  });
+
+  // Ten orders, letting the hourly window lapse after each five.
+  async function fillDay(ip) {
+    const hourly = `ratelimit:order:${await bucketKey(ip)}`;
+    for (let i = 1; i <= 10; i++) {
+      expect((await post(order({ formulaHash: hashOf(i) }), { ip })).statusCode).toBe(201);
+      if (i % 5 === 0) { store.delete(hourly); ttls.delete(hourly); }
+    }
+  }
+
+  it('caps one address at 10 new orders a day without spending the shop-wide cap', async () => {
+    await fillDay('203.0.113.7');
+    const res = await post(order({ formulaHash: hashOf(11) }));
+    expect(res.statusCode).toBe(429);
+    expect(store.has(`order:hash:${hashOf(11)}`)).toBe(false);
+    expect(store.get('ratelimit:order:daily')).toBe(10);
+  });
+
+  it('still serves another address after one has used its daily cap', async () => {
+    await fillDay('203.0.113.7');
+    const res = await post(order({ formulaHash: hashOf(11) }), { ip: '192.0.2.55' });
+    expect(res.statusCode).toBe(201);
+  });
+
+  it('does not spend a daily allowance on a duplicate', async () => {
+    await post(order());
+    await post(order());
+    expect(store.get(`ratelimit:order:daily:${await bucketKey('203.0.113.7')}`)).toBe(1);
+    expect(store.get('ratelimit:order:daily')).toBe(1);
+  });
+});
+
+// A page on another site could otherwise make each of its visitors place orders,
+// spending the shop-wide cap from many addresses.
+describe('/api/transmute/order origin', () => {
+  const host = 'scale94.com';
+
+  it.each([
+    ['another site',     { origin: 'https://evil.example', host, 'sec-fetch-site': 'cross-site' }],
+    ['a sibling site',   { origin: 'https://a.scale94.com', host, 'sec-fetch-site': 'same-site' }],
+    ['an opaque origin', { origin: 'null', host }],
+  ])('refuses a browser POST from %s', async (_name, headers) => {
+    const res = await post(order(), { headers });
+    expect(res.statusCode).toBe(403);
+    expect(store.size).toBe(0);
+  });
+
+  it.each([
+    ['the site itself',                { origin: 'https://scale94.com', host }],
+    ['a dev proxy that rewrites Host', { origin: 'http://localhost:5173', host: 'localhost:3000', 'sec-fetch-site': 'same-origin' }],
+    ['a caller that sends no Origin',  { host }],
+  ])('accepts %s', async (_name, headers) => {
+    expect((await post(order(), { headers })).statusCode).toBe(201);
+  });
+
+  it('sends no CORS allowance unless ALLOWED_ORIGIN is set', async () => {
+    const res = await post(order(), { method: 'OPTIONS' });
+    expect(res.headers).not.toHaveProperty('Access-Control-Allow-Origin');
+  });
+
+  it('accepts and answers the ALLOWED_ORIGIN', async () => {
+    process.env.ALLOWED_ORIGIN = 'https://shop.example';
+    try {
+      const res = await post(order(), { headers: { origin: 'https://shop.example', host } });
+      expect(res.statusCode).toBe(201);
+      expect(res.headers['Access-Control-Allow-Origin']).toBe('https://shop.example');
+    } finally {
+      delete process.env.ALLOWED_ORIGIN;
+    }
   });
 });
 

@@ -88,7 +88,11 @@ export default async function handler(req, res) {
     const { payload } = await jwtVerify(
       token,
       new TextEncoder().encode(process.env.DISCORD_SOVEREIGN_SECRET),
-      { issuer: 'bot.collider.scale94', audience: 'api.transmute.redeem' },
+      {
+        issuer: 'bot.collider.scale94', audience: 'api.transmute.redeem',
+        // Without requiredClaims a signed token with no exp is good forever.
+        algorithms: ['HS256'], requiredClaims: ['exp'],
+      },
     );
 
     if (accordHash.slice(0, 8).toLowerCase() !== payload.hashPrefix) {

@@ -1,3 +1,6 @@
 # Shader sources and snapshots: tests compare them byte for byte, so keep LF
 # on every checkout regardless of core.autocrlf.
 *.glsl text eol=lf
+
+# The CSP in vercel.json hashes the inline scripts as Vercel builds them, with LF.
+index.html text eol=lf

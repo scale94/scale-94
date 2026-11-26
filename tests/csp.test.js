@@ -5,6 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 
 const vercel = JSON.parse(readFileSync('vercel.json', 'utf8'));
 const policyHeaders = vercel.headers.flatMap((rule) => rule.headers
@@ -49,6 +50,13 @@ describe('Content-Security-Policy', () => {
     expect(inlineScriptHashes).toHaveLength(2);
     expect([...directives['script-src']].sort())
       .toEqual(["'self'", "'wasm-unsafe-eval'", ...inlineScriptHashes].sort());
+  });
+
+  // The hashes above cover LF bytes, as Vercel builds them. A CRLF checkout on
+  // Windows would make a local build whose scripts the policy blocks.
+  it('has git check out index.html with LF endings', () => {
+    expect(execFileSync('git', ['check-attr', 'eol', '--', 'index.html'], { encoding: 'utf8' }).trim())
+      .toBe('index.html: eol: lf');
   });
 
   it('uses no wildcard or bare-scheme source for anything that can fetch or run', () => {

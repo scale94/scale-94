@@ -91,4 +91,24 @@ describe('/api/transmute/redeem handler', () => {
     expect(res._status).toBe(401);
     expect(res._body.code).toBe('invalid');
   });
+
+  it.each([
+    ['has no expiry',         'HS256', false],
+    ['uses another HMAC alg', 'HS512', true],
+  ])('rejects a correctly signed token that %s', async (_name, alg, expires) => {
+    const secret = SECRET.padEnd(64, 'x');
+    process.env.DISCORD_SOVEREIGN_SECRET = secret;
+    const accordHash = 'abcdef12' + '0'.repeat(56);
+    const jwt = new SignJWT({ discordId: 'user-1', hashPrefix: 'abcdef12' })
+      .setProtectedHeader({ alg })
+      .setIssuedAt()
+      .setIssuer('bot.collider.scale94')
+      .setAudience('api.transmute.redeem');
+    if (expires) jwt.setExpirationTime('24h');
+    const token = await jwt.sign(new TextEncoder().encode(secret));
+    const handler = (await import('../api/transmute/redeem.js')).default;
+    const res = mockResponse();
+    await handler({ method: 'POST', body: { token, accordHash, accordCard: SAMPLE_CARD } }, res);
+    expect(res._status).toBe(401);
+  });
 });

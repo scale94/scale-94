@@ -6,10 +6,12 @@
 // Acknowledge / Macerating / Shipped action buttons via Bot REST API.
 //
 // Auth: none — this is a public endpoint (see Request guards).
-// Abuse limits: body size and field validation, server-side pricing, rate limits.
+// Abuse limits: body size and field validation, server-side pricing, rate limits,
+// no browser POSTs from other sites.
 // Idempotency: formulaHash unique index prevents duplicate orders.
 
 import { createHmac } from 'crypto';
+import { isIPv6 } from 'net';
 import { kv } from '@vercel/kv';
 import { composeAlienVerdict } from '../_alien/composeVerdict.js';
 
@@ -22,7 +24,8 @@ const DISCORD_API    = 'https://discord.com/api/v10';
 // there is no caller authentication. Treat every field as hostile.
 const MAX_BODY_BYTES     = 16 * 1024;
 const HOURLY_PER_ADDRESS = 5;
-// One address can make at most 5 × 24 = 120 requests a day, so it cannot use this up alone.
+// Using up the shop-wide cap takes at least 20 separate IPv4 addresses or IPv6 /64s.
+const DAILY_PER_ADDRESS  = 10;
 const DAILY_NEW_ORDERS   = 200;
 const MAX_HISTORY        = 30;
 
@@ -80,11 +83,47 @@ async function readBody(req) {
   return Buffer.concat(chunks).toString('utf-8');
 }
 
+// CORS only stops a page reading the answer: a text/plain POST skips preflight and
+// still arrives. So browser POSTs from other sites are refused here. Page scripts
+// cannot set Origin or Sec-Fetch-Site; non-browser callers can, or send neither,
+// and are held back by the rate limits alone.
+function isForeignOrigin(req) {
+  const { origin, host } = req.headers;
+  if (!origin || origin === process.env.ALLOWED_ORIGIN) return false;
+  if (req.headers['sec-fetch-site'] === 'same-origin') return false;
+  try { return new URL(origin).host !== host; } catch { return true; }
+}
+
+// One script, so no failure can leave a counter without an expiry. Testing TTL
+// rather than count == 1 also repairs a counter that already lacks one.
+const COUNT_HIT = `
+local count = redis.call('INCR', KEYS[1])
+if redis.call('TTL', KEYS[1]) < 0 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end
+return count`;
+
 // Counts one hit in a fixed window; false once the window is over its limit.
 async function underLimit(key, limit, windowSeconds) {
-  const count = await kv.incr(key);
-  if (count === 1) await kv.expire(key, windowSeconds);
-  return count <= limit;
+  return (await kv.eval(COUNT_HIT, [key], [windowSeconds])) <= limit;
+}
+
+// An IPv6 caller usually holds a whole /64 and can rotate through it freely, so
+// the /64 is the bucket. IPv4, including its IPv4-mapped IPv6 form, stays whole.
+function addressBucket(address) {
+  const bare = address.split('%')[0];
+  if (!isIPv6(bare)) return address;
+  // The URL parser gives one spelling: lower case, hex groups only, at most one "::".
+  const [head, tail] = new URL(`http://[${bare}]`).hostname.slice(1, -1).split('::');
+  const groups = head ? head.split(':') : [];
+  if (tail !== undefined) {
+    const rest = tail ? tail.split(':') : [];
+    groups.push(...Array(8 - groups.length - rest.length).fill('0'), ...rest);
+  }
+  if (groups[5] === 'ffff' && groups.slice(0, 5).every(g => g === '0')) {
+    return groups.slice(6)
+      .flatMap(g => [parseInt(g, 16) >> 8, parseInt(g, 16) & 255])
+      .join('.');
+  }
+  return `${groups.slice(0, 4).join(':')}::/64`;
 }
 
 // KV holds only a keyed hash of the caller's address, and only for the window.
@@ -94,7 +133,7 @@ async function underLimit(key, limit, windowSeconds) {
 // orders while RATE_LIMIT_SALT is unset.
 function addressKey(req, salt) {
   const address = String(req.headers['x-forwarded-for'] ?? '').split(',')[0].trim() || 'unknown';
-  return createHmac('sha256', salt).update(address).digest('hex').slice(0, 32);
+  return createHmac('sha256', salt).update(addressBucket(address)).digest('hex').slice(0, 32);
 }
 
 // ── Discord REST ──────────────────────────────────────────────────────────────
@@ -201,12 +240,15 @@ function buildComponents(orderId, state = 'QUEUED') {
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin',  process.env.ALLOWED_ORIGIN || '*');
+  if (process.env.ALLOWED_ORIGIN) {
+    res.setHeader('Access-Control-Allow-Origin', process.env.ALLOWED_ORIGIN);
+  }
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST')   return res.status(405).end();
+  if (isForeignOrigin(req)) return res.status(403).json({ error: 'Origin not allowed' });
 
   const rawBody = await readBody(req);
   if (rawBody === null) return res.status(413).json({ error: 'Body too large' });
@@ -223,7 +265,8 @@ export default async function handler(req, res) {
     return res.status(503).json({ error: 'Ordering unavailable' });
   }
 
-  if (!(await underLimit(`ratelimit:order:${addressKey(req, salt)}`, HOURLY_PER_ADDRESS, 3600))) {
+  const caller = addressKey(req, salt);
+  if (!(await underLimit(`ratelimit:order:${caller}`, HOURLY_PER_ADDRESS, 3600))) {
     return res.status(429).json({ error: 'Too many requests' });
   }
 
@@ -237,6 +280,10 @@ export default async function handler(req, res) {
     return res.status(409).json({ error: 'Order already exists', orderId: existingId });
   }
 
+  // The caller's own cap goes first: a refused caller must not spend the shop's.
+  if (!(await underLimit(`ratelimit:order:daily:${caller}`, DAILY_PER_ADDRESS, 86400))) {
+    return res.status(429).json({ error: 'Too many requests' });
+  }
   if (!(await underLimit('ratelimit:order:daily', DAILY_NEW_ORDERS, 86400))) {
     return res.status(429).json({ error: 'Daily order limit reached' });
   }
