@@ -204,19 +204,33 @@ void main() {
   sky *= vignette;
   skyAlpha *= vignette;
 
+  // Premultiplied validity: alpha must cover every RGB channel, since sky
+  // sums star+corona contributions while skyAlpha tracked only their max.
+  // On the black page background this is identical; it prevents fringing if
+  // the sky ever composites over a non-black destination.
+  float skyA = clamp(max(skyAlpha, max(sky.r, max(sky.g, sky.b))), 0.0, 1.0);
+
+  // Limb coverage, analytic: the ramp is ~1.25 device px wide and CENTRED on
+  // r = 1 (half inside, half outside), so the silhouette keeps its size and
+  // gains real intermediate pixels. fwidth is taken HERE, before the early
+  // return — derivatives are undefined in divergent control flow, and the
+  // limb is exactly where neighbouring pixels diverge.
   vec2 p = vScreen / uRadius;
-  float r2 = dot(p, p);
-  if (r2 > 1.0) {
-    // Premultiplied validity: alpha must cover every RGB channel, since sky
-    // sums star+corona contributions while skyAlpha tracked only their max.
-    // On the black page background this is identical; it prevents fringing if
-    // the sky ever composites over a non-black destination.
-    float a = clamp(max(skyAlpha, max(sky.r, max(sky.g, sky.b))), 0.0, 1.0);
-    fragColor = vec4(sky, a);
+  float r = length(p);
+  float edgeW = max(fwidth(r), 1e-5) * 1.25;
+  float discCoverage = 1.0 - smoothstep(1.0 - 0.5 * edgeW, 1.0 + 0.5 * edgeW, r);
+  if (discCoverage <= 0.0) {
+    fragColor = vec4(sky, skyA);
     return;
   }
 
-  vec3 N = vec3(p, sqrt(max(0.0, 1.0 - r2)));
+  // Colour from inside, coverage from geometry: the outer half of the ramp
+  // (r >= 1) is shaded with the normal at the ramp's inner edge, where N.z
+  // ~ 0.07 is a real surface. Shading at r -> 1 instead (N.z -> 0) would
+  // halve the horizon term on the lit limb and thin the edge.
+  float rc = min(r, 1.0 - 0.5 * edgeW);
+  vec2 pc = p * (rc / max(r, 1e-6));
+  vec3 N = vec3(pc, sqrt(max(0.0, 1.0 - rc * rc)));
 
   // Libration: rotate the view-space normal into selenographic coordinates.
   // The moon nods; the texture does not move under it.
@@ -238,6 +252,12 @@ void main() {
   vec3 T = normalize(cross(vec3(0.0, 1.0, 0.0), N));
   vec3 B = cross(N, T);
   vec3 Np = normalize(nT.x * T + nT.y * B + nT.z * N);
+  // Relief fades out over the last ~1% of radius. At the limb N.z -> 0, so any
+  // tilt in the baked normal turns facets AWAY from the viewer (mu = 0) while,
+  // at new moon, turning them TOWARD the sun behind the disc (mu0 > 0) — and
+  // Lommel-Seeliger 2*mu0/(mu0+mu) then reads 2.0: the dotted ring around the
+  // dark disc. Foreshortening hides relief at the limb anyway.
+  Np = normalize(mix(N, Np, smoothstep(0.0, 0.15, N.z)));
 
   // Sun direction from synodic age. Matches the canvas moon's convention:
   // age 0 puts the sun behind the moon, age 14.77 puts it behind the viewer.
@@ -256,7 +276,13 @@ void main() {
   float alpha = acos(clamp(-cos(phase), -1.0, 1.0));
   float surge = 1.0 + 0.55 * exp(-alpha / 0.075);
 
-  float Ld = albedo * ls * surge;
+  // Horizon shadow: a facet cannot be sunlit where the sphere itself is on the
+  // night side (geometric N.L <= 0) — the limb of the globe is in the way. Without
+  // it, the baked crater normals (tilts ~0.5 for the small craters) still swing
+  // the last limb pixel to face a sun behind the disc, and the L-S ratio reads
+  // 2.0: single white pinpricks on the rim at new moon. Earthshine is not gated.
+  float horizon = smoothstep(0.0, 0.03, dot(N, L));
+  float Ld = albedo * ls * surge * horizon;
 
   // Earthshine. Earth is behind the viewer and full when the moon is new, so
   // this is frontal fill -- near-flat across the disc, not a shaded sphere.
@@ -297,11 +323,15 @@ void main() {
   col += (d1 + d2 - 1.0) / 255.0;
 
   // The disc is opaque foreground: no sky composited over it. The corona halo
-  // and starfield render only in the r2 > 1.0 branch, AROUND the disc, which is
-  // what produces the unboxing. Adding sky here washed the honest lit face with
-  // a center-weighted violet tint (corona is constant inside the disc, where
+  // and starfield render only AROUND the disc, which is what produces the
+  // unboxing. Adding sky here washed the honest lit face with a center-weighted
+  // violet tint (corona is constant inside the disc, where
   // max(rr-uRadius,0)==0), undoing the neutral-silver photopic decision.
-  fragColor = vec4(max(col, vec3(0.0)), 1.0);
+  // The one exception is the ~1 px limb ramp: premultiplied "disc over sky",
+  // so sky shows only by (1 - coverage) — zero everywhere inside the ramp.
+  col = max(col, vec3(0.0));
+  fragColor = vec4(col * discCoverage + sky * (1.0 - discCoverage),
+                   discCoverage + skyA * (1.0 - discCoverage));
 }`;
 
 /** 2048x1024 desktop, halved on narrow viewports. */
