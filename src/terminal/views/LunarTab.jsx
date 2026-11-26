@@ -24,6 +24,7 @@ import { SYNODIC_PERIOD, PHASES, getPhase, ASPECT_TENSION } from '../lunar/synod
 import { timestampForScrub } from '../lunar/lunarEphemeris';
 import { setPhase, getSpine, subscribeSpine } from '../quintessence/spineStore';
 import { compileLunarDoctrine } from '../lunar/compileLunarDoctrine';
+import { setLunarScrub, compileLunarEye, stopLunarEye } from '../lunar/lunarEye';
 import { usePhaseJump } from '../lunar/usePhaseJump';
 import DoctrineRegister from '../lunar/DoctrineRegister';
 import LunarCanvas from '../lunar/LunarCanvasMoon';
@@ -431,7 +432,11 @@ function AccordCard({ accord, isActive }) {
       {/* Quintessence spine: compile this phase as the olfactory vertebra (spec §3.2) */}
       <button
         type="button"
-        onClick={(e) => { e.stopPropagation(); setPhase(accord.accord); }}
+        onClick={(e) => {
+          e.stopPropagation();
+          setPhase(accord.accord);
+          try { compileLunarEye(accord.phase); } catch (_) { /* the eye is ancillary */ }   // a lunation sweeps the eye
+        }}
         className={`mt-3 w-full text-[9px] font-mono tracking-[0.25em] uppercase border px-2 py-1.5 transition-colors ${
           phaseCompiled
             ? 'border-amber-400/60 text-amber-300'
@@ -802,6 +807,11 @@ export default function LunarTab() {
   const currentAgeRef = useRef(currentAge);
   currentAgeRef.current = currentAge;
   const jumpToPhase = usePhaseJump({ setScrubAge, currentAgeRef });
+
+  // The masthead eye is the moon while the visitor holds virtual time (every scrubAge write is
+  // their hand: the slider, a glyph, a phase jump); 'return to now' and leaving the tab let go.
+  useEffect(() => { try { setLunarScrub(scrubAge); } catch (_) { /* ancillary */ } }, [scrubAge]);
+  useEffect(() => () => { try { stopLunarEye(); } catch (_) { /* ancillary */ } }, []);
 
   // Sync selectedPhaseId when the actual moon phase changes (e.g. across midnight)
   const prevPhaseRef = useRef(currentPhase.id);

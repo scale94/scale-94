@@ -452,6 +452,10 @@ export const REACTIONS = {
   // tinted envelope here would back-spin as it unwound). Keyed at level 0, the tab tint only
   // shows where the drive does not: reduced motion's static colour hold.
   'ecocide.growth': { kind: KICK.sag, durationMs: 400, keys: [{ t: 0, level: 0 }, { t: 1, level: 0 }] },
+  // /LUNAR: the scrub and the compile sweep drive the moon live (lunarEye). The spine's
+  // vertebra still counts as the act; it plays nothing over the sweep (the old terminator
+  // sweep kick would tint and darken the moon). Reduced motion keeps its static colour hold.
+  'lunar.phase': { kind: KICK.sweep, durationMs: 400, keys: [{ t: 0, level: 0 }, { t: 1, level: 0 }] },
   // inhale, not flutter: a vertebra kind contracts the iris, and the butterfly needs the open pupil.
   'bsky.trend':   { kind: KICK.inhale, shape: SHAPE.butterfly, durationMs: BSKY_MS, curve: bskyVortex },
   'kernel.load':  { kind: KICK.miosis, shape: SHAPE.kernel, durationMs: 1700, keys: kernelKeys({ spins: 1.5, turn: 7.5 }) },

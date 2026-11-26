@@ -19,7 +19,7 @@ export const KICK = {
 
 // Shape morphs (u_shape). The pupil/disc *become* a figure by SDF blends, the nebula
 // keeps flowing inside it. u_shapeK 0..1 = how far; u_shapeA/B are per-shape params.
-export const SHAPE = { kernel: 1, butterfly: 2, antenna: 3, horizon: 4, accord: 5, sun: 6, cipher: 7, feigen: 8, vessels: 9, murk: 10 };
+export const SHAPE = { kernel: 1, butterfly: 2, antenna: 3, horizon: 4, accord: 5, sun: 6, cipher: 7, feigen: 8, vessels: 9, murk: 10, moon: 11 };
 
 export const VS = 'attribute vec2 a;varying vec2 v;void main(){v=a;gl_Position=vec4(a,0.,1.);}';
 export const FS = [
@@ -320,6 +320,26 @@ export const FS = [
   '   vec3 mk=sep*(0.45+0.7*n)*(0.84-0.16*C-(0.16+0.24*C)*silt)*body;',
   '   col=mix(col,mk,k*cov*(0.62+0.38*C));',
   '   col+=k*cov*body*smoothstep(0.70,0.94,n)*vec3(0.90,0.80,0.62)*0.30*(1.0-0.3*A);',
+  // moon (/LUNAR): the eye is the moon at phase A (fract: 0 new, 0.25 first quarter, 0.5 full).
+  // A true spherical terminator: on each row the shadow line sits at x = cos(2πA)·√(R²-y²),
+  // with a narrow penumbra, so the light wraps round the ball. The tab's own moon is lit on
+  // the LEFT while waxing (moonShader: L = (-sin φ, 0, -cos φ)), so the eye is too: X > 0
+  // faces the sun. Sunlit: crisp silver, shaded toward the terminator, brighter ridges and a
+  // grazing light along the sunlit limb (a thin crescent stays sharp at 37 px). Shadow: never
+  // dead black - a cool slate earthshine floor (~12-18 %) in the metal, its ridges catching a
+  // little light, limb-darkened, the pupil still in it, the disc's silhouette kept.
+  '  }else if(u_shape<11.5){',
+  '   float P=fract(u_shapeA),cp=cos(6.2831853*P),X=uv.x*(P<0.5?-1.0:1.0);',
+  '   float R=0.97,dl=X-cp*sqrt(max(R*R-uv.y*uv.y,0.0));',   // > 0: sunlit
+  '   float lit=smoothstep(-0.035,0.035,dl);',
+  '   float pm=mix(smoothstep(coreR*0.35,coreR,r),1.0,cl),edge=1.0-smoothstep(0.90,1.0,r);',
+  '   float mu=sqrt(max(1.0-r*r,0.0));',
+  '   vec3 day=col*1.08*(0.76+0.24*smoothstep(0.0,0.32,dl));',
+  '   day+=smoothstep(0.72,0.95,n)*vec3(1.0,0.98,0.94)*0.28*pm*edge;',
+  '   day+=exp(-pow((r-0.9)/0.035,2.0))*smoothstep(0.1,0.7,X/max(r,1e-3))*vec3(0.95,0.97,1.0)*0.55;',
+  '   vec3 es=vec3(0.40,0.45,0.54)*(0.26+0.16*n)*(0.65+0.35*mu)*pm*edge;',
+  '   es+=smoothstep(0.80,0.96,n)*vec3(0.55,0.62,0.75)*0.10*pm*edge;',
+  '   col=mix(col,mix(es,day,lit),k);',
   '  }',
   ' }',
   // Rim (eyeDrive driveRim; /ECOCIDE's protection protocol): a luminous corona hugging the

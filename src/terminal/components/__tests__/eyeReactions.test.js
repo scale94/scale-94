@@ -373,6 +373,13 @@ describe('eyeReactions', () => {
     expect(ledgerMurk(NaN)(0, {}).shapeC).toBe(0.5);                // no severity: a middling murk
   });
 
+  it('lunar_phase_vertebra_plays_nothing_over_the_moon_drive', () => {
+    const r = reactionKick({ piece: 'lunar.phase', kind: KICK.sweep, tint: [139, 92, 246], tint2: null, dir: 1, durationMs: 2200 });
+    expect(r.tint).toEqual([139, 92, 246]);                         // reduced motion's static hold
+    expect(r.keys.every((k) => k.level === 0)).toBe(true);          // silent: the drive is the show
+    expect(r.shape).toBeUndefined();
+  });
+
   it('ledger_clear_is_slower_the_worse_the_water', () => {
     const clear = (severity) => reactionKick({ piece: 'ledger.clear', kind: KICK.watch, data: { severity } });
     expect(clear(0.96)).toMatchObject({ release: true, tag: LEDGER_TAG, durationMs: murkClearMs(0.96) });

@@ -6,7 +6,7 @@ import {
   NAV_TINTS, FLASH_MS, WITNESS_MS, VERTEBRA_MS, CRESCENDO_MS, _resetObserverForTests,
   setChromeVisible, QUIET_MS, GLANCE_IN_MS, GLANCE_HOLD_MS, GLANCE_OUT_MS, GLANCE_GAP_MS,
   IDLE_MS, COOLDOWN_MIN_MS, COOLDOWN_MAX_MS, AFTER_REACTION_MS, WHISPER_MS, PHRASE_BUSY_MS,
-  MOBILE_HOLD_MS, glanceLevel, GLANCE_TOTAL_MS, notifyTtyEnter, notifyAccretion, notifySurveillance, notifyCrypto, notifyLedger, ledgerSettleMs,
+  MOBILE_HOLD_MS, glanceLevel, GLANCE_TOTAL_MS, notifyTtyEnter, notifyAccretion, notifySurveillance, notifyCrypto, notifyLedger, ledgerSettleMs, holdEyeQuiet,
 } from '../observerStore';
 import { PIECE_TAB, TAB_PIECES, RIDDLES } from '../whispers';
 import { setTrend, setCouncil, setPhase, setElement, _resetSpineForTests } from '../spineStore';
@@ -420,6 +420,23 @@ describe('observerStore — glances', () => {
     await act();
     await flush();
     expect(getObserver().glance).toBeNull();
+  });
+
+  it('a_driven_eye_is_held_quiet_no_glance_or_whisper_starts_over_it', async () => {
+    boot(QUIET_TAB);
+    await step(QUIET_MS);
+    expect(getObserver().glance).toMatchObject({ reason: 'compass' });
+    holdEyeQuiet(true);                                  // e.g. /LUNAR's moon: the glance in progress ends
+    expect(getObserver().glance).toBeNull();
+    await act();                                         // an act would earn a forward whisper...
+    await step(60000);
+    expect(getObserver().glance).toBeNull();             // ...but nothing starts while held
+    expect(getObserver().whisper).toBeNull();
+    holdEyeQuiet(false);
+    await step(AFTER_REACTION_MS - 1);
+    expect(getObserver().whisper).toBeNull();            // the usual gap runs from the release
+    await step(1);
+    expect(getObserver().whisper).not.toBeNull();
   });
 
   it('compass_glance_points_at_first_unmarked_vertebra_before_any_mark', async () => {
