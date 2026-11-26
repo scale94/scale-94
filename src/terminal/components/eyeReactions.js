@@ -443,7 +443,81 @@ function mercuryElement(x, d) {
   return d;
 }
 
+// The quintessence compile (QuintessenceAltar -> observerStore.notifyAltarStage): six stages,
+// SPINE READ … SEALED, each a vault-dial click. The swirl steps a crisp π/8 in 60 ms, overshoots
+// a little and seats on a detent; the focus steps in with it; the Aether builds one sixth
+// brighter into a core with halo and eight rays (SHAPE.aether), which turn with the dial.
+// Every stage carries the running total (turn, focus, build) from the stage before, because a
+// new kick replaces the held one outright: nothing ever snaps back between clicks. The last
+// stage holds until the seal's crescendo takes the eye over (or 'altar.release' fades it).
+export const ALTAR_TAG = 'altar';
+export const ALTAR_STAGES = 6;
+export const DIAL_STEP = PI / 8;
+export const DIAL_CLICK_S = 0.06;
+export const DIAL_OVERSHOOT = 0.2;          // of a step, seated by DIAL_SEAT_S
+const DIAL_SEAT_S = 0.16;
+const ALTAR_FOCUS = 0.07;                   // per stage (6 stages: 0.42 at the seal)
+const ALTAR_BUILD_S = 0.35;                 // the build blooms after the click
+const ALTAR_HOLD_MS = 30000;                // safety tail: the seal or a release normally ends it
+// One click's step 0..1 at t seconds: a crisp ease out, a little past, back onto the detent.
+export function dialStep(t) {
+  if (t <= 0) return 0;
+  if (t < DIAL_CLICK_S) { const u = t / DIAL_CLICK_S; return (1 + DIAL_OVERSHOOT) * (1 - (1 - u) ** 3); }
+  return 1 + DIAL_OVERSHOOT * (1 - sm((t - DIAL_CLICK_S) / (DIAL_SEAT_S - DIAL_CLICK_S)));
+}
+export function altarStage(stage) {
+  const k = Math.max(0, Math.min(ALTAR_STAGES - 1, Math.floor(Number.isFinite(stage) ? stage : 0)));
+  const curve = (x, d) => {
+    const t = x * (ALTAR_HOLD_MS / 1000);
+    const st = dialStep(t);
+    d.turn = (k + st) * DIAL_STEP;
+    d.focus = (k + st) * ALTAR_FOCUS;
+    d.shapeA = (k + sm(t / ALTAR_BUILD_S)) / ALTAR_STAGES;
+    d.shapeB = d.turn;                                   // the rays are the dial
+    d.shapeC = t + 1e-3;
+    d.shapeK = k === 0 ? sm(t / 0.2) : 1;               // the first click lights the core
+    d.level = 0;                                         // no paint-over, no tint: aether stays silver
+    d.turb = 0; d.gazeX = 0; d.gazeY = 0;
+    return d;
+  };
+  return { kind: KICK.watch, shape: SHAPE.aether, durationMs: ALTAR_HOLD_MS, curve, tag: ALTAR_TAG, tint: null, tint2: null };
+}
+
+// The seal: the crescendo takes the compiled star (not a plain ring) all the way through.
+// sealStar(age, phases) -> { size, k, turn, flash } for the crescendo's age in seconds, given its
+// phases { implode, detonate, storm, settle } (ObserverEye's constants). The eight rays never
+// leave: the star tightens as it winds up through the implosion, the detonation is a white
+// flash in the star itself, it spins at full speed through the storm and slows, and in the
+// settle the still-spinning star contracts into the sealed silver. turn is closed form (the
+// integral of the spin rate), so the same seal plays the same at any uptime.
+export const SEAL_SPIN = 12;           // rad/s at full spin
+export const SEAL_TIGHT = 0.6;         // the star's size through the storm, of the built size
+export function sealStar(age, { implode: I, detonate: D, storm: S, settle: T }) {
+  const W = SEAL_SPIN;
+  const a = Math.max(0, age);
+  const out = { size: 1, k: 1, turn: 0, flash: -1 };
+  if (a < I) {                                   // wind-up: rate W·(t/I)^2
+    out.size = 1 - (1 - SEAL_TIGHT) * sm(a / I);
+    out.turn = (W * a * a * a) / (3 * I * I);
+    return out;
+  }
+  const tI = (W * I) / 3;
+  const tD = a - I;
+  out.size = SEAL_TIGHT;
+  out.flash = tD;                               // the detonation: a white flash on the star
+  if (tD < D) { out.turn = tI + W * tD; return out; }
+  const tS = tD - D, tDet = tI + W * D;
+  if (tS < S) { out.turn = tDet + W * (tS - (0.3 * tS * tS) / S); return out; }   // rate W -> 0.4W
+  const u = Math.min(1, (tS - S) / T);
+  out.turn = tDet + 0.7 * W * S + (0.4 * W * T * (1 - (1 - u) ** 3)) / 3;          // rate 0.4W·(1-u)^2 -> 0
+  out.size = SEAL_TIGHT * (1 - sm(u / 0.75));                                      // the spinning star contracts
+  out.k = 1 - sm((u - 0.45) / 0.55);                                               // into the seal
+  return out;
+}
+
 export const REACTIONS = {
+  'altar.stage': (imp) => altarStage(imp.data?.stage),
+  'altar.release': { release: true, tag: ALTAR_TAG, durationMs: 600 },
   'mercury.element': (imp) => {
     const cols = ELEMENT_EYE_COLS[imp.data?.phase];
     return cols ? { kind: KICK.inhale, durationMs: MERCURY_ELEMENT_MS, curve: mercuryElement, tint: cols[0], tint2: cols[1] } : null;

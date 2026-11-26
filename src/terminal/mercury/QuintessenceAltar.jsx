@@ -12,6 +12,7 @@ import { holdVolatile } from '../quintessence/volatileHold';
 import { STORAGE_KEY } from '../quintessence/sealedArtifact';
 import { drynessFor } from '../data/lunarAccords';
 import { getTotals, subscribe as subscribeBus, emit as emitObs } from '../../observatory/observatoryBus';
+import { notifyAltarStage } from '../quintessence/observerStore';
 import ElementSeal from './ElementSeal';
 import SpineMirror from './SpineMirror';
 import { useHoldToSeal } from './useHoldToSeal';
@@ -118,6 +119,7 @@ export default function QuintessenceAltar({ onDeposited, onNavigate }) {
       const periphery = snapshotPeriphery();
       for (let s = 0; s < 3; s++) {
         setStage(s);
+        try { notifyAltarStage(s); } catch (_) { /* the eye is ancillary */ }
         await new Promise(r => setTimeout(r, 650));
         if (!alive.current) return;
       }
@@ -132,6 +134,7 @@ export default function QuintessenceAltar({ onDeposited, onNavigate }) {
       if (!alive.current) return;
       for (let s = 3; s < 6; s++) {
         setStage(s);
+        try { notifyAltarStage(s); } catch (_) { /* the eye is ancillary */ }
         await new Promise(r => setTimeout(r, 650));
         if (!alive.current) return;
       }

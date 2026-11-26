@@ -19,7 +19,7 @@ export const KICK = {
 
 // Shape morphs (u_shape). The pupil/disc *become* a figure by SDF blends, the nebula
 // keeps flowing inside it. u_shapeK 0..1 = how far; u_shapeA/B are per-shape params.
-export const SHAPE = { kernel: 1, butterfly: 2, antenna: 3, horizon: 4, accord: 5, sun: 6, cipher: 7, feigen: 8, vessels: 9, murk: 10, moon: 11 };
+export const SHAPE = { kernel: 1, butterfly: 2, antenna: 3, horizon: 4, accord: 5, sun: 6, cipher: 7, feigen: 8, vessels: 9, murk: 10, moon: 11, aether: 12 };
 
 export const VS = 'attribute vec2 a;varying vec2 v;void main(){v=a;gl_Position=vec4(a,0.,1.);}';
 export const FS = [
@@ -340,6 +340,17 @@ export const FS = [
   '   vec3 es=vec3(0.40,0.45,0.54)*(0.26+0.16*n)*(0.65+0.35*mu)*pm*edge;',
   '   es+=smoothstep(0.80,0.96,n)*vec3(0.55,0.62,0.75)*0.10*pm*edge;',
   '   col=mix(col,mix(es,day,lit),k);',
+  // aether (the quintessence compile): the fifth element builds stage by stage into a luminous
+  // core. A = build 0..1 (one sixth per stage), B = the dial's angle (the rays turn with each
+  // click), C = seconds since the last click (a white flash on the detent; 0 = none).
+  // Eight rays, so a pi/8 click is half a ray spacing: the step reads even at 37 px.
+  '  }else if(u_shape<12.5){',
+  '   float A=clamp(u_shapeA,0.,1.),fl=u_shapeC>0.0?exp(-u_shapeC/0.09):0.0;',
+  '   float cr=0.035+0.085*A,hw=0.12+0.30*A,len=0.20+0.66*A;',
+  '   float ry=pow(abs(cos(4.0*(ang-u_shapeB))),mix(36.0,12.0,A))*(1.0-smoothstep(0.0,len,r))*smoothstep(0.0,0.05,r);',
+  '   vec3 wg=vec3(1.0,0.94,0.78);',
+  '   col*=1.0-k*0.25*A*(1.0-smoothstep(0.0,hw*1.6,r));',      // the nebula steps back behind the light
+  '   col+=k*wg*((1.4+0.9*fl)*exp(-r*r/(cr*cr))+(0.22+0.40*A)*exp(-r*r/(hw*hw))+(0.15+0.95*A+0.5*fl)*ry);',
   '  }',
   ' }',
   // Rim (eyeDrive driveRim; /ECOCIDE's protection protocol): a luminous corona hugging the

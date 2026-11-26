@@ -314,7 +314,11 @@ function onBus({ category, kind, payload }) {
     schedule();
     return;
   }
-  if (key === 'edge/kernel_ignite_ended') { if (igniting) { igniting = false; ping(); } return; }
+  if (key === 'edge/kernel_ignite_ended') {
+    if (igniting) { igniting = false; ping(); }
+    publishDirect('altar.release', KICK.watch, null);   // an unsealed ignition lets the Aether go
+    return;
+  }
   if (key === 'gaze/tab_navigated') {
     // The privacy drawer emits this and never calls notifyNav: the eye looks back. The drawer
     // opens over /SURVEILLANCE, so it is not a place the visitor stands.
@@ -572,6 +576,15 @@ export function notifyLedger(stage, severity = null) {
   if (stage === 'audit') react('ledger.write', 'witness', { data: { severity: s ?? 0.5 } });
   else if (stage === 'clear') publishDirect('ledger.clear', KICK.watch, { severity: s });
   else if (stage === 'release') publishDirect('ledger.release', KICK.watch, null);
+}
+
+// The quintessence compile: QuintessenceAltar calls this as each stage lands (0 SPINE READ …
+// 5 SEALED); the eye clicks round like a vault dial and the Aether builds (eyeReactions
+// 'altar.stage'). Not an act of its own (the ignition was), so straight to the eye. The seal's
+// crescendo takes over from the last stage; an unsealed end (kernel_ignite_ended) releases it.
+export function notifyAltarStage(stage) {
+  if (!Number.isInteger(stage) || stage < 0 || stage > 5) return;
+  publishDirect('altar.stage', KICK.watch, { stage });
 }
 
 // A tab driving the eye live (/LUNAR's moon: the scrub, the compile sweep) holds it quiet: a

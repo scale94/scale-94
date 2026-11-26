@@ -25,7 +25,8 @@
 // reaction is a brief static colour hold.
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import { useShaderCanvas } from '../gl/useShaderCanvas';
-import { VS, FS, UNIFORMS, KICK } from './observerEyeShader';
+import { VS, FS, UNIFORMS, KICK, SHAPE } from './observerEyeShader';
+import { sealStar } from './eyeReactions';
 import { eyeDrive, live } from './eyeDrive';
 
 const RESTING_COLS = [[210,220,232],[150,170,185],[120,200,220]];
@@ -54,6 +55,7 @@ const DECAY_FLOOR = Math.exp(-4);
 // Crescendo phases (seconds), spec §5.5.
 const IMPLODE_S = 0.25, DETONATE_S = 0.35, STORM_S = 2.0, SETTLE_S = 3.0;
 const CRESCENDO_S = IMPLODE_S + DETONATE_S + STORM_S + SETTLE_S;
+const SEAL_PHASES = { implode: IMPLODE_S, detonate: DETONATE_S, storm: STORM_S, settle: SETTLE_S };
 const WHITE_GOLD = [255, 236, 180];
 const WHITE_GOLD_COLS = deriveCols(WHITE_GOLD);
 // Turbulence also speeds the swirl: phase rate = speed + TURB_SPEED·turb.
@@ -139,7 +141,7 @@ function kickLevel(k, tsec) {
 // the settle phase eases it back to 0).
 function crescendoAt(c, tsec, o) {
   const age = tsec - c.t0;
-  o.core = 0; o.focus = 0.95; o.turb = 0; o.speedMul = 1; o.jitter = 0; o.kick = 0; o.w = 1;
+  o.core = 0; o.focus = 0.95; o.turb = 0; o.speedMul = 1; o.kick = 0; o.w = 1;
   if (age < IMPLODE_S) {
     const x = age / IMPLODE_S;
     o.core = c.core0 * Math.pow(1 - x, 3);               // the star-core collapses to a point
@@ -151,18 +153,18 @@ function crescendoAt(c, tsec, o) {
     const y = tDet / DETONATE_S;
     o.focus = lerp(0.95, 0.3, smooth(y));                // the blast throws the iris open
     o.turb = 1; o.speedMul = 4;
-    o.kick = 1 - y;                                      // a white-gold ring flies outward
+    o.kick = c.aether ? 0 : 1 - y;                       // a white-gold ring flies outward (a compiled star flashes instead)
     return o;
   }
   const tStorm = tDet - DETONATE_S;
   o.focus = 0.3;
   if (tStorm < STORM_S) {
     const z = tStorm / STORM_S;
-    o.turb = lerp(1, 0.6, z); o.speedMul = lerp(4, 2, z); o.jitter = 1;
+    o.turb = lerp(1, 0.6, z); o.speedMul = lerp(4, 2, z);
     return o;
   }
   const s = Math.min(1, (tStorm - STORM_S) / SETTLE_S);
-  o.turb = 0.6; o.speedMul = 2; o.jitter = 1 - s;
+  o.turb = 0.6; o.speedMul = 2;
   o.w = 1 - smooth(s);
   return o;
 }
@@ -177,7 +179,7 @@ function makeScratch() {
       shape: 0, shapeK: 0, shapeA: 0, shapeB: 0, shapeC: 0, turn: 0, rim: 0, rimCol: [0, 0, 0],
     },
     key: {},                                    // a keyed kick's sample this frame
-    cres: { core: 0, focus: 0, turb: 0, speedMul: 1, jitter: 0, kick: 0, w: 1 },
+    cres: { core: 0, focus: 0, turb: 0, speedMul: 1, kick: 0, w: 1 },
     T: { tgt: null, tCols: null, tGaze: null, tCore: 0, tOrbit: 0, tShimmer: 0, tThread: 0, tPulse: 0 },
     leanTgt: { speed: 0, focus: 0, irid: 0 },
     leanCols: cols3(),
@@ -444,9 +446,16 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
         o.focus = lerp(cur.focus, x.focus, w);
         o.turb = x.turb * w;
         o.speed = cur.speed * lerp(1, x.speedMul, w);
-        const j = 0.03 * x.jitter * w;     // storm: the gaze shakes, ±0.03
-        o.gaze[0] = cur.gaze[0] + j * Math.sin(tsec * 47.3);
-        o.gaze[1] = cur.gaze[1] + j * Math.sin(tsec * 39.1 + 1.3);
+        // The storm holds the gaze still (no jitter): the turbulence carries it.
+        // A compile's seal: the spinning eight-ray star carries the whole crescendo (sealStar).
+        if (c.aether) {
+          const st = sealStar(tsec - c.t0, SEAL_PHASES);
+          if (st.k > 0.001) {
+            o.shape = SHAPE.aether; o.shapeK = st.k;
+            o.shapeA = c.aether.a * st.size; o.shapeB = c.aether.b + st.turn;
+            o.shapeC = st.flash < 0 ? 9 : st.flash + 1e-3;
+          }
+        }
         if (x.kick > 0) {
           o.kick = x.kick; o.kickKind = KICK.ring; o.kickDir = 1;
           hue = WHITE_GOLD_COLS; level = x.kick;
@@ -509,7 +518,8 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
       if (!c) o.irid *= 1 - t;
     }
     cur.kickOut = o.kick;
-    cur.shapeOutId = o.shape; cur.shapeOutK = o.shapeK;
+    cur.shapeOutId = o.shape; cur.shapeOutK = o.shapeK; cur.shapeOutA = o.shapeA; cur.shapeOutB = o.shapeB;
+    cur.turnOut = c ? 0 : o.turn;
     return o;
   }
 
@@ -613,8 +623,14 @@ function ObserverEye({ state = 'resting', size = 28, tint = null, gaze = null, p
         holdStatic({ cols: deriveCols(WHITE_GOLD), core: CHARGE_CORE[1] }, RM_FLASH_MS);
         return;
       }
+      // The held kick's turn is folded in (no snap back), and a compiled Aether is handed to the
+      // crescendo, which collapses it into the implosion instead of cutting it.
+      cur.phase += cur.turnOut || 0;
+      cur.turnOut = 0;
+      const aether = cur.kick && cur.shapeOutId === SHAPE.aether && cur.shapeOutK > 0.001
+        ? { a: cur.shapeOutA * cur.shapeOutK, b: cur.shapeOutB } : null;
       cur.kick = null;
-      cur.cres = { t0: null };
+      cur.cres = { t0: null, aether };
     },
   }));
 

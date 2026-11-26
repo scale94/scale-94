@@ -1,6 +1,6 @@
 // eyeReactions.test.js — the per-piece choreography table and how an impulse becomes a kick.
 import { describe, it, expect } from 'vitest';
-import { REACTIONS, reactionKick, BSKY_EXIT, TX_IGNITE, ACC_TAG, EJECT_OUT, SCENT_HIT, surveillanceTrace, CRYPTO_SNAP, CRYPTO_TAG, FEIGEN_DELTA, FORK_TIMES, FORK_ACCUM, LEDGER_TAG, MURK_COLS, MURK_IN, MURK_TINT_FROM, murkClearMs, ledgerMurk, MERCURY_ELEMENT_MS } from '../eyeReactions';
+import { REACTIONS, reactionKick, BSKY_EXIT, TX_IGNITE, ACC_TAG, EJECT_OUT, SCENT_HIT, surveillanceTrace, CRYPTO_SNAP, CRYPTO_TAG, FEIGEN_DELTA, FORK_TIMES, FORK_ACCUM, LEDGER_TAG, MURK_COLS, MURK_IN, MURK_TINT_FROM, murkClearMs, ledgerMurk, MERCURY_ELEMENT_MS, altarStage, dialStep, ALTAR_TAG, DIAL_STEP, DIAL_CLICK_S, DIAL_OVERSHOOT, sealStar, SEAL_TIGHT } from '../eyeReactions';
 import { ELEMENT_EYE_COLS } from '../../mercury/mercuryEye';
 import { KICK, SHAPE } from '../observerEyeShader';
 
@@ -190,6 +190,61 @@ describe('eyeReactions', () => {
     const xs = Array.from({ length: 300 }, (_, i) => i / 299);
     const T = xs.map((x) => r.curve(x, {}).turn);
     T.slice(1).forEach((t, i) => expect(t).toBeGreaterThanOrEqual(T[i] - 1e-12));
+  });
+
+  it('altar_dial_clicks_crisply_overshoots_and_seats_on_the_detent', () => {
+    expect(dialStep(0)).toBe(0);
+    expect(dialStep(DIAL_CLICK_S)).toBeCloseTo(1 + DIAL_OVERSHOOT, 6);   // there in 60 ms, a little past
+    expect(dialStep(0.03)).toBeGreaterThan(0.75);                        // crisp: most of the step in half the click
+    expect(dialStep(0.2)).toBe(1);                                       // seated
+    for (let t = 0; t < 0.5; t += 0.005) expect(dialStep(t)).toBeLessThanOrEqual(1 + DIAL_OVERSHOOT + 1e-9);
+  });
+
+  it('altar_stages_carry_the_running_dial_so_nothing_snaps_back', () => {
+    const at = (k, t) => { const r = altarStage(k); return r.curve(t / (r.durationMs / 1000), {}); };
+    for (let k = 0; k < 6; k++) {
+      const r = altarStage(k);
+      expect(r).toMatchObject({ shape: SHAPE.aether, tag: ALTAR_TAG, tint: null });
+      const seated = at(k, 1);
+      expect(seated.turn).toBeCloseTo((k + 1) * DIAL_STEP, 6);
+      expect(seated.shapeB).toBeCloseTo(seated.turn, 9);                 // the rays are the dial
+      expect(seated.shapeA).toBeCloseTo((k + 1) / 6, 6);                 // one sixth brighter per stage
+      expect(seated.level).toBe(0);                                      // no tint, no paint-over
+      if (k > 0) {
+        const prev = at(k - 1, 1), next = at(k, 0);
+        expect(next.turn).toBeCloseTo(prev.turn, 9);                     // a new click starts where the last seated
+        expect(next.focus).toBeCloseTo(prev.focus, 9);
+        expect(next.shapeA).toBeCloseTo(prev.shapeA, 9);
+        expect(next.shapeK).toBe(1);
+      }
+      expect(at(k, 0.6).focus).toBeGreaterThan(at(Math.max(0, k - 1), 0.6).focus - (k === 0 ? 1 : 0));
+    }
+    expect(at(5, 1).shapeA).toBeCloseTo(1, 6);                           // the sixth stage: the full Aether
+    expect(reactionKick({ piece: 'altar.stage', kind: KICK.watch, data: { stage: 2 } }).shape).toBe(SHAPE.aether);
+    expect(reactionKick({ piece: 'altar.release', kind: KICK.watch })).toMatchObject({ release: true, tag: ALTAR_TAG });
+  });
+
+  it('seal_star_spins_through_the_crescendo_and_contracts_into_the_seal', () => {
+    const P = { implode: 0.25, detonate: 0.35, storm: 2.0, settle: 3.0 };
+    const END = 5.6;
+    const ts = Array.from({ length: 1121 }, (_, i) => (i / 1120) * END);
+    const xs = ts.map((t) => sealStar(t, P));
+    // the star never leaves before the settle, and spins one way, without a jump
+    xs.filter((_, i) => ts[i] < 2.6).forEach((x) => expect(x.k).toBe(1));
+    for (let i = 1; i < xs.length; i++) {
+      expect(xs[i].turn).toBeGreaterThanOrEqual(xs[i - 1].turn - 1e-12);
+      expect(xs[i].turn - xs[i - 1].turn).toBeLessThan(0.08);          // ≤ 12 rad/s × 5 ms: continuous
+      expect(Math.abs(xs[i].size - xs[i - 1].size)).toBeLessThan(0.02);
+    }
+    expect(sealStar(0, P)).toMatchObject({ size: 1, k: 1, turn: 0, flash: -1 });
+    expect(sealStar(0.25, P).size).toBeCloseTo(SEAL_TIGHT, 9);           // tightened by the detonation
+    expect(sealStar(0.3, P).flash).toBeCloseTo(0.05, 9);                 // the flash is the star's
+    const rate = (t) => (sealStar(t + 1e-4, P).turn - sealStar(t, P).turn) / 1e-4;
+    expect(rate(0.4)).toBeCloseTo(12, 1);                                // full spin through the blast
+    expect(rate(1.5)).toBeGreaterThan(rate(2.5));                        // slowing in the storm
+    expect(rate(END - 1e-3)).toBeLessThan(0.01);                         // the spin has come to rest
+    expect(sealStar(END, P).k).toBe(0);                                  // contracted into the seal
+    expect(sealStar(END, P).size).toBe(0);
   });
 
   it('mercury_element_focuses_into_its_own_palette_and_lets_go', () => {

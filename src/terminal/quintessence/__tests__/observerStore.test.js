@@ -6,7 +6,7 @@ import {
   NAV_TINTS, FLASH_MS, WITNESS_MS, VERTEBRA_MS, CRESCENDO_MS, _resetObserverForTests,
   setChromeVisible, QUIET_MS, GLANCE_IN_MS, GLANCE_HOLD_MS, GLANCE_OUT_MS, GLANCE_GAP_MS,
   IDLE_MS, COOLDOWN_MIN_MS, COOLDOWN_MAX_MS, AFTER_REACTION_MS, WHISPER_MS, PHRASE_BUSY_MS,
-  MOBILE_HOLD_MS, glanceLevel, GLANCE_TOTAL_MS, notifyTtyEnter, notifyAccretion, notifySurveillance, notifyCrypto, notifyLedger, ledgerSettleMs, holdEyeQuiet,
+  MOBILE_HOLD_MS, glanceLevel, GLANCE_TOTAL_MS, notifyTtyEnter, notifyAccretion, notifySurveillance, notifyCrypto, notifyLedger, ledgerSettleMs, holdEyeQuiet, notifyAltarStage,
 } from '../observerStore';
 import { PIECE_TAB, TAB_PIECES, RIDDLES } from '../whispers';
 import { setTrend, setCouncil, setPhase, setElement, _resetSpineForTests } from '../spineStore';
@@ -86,6 +86,19 @@ describe('observerStore — agency filter', () => {
     ]);
     expect(impulses[0].tint).toEqual(NAV_TINTS.art);
     expect(impulses[2]).toMatchObject({ tint: null, dir: -1 });
+  });
+
+  it('altar stages go straight to the eye; an unsealed end releases the Aether', async () => {
+    boot();
+    notifyAltarStage(0);
+    notifyAltarStage(3);
+    notifyAltarStage(7);                 // out of range: nothing
+    notifyAltarStage(1.5);
+    expect(impulses.map(i => [i.piece, i.data])).toEqual([['altar.stage', { stage: 0 }], ['altar.stage', { stage: 3 }]]);
+    expect(impulses[0].tint).toBeNull();
+    emit('edge', 'kernel_ignite_ended', { sealed: false });
+    await flush();
+    expect(impulses.at(-1).piece).toBe('altar.release');
   });
 
   it('a lit element carries its phase, by hand only', async () => {
@@ -209,7 +222,7 @@ describe('observerStore — seal', () => {
     emit('edge', 'kernel_ignite_ended', { sealed: false });
     await flush();
     expect(getObserver()).toMatchObject({ igniting: false, sealed: false });
-    expect(impulses).toHaveLength(0);
+    expect(impulses.map(i => i.piece)).toEqual(['altar.release']);   // the Aether lets go; no act
   });
 
   it('reload_with_seal_starts_sealed_without_crescendo', async () => {

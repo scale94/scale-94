@@ -11,8 +11,8 @@ import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render, cleanup, act } from '@testing-library/react';
 import { installRecordingGL } from '../../gl/__tests__/recordingGL';
 import ObserverEye from '../ObserverEye';
-import { KICK } from '../observerEyeShader';
-import { REACTIONS } from '../eyeReactions';
+import { KICK, SHAPE } from '../observerEyeShader';
+import { REACTIONS, reactionKick, DIAL_STEP } from '../eyeReactions';
 
 const hostless = vi.hoisted(() => ({ on: false }));
 vi.mock('../../gl/glHost', async (importOriginal) => {
@@ -140,16 +140,51 @@ describe('ObserverEye imperative handle', () => {
     const ring = f.filter((x) => x.t >= 250 && x.t <= 600);
     expect(Math.max(...ring.map((x) => x.u.u_kick))).toBeGreaterThan(0.9);
     expect(ring.find((x) => x.u.u_kick > 0.9).u.u_kickKind).toBe(KICK.ring);
-    // storm: the gaze shakes, bounded by ±0.03
+    // storm: the gaze holds still (the plan's row 14: the jitter goes), the turbulence carries it
     const storm = f.filter((x) => x.t >= 700 && x.t <= 2500).map((x) => x.u.u_gaze);
-    expect(storm.some((g) => Math.abs(g[0]) > 0.005)).toBe(true);
-    expect(storm.every((g) => Math.abs(g[0]) <= 0.0301 && Math.abs(g[1]) <= 0.0301)).toBe(true);
+    expect(storm.every((g) => Math.abs(g[0]) < 1e-9 && Math.abs(g[1]) < 1e-9)).toBe(true);
     // settle: back to baseline
     expect(at(5600).u_core).toBeCloseTo(0, 2);
     expect(at(5600).u_turb).toBeCloseTo(0, 2);
     expect(f[f.length - 1].u.u_turb).toBe(0);
     expect(f[f.length - 1].u.u_kick).toBe(0);
     expect(f[f.length - 1].u.u_thread).toBeGreaterThan(0.99);
+  });
+
+  it('altar_stages_build_the_aether_and_the_seal_collapses_it_without_a_snap', () => {
+    const ref = createRef();
+    const { rerender } = render(<ObserverEye ref={ref} state="charging" size={64} />);
+    frames(2);
+    const stage = (k) => act(() => ref.current.kick(reactionKick({ piece: 'altar.stage', kind: KICK.watch, data: { stage: k } })));
+    let last = null;
+    for (let k = 0; k < 6; k++) {
+      stage(k);
+      const f = frames(Math.ceil(400 / FRAME_MS));
+      last = f[f.length - 1].u;
+      expect(last.u_shape).toBe(SHAPE.aether);
+      expect(last.u_shapeA).toBeCloseTo((k + 1) / 6, 2);
+      expect(last.u_shapeB).toBeCloseTo((k + 1) * DIAL_STEP, 6);
+    }
+    // the seal: the crescendo takes the built Aether into the implosion (no cut, no phase snap)
+    const phase0 = last.u_phase;
+    ref.current.detonate();
+    act(() => { rerender(<ObserverEye ref={ref} state="resting" size={64} />); });
+    const f = frames(Math.ceil(400 / FRAME_MS));
+    expect(f[0].u.u_shape).toBe(SHAPE.aether);
+    expect(f[0].u.u_shapeK).toBeGreaterThan(0.8);
+    expect(Math.abs(f[0].u.u_phase - phase0)).toBeLessThan(0.2);          // one frame of swirl, not 3π/4
+    // the star carries the whole crescendo: no plain ring, the rays spinning through the storm
+    const all = [...f, ...frames(Math.ceil(5400 / FRAME_MS))];
+    const at = (ms) => all.find((x) => x.t >= ms).u;
+    for (const ms of [100, 260, 400, 600, 1500, 2500]) {
+      expect(at(ms).u_shape).toBe(SHAPE.aether);
+      expect(at(ms).u_shapeK).toBeCloseTo(1, 6);
+    }
+    expect(Math.max(...all.filter((x) => x.t < 700).map((x) => x.u.u_kick))).toBe(0);   // no ring burst
+    expect(at(1500).u_shapeB).toBeGreaterThan(at(600).u_shapeB + 5);    // spinning
+    // settle: the spinning star contracts into the seal, then it is gone
+    expect(at(4500).u_shapeA).toBeLessThan(at(2500).u_shapeA);
+    expect(all[all.length - 1].u.u_shapeK).toBe(0);
   });
 
   it('phase_is_uptime_independent', () => {
