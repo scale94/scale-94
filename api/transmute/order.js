@@ -1,30 +1,97 @@
 // api/transmute/order.js — SOMA-9.4 Tesseract Order Bridge
 // POST /api/transmute/order
 //
-// Receives a signed TRANSMUTE payload from the Latent Collider frontend,
+// Receives a TRANSMUTE payload from the Latent Collider frontend,
 // persists the order to Vercel KV, and posts a rich Discord embed with
 // Acknowledge / Macerating / Shipped action buttons via Bot REST API.
 //
-// Auth: HMAC-SHA256 on raw JSON body (x-transmute-signature header).
+// Auth: none — this is a public endpoint (see Request guards).
+// Abuse limits: body size and field validation, server-side pricing, rate limits.
 // Idempotency: formulaHash unique index prevents duplicate orders.
 
-import { createHmac, timingSafeEqual } from 'crypto';
+import { createHmac } from 'crypto';
 import { kv } from '@vercel/kv';
 import { composeAlienVerdict } from '../_alien/composeVerdict.js';
 
-const WEBHOOK_SECRET = process.env.TRANSMUTE_WEBHOOK_SECRET;
-const BOT_TOKEN      = process.env.DISCORD_BOT_TOKEN;
+const BOT_TOKEN     = process.env.DISCORD_BOT_TOKEN;
 const ORDER_CHANNEL  = process.env.DISCORD_ORDER_CHANNEL_ID;
 const DISCORD_API    = 'https://discord.com/api/v10';
 
-// ── Signature verification ────────────────────────────────────────────────────
-function verifySignature(rawBody, sig) {
-  if (!WEBHOOK_SECRET) return true; // dev mode: skip if secret not configured
-  if (!sig) return false;
-  const expected = createHmac('sha256', WEBHOOK_SECRET).update(rawBody).digest('hex');
-  try {
-    return timingSafeEqual(Buffer.from(sig.padEnd(64, '0')), Buffer.from(expected.padEnd(64, '0')));
-  } catch { return false; }
+// ── Request guards ────────────────────────────────────────────────────────────
+// Anonymous browsers call this endpoint, and a browser cannot keep a secret, so
+// there is no caller authentication. Treat every field as hostile.
+const MAX_BODY_BYTES     = 16 * 1024;
+const HOURLY_PER_ADDRESS = 5;
+// One address can make at most 5 × 24 = 120 requests a day, so it cannot use this up alone.
+const DAILY_NEW_ORDERS   = 200;
+const MAX_HISTORY        = 30;
+
+// The server owns the prices. Mirrors TIERS in src/terminal/views/LatentCollider.jsx.
+const TIERS = new Map([
+  ['10ml', { price: 25,  g2t: 2.5, label: '10 ml · DISCOVERY' }],
+  ['50ml', { price: 100, g2t: 10,  label: '50 ml · SOVEREIGN' }],
+]);
+
+// Max lengths. Discord caps an embed field at 1024 characters, code fence included.
+// encryptedPayload is never put in an embed. It must arrive whole or it cannot be
+// decrypted; the longest formula the collider's note names give seals to about 3,200.
+const TEXT_LIMITS = {
+  formulaId: 120, encryptedPayload: 8192, cardName: 200, domainPair: 120,
+  noteBlock: 1000, physBlock: 1000, vaultBlock: 1000,
+};
+const CONTACT_LIMIT = 254;
+
+const isText = (v, max) => v === undefined || v === null || (typeof v === 'string' && v.length <= max);
+const isObject = v => typeof v === 'object' && v !== null && !Array.isArray(v);
+// Most text is rendered inside ``` fences; a backtick could close one.
+const defang = v => v?.replace(/`/g, "'");
+
+// Returns the reason the body is unacceptable, or null.
+function findProblem(body) {
+  if (!isObject(body)) return 'body must be a JSON object';
+  if (typeof body.formulaHash !== 'string' || !/^[0-9a-f]{64}$/.test(body.formulaHash)) {
+    return 'formulaHash must be a SHA-256 hex digest';
+  }
+  if (!TIERS.has(body.tierSize)) return 'unknown tierSize';
+  for (const [field, max] of Object.entries(TEXT_LIMITS)) {
+    if (!isText(body[field], max)) return `invalid ${field}`;
+  }
+  const { contact, kernelHistory } = body;
+  if (contact != null && !(isObject(contact)
+      && isText(contact.signal, CONTACT_LIMIT) && isText(contact.email, CONTACT_LIMIT))) {
+    return 'invalid contact';
+  }
+  if (kernelHistory != null && !(Array.isArray(kernelHistory) && kernelHistory.length <= MAX_HISTORY
+      && kernelHistory.every(k => isObject(k) && typeof k.id === 'string' && k.id.length <= 100))) {
+    return 'invalid kernelHistory';
+  }
+  return null;
+}
+
+// Resolves to null once the body passes MAX_BODY_BYTES.
+async function readBody(req) {
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of req) {
+    size += chunk.length;
+    if (size > MAX_BODY_BYTES) return null;
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks).toString('utf-8');
+}
+
+// Counts one hit in a fixed window; false once the window is over its limit.
+async function underLimit(key, limit, windowSeconds) {
+  const count = await kv.incr(key);
+  if (count === 1) await kv.expire(key, windowSeconds);
+  return count <= limit;
+}
+
+// KV holds only a keyed hash of the caller's address, and only for the window.
+// Vercel sets x-forwarded-for itself, so a caller cannot choose it there.
+function addressKey(req) {
+  const address = String(req.headers['x-forwarded-for'] ?? '').split(',')[0].trim() || 'unknown';
+  return createHmac('sha256', BOT_TOKEN || 'order-rate-limit').update(address).digest('hex').slice(0, 32);
 }
 
 // ── Discord REST ──────────────────────────────────────────────────────────────
@@ -133,32 +200,27 @@ function buildComponents(orderId, state = 'QUEUED') {
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin',  process.env.ALLOWED_ORIGIN || '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-transmute-signature');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST')   return res.status(405).end();
 
-  // Read raw bytes — HMAC is over the exact wire bytes, not re-serialised JSON
-  const chunks = [];
-  for await (const chunk of req) chunks.push(chunk);
-  const rawBody = Buffer.concat(chunks).toString('utf-8');
-  const body    = JSON.parse(rawBody);
+  const rawBody = await readBody(req);
+  if (rawBody === null) return res.status(413).json({ error: 'Body too large' });
 
-  const sig = req.headers['x-transmute-signature'];
-  if (!verifySignature(rawBody, sig)) {
-    return res.status(401).json({ error: 'Invalid signature' });
+  let body;
+  try { body = JSON.parse(rawBody); } catch { return res.status(400).json({ error: 'Invalid JSON' }); }
+
+  const problem = findProblem(body);
+  if (problem) return res.status(400).json({ error: problem });
+
+  if (!(await underLimit(`ratelimit:order:${addressKey(req)}`, HOURLY_PER_ADDRESS, 3600))) {
+    return res.status(429).json({ error: 'Too many requests' });
   }
 
-  const {
-    formulaId, formulaHash, encryptedPayload,
-    sovereignRatio, g2tAmount,
-    tierSize, tierLabel,
-    cardName, domainPair, noteBlock, physBlock, vaultBlock,
-    contact,
-    kernelHistory,
-  } = body;
-
-  if (!formulaHash) return res.status(400).json({ error: 'formulaHash required' });
+  const { formulaHash, tierSize, contact, kernelHistory } = body;
+  const tier = TIERS.get(tierSize);
+  const text = field => defang(body[field]) ?? '—';
 
   // Idempotency: reject duplicate hashes
   const existingId = await kv.get(`order:hash:${formulaHash}`);
@@ -166,25 +228,29 @@ export default async function handler(req, res) {
     return res.status(409).json({ error: 'Order already exists', orderId: existingId });
   }
 
+  if (!(await underLimit('ratelimit:order:daily', DAILY_NEW_ORDERS, 86400))) {
+    return res.status(429).json({ error: 'Daily order limit reached' });
+  }
+
   // Build and persist order
   const orderId   = crypto.randomUUID();
   const createdAt = new Date().toISOString();
   const order = {
     id:               orderId,
-    formulaId:        formulaId        ?? '—',
+    formulaId:        text('formulaId'),
     formulaHash:      formulaHash,
-    encryptedPayload: encryptedPayload ?? '—',
-    sovereignRatio:   sovereignRatio   ?? 100,
-    g2tAmount:        g2tAmount        ?? 10,
-    tierSize:         tierSize         ?? '50ml',
-    tierLabel:        tierLabel        ?? '50 ml · SOVEREIGN',
-    cardName:         cardName         ?? '—',
-    domainPair:       domainPair       ?? '—',
-    noteBlock:        noteBlock        ?? '—',
-    physBlock:        physBlock        ?? '—',
-    vaultBlock:       vaultBlock       ?? '—',
-    contactSignal:    contact?.signal  || '',
-    contactEmail:     contact?.email   || '',
+    encryptedPayload: text('encryptedPayload'),
+    sovereignRatio:   tier.price,
+    g2tAmount:        tier.g2t,
+    tierSize,
+    tierLabel:        tier.label,
+    cardName:         text('cardName'),
+    domainPair:       text('domainPair'),
+    noteBlock:        text('noteBlock'),
+    physBlock:        text('physBlock'),
+    vaultBlock:       text('vaultBlock'),
+    contactSignal:    defang(contact?.signal) || '',
+    contactEmail:     defang(contact?.email)  || '',
     fulfillmentState: 'QUEUED',
     paymentStatus:    'PENDING',
     createdAt,
@@ -205,7 +271,7 @@ export default async function handler(req, res) {
   // via Vercel's KV dashboard. Orders are valid regardless of embed delivery —
   // a failed post does not roll back the order. The whole block is wrapped
   // in try/catch so a KV outage during diagnostic persistence cannot break
-  // the 201 contract — the order is already saved at line 190.
+  // the 201 contract — the order is already saved by then.
   try {
     if (BOT_TOKEN && ORDER_CHANNEL) {
       const result = await discordPost(`/channels/${ORDER_CHANNEL}/messages`, {

@@ -79,6 +79,11 @@ export function storeOrderHash(hash) {
   } catch { /* storage blocked */ }
 }
 
+// Track an order only when the server holds it: accepted, or already on file (409).
+export function recordDispatchedOrder(res, hash) {
+  if (res.ok || res.status === 409) storeOrderHash(hash);
+}
+
 // Retrieve the latest stored hash (for current session display)
 export function getStoredHash(formulaHash) {
   if (formulaHash) return formulaHash;

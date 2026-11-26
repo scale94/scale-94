@@ -7,7 +7,8 @@ import {
 } from '../data/nodeFeatures';
 import { useColliderNarrative } from '../hooks/useColliderNarrative';
 import { useProductionThreshold } from '../hooks/useProductionThreshold';
-import { useOrderStatus, storeOrderHash } from '../hooks/useOrderStatus';
+import { useOrderStatus, recordDispatchedOrder } from '../hooks/useOrderStatus';
+import { sealForVault } from '../lib/vaultSeal';
 import { buildChimeraGlyph } from './chimeraGlyph.js';
 import { runPreExecTheater, theaterDuration } from '../utils/preExecTheater.js';
 import { emit as emitObs } from '../../observatory/observatoryBus';
@@ -884,39 +885,6 @@ function getTesseractPubKey() {
   return _rsaPubKeyPromise;
 }
 
-// Hybrid encryption: AES-256-GCM for payload, RSA-OAEP for the AES key
-// This handles arbitrary payload sizes while keeping the RSA public key as the trust anchor
-async function encryptForVault(plaintext) {
-  const rsaPubKey = await getTesseractPubKey();
-
-  // 1. Generate ephemeral AES-256-GCM key + IV
-  const aesKey = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt']);
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-
-  // 2. Encrypt the formula payload with AES-GCM
-  const encoded = new TextEncoder().encode(plaintext);
-  const aesCipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, aesKey, encoded);
-
-  // 3. Export the raw AES key and encrypt it with RSA-OAEP (32 bytes — fits easily)
-  const rawAesKey = await crypto.subtle.exportKey('raw', aesKey);
-  const encryptedAesKey = await crypto.subtle.encrypt({ name: 'RSA-OAEP' }, rsaPubKey, rawAesKey);
-
-  // 4. Pack: base64({ encKey: base64, iv: base64, payload: base64 })
-  const b64 = (buf) => {
-    const bytes = new Uint8Array(buf);
-    let s = '';
-    for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
-    return btoa(s);
-  };
-
-  return JSON.stringify({
-    k: b64(encryptedAesKey),  // RSA-OAEP encrypted AES key
-    iv: b64(iv),              // AES-GCM IV (cleartext — safe)
-    p: b64(aesCipher),        // AES-GCM ciphertext
-    alg: 'RSA-OAEP+AES-256-GCM',
-  });
-}
-
 const PRODUCTION_THRESHOLD = 10; // minimum acquisitions before physical synthesis
 
 // ── Pricing tiers — size / price / G²T allocation (10%) ─────────────────────
@@ -1228,7 +1196,7 @@ export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {})
     let encryptedPayload = '—';
     try {
       const formulaPlaintext = JSON.stringify(tesseract?.encryptedFormula || {});
-      encryptedPayload = await encryptForVault(formulaPlaintext);
+      encryptedPayload = await sealForVault(formulaPlaintext, await getTesseractPubKey());
     } catch (e) {
       console.error('[TESSERACT] RSA-OAEP encryption failed:', e);
     }
@@ -1263,14 +1231,10 @@ export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {})
       `SOVEREIGNTY  EXPOSURE ${sovereignty?.exposure ?? '—'}/100 · ${redactionList.length} FIELDS VAULTED`,
     ].join('\n');
 
-    const encTrunc = encryptedPayload.length > 900
-      ? encryptedPayload.slice(0, 900) + '…'
-      : encryptedPayload;
-
     const orderBody = JSON.stringify({
       formulaId:        card.id,
       formulaHash:      tHash,
-      encryptedPayload: encTrunc,
+      encryptedPayload,
       sovereignRatio,
       g2tAmount:        g2tAllocation,
       tierSize:         tier.size,
@@ -1293,20 +1257,6 @@ export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {})
       kernelHistory:    (kernelRunHistoryRef?.current ?? []).slice(-30),
     });
 
-    // HMAC-SHA256 sign the body (Web Crypto API, timing-safe)
-    let sig = '';
-    try {
-      const secret = import.meta.env.VITE_TRANSMUTE_WEBHOOK_SECRET;
-      if (secret) {
-        const key = await crypto.subtle.importKey(
-          'raw', new TextEncoder().encode(secret),
-          { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'],
-        );
-        const buf = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(orderBody));
-        sig = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
-      }
-    } catch { /* signing failed — send unsigned, server will accept in dev mode */ }
-
     // ── Pre-transmit theater ─────────────────────────────────────────────────
     setAcquiring(true);
     setAcquireLog([]);
@@ -1322,9 +1272,9 @@ export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {})
 
     fetch('/api/transmute/order', {
       method:  'POST',
-      headers: { 'Content-Type': 'application/json', 'x-transmute-signature': sig },
+      headers: { 'Content-Type': 'application/json' },
       body:    orderBody,
-    }).then(() => { storeOrderHash(tHash); }).catch(() => { /* silent — notification is best-effort */ });
+    }).then((res) => { recordDispatchedOrder(res, tHash); }).catch(() => { /* silent — notification is best-effort */ });
   }, [crystal, tesseract, kernelRunHistoryRef]);
 
   // ── Run the WASM collision ─────────────────────────────────────────────────
