@@ -1,6 +1,7 @@
 // eyeReactions.test.js — the per-piece choreography table and how an impulse becomes a kick.
 import { describe, it, expect } from 'vitest';
-import { REACTIONS, reactionKick, BSKY_EXIT, TX_IGNITE, ACC_TAG, EJECT_OUT, SCENT_HIT, surveillanceTrace, CRYPTO_SNAP, CRYPTO_TAG, FEIGEN_DELTA, FORK_TIMES, FORK_ACCUM, LEDGER_TAG, MURK_COLS, MURK_IN, MURK_TINT_FROM, murkClearMs, ledgerMurk } from '../eyeReactions';
+import { REACTIONS, reactionKick, BSKY_EXIT, TX_IGNITE, ACC_TAG, EJECT_OUT, SCENT_HIT, surveillanceTrace, CRYPTO_SNAP, CRYPTO_TAG, FEIGEN_DELTA, FORK_TIMES, FORK_ACCUM, LEDGER_TAG, MURK_COLS, MURK_IN, MURK_TINT_FROM, murkClearMs, ledgerMurk, MERCURY_ELEMENT_MS } from '../eyeReactions';
+import { ELEMENT_EYE_COLS } from '../../mercury/mercuryEye';
 import { KICK, SHAPE } from '../observerEyeShader';
 
 const last = (keys, f) => keys.slice().sort((a, b) => a.t - b.t).at(-1)[f];
@@ -191,6 +192,29 @@ describe('eyeReactions', () => {
     T.slice(1).forEach((t, i) => expect(t).toBeGreaterThanOrEqual(T[i] - 1e-12));
   });
 
+  it('mercury_element_focuses_into_its_own_palette_and_lets_go', () => {
+    for (const phase of ['air', 'thermal', 'fluid', 'earth']) {
+      const k = reactionKick({ piece: 'mercury.element', kind: KICK.inhale, tint: [192, 192, 192], data: { phase } });
+      expect(k.tint).toEqual(ELEMENT_EYE_COLS[phase][0]);
+      expect(k.tint2).toEqual(ELEMENT_EYE_COLS[phase][1]);
+      expect(k.durationMs).toBe(MERCURY_ELEMENT_MS);
+      const D = MERCURY_ELEMENT_MS / 1000;
+      const at = (t) => k.curve(t / D, {});
+      expect(at(0).level).toBe(0);
+      expect(at(0.5).level).toBeGreaterThan(0.95);         // the colour floods over the silver
+      expect(at(0.5).focus).toBeGreaterThan(0.4);          // the iris draws in
+      expect(at(D).level).toBe(0);
+      expect(at(D).focus).toBe(0);
+    }
+    // neutral (or anything else) plays the plain envelope
+    expect(reactionKick({ piece: 'mercury.element', kind: KICK.inhale, tint: null, data: { phase: 'neutral' } }).curve).toBeUndefined();
+  });
+
+  it('mercury_flick_plays_nothing_over_the_live_spin', () => {
+    const r = REACTIONS['mercury.flick'];
+    expect(r.keys.every((k) => k.level === 0)).toBe(true);
+  });
+
   it('surveillance_gaze_travels_the_route_headings', () => {
     // SE click: north to DE, then west to US (the plan's example), no source dwell.
     const data = { heads: [[0, -1], [-1, 0]], dwellMs: 0, hopMs: 700, cues: [700], durationMs: 1400 };
@@ -335,8 +359,8 @@ describe('eyeReactions', () => {
   });
 
   it('unchoreographed_piece_keeps_its_plain_kick', () => {
-    const imp = { piece: 'mercury.flick', kind: KICK.shove, tint: [1, 2, 3], tint2: null, dir: -1, durationMs: 1100, at: 5 };
-    expect(reactionKick(imp)).toEqual({ kind: KICK.shove, tint: [1, 2, 3], tint2: null, dir: -1, durationMs: 1100 });
+    const imp = { piece: 'surveillance.privacy', kind: KICK.stare, tint: [1, 2, 3], tint2: null, dir: -1, durationMs: 1100, at: 5 };
+    expect(reactionKick(imp)).toEqual({ kind: KICK.stare, tint: [1, 2, 3], tint2: null, dir: -1, durationMs: 1100 });
   });
 
   it('ledger_murk_clouds_in_from_the_rim_as_badly_as_the_audit', () => {

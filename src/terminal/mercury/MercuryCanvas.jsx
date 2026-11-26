@@ -18,6 +18,8 @@ import { precompileHidden } from './planet/precompileHidden';
 import usePhaseTransition from './usePhaseTransition';
 import useCalm from './useCalm';
 import { createAetherClock, configureAetherClock } from './planet/aetherClock';
+import { emit as emitObs } from '../../observatory/observatoryBus';
+import { ELEMENTS } from './elements';
 
 const isMobile = typeof navigator !== 'undefined' && /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 // The gas cap: additive blending accumulates fast — the planet (MercuryPlanet) must stay legible.
@@ -74,6 +76,18 @@ export default function MercuryCanvas({
   useEffect(() => {
     onPhaseChange?.(targetPhase);
   }, [targetPhase, onPhaseChange]);
+  // The masthead eye: a tap that lights an element focuses it into that element's palette. The
+  // tap is stamped so only the change it causes counts (a refused tap lends no hand to a later one).
+  const tapAtRef = useRef(-Infinity);
+  const onNodeTap = useCallback((phase) => {
+    tapAtRef.current = performance.now();
+    handleNodeTap(phase);
+  }, [handleNodeTap]);
+  useEffect(() => {
+    if (performance.now() - tapAtRef.current > 500) return;
+    tapAtRef.current = -Infinity;
+    if (ELEMENTS[targetPhase]) emitObs('gaze', 'mercury_element', { phase: targetPhase, hand: true });
+  }, [targetPhase]);
 
   // Element strikes for the planet (MercuryPlanet drains this every frame and launches a visitor per strike).
   // The press and onNodeTap both fire once per pointerdown.
@@ -201,7 +215,7 @@ export default function MercuryCanvas({
           activePhase={activePhase}
           activeFade={activePhase ? fades[activePhase] : 0}
           transitionState={transitionState}
-          onNodeTap={handleNodeTap}
+          onNodeTap={onNodeTap}
           onElementFired={handleElementFired}
           isMobile={isMobile}
         />

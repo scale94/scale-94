@@ -88,6 +88,17 @@ describe('observerStore — agency filter', () => {
     expect(impulses[2]).toMatchObject({ tint: null, dir: -1 });
   });
 
+  it('a lit element carries its phase, by hand only', async () => {
+    boot();
+    emit('gaze', 'mercury_element', { phase: 'thermal' });
+    await flush();
+    expect(impulses).toEqual([]);
+    emit('gaze', 'mercury_element', { phase: 'thermal', hand: true });
+    await flush();
+    expect(impulses.map(i => [i.piece, i.kind])).toEqual([['mercury.element', KICK.inhale]]);
+    expect(impulses[0].data).toEqual({ phase: 'thermal' });
+  });
+
   it('privacy drawer navigation stares back; other tab_navigated is ignored', async () => {
     boot();
     emit('gaze', 'tab_navigated', { tab: 'ledger' });

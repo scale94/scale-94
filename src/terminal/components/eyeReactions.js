@@ -8,6 +8,7 @@
 
 import { KICK, SHAPE } from './observerEyeShader';
 import { SUN_COLS } from '../sol/solEye';
+import { ELEMENT_EYE_COLS } from '../mercury/mercuryEye';
 
 const PI = Math.PI;
 
@@ -426,7 +427,30 @@ function ledgerWrite(imp) {
   };
 }
 
+// /MERCURY — an element node lit by a tap: the eye focuses into that element's own palette.
+// The iris draws in as the colour floods over the silver, holds a beat with a slow inward
+// turn, then lets go; the tinted kick's end is a return to silver, so the back-spin follows.
+// (The planet's spin is not here: mercuryEye drives it live, eyeDrive spin.)
+export const MERCURY_ELEMENT_MS = 1400;
+function mercuryElement(x, d) {
+  const t = x * (MERCURY_ELEMENT_MS / 1000);
+  const out = 1 - sm((t - 0.8) / 0.6);
+  d.level = sm(t / 0.18) * out;
+  d.focus = 0.46 * sm(t / 0.24) * out;
+  d.turn = 0.7 * sm(t / 0.9);
+  d.turb = 0; d.gazeX = 0; d.gazeY = 0;
+  d.shapeK = 0; d.shapeA = 0; d.shapeB = 0; d.shapeC = 0;
+  return d;
+}
+
 export const REACTIONS = {
+  'mercury.element': (imp) => {
+    const cols = ELEMENT_EYE_COLS[imp.data?.phase];
+    return cols ? { kind: KICK.inhale, durationMs: MERCURY_ELEMENT_MS, curve: mercuryElement, tint: cols[0], tint2: cols[1] } : null;
+  },
+  // /MERCURY: the planet's spin drives the eye live (mercuryEye); the flick still counts as the
+  // act but plays nothing over it (the old shove would add a second turn on top of the coast).
+  'mercury.flick': { kind: KICK.shove, durationMs: 400, keys: [{ t: 0, level: 0 }, { t: 1, level: 0 }] },
   'ledger.write':   ledgerWrite,
   'ledger.clear':   (imp) => ({ release: true, tag: LEDGER_TAG, durationMs: murkClearMs(imp.data?.severity) }),
   'ledger.release': { release: true, tag: LEDGER_TAG, durationMs: 600 },

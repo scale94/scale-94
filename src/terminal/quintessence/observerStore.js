@@ -72,6 +72,7 @@ const RULES = {
   // verdict_issued is left out: AuditCascade's timer fires it after the append (no hand).
   'gaze/sol_release':               { piece: 'sol.release', mixed: true },
   'gaze/mercury_flick':             { piece: 'mercury.flick' },
+  'gaze/mercury_element':           { piece: 'mercury.element', mixed: true },   // a tap that lights an element node
 };
 // The kernel phrase owns the mei-phrase slot for a while: a whisper waits it out.
 const PHRASE_KINDS = new Set(['transmissions/kernel_loaded', 'transmissions/kernel_completed']);
@@ -94,7 +95,7 @@ const PIECE_KICK = {
   'chaos.pick': KICK.split, 'chaos.fork': KICK.split, 'crypto.seal': KICK.quantize,
   'sol.release': KICK.ring, 'ecocide.growth': KICK.sag, 'ledger.write': KICK.ripple,
   'transmission.mark': KICK.packet, 'surveillance.privacy': KICK.stare,
-  'mercury.flick': KICK.shove, 'accretion.collide': KICK.spiral, 'accretion.infall': KICK.spiral, 'accretion.prime': KICK.spiral,
+  'mercury.flick': KICK.shove, 'mercury.element': KICK.inhale, 'accretion.collide': KICK.spiral, 'accretion.infall': KICK.spiral, 'accretion.prime': KICK.spiral,
   'lunar.phase': KICK.sweep, 'bsky.trend': KICK.flutter,
 };
 
@@ -102,7 +103,7 @@ const PIECE_KICK = {
 const EXTRA_TAB = { 'kernel.load': 'kernel', 'kernel.enter': 'kernel', 'accretion.infall': 'manifesto', 'accretion.prime': 'manifesto',
   'surveillance.lock': 'surveillance', 'surveillance.trace': 'surveillance',
   'crypto.keygen': 'cryptography', 'crypto.release': 'cryptography', 'chaos.fork': 'art',
-  'ledger.clear': 'ledger', 'ledger.release': 'ledger' };
+  'ledger.clear': 'ledger', 'ledger.release': 'ledger', 'mercury.element': 'mercury' };
 
 // A reaction that holds the eye longer than its tier: the whisper clock (forward whisper,
 // compass quiet) counts from when the eye is clear again, not from the tier's end.
@@ -326,6 +327,7 @@ function onBus({ category, kind, payload }) {
   if (rule.mixed && p.hand !== true) return;
   if (PHRASE_KINDS.has(key)) phraseBusyUntil = now() + PHRASE_BUSY_MS;
   const opts = rule.piece === 'mercury.flick' ? { dir: p.dir < 0 ? -1 : 1 }
+    : rule.piece === 'mercury.element' ? { data: { phase: p.phase } }
     : rule.piece === 'scent.collide' && isRgbPair(p.colors) ? { tint: p.colors[0], tint2: p.colors[1] }
     : rule.tint ? { tint: rule.tint, tint2: rule.tint2 }
     : rule.data ? { data: rule.data } : undefined;

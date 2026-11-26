@@ -62,6 +62,7 @@ import { nebulaRotation } from './planet/nebulaSky';
 import { canBakeNebula, bakeNebula } from './nebulaBake';
 import { createElementSky } from './elementSkyBake';
 import { studioMeanCached, studioMeanLiquidCached, SKY_W_MIN } from './planet/aetherSky';
+import { createMercuryEyeFeed, feedMercuryEye } from './mercuryEye';
 
 const EPHEMERIS_REFRESH_S = 1;
 const MAX_FRAME_DT_S = 0.1; // a backgrounded tab must not fling the body
@@ -317,6 +318,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
   const init = useMemo(() => planetEphemerisUniforms(Date.now()), []);
   const target = useMemo(() => targetFromYaw(init.yaw), [init]);
   const body = useMemo(() => createBody(target), [target]);
+  const eyeFeed = useMemo(createMercuryEyeFeed, []); // the masthead eye turns with the visitor's spin
   // The exosphere's state (MercuryExosphere reads it every frame; written here, allocation-free).
   const exo = useMemo(() => ({ B: init.tailB, L: tailLength(init.tailB), coverage: 0, time: 0, boxDirty: true, coreR: R_SCENE }), [init]);
   const m4 = useMemo(() => new THREE.Matrix4(), []);
@@ -581,6 +583,7 @@ export default function MercuryPlanet({ isMobile = false, tier = 'full', calm = 
     const stepS = Math.min(delta, MAX_FRAME_DT_S);
     stepBody(body, stepS, { dragging, omegaPtr, target, calm });
     coolBody(body, delta - stepS); // the clamp holds the body still, not the heat: a hidden tab still cools
+    try { feedMercuryEye(body.omega, dragging, calm, eyeFeed); } catch (_) { /* the eye is ancillary */ }
     u.uBodyRot.value.setFromMatrix4(m4.makeRotationFromQuaternion(body.q));
     u.uTau.value = body.tau;
     u.uHeatK.value = body.heatK;
