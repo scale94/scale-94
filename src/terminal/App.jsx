@@ -68,7 +68,7 @@ import { normalizeQuery }     from '../lib/normalize';
 import { setPanopticonCorpus } from './lib/panopticon';
 
 // KernelTab — static import (landing tab, always needed, avoids .df.js chunk on Firefox Android)
-import KernelTab from './views/KernelTab';
+import KernelTab, { KERNEL_INIT_MS } from './views/KernelTab';
 
 // Views — lazy-loaded so each tab bundle is only fetched when first visited
 const ScalingTab       = lazy(() => import('./views/ScalingTab'));
@@ -315,20 +315,17 @@ const App = () => {
   // The observer starts once the boot sequence has ended (not on mount).
   useEffect(() => { if (!bootSequence) startObserver({ tab: LANDING_TAB }); }, [bootSequence]);
 
-  // Mobile chrome auto-hide:
-  //   touchstart  → show immediately, cancel any pending hide
-  //   touchend / touchcancel → start 3s countdown, then hide
-  //   boot complete → start 3s countdown (chrome stays visible during boot)
-  //   observer wantsChrome → the header shows (ORed into its class) and no countdown
-  //   runs; when it lets go, the normal countdown starts again
-  const showMobileChrome = useCallback(() => {
-    setMobileChrome(true);
-    if (mobileChromeTimerRef.current) clearTimeout(mobileChromeTimerRef.current);
-  }, []);
+  // Mobile chrome auto-hide (the bottom tab strip + the kernel tty panel; the eye is
+  // a floating badge now and never hides):
+  //   touch / coarse-pointer viewports only — desktop never auto-hides
+  //   any touchstart / touchmove / scroll / click → show, restart a 60 s countdown
+  //   boot complete → the countdown starts (chrome stays visible during boot)
+  //   observer wantsChrome → no countdown runs; when it lets go, the countdown starts again
   const hideMobileChromeAfterDelay = useCallback(() => {
     if (mobileChromeTimerRef.current) clearTimeout(mobileChromeTimerRef.current);
-    if (wantsChromeRef.current) return;
-    mobileChromeTimerRef.current = setTimeout(() => setMobileChrome(false), 3000);
+    const touchViewport = window.matchMedia?.('(pointer: coarse)').matches || window.innerWidth < 768;
+    if (wantsChromeRef.current || !touchViewport) return;
+    mobileChromeTimerRef.current = setTimeout(() => setMobileChrome(false), 60000);   // 60 s idle
   }, []);
   // Start hide timer after boot completes (not on mount — chrome visible during 5s boot)
   useEffect(() => {
@@ -336,11 +333,19 @@ const App = () => {
     if (!bootSequence) hideMobileChromeAfterDelay();   // a no-op while wantsChrome holds
     return () => { if (mobileChromeTimerRef.current) clearTimeout(mobileChromeTimerRef.current); };
   }, [bootSequence, wantsChrome, hideMobileChromeAfterDelay]);
-  // The store holds a whisper while the masthead is hidden and plays it when it
-  // returns. The header's real visibility includes wantsChrome: a held whisper asks
-  // for the chrome, the OR reveals the header, and this releases the whisper (on
-  // desktop mobileChrome goes false 3 s after boot while the header stays shown).
-  useEffect(() => { setChromeVisible(mobileChrome || wantsChrome); }, [mobileChrome, wantsChrome]);
+  // Activity resets the countdown. Capture phase: <main> scrolls, not the window,
+  // and a child's stopPropagation must not starve the timer.
+  useEffect(() => {
+    if (bootSequence) return;
+    const onActivity = () => { setMobileChrome(true); hideMobileChromeAfterDelay(); };
+    const opts = { capture: true, passive: true };
+    const evs = ['touchstart', 'touchmove', 'scroll', 'click'];
+    evs.forEach(e => window.addEventListener(e, onActivity, opts));
+    return () => evs.forEach(e => window.removeEventListener(e, onActivity, opts));
+  }, [bootSequence, hideMobileChromeAfterDelay]);
+  // The eye (the whisper's speaker) is always on screen now — mobile included — so
+  // the store never needs to hold a whisper for a hidden masthead.
+  useEffect(() => { setChromeVisible(true); }, []);
 
   // Fiction articles for Transmission tab — updates when CAS data loads
   const transmissionStories = useMemo(() => articles.filter(a => a.type === 'fiction'), [articles]);
@@ -521,7 +526,7 @@ const App = () => {
       } else {
         if (!token.aborted) appendSystemLog({ time: fmtTime(later), msg: `NOTICE: No public file attached.` });
       }
-    }, 1200);
+    }, KERNEL_INIT_MS);   // KernelTab's branch-icon load spin is timed to this
   }, [loadingKernel, appendSystemLog, articles]);
 
   // Neural link handler — called when a [[KERNEL-ID]] button is clicked inside
@@ -882,9 +887,6 @@ const App = () => {
   return (
     <div className={`h-[100dvh] font-mono selection:bg-fuchsia-900 selection:text-amber-300 flex flex-col overflow-hidden relative transition-colors duration-700 ${selectedArticle || architectThesis ? 'bg-[#09090b]' : 'bg-black'} ${relicMode ? 'relic-mode' : ''}`}
       style={{ animation: activeTab === 'art' ? 'none' : 'terminal-flicker 7s ease-in-out infinite' }}
-      onTouchStart={showMobileChrome}
-      onTouchEnd={hideMobileChromeAfterDelay}
-      onTouchCancel={hideMobileChromeAfterDelay}
     >
 
       {/* ── Ambient visual layers ──────────────────────────────────────────── */}
@@ -1170,8 +1172,11 @@ const App = () => {
         </div>
       )}
 
-      <header className={`border-b border-cyan-900/30 bg-black md:bg-black/90 p-4 h-24 shrink-0 sticky top-0 z-40 md:backdrop-blur-md shadow-[0_0_15px_rgba(6,182,212,0.1)] overflow-x-hidden w-full transition-opacity duration-500 ${!(mobileChrome || wantsChrome) ? 'opacity-0 pointer-events-none md:opacity-100 md:pointer-events-auto' : ''}`} style={{ willChange: 'opacity, transform', transform: 'translateZ(0)' }}>
-        <div className="max-w-[1800px] mx-auto flex flex-row items-center gap-4 w-full min-w-0">
+      {/* Mobile: no bar — the header collapses to a floating corner badge around the
+          eye (fixed, pointer-events only on the badge so the margin never eats a scroll).
+          Desktop (md+): the sticky masthead, unchanged. */}
+      <header className="fixed top-3 left-3 z-[100] pointer-events-none md:pointer-events-auto md:sticky md:top-0 md:left-auto md:z-40 md:border-b md:border-cyan-900/30 md:bg-black/90 md:p-4 md:h-24 shrink-0 md:backdrop-blur-md md:shadow-[0_0_15px_rgba(6,182,212,0.1)] md:overflow-x-hidden md:w-full" style={{ willChange: 'transform', transform: 'translateZ(0)' }}>
+        <div className="md:max-w-[1800px] md:mx-auto flex flex-row items-center gap-4 md:w-full min-w-0">
           <style>{`
             .nav-beat {
               animation: nav-beat 2400ms ease-in-out infinite;
@@ -1184,17 +1189,39 @@ const App = () => {
             @media (prefers-reduced-motion: reduce) {
               .nav-beat { animation: none; }
             }
+            /* Mobile HUD badge: a glass hexagon a touch wider than the eye's lens
+               (lens hex = 140,30 … 44,85 in a 280 box → scaled ×1.16 about centre).
+               The clip also trims the tap target to the hexagon. drop-shadow sits on
+               the unclipped parent, since clip-path would cut a box-shadow off. */
+            @media (max-width: 767.98px) {
+              .eye-hud-badge {
+                position: relative; pointer-events: none;
+                filter: drop-shadow(0 4px 10px rgba(0,0,0,0.75)) drop-shadow(0 0 18px rgba(0,0,0,0.55));
+              }
+              .eye-hud-badge::before {
+                content: ''; position: absolute; inset: 0; pointer-events: none;
+                background: rgba(6, 6, 10, 0.72);
+                -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+                clip-path: polygon(50% 5.4%, 89.8% 27.2%, 89.8% 72.8%, 50% 94.6%, 10.2% 72.8%, 10.2% 27.2%);
+              }
+              .eye-hud-badge > * {
+                pointer-events: auto;
+                clip-path: polygon(50% 5.4%, 89.8% 27.2%, 89.8% 72.8%, 50% 94.6%, 10.2% 72.8%, 10.2% 27.2%);
+              }
+            }
           `}</style>
           {/* ── The Observer eye — masthead face (top-left); the terminal's identity.
               Wordmark dissolved to the footer per decision 10.3. ── */}
           {!bootSequence && !sanctuaryOpen && !breachOpen && (
-            <MercuryEyeIndicator
-              activeTab={activeTab}
-              onNavigate={() => handleNav('~/system/mercury', 'mercury')}
-              lastKernelAt={lastKernelAt}
-              lastLoadAt={lastLoadAt}
-              mobileChrome={mobileChrome}
-            />
+            <div className="eye-hud-badge">
+              <MercuryEyeIndicator
+                activeTab={activeTab}
+                onNavigate={() => handleNav('~/system/mercury', 'mercury')}
+                lastKernelAt={lastKernelAt}
+                lastLoadAt={lastLoadAt}
+                mobileChrome={mobileChrome}
+              />
+            </div>
           )}
           <nav aria-label="Main navigation" className="hidden md:flex items-center gap-1 text-[11px] font-bold tracking-normal overflow-x-auto shrink min-w-0 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', '--beat-delay': beatDelay }}>
             <button aria-label="Kernel" aria-current={activeTab === 'kernel' ? 'page' : undefined} onClick={() => handleNav('~/system/kernel', 'kernel')} className={`${activeTab === 'kernel' ? 'bg-cyan-500 text-black shadow-[0_0_10px_rgba(6,182,212,0.5)]' : 'text-cyan-500 hover:text-cyan-200 hover:bg-cyan-900/30'} px-2 py-1 transition-all duration-300 flex items-center gap-1.5 uppercase rounded-sm whitespace-nowrap${beat('kernel')}`}><KernelCoreIcon className="w-3 h-3" /> /Kernel</button>
@@ -1230,7 +1257,7 @@ const App = () => {
         </div>
       </header>
 
-      <main ref={mainRef} className="flex-grow min-h-0 overflow-y-auto overflow-x-hidden p-4 pb-14 md:p-8 relative z-10 scroll-smooth" style={{ scrollPaddingTop: '100px' }}>
+      <main ref={mainRef} className="flex-grow min-h-0 overflow-y-auto overflow-x-hidden p-4 pb-14 md:p-8 relative z-10 scroll-smooth pt-[88px] md:pt-8" style={{ scrollPaddingTop: '100px' }}>
         <Suspense fallback={<div className="text-cyan-400 font-mono tracking-widest animate-pulse p-8">{'// LOADING MODULE...'}</div>}>
         <div className="max-w-[1800px] mx-auto">
           {/* Path breadcrumb — hidden on kernel home (tty0 is the nav there) */}

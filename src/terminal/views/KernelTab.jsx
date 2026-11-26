@@ -56,6 +56,10 @@ const ramColor = (pct) => {
   return '#FF0088';                // magenta     — floor signal
 };
 
+// The kernel load window (App's handleKernelClick timeout). The branch icon's load
+// spin lasts exactly this long, so it lands upright as the module finishes.
+export const KERNEL_INIT_MS = 1200;
+
 const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, loadingKernel, visibleLogs = [], logRef, commandInput = '', onCommandInputChange, onCommandKeyDown, suggestions = [], activeSugg = -1, paramHint = '', onSelectSuggestion, ramPct = 0, isCritical = false, isWarning = false, appendSystemLog, mobileChrome = true, mobileAutoRun, bootDone = false, onNavigateToMercury, retrograde = null, onRetrogradeDone = null }) => {
   const { twilight, day, loaded, run, flare } = useCompileFrontier(kernelBuilds.length);
 
@@ -111,36 +115,24 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
 
   // Fire sphere on kernel-complete (loadingKernel → null transition)
   const prevKernelRef = useRef(null);
-  // isSpinning stays true for one full rotation (0.9s) after loadingKernel clears,
-  // so the branch icon completes its cycle and lands at 0° before the deceleration phase.
+  // The branch icon's load spin: ONE finite, eased 720° turn (the same curve as the
+  // reveal on RETURN_TO_KERNEL) lasting exactly the load window, so it lands upright
+  // as the module finishes initializing — never a linear loop cut off mid-turn when
+  // the article replaces this tab. spinKey remounts the icon so every load restarts it.
   const [isSpinning,     setIsSpinning]     = useState(false);
-  const [isStopping,     setIsStopping]     = useState(false);
+  const [spinKey,        setSpinKey]        = useState(0);
+  const [hasSpun,        setHasSpun]        = useState(false);   // after a load: idle glow only, no reveal replay
   const [isFading,       setIsFading]       = useState(false);
   const [firingKernelId, setFiringKernelId] = useState(null);
-  const spinTimerRef   = useRef(null);
-  const pendingStopRef = useRef(false);
   const lavaTimerRef   = useRef(null);
   const [breakingSeal, setBreakingSeal] = useState(false);
   useEffect(() => {
-    if (loadingKernel) {
-      clearTimeout(spinTimerRef.current);
-      setIsStopping(false);
+    if (loadingKernel && loadingKernel !== prevKernelRef.current) {
+      setSpinKey(k => k + 1);
       setIsSpinning(true);
-      pendingStopRef.current = false;
-    } else if (prevKernelRef.current) {
-      // Signal stop — consumed by onAnimationIteration so the icon lands at 0°
-      pendingStopRef.current = true;
-      // Safety fallback: 2 full spins max in case the iteration event misses
-      spinTimerRef.current = setTimeout(() => {
-        if (pendingStopRef.current) {
-          pendingStopRef.current = false;
-          setIsSpinning(false);
-          setIsStopping(true);
-        }
-      }, 1800);
+      setHasSpun(true);
     }
     prevKernelRef.current = loadingKernel;
-    return () => clearTimeout(spinTimerRef.current);
   }, [loadingKernel]);
 
   // ── Gesture-gated mobile keyboard ─────────────────────────────────────────
@@ -284,13 +276,10 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
         0%, 100% { filter: drop-shadow(0 0 3px rgba(6,182,212,0.4)); }
         50%       { filter: drop-shadow(0 0 10px rgba(6,182,212,1)) drop-shadow(0 0 20px rgba(6,182,212,0.35)); }
       }
-      @keyframes sk-branchSpin {
+      @keyframes sk-branchLoadSpin {
         0%   { transform: rotate(0deg);   filter: drop-shadow(0 0 6px rgba(6,182,212,0.9)); }
-        100% { transform: rotate(360deg); filter: drop-shadow(0 0 12px rgba(6,182,212,1)) drop-shadow(0 0 24px rgba(6,182,212,0.4)); }
-      }
-      @keyframes sk-branchSpinStop {
-        0%   { transform: rotate(0deg)   scale(1); filter: drop-shadow(0 0 12px rgba(6,182,212,1)) drop-shadow(0 0 24px rgba(6,182,212,0.4)); }
-        100% { transform: rotate(720deg) scale(1); filter: drop-shadow(0 0 4px rgba(6,182,212,0.4)); }
+        45%  {                            filter: drop-shadow(0 0 12px rgba(6,182,212,1)) drop-shadow(0 0 24px rgba(6,182,212,0.4)); }
+        100% { transform: rotate(720deg); filter: drop-shadow(0 0 4px rgba(6,182,212,0.4)); }
       }
       @keyframes sk-branchClickFade {
         0%   { opacity: 1;    filter: drop-shadow(0 0 4px rgba(6,182,212,0.5)); }
@@ -572,25 +561,18 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
         <div className="border border-cyan-900/50 p-5 bg-black/50 backdrop-blur-sm hover:border-cyan-500/50 transition-colors rounded-lg flex flex-col md:min-h-0 md:overflow-hidden">
           <h3 className="text-base font-bold mb-4 flex items-center gap-2 shrink-0">
             <GitBranch
+              key={spinKey}
               className="w-4 h-4 shrink-0 text-[#06b6d4]"
-              onAnimationIteration={(e) => {
-                if (e.animationName === 'sk-branchSpin' && pendingStopRef.current) {
-                  pendingStopRef.current = false;
-                  clearTimeout(spinTimerRef.current);
-                  setIsSpinning(false);
-                  setIsStopping(true);
-                }
-              }}
               onAnimationEnd={(e) => {
-                if (e.animationName === 'sk-branchSpinStop') setIsStopping(false);
+                if (e.animationName === 'sk-branchLoadSpin') setIsSpinning(false);
                 if (e.animationName === 'sk-branchClickFade') setIsFading(false);
               }}
               style={{ animation: isSpinning
-                ? 'sk-branchSpin 0.9s linear infinite'
-                : isStopping
-                ? 'sk-branchSpinStop 1.5s cubic-bezier(0.2, 0, 0.3, 1) forwards'
+                ? `sk-branchLoadSpin ${KERNEL_INIT_MS}ms cubic-bezier(0.2, 0, 0.3, 1) forwards`
                 : isFading
                 ? 'sk-branchClickFade 0.35s ease-out'
+                : hasSpun
+                ? 'sk-treeGlow 2.5s ease-in-out infinite'
                 : 'sk-treeReveal 1.5s cubic-bezier(0.2, 0, 0.3, 1) forwards, sk-treeGlow 2.5s ease-in-out 1.5s infinite' }}
             />
             <span
