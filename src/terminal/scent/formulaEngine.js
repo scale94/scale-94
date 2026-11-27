@@ -4,12 +4,12 @@
 // modulators into a weighable formula for one batch. The pipeline is factored
 // into small pure steps so later tasks can insert modulation between them:
 //
-//   rawLayerShares → projectToBands → [sol tilt, Task 2] → neatGramsByRow
-//   → [chaos per-row drift, Task 2] → settle (IFRA cap ⇄ stock selection)
+//   rawLayerShares → projectToBands → applySolTilt → applyChaos (per-row
+//   drift) → neatGramsByRow → settle (IFRA cap ⇄ stock selection)
 //   → roundWeighed (largest remainder) → ifraStepDown → assemble (+ strength guard)
 //
-// `salt`, `modulators.solTilt` and `modulators.chaosReach` are accepted but
-// unused here (Task 2).
+// The log carries exactly one line per source (ELEMENT, /SOL, /LUNAR, /CHAOS),
+// then any IFRA step-down and drop-out lines.
 
 export const TARGET_PCT = Object.freeze({ AIR: 4, WATER: 10, EARTH: 18, FIRE: 25 });
 export const BANDS = Object.freeze({ top: [15, 25], heart: [30, 40], base: [40, 55] });
@@ -21,6 +21,10 @@ export const MIN_WEIGH_G = 0.05;
 export const ETHANOL_G_PER_ML = 0.789;
 export const FILL_MAX = 0.9;
 export const STRENGTH_TOL_PT = 0.5;
+export const SOL_MAX_SHIFT_PT = 5;
+export const CHAOS_DEFAULT_REACH = 0.15;
+export const CHAOS_REACH_RANGE = Object.freeze([0.05, 0.30]);
+export const SALT_BYTES = 32;
 
 export const LAYERS = Object.freeze(['top', 'heart', 'base']);
 
@@ -49,8 +53,11 @@ const stockLabel = (s) => `${+(s * 100).toFixed(4)}%`;
 
 // ── validation ──────────────────────────────────────────────────────────────
 
-function validate(modulators, batch) {
-  const { element, restWeeks } = modulators || {};
+const isAbsent = (x) => x === null || x === undefined;
+const isFiniteNumber = (x) => typeof x === 'number' && Number.isFinite(x);
+
+function validate(modulators, batch, salt) {
+  const { element, restWeeks, solTilt, chaosReach } = modulators || {};
   if (!Object.prototype.hasOwnProperty.call(TARGET_PCT, element)) {
     throw new RangeError(`unknown element: ${String(element)}`);
   }
@@ -62,6 +69,21 @@ function validate(modulators, batch) {
   }
   if (batch.grams / ETHANOL_G_PER_ML > FILL_MAX * batch.vialMl) {
     throw new RangeError('batch overfills its vial');
+  }
+  if (!isAbsent(solTilt) && !(isFiniteNumber(solTilt) && solTilt >= -1 && solTilt <= 1)) {
+    throw new RangeError(`solTilt must be a number in −1–1 or null, got ${String(solTilt)}`);
+  }
+  const [lo, hi] = CHAOS_REACH_RANGE;
+  if (!isAbsent(chaosReach) && !(isFiniteNumber(chaosReach) && chaosReach >= lo && chaosReach <= hi)) {
+    throw new RangeError(`chaosReach must be a number in ${lo}–${hi} or null, got ${String(chaosReach)}`);
+  }
+  if (!salt || salt.length !== SALT_BYTES) {
+    throw new RangeError(`salt must be ${SALT_BYTES} bytes`);
+  }
+  for (let i = 0; i < SALT_BYTES; i++) {
+    if (!Number.isInteger(salt[i]) || salt[i] < 0 || salt[i] > 255) {
+      throw new RangeError(`salt[${i}] is not a byte`);
+    }
   }
 }
 
@@ -112,6 +134,48 @@ export function projectToBands(shares) {
     }
   }
   return s;
+}
+
+// ── step 1b: /SOL tilt ──────────────────────────────────────────────────────
+
+// Moves solTilt × SOL_MAX_SHIFT_PT points from top to base (+) or base to top
+// (−), clamped so both stay inside their bands. Heart is untouched. Returns
+// the new shares and the shift actually applied to the top (base gets −shift).
+export function applySolTilt(shares, solTilt) {
+  const want = solTilt * SOL_MAX_SHIFT_PT;
+  // room is floored at 0 so float dust on a band edge never flips the direction
+  const room = want >= 0
+    ? Math.min(shares.top - BANDS.top[0], BANDS.base[1] - shares.base)
+    : Math.min(BANDS.top[1] - shares.top, shares.base - BANDS.base[0]);
+  const d = Math.sign(want) * Math.min(Math.abs(want), Math.max(0, room));
+  return {
+    shares: { top: shares.top - d, heart: shares.heart, base: shares.base + d },
+    topShift: -d,
+    baseShift: d,
+  };
+}
+
+const signedPt = (x) => {
+  const mag = Math.abs(x).toFixed(1);
+  return `${x < 0 && mag !== '0.0' ? '−' : '+'}${mag}`;
+};
+
+// ── step 1c: /CHAOS per-row drift ───────────────────────────────────────────
+
+// Each row's parts become parts × (1 + reach·u), u = salt[i % 32] / 127.5 − 1
+// (i = the row's index in baseAccord.rows), then renormalised so every layer
+// keeps its total parts. A row's within-layer share therefore moves by a
+// ratio inside [(1−reach)/(1+reach), (1+reach)/(1−reach)]. Pure: returns new
+// row objects.
+export function applyChaos(rows, salt, reach) {
+  const drifted = rows.map((r, i) => {
+    const u = salt[i % SALT_BYTES] / 127.5 - 1;
+    return r.parts * (1 + reach * u);
+  });
+  const before = { top: 0, heart: 0, base: 0 };
+  const after = { top: 0, heart: 0, base: 0 };
+  rows.forEach((r, i) => { before[r.layer] += r.parts; after[r.layer] += drifted[i]; });
+  return rows.map((r, i) => ({ ...r, parts: drifted[i] * (before[r.layer] / after[r.layer]) }));
 }
 
 // ── step 2: neat grams per row ──────────────────────────────────────────────
@@ -288,19 +352,29 @@ export function ifraStepDown(rows, grams, stocks, active, batchG) {
 // ── assemble ────────────────────────────────────────────────────────────────
 
 export function computeFormula({ baseAccord, salt, modulators, batch, kit }) {
-  void salt; // sealed /CHAOS salt: used from Task 2 on
-  validate(modulators, batch);
-  const { element, restWeeks } = modulators;
+  validate(modulators, batch, salt);
+  const { element, restWeeks, solTilt, chaosReach } = modulators;
   const targetPct = TARGET_PCT[element];
   const batchG = batch.grams;
 
-  const rows = joinAccord(baseAccord, kit);
-  const layerSplit = projectToBands(rawLayerShares(rows));
+  const joined = joinAccord(baseAccord, kit);
   for (const k of LAYERS) {
-    if (!rows.some((r) => r.layer === k)) {
+    if (!joined.some((r) => r.layer === k)) {
       throw new FormulaInfeasible(`accord has no ${k} row`, { layer: k });
     }
   }
+  let layerSplit = projectToBands(rawLayerShares(joined));
+  let solLine = '/SOL unwitnessed — the sun left the top notes alone';
+  if (!isAbsent(solTilt)) {
+    const tilt = applySolTilt(layerSplit, solTilt);
+    layerSplit = tilt.shares;
+    solLine = `/SOL → top ${signedPt(tilt.topShift)} pt / base ${signedPt(tilt.baseShift)} pt`;
+  }
+  const reach = isAbsent(chaosReach) ? CHAOS_DEFAULT_REACH : chaosReach;
+  const chaosLine = isAbsent(chaosReach)
+    ? '/CHAOS periphery unwitnessed — default reach'
+    : `/CHAOS salt → ±${(reach * 100).toFixed(0)}% per-row drift`;
+  const rows = applyChaos(joined, salt, reach);
   const concentrateG = (batchG * targetPct) / 100;
   const neat0 = neatGramsByRow(rows, layerSplit, concentrateG);
 
@@ -348,7 +422,9 @@ export function computeFormula({ baseAccord, salt, modulators, batch, kit }) {
 
   const log = [
     `ELEMENT ${element} → ${TYPE_NAMES[element]} · ${targetPct.toFixed(1)}% concentrate`,
+    solLine,
     `/LUNAR → ${restWeeks} weeks in the dark`,
+    chaosLine,
     ...stepLines,
     ...dropLines,
   ];

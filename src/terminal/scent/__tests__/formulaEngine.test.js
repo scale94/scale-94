@@ -182,12 +182,14 @@ describe('computeFormula core', () => {
     expect(Math.abs(f.actualPct - TARGET_PCT[el])).toBeLessThanOrEqual(0.5);
   });
 
-  it.each(CASES)('%s/%s: log order is ELEMENT, /LUNAR, then step/drop lines', (el, b) => {
+  it.each(CASES)('%s/%s: log order is ELEMENT, /SOL, /LUNAR, /CHAOS, then step/drop lines', (el, b) => {
     const f = run(el, b);
     const types = { AIR: 'Eau de Cologne', WATER: 'Eau de Toilette', EARTH: 'Eau de Parfum', FIRE: 'Extrait' };
     expect(f.log[0]).toBe(`ELEMENT ${el} → ${types[el]} · ${TARGET_PCT[el].toFixed(1)}% concentrate`);
-    expect(f.log[1]).toBe('/LUNAR → 4 weeks in the dark');
-    expect(f.log.length).toBeGreaterThan(2);
+    expect(f.log[1]).toBe('/SOL unwitnessed — the sun left the top notes alone');
+    expect(f.log[2]).toBe('/LUNAR → 4 weeks in the dark');
+    expect(f.log[3]).toBe('/CHAOS periphery unwitnessed — default reach');
+    expect(f.log.length).toBeGreaterThan(4);
     expect(f.restWeeks).toBe(4);
     expect(f.element).toBe(el);
   });
