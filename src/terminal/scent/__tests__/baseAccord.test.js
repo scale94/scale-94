@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildBaseAccord } from '../baseAccord';
+import { buildBaseAccord, drawChaosSalt } from '../baseAccord';
 import { computeFormula, BATCHES, TARGET_PCT, MIN_WEIGH_G } from '../formulaEngine';
 import { FX_KIT, FX_NOTE_MATERIALS } from './kitFixture';
 import { buildPerfumeCard } from '../../collider/perfumeCard';
@@ -92,5 +92,14 @@ describe('output feeds computeFormula', () => {
     for (const l of ['top', 'heart', 'base']) {
       expect(f.rows.some((r) => r.layer === l)).toBe(true);
     }
+  });
+});
+
+describe('drawChaosSalt', () => {
+  it('returns 32 bytes drawn from the injected RNG', () => {
+    const salt = drawChaosSalt((a) => a.fill(7));
+    expect(salt).toBeInstanceOf(Uint8Array);
+    expect(salt.length).toBe(32);
+    expect(salt.every((x) => x === 7)).toBe(true);
   });
 });

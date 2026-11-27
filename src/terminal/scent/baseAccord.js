@@ -40,3 +40,10 @@ export function buildBaseAccord(card, noteMaterials, kit) {
   const rows = [...sums].map(([materialId, parts]) => ({ materialId, parts }));
   return { rows, notes };
 }
+
+// The chaos salt (spec §5.1): 32 random bytes drawn at seal time, the only
+// non-deterministic input to the accord. The RNG is injected (crypto.getRandomValues
+// in the host) so this module stays pure.
+export function drawChaosSalt(getRandomValues) {
+  return getRandomValues(new Uint8Array(32));
+}
