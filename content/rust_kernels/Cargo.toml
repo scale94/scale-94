@@ -25,7 +25,7 @@ getrandom    = { version = "0.2", features = ["js"] }
 # js-sys: required for js_sys::Array return type in grayscott_params / classified_params
 js-sys       = "0.3"
 # ML-KEM-768: FIPS 203 compliant post-quantum key encapsulation
-ml-kem       = "=0.2.3"   # exact pin: FIPS 203 KAT gate (tests/fips_kat.rs) ran on this version
+ml-kem       = { version = "=0.2.3", features = ["zeroize"] }   # zeroize: wipes DecapsulationKey on drop; exact pin: FIPS 203 KAT gate (tests/fips_kat.rs) ran on this version
 # hex: encode key bytes as uppercase hex strings for terminal output
 hex          = "0.4"
 serde_json   = { version = "1", default-features = false, features = ["alloc"] }

@@ -43,6 +43,7 @@ pub mod associative_field; // run_associative_field (Hopfield Attractor Network 
 pub mod bellard_baudrillard; // run_phonemic_drift (Phonemic Drift · Memory Hash Collision · Simulacra)
 pub mod mesantropy;          // run_mesantropy (Scalar Sovereignty Engine v3.3.3 + 4.4.4.4)
 pub mod sovereign_seven;     // run_sovereign_seven (Crystalline Invariance Engine v7.7.7.7.7.7.7)
+pub mod aether_seal;          // mlkem768_* / mldsa65_* / blake3_derive_key / argon2id_derive_key (scent-aether P2 seal primitives)
 pub mod tesseract_vault;     // run_tesseract_vault (Hybrid PQC Pipeline · Argon2id + ML-KEM-1024 + ML-DSA-87 + AES-256-GCM + BLAKE3)
 pub mod spectral_bridge;     // run_spectral_bridge (Cross-Cluster Topology Discovery · Cosine Similarity · 16-dim Mathematical Fingerprints)
 pub mod enclave;             // enclave_keygen, enclave_seal, enclave_open (ML-KEM-768 + AES-256-GCM real encrypt/decrypt)

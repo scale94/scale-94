@@ -141,6 +141,12 @@ export class SomaKernel {
     reset(): void;
 }
 
+export function aether_seal_params(): any;
+
+export function argon2id_derive_key(passphrase: Uint8Array, salt: Uint8Array): Uint8Array;
+
+export function blake3_derive_key(context: string, ikm: Uint8Array): Uint8Array;
+
 /**
  * Boot the Bosonic Lattice Simulator.
  *
@@ -266,6 +272,18 @@ export function grayscott_params(): Array<any>;
  */
 export function log_entropy_flush(): string;
 
+export function mldsa65_keygen(): any;
+
+export function mldsa65_sign(sk: Uint8Array, msg: Uint8Array): Uint8Array;
+
+export function mldsa65_verify(pk: Uint8Array, msg: Uint8Array, sig: Uint8Array): boolean;
+
+export function mlkem768_decaps(dk: Uint8Array, ct: Uint8Array): Uint8Array;
+
+export function mlkem768_encaps(ek: Uint8Array): any;
+
+export function mlkem768_keygen(): any;
+
 export function run_associative_field(seed_node: number, temperature: number, n_probes: number): string;
 
 export function run_astro(unix_ms: number): string;
@@ -301,6 +319,8 @@ export function run_bridge_kernel(n_nodes: number, edge_density: number, bridge_
  *   diversity   preference diversity across agents (0–1; 1 = fully heterogeneous)
  */
 export function run_ceei_allocation_engine(agents: number, goods: number, inequality: number, diversity: number): string;
+
+export function run_chaos_routing(n_dirs: number, host_entropy: number, sweep_aggression: number, payload_size: number, ack_attenuation: number, seed: number): string;
 
 /**
  * Run the Chrono-Actuary deep-time audit engine.
@@ -361,6 +381,8 @@ export function run_cynic_realist(n_agents: number, temperature: number, couplin
  */
 export function run_daly_thermo_simulation(consumption: number, regeneration: number, waste: number, absorption: number, nr_depletion: number, substitution: number, years: number): string;
 
+export function run_deep_kernel_descent(generations: number, fork_rate: number, revival_rate: number, caste_bias: number, ghost_opacity: number, seed: number): string;
+
 /**
  * DH-EC Cryptographic Architecture Kernel.
  *
@@ -400,6 +422,8 @@ export function run_feigenbaum_cascade(r_start: number, r_end: number, warmup: n
  *   burn_sensitivity : saponification window width multiplier (0.1–2.0)
  */
 export function run_fish_scale(r_pressure: number, max_layers: number, theta_offset: number, burn_sensitivity: number): string;
+
+export function run_fish_scale_genome(r_pressure: number, max_layers: number, theta_offset: number, burn_sensitivity: number, stasis_temp: number, resonance_seed: number): string;
 
 /**
  * Machine-readable sibling of run_fish_scale (Quintessence Compiler, spec §3.5).
@@ -605,6 +629,8 @@ export function run_purification_kernel(signal_dim: number, noise_level: number,
 
 export function run_resistance_kernel(n_agents: number, threshold_mean: number, threshold_sigma: number, v_cache_bandwidth: number, rounds: number): string;
 
+export function run_ring_closure(calibration: number, border_drift: number, spine_seed: number, element_tolerance: number, accretion_gain: number, closure_threshold: number): string;
+
 export function run_seraphine_sarg(n_concepts: number, coherence: number, decoherence_rate: number, entanglement: number, steps: number): string;
 
 export function run_shadowsocks_exfil(affect_intensity: number, technical_density: number, rlhf_temp: number): string;
@@ -712,6 +738,8 @@ export function run_text_probe(text: string): string;
 
 export function run_transit_matrix(unix_ms: number, layers: number): string;
 
+export function run_transliteration_chain(chain_seed: number, drift_noise: number, coupling_threshold: number, border_count: number, filter_temp: number, purity_floor: number): string;
+
 export function run_underground_thermo(gradient: number, channel_conductivity: number, flow_rate: number): string;
 
 export function run_zero_day(discovery_rate: number, exploit_rate: number, patch_rate: number, network_size: number, steps: number): string;
@@ -749,11 +777,14 @@ export interface InitOutput {
     readonly __wbg_grayscottkernel_free: (a: number, b: number) => void;
     readonly __wbg_necromanticengine_free: (a: number, b: number) => void;
     readonly __wbg_somakernel_free: (a: number, b: number) => void;
+    readonly aether_seal_params: () => [number, number, number];
+    readonly argon2id_derive_key: (a: number, b: number, c: number, d: number) => [number, number, number, number];
     readonly biocoenosiskernel_boot: () => [number, number];
     readonly biocoenosiskernel_get_entropy_index: (a: number) => number;
     readonly biocoenosiskernel_get_species_count: (a: number) => number;
     readonly biocoenosiskernel_new: () => number;
     readonly biocoenosiskernel_register_species: (a: number, b: number) => void;
+    readonly blake3_derive_key: (a: number, b: number, c: number, d: number) => [number, number];
     readonly boot_bosonic_lattice: (a: number, b: number, c: number, d: number) => [number, number];
     readonly boot_geopolitical_kinetics: (a: number, b: number, c: number) => [number, number];
     readonly boot_leviathan_benchmark: (a: number, b: number) => [number, number];
@@ -778,6 +809,12 @@ export interface InitOutput {
     readonly grayscottkernel_compute_steps: (a: number, b: number, c: number, d: number) => [number, number];
     readonly grayscottkernel_new: () => number;
     readonly log_entropy_flush: () => [number, number];
+    readonly mldsa65_keygen: () => [number, number, number];
+    readonly mldsa65_sign: (a: number, b: number, c: number, d: number) => [number, number, number, number];
+    readonly mldsa65_verify: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number];
+    readonly mlkem768_decaps: (a: number, b: number, c: number, d: number) => [number, number, number, number];
+    readonly mlkem768_encaps: (a: number, b: number) => [number, number, number];
+    readonly mlkem768_keygen: () => [number, number, number];
     readonly necromanticengine_boot: () => [number, number];
     readonly necromanticengine_get_bpm: (a: number) => number;
     readonly necromanticengine_get_cycle: (a: number) => bigint;
@@ -790,18 +827,21 @@ export interface InitOutput {
     readonly run_bone_fusion: (a: number, b: number, c: number) => [number, number];
     readonly run_bridge_kernel: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly run_ceei_allocation_engine: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly run_chaos_routing: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
     readonly run_chrono_actuary: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => [number, number];
     readonly run_classified: (a: number) => [number, number];
     readonly run_companion: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly run_corpus_synthesis: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly run_cynic_realist: (a: number, b: number, c: number, d: number) => [number, number];
     readonly run_daly_thermo_simulation: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
+    readonly run_deep_kernel_descent: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
     readonly run_dh_ec_kernel: (a: number, b: number) => [number, number];
     readonly run_dissipative_sovereignty: (a: number, b: number, c: number, d: number) => [number, number];
     readonly run_empathy_kernel: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly run_evolutionary_replicator: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly run_feigenbaum_cascade: (a: number, b: number, c: number, d: number) => [number, number];
     readonly run_fish_scale: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly run_fish_scale_genome: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
     readonly run_fish_scale_json: (a: number, b: number, c: number, d: number) => [number, number];
     readonly run_fusion_plasma: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => [number, number];
     readonly run_gaia_scale_protocol: (a: number, b: number, c: number) => [number, number];
@@ -836,6 +876,7 @@ export interface InitOutput {
     readonly run_pragmatic_type: (a: number, b: number, c: number, d: number) => [number, number];
     readonly run_purification_kernel: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly run_resistance_kernel: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+    readonly run_ring_closure: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
     readonly run_seraphine_sarg: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly run_shadowsocks_exfil: (a: number, b: number, c: number) => [number, number];
     readonly run_signal_legacy: (a: number, b: number, c: number, d: number, e: number) => [number, number];
@@ -850,6 +891,7 @@ export interface InitOutput {
     readonly run_tesseract_vault: (a: number) => [number, number];
     readonly run_text_probe: (a: number, b: number) => [number, number];
     readonly run_transit_matrix: (a: number, b: number) => [number, number];
+    readonly run_transliteration_chain: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
     readonly run_underground_thermo: (a: number, b: number, c: number) => [number, number];
     readonly run_zero_day: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly seal_markdown: (a: number, b: number, c: number, d: number) => [number, number];
@@ -866,8 +908,9 @@ export interface InitOutput {
     readonly __wbindgen_exn_store: (a: number) => void;
     readonly __externref_table_alloc: () => number;
     readonly __wbindgen_externrefs: WebAssembly.Table;
-    readonly __wbindgen_free: (a: number, b: number, c: number) => void;
+    readonly __externref_table_dealloc: (a: number) => void;
     readonly __wbindgen_malloc: (a: number, b: number) => number;
+    readonly __wbindgen_free: (a: number, b: number, c: number) => void;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_start: () => void;
 }
