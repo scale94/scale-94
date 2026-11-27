@@ -1,0 +1,494 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`manifest parity (P0 pin) > LIVING case 1`] = `
+"# ECO_Sx TRANSMUTATION MANIFEST
+
+\`\`\`
+VAULT    2e7f04fe125273b2f652beb6db362613c13b2386f36dcee94c55ac748e1b4957
+COMPILED 2026-11-27 12:00:00 UTC
+STATE    ◈ MANIFEST COMPILED
+\`\`\`
+
+---
+
+## ACCORD · SMOKED MIMOSA CHIMERA
+
+\`\`\`
+ᛏ TOP    Pink Grapefruit · Cistus
+ᚺ HEART  Mimosa · Birch
+ᛒ BASE   White Musk · Birch Tar
+
+CONC         EXTRAIT DE PARFUM · 22–30%
+LONGEVITY    14–20 hours
+NODE CLASS   RTA
+POLARITY     BALANCED
+OLFACTIVE    CITRUS × WOODY
+EVAP CURVE   TOP 30% / HEART 40% / BASE 30%
+LOADING      24.4%
+FLASH POINT  72.5°C
+SG           0.932 g/ml
+MACERATION   59 days
+\`\`\`
+
+---
+
+## COLLISION MANIFOLD // RAW VECTOR MATRIX
+
+\`\`\`
+DOMAIN         0 × 10
+NODE PAIR      A-12 × B-34
+HASH           2e7f04fe125273b2f652beb6db362613
+               c13b2386f36dcee94c55ac748e1b4957
+SPACE          1536-dimensional · OCK v1.1.0
+P(RECOLL)      < 10⁻⁷⁷
+
+COS(θ)         0.4321
+θ              64.4°
+SPHERE SIM     0.5123
+NOVELTY        62%  (‖P⊥‖ = 0.781)
+COHERENCE      0.7312  (H = 1.234)
+POST-SAPON.    0.4012  (32 iter · 7% decay)
+VIABILITY      VIABLE  (6.1234)
+ARCHETYPE      THE LANTERN  [σ ≈ 1.23]
+\`\`\`
+
+---
+
+## FISH SCALE GEOMETRY // DIMENSIONAL MATRIX
+
+\`\`\`
+EVAP CURVE     TOP 30% / HEART 40% / BASE 30%
+\`\`\`
+
+### CONVERGENCE AXES — shared conceptual DNA
+\`\`\`
+ENTROPY          contrib=0.812  vA=0.700  vB=0.650
+\`\`\`
+
+### DIVERGENCE AXES — maximum orthogonality
+\`\`\`
+SYNCHRONY        Δ=0.500  vA=0.100  vB=0.600
+\`\`\`
+
+### IRREDUCIBLE PARADOXES — survive 32× saponification
+\`\`\`
+THERMODYNAMIC    residual=0.210  original_Δ=0.440
+\`\`\`
+
+### PERIOD-3 SANCTUARIES — transient order pockets in chaos
+\`\`\`
+center=3.830  width=0.012  size=3  members=[1, 5, 9]
+\`\`\`
+
+### CLUSTER METRICS
+\`\`\`
+INTERFERENCE   0.500  (sparsity × curvature)
+CATALYSIS      0.250  (volatility × curvature)
+RESONANCE      0.750  (density harmonic mean)
+TURBULENCE     0.1234  (volΔ × interference)
+\`\`\`
+
+### SUBATOMIC DECAY ARC — Feigenbaum bifurcation cascade (δ=4.669 · α=2.503)
+\`\`\`
+T+0          α outer      stable
+              patch-one
+              notes=[a, b]
+
+T+12h        β inner      chaotic
+              patch-two
+              notes=[c]
+\`\`\`
+
+---
+
+## ENCRYPTED FORMULA
+
+\`\`\`
+CIPHER  AES-256-GCM · RSA-OAEP-2048
+BLAKE3  INTEGRITY BOUND
+
+7b22636173223a5b7b226e6f7465223a2250696e6b2047726170656672756974
+222c22636173223a22383031362d32302d34222c22706374223a31352c226d67
+223a36372e357d2c7b226e6f7465223a22436973747573222c22636173223a22
+383031362d32362d30222c22706374223a31352c226d67223a36372e357d2c7b
+226e6f7465223a224d696d6f7361222c22636173223a22383033312d30332d36
+222c22706374223a31332e33332c226d67223a36307d2c7b226e6f7465223a22
+4269726368222c22636173223a22383030312d38382d35222c22706374223a31
+332e33332c226d67223a36307d2c7b226e6f7465223a225768697465204d7573
+… [254 chars omitted]
+\`\`\`
+
+---
+
+## § LIVING SIGNATURE
+
+This accord carries the irreducible signature of one witness. The substituted note
+was selected from the signature-grade pool by deterministic hash of the witness's
+identity bound to this accord coordinate. The substitution is permanent for this
+witness, and unique among all possible witnesses.
+
+\`\`\`
+LAYER         HEART
+NOTE          Iris  (was: Rose)
+ENTROPY       0.8123
+WITNESS HASH  abababababababababababababababababababababababababababababababab
+PROTOCOL      HS256 · 24h sovereign key · server-deterministic
+\`\`\`
+
+The molecule that is yours did not exist before this transmission. It does now.
+"
+`;
+
+exports[`manifest parity (P0 pin) > no living, full result + narrative 1`] = `
+"# ECO_Sx TRANSMUTATION MANIFEST
+
+\`\`\`
+VAULT    2e7f04fe125273b2f652beb6db362613c13b2386f36dcee94c55ac748e1b4957
+COMPILED 2026-11-27 12:00:00 UTC
+STATE    ◈ MANIFEST COMPILED
+\`\`\`
+
+---
+
+## ACCORD · SMOKED MIMOSA CHIMERA
+
+\`\`\`
+ᛏ TOP    Pink Grapefruit · Cistus
+ᚺ HEART  Mimosa · Birch
+ᛒ BASE   White Musk · Birch Tar
+
+CONC         EXTRAIT DE PARFUM · 22–30%
+LONGEVITY    14–20 hours
+NODE CLASS   RTA
+POLARITY     BALANCED
+OLFACTIVE    CITRUS × WOODY
+EVAP CURVE   TOP 30% / HEART 40% / BASE 30%
+LOADING      24.4%
+FLASH POINT  72.5°C
+SG           0.932 g/ml
+MACERATION   59 days
+\`\`\`
+
+---
+
+## COLLISION MANIFOLD // RAW VECTOR MATRIX
+
+\`\`\`
+DOMAIN         0 × 10
+NODE PAIR      A-12 × B-34
+HASH           2e7f04fe125273b2f652beb6db362613
+               c13b2386f36dcee94c55ac748e1b4957
+SPACE          1536-dimensional · OCK v1.1.0
+P(RECOLL)      < 10⁻⁷⁷
+
+COS(θ)         0.4321
+θ              64.4°
+SPHERE SIM     0.5123
+NOVELTY        62%  (‖P⊥‖ = 0.781)
+COHERENCE      0.7312  (H = 1.234)
+POST-SAPON.    0.4012  (32 iter · 7% decay)
+VIABILITY      VIABLE  (6.1234)
+ARCHETYPE      THE LANTERN  [σ ≈ 1.23]
+\`\`\`
+
+---
+
+## FISH SCALE GEOMETRY // DIMENSIONAL MATRIX
+
+\`\`\`
+EVAP CURVE     TOP 30% / HEART 40% / BASE 30%
+\`\`\`
+
+### CONVERGENCE AXES — shared conceptual DNA
+\`\`\`
+ENTROPY          contrib=0.812  vA=0.700  vB=0.650
+\`\`\`
+
+### DIVERGENCE AXES — maximum orthogonality
+\`\`\`
+SYNCHRONY        Δ=0.500  vA=0.100  vB=0.600
+\`\`\`
+
+### IRREDUCIBLE PARADOXES — survive 32× saponification
+\`\`\`
+THERMODYNAMIC    residual=0.210  original_Δ=0.440
+\`\`\`
+
+### PERIOD-3 SANCTUARIES — transient order pockets in chaos
+\`\`\`
+center=3.830  width=0.012  size=3  members=[1, 5, 9]
+\`\`\`
+
+### CLUSTER METRICS
+\`\`\`
+INTERFERENCE   0.500  (sparsity × curvature)
+CATALYSIS      0.250  (volatility × curvature)
+RESONANCE      0.750  (density harmonic mean)
+TURBULENCE     0.1234  (volΔ × interference)
+\`\`\`
+
+### SUBATOMIC DECAY ARC — Feigenbaum bifurcation cascade (δ=4.669 · α=2.503)
+\`\`\`
+T+0          α outer      stable
+              patch-one
+              notes=[a, b]
+
+T+12h        β inner      chaotic
+              patch-two
+              notes=[c]
+\`\`\`
+
+---
+
+## ENCRYPTED FORMULA
+
+\`\`\`
+CIPHER  AES-256-GCM · RSA-OAEP-2048
+BLAKE3  INTEGRITY BOUND
+
+7b22636173223a5b7b226e6f7465223a2250696e6b2047726170656672756974
+222c22636173223a22383031362d32302d34222c22706374223a31352c226d67
+223a36372e357d2c7b226e6f7465223a22436973747573222c22636173223a22
+383031362d32362d30222c22706374223a31352c226d67223a36372e357d2c7b
+226e6f7465223a224d696d6f7361222c22636173223a22383033312d30332d36
+222c22706374223a31332e33332c226d67223a36307d2c7b226e6f7465223a22
+4269726368222c22636173223a22383030312d38382d35222c22706374223a31
+332e33332c226d67223a36307d2c7b226e6f7465223a225768697465204d7573
+… [254 chars omitted]
+\`\`\`
+"
+`;
+
+exports[`manifest parity (P0 pin) > no living, null result + null narrative 1`] = `
+"# ECO_Sx TRANSMUTATION MANIFEST
+
+\`\`\`
+VAULT    28fb45cc965d52b967192e8acc7f0c945d4ca256e8aa9b500b4bd5ced065a01a
+COMPILED 2026-11-27 12:00:00 UTC
+STATE    ◈ MANIFEST COMPILED
+\`\`\`
+
+---
+
+## ACCORD · ABYSS ECHO
+
+\`\`\`
+ᛏ TOP    Opoponax · Ozone
+ᚺ HEART  Benzoin Absolute · Muguet
+ᛒ BASE   Myrrh Resinoid · Driftwood
+
+CONC         EAU DE TOILETTE · 8–14%
+LONGEVITY    10–14 hours
+NODE CLASS   RTA
+POLARITY     BALANCED
+OLFACTIVE    RESINOUS × FRESH
+EVAP CURVE   TOP 30% / HEART 40% / BASE 30%
+LOADING      10.4%
+FLASH POINT  72.5°C
+SG           0.862 g/ml
+MACERATION   48 days
+\`\`\`
+
+---
+
+## COLLISION MANIFOLD // RAW VECTOR MATRIX
+
+\`\`\`
+DOMAIN         1 × 13
+NODE PAIR      — × —
+HASH           28fb45cc965d52b967192e8acc7f0c94
+               5d4ca256e8aa9b500b4bd5ced065a01a
+SPACE          1536-dimensional · OCK v1.1.0
+P(RECOLL)      < 10⁻⁷⁷
+
+COS(θ)         —
+θ              —
+SPHERE SIM     —
+NOVELTY        —  (‖P⊥‖ = —)
+COHERENCE      —  (H = —)
+POST-SAPON.    —  (32 iter · 7% decay)
+VIABILITY      —  (—)
+ARCHETYPE      —
+\`\`\`
+
+---
+
+## FISH SCALE GEOMETRY // DIMENSIONAL MATRIX
+
+\`\`\`
+EVAP CURVE     TOP 30% / HEART 40% / BASE 30%
+\`\`\`
+
+### CONVERGENCE AXES — shared conceptual DNA
+\`\`\`
+—
+\`\`\`
+
+### DIVERGENCE AXES — maximum orthogonality
+\`\`\`
+—
+\`\`\`
+
+### IRREDUCIBLE PARADOXES — survive 32× saponification
+\`\`\`
+—
+\`\`\`
+
+### PERIOD-3 SANCTUARIES — transient order pockets in chaos
+\`\`\`
+— none detected —
+\`\`\`
+
+### CLUSTER METRICS
+\`\`\`
+INTERFERENCE   —  (sparsity × curvature)
+CATALYSIS      —  (volatility × curvature)
+RESONANCE      —  (density harmonic mean)
+TURBULENCE     —  (volΔ × interference)
+\`\`\`
+
+### SUBATOMIC DECAY ARC — Feigenbaum bifurcation cascade (δ=4.669 · α=2.503)
+\`\`\`
+—
+\`\`\`
+
+---
+
+## ENCRYPTED FORMULA
+
+\`\`\`
+CIPHER  AES-256-GCM · RSA-OAEP-2048
+BLAKE3  INTEGRITY BOUND
+
+7b22636173223a5b7b226e6f7465223a224f706f706f6e6178222c2263617322
+3a22393030302d37382d36222c22706374223a31352c226d67223a36372e357d
+2c7b226e6f7465223a224f7a6f6e65222c22636173223a2231303032382d3135
+2d36222c22706374223a31352c226d67223a36372e357d2c7b226e6f7465223a
+2242656e7a6f696e204162736f6c757465222c22636173223a22393030302d30
+352d39222c22706374223a31332e33332c226d67223a36307d2c7b226e6f7465
+223a224d7567756574222c22636173223a2238302d35342d36222c2270637422
+3a31332e33332c226d67223a36307d2c7b226e6f7465223a224d797272682052
+… [270 chars omitted]
+\`\`\`
+"
+`;
+
+exports[`manifest parity (P0 pin) > planet domain fixture 1`] = `
+"# ECO_Sx TRANSMUTATION MANIFEST
+
+\`\`\`
+VAULT    92959d9dc4f0088f546c3709bfea0d652fffd9241b15e462a6c5c18cbd574b16
+COMPILED 2026-11-27 12:00:00 UTC
+STATE    ◈ MANIFEST COMPILED
+\`\`\`
+
+---
+
+## ACCORD · MERCURY × PLUTO
+
+\`\`\`
+ᛏ TOP    Aldehydic Musk · Neroli Bigarade
+ᚺ HEART  Oakmoss · Jasmine Absolute
+ᛒ BASE   Castoreum · Tonka
+
+CONC         EAU DE PARFUM · 15–20%
+LONGEVITY    14–20 hours
+NODE CLASS   RTA
+POLARITY     BALANCED
+OLFACTIVE    ANIMALIC × FLORAL
+EVAP CURVE   TOP 30% / HEART 40% / BASE 30%
+LOADING      17.4%
+FLASH POINT  72.5°C
+SG           0.897 g/ml
+MACERATION   64 days
+\`\`\`
+
+---
+
+## COLLISION MANIFOLD // RAW VECTOR MATRIX
+
+\`\`\`
+DOMAIN         71 × 80
+NODE PAIR      A-12 × B-34
+HASH           92959d9dc4f0088f546c3709bfea0d65
+               2fffd9241b15e462a6c5c18cbd574b16
+SPACE          1536-dimensional · OCK v1.1.0
+P(RECOLL)      < 10⁻⁷⁷
+
+COS(θ)         0.4321
+θ              64.4°
+SPHERE SIM     0.5123
+NOVELTY        62%  (‖P⊥‖ = 0.781)
+COHERENCE      0.7312  (H = 1.234)
+POST-SAPON.    0.4012  (32 iter · 7% decay)
+VIABILITY      VIABLE  (6.1234)
+ARCHETYPE      THE LANTERN  [σ ≈ 1.23]
+\`\`\`
+
+---
+
+## FISH SCALE GEOMETRY // DIMENSIONAL MATRIX
+
+\`\`\`
+EVAP CURVE     TOP 30% / HEART 40% / BASE 30%
+\`\`\`
+
+### CONVERGENCE AXES — shared conceptual DNA
+\`\`\`
+ENTROPY          contrib=0.812  vA=0.700  vB=0.650
+\`\`\`
+
+### DIVERGENCE AXES — maximum orthogonality
+\`\`\`
+SYNCHRONY        Δ=0.500  vA=0.100  vB=0.600
+\`\`\`
+
+### IRREDUCIBLE PARADOXES — survive 32× saponification
+\`\`\`
+THERMODYNAMIC    residual=0.210  original_Δ=0.440
+\`\`\`
+
+### PERIOD-3 SANCTUARIES — transient order pockets in chaos
+\`\`\`
+center=3.830  width=0.012  size=3  members=[1, 5, 9]
+\`\`\`
+
+### CLUSTER METRICS
+\`\`\`
+INTERFERENCE   0.500  (sparsity × curvature)
+CATALYSIS      0.250  (volatility × curvature)
+RESONANCE      0.750  (density harmonic mean)
+TURBULENCE     0.1234  (volΔ × interference)
+\`\`\`
+
+### SUBATOMIC DECAY ARC — Feigenbaum bifurcation cascade (δ=4.669 · α=2.503)
+\`\`\`
+T+0          α outer      stable
+              patch-one
+              notes=[a, b]
+
+T+12h        β inner      chaotic
+              patch-two
+              notes=[c]
+\`\`\`
+
+---
+
+## ENCRYPTED FORMULA
+
+\`\`\`
+CIPHER  AES-256-GCM · RSA-OAEP-2048
+BLAKE3  INTEGRITY BOUND
+
+7b22636173223a5b7b226e6f7465223a22416c64656879646963204d75736b22
+2c22636173223a2238312d31342d31222c22706374223a31352c226d67223a36
+372e357d2c7b226e6f7465223a224e65726f6c69204269676172616465222c22
+636173223a2237323936382d35302d34222c22706374223a31352c226d67223a
+36372e357d2c7b226e6f7465223a224f616b6d6f7373222c22636173223a2239
+3030302d35302d34222c22706374223a31332e33332c226d67223a36307d2c7b
+226e6f7465223a224a61736d696e65204162736f6c757465222c22636173223a
+22383032322d39362d36222c22706374223a31332e33332c226d67223a36307d
+… [286 chars omitted]
+\`\`\`
+"
+`;
