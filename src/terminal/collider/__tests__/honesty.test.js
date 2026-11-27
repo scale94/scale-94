@@ -27,12 +27,6 @@ const DISHONEST = [
   'physical synthesis', 'SOMA SHOP', 'ShimmeringCipher',
 ];
 
-// View copy that Task 5 rewrites. Until then these stay as it.todo; every
-// other DISHONEST string is enforced in the view now.
-const VIEW_PENDING_TASK_5 = [
-  'MACERATION', 'EVAP CURVE', 'LONGEVITY', '1536-dimensional', '1536-D', 'SOMA SHOP',
-];
-
 const FORBIDDEN_IN_VIEW = [
   'fetch(', '/api/transmute', 'sealForVault', 'TESSERACT_PUB_KEY_B64', 'TIERS',
   'PRODUCTION_THRESHOLD', 'handleAcquire', 'RedeemInput', 'ContactForm',
@@ -48,7 +42,9 @@ const DELETED_FILES = [
 
 describe('shop retired from the client', () => {
   it('LatentCollider.jsx carries no shop code', () => {
-    const src = read(VIEW);
+    // 'TIERS' pins the shop's tier table; the Task 5 copy 'VOLATILITY TIERS'
+    // (the evaporation block's honest header) is the one allowed use.
+    const src = read(VIEW).replaceAll('VOLATILITY TIERS', '');
     const hits = FORBIDDEN_IN_VIEW.filter((s) => src.includes(s));
     expect(hits).toEqual([]);
   });
@@ -92,18 +88,31 @@ describe('honesty sweep: no fake lab measurement', () => {
     expect(DISHONEST.filter((s) => src.includes(s))).toEqual([]);
   });
 
-  it('LatentCollider.jsx carries none of the strings enforced now', () => {
+  it('LatentCollider.jsx carries none of the dishonest strings', () => {
     const src = read(VIEW);
-    const enforced = DISHONEST.filter((s) => !VIEW_PENDING_TASK_5.includes(s));
-    expect(enforced.filter((s) => src.includes(s))).toEqual([]);
+    expect(DISHONEST.filter((s) => src.includes(s))).toEqual([]);
   });
 
-  for (const s of VIEW_PENDING_TASK_5) {
-    it.todo(`LatentCollider.jsx carries no '${s}' (Task 5)`);
-  }
+  it('LatentCollider.jsx names volatility tiers and the JS-path space', () => {
+    const src = read(VIEW);
+    expect(src).toContain('VOLATILITY TIERS');
+    expect(src).toContain("'32-D feature tensor'");
+  });
 
   it('the card model no longer builds a vault payload', async () => {
     const card = await import('../perfumeCard.js');
     expect(['CAS_REGISTRY', 'buildEncryptedFormula'].filter((k) => k in card)).toEqual([]);
+  });
+});
+
+describe('P0 carry-over: dead code removed', () => {
+  it('App.jsx and useCommandDispatch.js carry no kernelRunHistoryRef', () => {
+    const hits = ['src/terminal/App.jsx', 'src/terminal/hooks/useCommandDispatch.js']
+      .filter((f) => read(f).includes('kernelRunHistoryRef'));
+    expect(hits).toEqual([]);
+  });
+
+  it('package.json no longer depends on @upstash/redis', () => {
+    expect(read('package.json')).not.toContain('@upstash/redis');
   });
 });

@@ -5,7 +5,6 @@ import {
   CENSOR,
   assessSovereignty,
   redactCard,
-  transitTag,
   publishAssessment,
   getLastAssessment,
   subscribeSovereignty,
@@ -122,18 +121,6 @@ describe('redactCard', () => {
     // Original untouched (CARD is frozen — mutation would have thrown — but verify values too):
     expect(CARD.heartNotes).toEqual(['jasmine', 'rose', 'clove']);
     expect(CARD.evap).toEqual([0.4, 0.35, 0.25]);
-  });
-});
-
-describe('transitTag', () => {
-  it('annotates a redacted field with its claiming vector', () => {
-    // Parameterized against REDACTION_MAP so threshold retunes don't break this:
-    // exposure exactly at COOKIE_STATUS's threshold fires heartNotes but not topNotes.
-    const cookie = REDACTION_MAP.find((e) => e.vectorId === 'COOKIE_STATUS');
-    const a = assessSovereignty({ panopticonIndex: cookie.threshold, accord: accordOf(0, 0) });
-    expect(transitTag(a.redactions, 'heartNotes')).toBe(' [COOKIE_STATUS]');
-    expect(transitTag(a.redactions, 'topNotes')).toBe('');
-    expect(transitTag(null, 'heartNotes')).toBe('');
   });
 });
 

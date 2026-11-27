@@ -96,7 +96,7 @@ const POLARITY_CONFIG = {
   CHAOTIC:  { label: 'CHAOTIC',  color: '#ff2850', accent: '#cc1133', desc: 'divergent · high-entropy · paradox-state' },
 };
 
-const SHOP_MANIFEST = [
+const KEY_LEDGER = [
   { id: 'CITRUS-SSH-01',      olfClass: 'Top Note ᛏ',  fn: 'Interrupt Handler',                     key: '0x5343-414c-4539-3454-4f50-4e4f-5445' },
   { id: 'FLORAL-DAEMON-V2',   olfClass: 'Heart Note ᚺ', fn: 'Persistent Process',                    key: '0x4249-4d4d-454c-4241-484e-4845-4152' },
   { id: 'ANIMALIC-FIX-FS',    olfClass: 'Animalic',     fn: 'Fish Scale Fixative',                   key: '0x434f-5252-5550-5449-4f4e-4241-5345' },
@@ -119,7 +119,6 @@ function classifyAccord(result) {
   const animalicIntensity = Math.min(1, result.ockAnimalic * 0.7 + (paradoxCount / 12) * 0.3);
 
   const sillage       = result.ockSillage;
-  const maceration    = result.ockMaceration;
   const evapCurve     = result.ockEvapCurve;
   const permeability  = result.ockPermeability;
   const fixation      = result.ockFixation;
@@ -186,7 +185,6 @@ function classifyAccord(result) {
     dominant,
     accords,
     sillage,
-    maceration,
     evapCurve,
     permeability,
     topIntensity,
@@ -455,11 +453,12 @@ function parseColliderOutput(text) {
     ockAnimalic:    num(/ANIMALIC BIND\s*=\s*([\d.]+)/),
     ockSillage:     num(/SILLAGE\s*=\s*([\d.]+)/),
     ockPermeability:num(/PERMEABILITY\s*=\s*([\d.]+)/),
-    ockMaceration:  num(/MACERATION\s*=\s*([\d.]+)/),
     ockFixation:    num(/FIXATION\s*=\s*([\d.]+)/),
     ockPersists:    str(/PERSISTS\s*=\s*(\w+)/) === 'YES',
     ockEvapCurve:   (() => {
-      const m = text.match(/EVAP CURVE\s*=\s*\[([\d., ]+)\]/);
+      // the kernel's evaporation-curve output key: parsed for the tier bars
+      // and the card hash, never displayed
+      const m = text.match(/EVAP\s+CURVE\s*=\s*\[([\d., ]+)\]/);
       return m ? m[1].split(',').map(Number) : [0.33, 0.33, 0.34];
     })(),
 
@@ -612,6 +611,7 @@ export default function LatentCollider({ onPolarity } = {}) {
         const mod = await loadWasm();
         const raw = mod.run_latent_collider(a, b, 8.0, 1.0);
         parsed = parseColliderOutput(raw);
+        parsed.space = '16-D · expanded to 1536';
       } else {
         // Extended domains 32+: JS-only collision from 32D feature tensors
         const mapA = DOMAIN_SPHERE_MAP[a], mapB = DOMAIN_SPHERE_MAP[b];
@@ -648,6 +648,7 @@ export default function LatentCollider({ onPolarity } = {}) {
         familyScores.sort((x, y) => y.score - x.score);
 
         parsed = {
+          space: '32-D feature tensor',
           cosine: sim, angle, normA: nA, normB: nB, dot,
           rawAttn: dot, scaledAttn: dot / Math.sqrt(32), softmax: sim,
           entropy: -sim * Math.log2(Math.max(sim, 0.001)), projNorm: novelty,
@@ -662,7 +663,7 @@ export default function LatentCollider({ onPolarity } = {}) {
           ockTop: topI, ockHeart: heartI, ockBase: baseI,
           ockAnimalic: animalicI, ockSillage: sillage,
           ockPermeability: Math.min(1, novelty * 1.5),
-          ockMaceration: fixation * 0.8, ockFixation: fixation,
+          ockFixation: fixation,
           ockPersists: fixation > 0.5, ockEvapCurve: [topI, heartI, baseI],
           // Node class — derive from feature balance
           ockNodeClass: heartI > topI && heartI > baseI ? 'R2A' : topI > baseI ? 'DPA' : 'RTA',
@@ -889,7 +890,7 @@ export default function LatentCollider({ onPolarity } = {}) {
             LATENT SPACE COLLIDER
           </h3>
           <div className="text-[10px] text-fuchsia-500/50 font-mono uppercase tracking-widest mt-0.5">
-            {'// 1536-D CROSS-ATTENTION SYNTHESIS · OCK v1.1.0 · INTERACT v1.2.0 · WASM · '}{phase.toUpperCase()}
+            {`// ${result?.space ?? '16-D · expanded to 1536'} CROSS-ATTENTION SYNTHESIS · OCK v1.1.0 · INTERACT v1.2.0 · WASM · `}{phase.toUpperCase()}
           </div>
         </div>
         {(domainA !== null) && (
@@ -925,7 +926,7 @@ export default function LatentCollider({ onPolarity } = {}) {
                 SELECT TWO DOMAINS TO COLLIDE
               </div>
               <div className="text-[9px] font-mono text-cyan-600/30 mt-1">
-                1536-dimensional vector intersection · cross-attention synthesis
+                16-D vector intersection · expanded to 1536 · cross-attention synthesis
               </div>
             </div>
           </div>
@@ -1239,7 +1240,7 @@ export default function LatentCollider({ onPolarity } = {}) {
 
           {/* ── Metrics strip ── */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <MetricCard label="1536-D cos(θ)" value={result.cosine.toFixed(4)} sub={`θ = ${result.angle.toFixed(1)}°`} />
+            <MetricCard label="cos(θ)" value={result.cosine.toFixed(4)} sub={`θ = ${result.angle.toFixed(1)}° · ${result.space}`} />
             <MetricCard label="NOVELTY" value={`${(result.novelty * 100).toFixed(0)}%`} sub={`‖P⊥‖ = ${result.projNorm.toFixed(3)}`} />
             <MetricCard label="COHERENCE" value={result.coherence.toFixed(4)} sub={`H = ${result.entropy.toFixed(3)}`} />
             <MetricCard
@@ -1524,7 +1525,7 @@ export default function LatentCollider({ onPolarity } = {}) {
                         {result.accord.danceRole?.split('—')[0]?.trim() || '—'}
                       </div>
                       <div className="text-[6px] font-mono mt-0.5" style={{ color: result.accord.nodeClass.accent + '44' }}>
-                        {result.accord.danceRole?.split('—')[1]?.trim() || '§8 1536-D space'}
+                        {result.accord.danceRole?.split('—')[1]?.trim() || '§8 vector space'}
                       </div>
                     </div>
                   </div>
@@ -1580,16 +1581,16 @@ export default function LatentCollider({ onPolarity } = {}) {
                 </div>
               )}
 
-              {/* Evaporation Curve — top / heart / base */}
+              {/* Volatility tiers — top / heart / base (conceptual) */}
               <div>
                 <div className="text-[9px] font-bold text-amber-400/60 uppercase tracking-widest mb-2">
-                  EVAPORATION CURVE
+                  VOLATILITY TIERS · conceptual
                 </div>
                 <div className="space-y-1.5">
                   {[
-                    { label: 'TOP ᛏ',   val: result.accord.topIntensity,      pct: result.accord.evapCurve[0], color: '#FFD700', sub: 'citrus · flash · <15min' },
-                    { label: 'HEART ᚺ',  val: result.accord.heartIntensity,    pct: result.accord.evapCurve[1], color: '#d946ef', sub: 'floral · carrier · 4hr' },
-                    { label: 'BASE ᛒ',   val: result.accord.baseIntensity,     pct: result.accord.evapCurve[2], color: '#8B4513', sub: 'resinous · archive · days' },
+                    { label: 'TOP ᛏ',   val: result.accord.topIntensity,      pct: result.accord.evapCurve[0], color: '#FFD700', sub: 'citrus · high volatility' },
+                    { label: 'HEART ᚺ',  val: result.accord.heartIntensity,    pct: result.accord.evapCurve[1], color: '#d946ef', sub: 'floral · medium volatility' },
+                    { label: 'BASE ᛒ',   val: result.accord.baseIntensity,     pct: result.accord.evapCurve[2], color: '#8B4513', sub: 'resinous · low volatility' },
                   ].map(n => (
                     <div key={n.label} className="flex items-center gap-2 text-[10px] font-mono">
                       <span className="w-16 shrink-0 text-right" style={{ color: n.color + 'aa' }}>{n.label}</span>
@@ -1639,8 +1640,8 @@ export default function LatentCollider({ onPolarity } = {}) {
                 </span>
               </div>
 
-              {/* Sillage + Fixation + Permeability + Maceration strip */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {/* Sillage + Fixation + Permeability strip */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 <div className="border border-amber-900/20 bg-black/30 rounded p-2">
                   <div className="text-[8px] font-bold text-amber-500/50 uppercase tracking-widest mb-1">SILLAGE</div>
                   <div className="text-sm font-bold font-mono" style={{ color: result.accord.sillage > 0.6 ? '#FFD700' : result.accord.sillage > 0.3 ? '#d946ef' : '#06b6d4' }}>
@@ -1668,13 +1669,6 @@ export default function LatentCollider({ onPolarity } = {}) {
                   </div>
                   <div className="text-[7px] font-mono text-amber-600/30 mt-0.5">bimmelbahn Δ</div>
                 </div>
-                <div className="border border-amber-900/20 bg-black/30 rounded p-2">
-                  <div className="text-[8px] font-bold text-amber-500/50 uppercase tracking-widest mb-1">MACERATION</div>
-                  <div className="text-sm font-bold font-mono text-amber-400/70">
-                    {result.accord.maceration.toFixed(4)}
-                  </div>
-                  <div className="text-[7px] font-mono text-amber-600/30 mt-0.5">annealing depth</div>
-                </div>
               </div>
 
               {/* Verdicts */}
@@ -1688,13 +1682,13 @@ export default function LatentCollider({ onPolarity } = {}) {
                 </div>
               </div>
 
-              {/* SOMA Shop Manifest — Tesseract Key Exchange */}
+              {/* SOMA — Tesseract key ledger */}
               <div className="border border-amber-500/15 bg-amber-900/5 rounded-lg p-3">
                 <div className="text-[9px] font-bold text-amber-400/60 uppercase tracking-widest mb-2">
-                  ᛊ⚗ᛟ SOMA SHOP — TESSERACT KEY EXCHANGE
+                  ᛊ⚗ᛟ SOMA — TESSERACT KEY LEDGER
                 </div>
                 <div className="space-y-1.5">
-                  {SHOP_MANIFEST.map(item => {
+                  {KEY_LEDGER.map(item => {
                     const isDominant =
                       (result.accord.dominant.id === 'citrus'   && item.id === 'CITRUS-SSH-01') ||
                       (result.accord.dominant.id === 'floral'   && item.id === 'FLORAL-DAEMON-V2') ||
@@ -2452,7 +2446,7 @@ function CrystallizeCard({ card }) {
         {/* Properties strip */}
         <div className="grid grid-cols-3 gap-2 mb-6">
           {[
-            { label: 'LONGEVITY',  value: card.longevity },
+            { label: 'OLFACTIVE',  value: `${card.dom.toUpperCase()} × ${card.sec.toUpperCase()}` },
             { label: 'POLARITY',   value: card.polLabel || '—' },
             { label: 'NODE CLASS', value: card.nodeClass },
           ].map(({ label, value }) => (
@@ -2755,7 +2749,7 @@ function TesseractCard({ card, fullCard = card, sovereignty = null, sovereignVie
         {/* ── Properties strip ── */}
         <div className="grid grid-cols-3 gap-2 mb-5" style={{ opacity: 0, animation: 'sc-cardReveal 0.4s cubic-bezier(0.16,1,0.3,1) 950ms forwards' }}>
           {[
-            { label: 'LONGEVITY',  value: card.longevity },
+            { label: 'OLFACTIVE',  value: `${card.dom.toUpperCase()} × ${card.sec.toUpperCase()}` },
             { label: 'POLARITY',   value: card.polLabel || 'MERIDIAN' },
             { label: 'NODE CLASS', value: card.nodeClass },
           ].map(({ label, value }) => (

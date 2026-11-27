@@ -297,9 +297,6 @@ const App = () => {
   // Abort token for handleKernelClick — invalidates in-flight loads when a
   // new one is started (e.g. user rapidly clicks two kernels in quick succession).
   const loadAbortRef = useRef(null);
-  // Kernel run history — per-page-load, fed to the alien verdict on Crystallize order.
-  // Each entry: { id: string, alias: string, t: number (epoch ms) }
-  const kernelRunHistoryRef = useRef([]);
   const [lastKernelAt, setLastKernelAt] = useState(null);
   const [lastPolarityClass, setLastPolarityClass] = useState(null);
   const [lastLoadAt, setLastLoadAt] = useState(null);
@@ -749,7 +746,7 @@ const App = () => {
     setOriginTab, setArchitectThesis, setTagCloudView,
     appendSystemLog, handleNav, openPrivacy, handleKernelClick, handleTransmissionSelect,
     loadAbortRef, activeKernels, setKuramotoViz, setAssociativeField, setSpectralBridges, setEnclaveKeys, setProbeNode, setBoneFusions,
-    fusionLog, setFusionLog, kernelRunHistoryRef,
+    fusionLog, setFusionLog,
     onKernelRun: (ts, kernelId, durationMs) => {
       setLastKernelAt(ts);
       emitObs('transmissions', 'kernel_completed', { kernelId: kernelId ?? '—', durationMs: durationMs ?? null });

@@ -74,12 +74,6 @@ export function redactCard(card, redactions) {
   return out;
 }
 
-// Transit annotation for order plaintext blocks: ' [VECTOR_ID]' or ''.
-export const transitTag = (redactions, field) => {
-  const r = redactions?.find((x) => x.field === field);
-  return r ? ` [${r.vectorId}]` : '';
-};
-
 // ── Last-assessment store (feeds PrivacyTab's readout — spec §5) ─────────────
 // In-memory only; page reload clears it.
 

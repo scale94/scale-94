@@ -37,12 +37,6 @@ const ScalingTab = ({ setArchitectThesis, setCurrentPath, setOriginTab, loadKern
           from { opacity: 0; filter: blur(6px); letter-spacing: 0.3em; }
           to   { opacity: 1; filter: blur(0);   letter-spacing: normal; }
         }
-        @keyframes sc-vaultShimmer {
-          0%   { color: rgba(217,70,239,0.18); filter: blur(1.5px); text-shadow: none; }
-          30%  { color: rgba(255,150,255,0.95); filter: blur(0); text-shadow: 0 0 8px rgba(217,70,239,0.6); }
-          100% { color: rgba(217,70,239,0.18); filter: blur(1.5px); text-shadow: none; }
-        }
-        .vault-shimmer { animation: sc-vaultShimmer 200ms ease-out; }
 
         /* ── Monument pattern (Fade-Doctrine compliant) ──────────────────────
            Modernist typography moments for the project's load-bearing claims.
