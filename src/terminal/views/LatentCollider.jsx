@@ -566,8 +566,7 @@ export default function LatentCollider({ onPolarity } = {}) {
 
       // ── Sovereignty assessment — stage 5: panopticon load on this compile ──
       // Never blocks or breaks crystallize (spec §6): failure degrades to the
-      // OFFLINE verdict. The encryptedFormula above was built from the FULL
-      // card — the vault always holds the complete formula.
+      // OFFLINE verdict.
       try {
         const { index, lawCount } = getPanopticonState();
         const assessment = assessSovereignty({ panopticonIndex: index, accord: result.accord });
@@ -2568,66 +2567,6 @@ function ScramblingHash({ value, duration = 1400, color = 'rgba(255,215,0,0.75)'
   );
 }
 
-// ── ShimmeringCipher — vault ciphertext with transient decrypt flickers ────
-function ShimmeringCipher({ rows }) {
-  const [shimmers, setShimmers] = useState({});
-  const HEX = '0123456789abcdef';
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const now = Date.now();
-      setShimmers(prev => {
-        const next = { ...prev };
-        for (const key of Object.keys(next)) {
-          if (next[key].expiresAt < now) delete next[key];
-        }
-        for (let n = 0; n < 2; n++) {
-          const r = Math.floor(Math.random() * rows.length);
-          const c = Math.floor(Math.random() * (rows[r]?.length || 1));
-          const key = `${r}-${c}`;
-          if (!next[key]) {
-            next[key] = { char: HEX[Math.floor(Math.random() * 16)], expiresAt: now + 200 };
-          }
-        }
-        return next;
-      });
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [rows.length]);
-
-  // Cleanup expired shimmers periodically
-  useEffect(() => {
-    const cleanup = setInterval(() => {
-      const now = Date.now();
-      setShimmers(prev => {
-        const next = { ...prev };
-        let dirty = false;
-        for (const key of Object.keys(next)) {
-          if (next[key].expiresAt < now) { delete next[key]; dirty = true; }
-        }
-        return dirty ? next : prev;
-      });
-    }, 250);
-    return () => clearInterval(cleanup);
-  }, []);
-
-  return (
-    <div className="font-mono text-[7.5px] leading-[1.6] break-all select-none" style={{ color: 'rgba(217,70,239,0.18)', filter: 'blur(1.5px)', userSelect: 'none' }}>
-      {rows.map((row, r) => (
-        <div key={r}>
-          {row.split('').map((ch, c) => {
-            const sh = shimmers[`${r}-${c}`];
-            if (sh && sh.expiresAt > Date.now()) {
-              return <span key={c} className="vault-shimmer">{sh.char}</span>;
-            }
-            return <span key={c}>{ch}</span>;
-          })}
-        </div>
-      ))}
-    </div>
-  );
-}
-
 // ── Tesseract Card — cryptographic identity layer ───────────────────────────
 function TesseractCard({ card, fullCard = card, sovereignty = null, sovereignView = false, onToggleSovereignView, tesseract, narrative, result }) {
   const [manifestState, setManifestState] = useState(null); // null | 'compiling' | 'downloading' | 'downloaded'
@@ -2653,14 +2592,7 @@ function TesseractCard({ card, fullCard = card, sovereignty = null, sovereignVie
   };
 
   const mid = Math.round((card.hueA + card.hueB) / 2);
-  const { hash, encryptedFormula } = tesseract;
-
-  // Split ciphertext into rows for the vault display
-  const cipherRows = [];
-  const ct = encryptedFormula.ciphertext;
-  for (let i = 0; i < Math.min(ct.length, 512); i += 64) {
-    cipherRows.push(ct.slice(i, i + 64));
-  }
+  const { hash } = tesseract;
 
   const NOTE_LAYERS = [
     { key: 'top',   label: 'TOP',   glyph: 'ᛏ', field: 'topNotes',   notes: card.topNotes,   color: '#FFD700', sub: '0–30 min',    pct: card.evap[0] },
@@ -2833,44 +2765,6 @@ function TesseractCard({ card, fullCard = card, sovereignty = null, sovereignVie
               <div className="text-[10px] font-bold font-mono" style={{ color: 'rgba(255,215,0,0.8)' }}>{value}</div>
             </div>
           ))}
-        </div>
-
-        {/* ── Encrypted formula vault ── */}
-        <div className="mb-5 rounded-lg overflow-hidden" style={{ border: '1px solid rgba(217,70,239,0.12)', background: 'rgba(217,70,239,0.02)', opacity: 0, animation: 'sc-cardReveal 0.5s cubic-bezier(0.16,1,0.3,1) 1100ms forwards' }}>
-          <div className="px-3 py-2 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(217,70,239,0.08)' }}>
-            <div className="flex items-center gap-2">
-              <span className="text-[8px] select-none" style={{ color: 'rgba(217,70,239,0.6)' }}>◈</span>
-              <span className="text-[7px] font-mono font-bold tracking-[0.3em]" style={{ color: 'rgba(217,70,239,0.45)' }}>
-                ENCRYPTED MOLECULAR FORMULA
-              </span>
-            </div>
-            <span className="text-[7px] font-mono tracking-widest" style={{ color: 'rgba(244,63,94,0.4)' }}>AES-256-GCM</span>
-          </div>
-
-          <div className="relative p-3">
-            {/* Blurred ciphertext — the "private key" (with transient decrypt shimmer) */}
-            <ShimmeringCipher rows={cipherRows} />
-
-            {/* Vault overlay */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ background: 'radial-gradient(ellipse at center, rgba(4,2,0,0.7) 0%, transparent 70%)' }}>
-              <div className="text-2xl mb-2" style={{ color: 'rgba(217,70,239,0.35)', animation: 'sc-vaultPulse 4s ease-in-out infinite', textShadow: '0 0 20px rgba(217,70,239,0.2)' }}>
-                ◇
-              </div>
-              <div className="text-[9px] font-mono font-bold tracking-[0.3em]" style={{ color: 'rgba(217,70,239,0.55)' }}>
-                FORMULA VAULTED
-              </div>
-              <div className="text-[7px] font-mono tracking-wider mt-1" style={{ color: 'rgba(217,70,239,0.25)' }}>
-                decrypted only at point of physical synthesis
-              </div>
-            </div>
-          </div>
-
-          <div className="px-3 py-1.5 flex items-center justify-between" style={{ borderTop: '1px solid rgba(217,70,239,0.06)', background: 'rgba(217,70,239,0.015)' }}>
-            <span className="text-[6.5px] font-mono tracking-wider" style={{ color: 'rgba(217,70,239,0.2)' }}>
-              {encryptedFormula.casEntries.length} MOLECULAR COMPONENTS · SG {encryptedFormula.specificGravity} · FP {encryptedFormula.flashPoint}°C · MAC {encryptedFormula.macDays}D
-            </span>
-            <span className="text-[6.5px] font-mono" style={{ color: 'rgba(244,63,94,0.25)' }}>■ SEALED</span>
-          </div>
         </div>
 
         {/* ── Manifest download ── */}

@@ -1,13 +1,11 @@
-// Tesseract manifest generator (pure; moved verbatim from LatentCollider.jsx).
+// Tesseract manifest generator (pure). Honesty rule (spec decision 13):
+// anything that reads like a lab measurement is calculated from cited data or
+// cut, so the invented concentration, wear time, evaporation split, loading,
+// flash point, density, maceration and the fake encrypted formula are gone.
+// Strength is set at the altar by the element (P2).
 export function generateManifestMarkdown(card, tesseract, result = null, narrative = null) {
-  const { hash, encryptedFormula } = tesseract;
-  const { specificGravity, flashPoint, macDays, dilutionRatio, ciphertext } = encryptedFormula;
+  const { hash } = tesseract;
   const ts = new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
-
-  const evapT = (card.evap[0] * 100).toFixed(0);
-  const evapH = (card.evap[1] * 100).toFixed(0);
-  const evapB = (card.evap[2] * 100).toFixed(0);
-  const loadingPct = (dilutionRatio * 100).toFixed(1);
 
   const domPair = card.id.split('-').slice(0, 2).map(s => s.toUpperCase()).join(' × ');
 
@@ -16,11 +14,6 @@ export function generateManifestMarkdown(card, tesseract, result = null, narrati
     `ᚺ HEART  ${card.heartNotes.join(' · ')}`,
     `ᛒ BASE   ${card.baseNotes.join(' · ')}`,
   ].join('\n');
-
-  const cRows = [];
-  const ct = ciphertext || '';
-  for (let i = 0; i < Math.min(ct.length, 512); i += 64) cRows.push(ct.slice(i, i + 64));
-  if (ct.length > 512) cRows.push(`… [${ct.length - 512} chars omitted]`);
 
   return `# ECO_Sx TRANSMUTATION MANIFEST
 
@@ -37,16 +30,10 @@ STATE    ◈ MANIFEST COMPILED
 \`\`\`
 ${noteLines}
 
-CONC         ${card.conc} · ${card.concPct}
-LONGEVITY    ${card.longevity}
+STRENGTH     set at the altar by your element
 NODE CLASS   ${card.nodeClass}
 POLARITY     ${card.polLabel || 'MERIDIAN'}
 OLFACTIVE    ${card.dom.toUpperCase()} × ${card.sec.toUpperCase()}
-EVAP CURVE   TOP ${evapT}% / HEART ${evapH}% / BASE ${evapB}%
-LOADING      ${loadingPct}%
-FLASH POINT  ${flashPoint}°C
-SG           ${specificGravity} g/ml
-MACERATION   ${macDays} days
 \`\`\`
 
 ---
@@ -58,8 +45,8 @@ DOMAIN         ${domPair}
 NODE PAIR      ${result?.nodeIdA ?? '—'} × ${result?.nodeIdB ?? '—'}
 HASH           ${hash.slice(0, 32)}
                ${hash.slice(32)}
-SPACE          1536-dimensional · OCK v1.1.0
-P(RECOLL)      < 10⁻⁷⁷
+SPACE          ${result?.space ?? '—'} · OCK v1.1.0
+HASH           SHA-256 · deterministic — the same collision yields the same hash
 
 COS(θ)         ${result?.cosine != null ? result.cosine.toFixed(4) : '—'}
 θ              ${result?.angle != null ? result.angle.toFixed(1) + '°' : '—'}
@@ -74,10 +61,6 @@ ARCHETYPE      ${narrative?.archetype ?? '—'}${narrative?.archetypeSigma != nu
 ---
 
 ## FISH SCALE GEOMETRY // DIMENSIONAL MATRIX
-
-\`\`\`
-EVAP CURVE     TOP ${evapT}% / HEART ${evapH}% / BASE ${evapB}%
-\`\`\`
 
 ### CONVERGENCE AXES — shared conceptual DNA
 \`\`\`
@@ -110,17 +93,6 @@ TURBULENCE     ${narrative?.meta?.turbulence != null ? narrative.meta.turbulence
 ### SUBATOMIC DECAY ARC — Feigenbaum bifurcation cascade (δ=4.669 · α=2.503)
 \`\`\`
 ${(narrative?.decayArc || []).map(ph => `${ph.time.padEnd(12)} ${ph.glyph} ${ph.shell.padEnd(10)} ${ph.regime}\n${''.padEnd(13)} ${ph.patch}\n${''.padEnd(13)} notes=[${ph.notes.join(', ')}]`).join('\n\n') || '—'}
-\`\`\`
-
----
-
-## ENCRYPTED FORMULA
-
-\`\`\`
-CIPHER  AES-256-GCM · RSA-OAEP-2048
-BLAKE3  INTEGRITY BOUND
-
-${cRows.join('\n')}
 \`\`\`
 `;
 }

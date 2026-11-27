@@ -1,5 +1,6 @@
 // Hand-built result literals for the perfume-card parity pins (P0).
-// Shape follows what buildPerfumeCard / buildTesseractProfile read.
+// Shape follows what buildPerfumeCard / buildTesseractProfile /
+// generateManifestMarkdown read.
 const acc = (o) => ({
   dominant: { id: 'citrus' },
   animalicIntensity: 0.1,
@@ -19,9 +20,11 @@ const res = (accord, o) => ({
   accord,
   novelty: 0.2,
   chimeraName: 'TEST CHIMERA',
-  convergence: ['shared lattice'],
-  divergence: ['split phase'],
-  paradoxes: [],
+  // Real-shaped axes, as the collider emits them: { name, contrib, vA, vB, delta }
+  // and paradoxes { name, residual, original }.
+  convergence: [{ name: 'entropy', contrib: 0.812, vA: 0.7, vB: 0.65, delta: 0.05 }],
+  divergence: [{ name: 'synchrony', contrib: 0.06, vA: 0.1, vB: 0.6, delta: 0.5 }],
+  paradoxes: [{ name: 'thermodynamic', residual: 0.21, original: 0.44 }],
   viability: 6,
   ...o,
 });

@@ -34,64 +34,6 @@ export const PERF_NOTES = {
   },
 };
 
-// ── CAS registry — maps note names to CAS numbers for encrypted formula ──────
-export const CAS_REGISTRY = {
-  'Bergamot': '8007-75-8', 'Neroli': '8016-38-4', 'Lemon Verbena': '8024-12-2',
-  'Yuzu': '61788-56-5', 'Pink Grapefruit': '8016-20-4', 'Bitter Orange': '68916-04-1',
-  'Violet Leaf': '8024-08-6', 'Aldehydes': '112-31-2', 'Green Tea': '84650-60-2',
-  'Cucumber Accord': '80-71-7', 'Water Lotus': '8002-44-0', 'Ozone': '10028-15-6',
-  'Black Pepper': '8006-82-4', 'Cardamom': '8000-66-6', 'Ginger': '8007-08-7',
-  'Elemi': '9000-75-3', 'Coriander Seed': '8008-52-4', 'Nutmeg': '8008-45-5',
-  'Petitgrain': '8014-17-3', 'Neroli Bigarade': '72968-50-4', 'Peach Blossom': '104-67-6',
-  'Lychee Rose': '106-24-1', 'Osmanthus': '68917-05-5', 'Tiare': '8006-80-2',
-  'Juniper Berry': '8012-91-7', 'Pink Pepper': '68650-39-5', 'Carrot Seed': '8015-88-1',
-  'Basil Grand Vert': '8015-73-4', 'Artemisia': '8022-37-5', 'Cistus': '8016-26-0',
-  'Marine Accord': '67634-15-5', 'Sea Salt': '7647-14-5', 'Calone': '28940-11-6',
-  'Ozone Crystal': '10028-15-6', 'Arctic Moss': '90028-67-4', 'Dew Accord': '80-71-7',
-  'Aldehydic Musk': '81-14-1', 'Ambrette Seed': '8015-62-1', 'Orris Root': '8002-73-1',
-  'Castoreum Tincture': '8023-83-4', 'Hyraceum': '68916-97-2', 'Galbanum': '9000-72-0',
-  'Elemi Resin': '9000-75-3', 'Frankincense Essence': '8016-36-2',
-  'Labdanum Tincture': '8016-26-0', 'Opoponax': '9000-78-6', 'Benzoin': '9000-05-9',
-  'Jasmine Sambac': '8022-96-6', 'Orange Blossom Absolute': '8016-38-4',
-  'Magnolia': '8007-71-0', 'Mimosa': '8031-03-6', 'Cyclamen': '103-95-7', 'Heliotrope': '120-57-0',
-  'Iris': '8002-73-1', 'Violet Absolute': '8024-08-6', 'White Tea Accord': '84650-60-2',
-  'Peony': '8002-09-3', 'Lily of the Valley': '8000-48-4', 'Muguet': '80-54-6',
-  'Rose Absolute': '8007-01-0', 'Cinnamon Bark': '8015-91-6', 'Clove Bud': '8000-34-8',
-  'Saffron': '8024-02-0', 'Oud Rose': '8016-38-4', 'Pepper Heart': '8006-82-4',
-  'Rose de Mai': '8007-01-0', 'Jasmine Absolute': '8022-96-6',
-  'Ylang-Ylang Extra': '8006-81-3', 'Iris Pallida': '55066-56-3',
-  'Tuberose': '8024-05-3', 'Gardenia': '68917-05-5',
-  'Geranium Bourbon': '8000-46-2', 'Vetiver Haiti': '8016-96-4',
-  'Cedarwood Atlas': '8000-27-9', 'Sandalwood Mysore': '8006-87-9',
-  'Guaiac Wood': '8016-23-7', 'Birch': '8001-88-5',
-  'Water Iris': '8002-73-1', 'Sea Lily Accord': '8000-48-4',
-  'Blue Lotus': '8002-44-0', 'Aquatic Jasmine': '8022-96-6',
-  'Kelp Extract': '90028-67-4', 'Seaweed': '90028-67-4',
-  'Honey Absolute': '8028-66-8', 'Beeswax Absolute': '8012-89-3',
-  'Civet Accord': '68916-26-7', 'Costus Root': '8023-88-9',
-  'Ambrette Heart': '8015-62-1', 'Oakmoss': '9000-50-4',
-  'Labdanum Absolute': '8016-26-0', 'Olibanum': '8016-36-2',
-  'Myrrh Heart': '9000-45-7', 'Benzoin Absolute': '9000-05-9',
-  'Styrax Levant': '8024-01-9',
-  'Tonka Bean': '8046-22-8', 'White Musk': '81-14-1', 'Benzoin Siam': '9000-73-1',
-  'Amber Accord': '8007-35-0', 'Hedione HC': '24851-98-7', 'Cashmeran': '33704-61-9',
-  'White Cedar': '8000-27-9', 'White Musk Crystal': '81-14-1',
-  'Driftwood': '8000-27-9', 'Sandalwood': '8006-87-9', 'Ambroxide': '6790-58-5',
-  'Black Oud': '68951-36-0', 'Tobacco Absolute': '8037-19-2',
-  'Labdanum': '8016-26-0', 'Leather Accord': '8001-88-5', 'Dark Amber': '8007-35-0',
-  'Castoreum': '8023-83-4',
-  'Australian Sandalwood': '8006-87-9', 'Vanilla Absolute': '8024-06-4',
-  'Muskmallow': '8015-62-1', 'Tonka': '8046-22-8',
-  'Patchouli Heart': '8014-09-3', 'Oakmoss Absolute': '9000-50-4',
-  'Vetiver Bourbon': '8016-96-4', 'Birch Tar': '8001-88-5',
-  'Iso E Super': '54464-57-2', 'Cedarwood': '8000-27-9',
-  'Sea Amber': '8007-35-0', 'Salt Cedar': '8000-27-9',
-  'Ambergris Tincture': '8038-65-1', 'Musk Absolute': '81-14-1',
-  'Civet Absolute': '68916-26-7', 'Oud Kyara': '68951-36-0', 'Deer Musk': '541-91-3',
-  'Frankincense Hojari': '8016-36-2', 'Myrrh Resinoid': '9000-45-7',
-  'Opoponax Resin': '9000-78-6', 'Dark Patchouli': '8014-09-3',
-};
-
 // Deterministic note picker — stable per domain pair, no runtime randomness
 const _pickNote = (arr, hA, hB, seed) =>
   arr[Math.abs(Math.floor(hA * 7 + hB * 3 + seed)) % arr.length];
@@ -203,59 +145,14 @@ export async function generateAccordHash(card, accord, domA, domB) {
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-export function buildEncryptedFormula(card, accord) {
-  const allNotes = [...card.topNotes, ...card.heartNotes, ...card.baseNotes];
-  const sil = accord?.sillage ?? 0.5;
-  const fix = accord?.fixation ?? 0.5;
-  const evap = accord?.evapCurve || [0.33, 0.33, 0.34];
-
-  const casEntries = allNotes.map((note, i) => ({
-    note,
-    cas: CAS_REGISTRY[note] || '00000-00-0',
-    pct: +(((i < 2 ? evap[0] : i < 5 ? evap[1] : evap[2]) / (i < 2 ? 2 : 3)) * 100).toFixed(2),
-    mg:  +(((i < 2 ? evap[0] : i < 5 ? evap[1] : evap[2]) / (i < 2 ? 2 : 3)) * 450).toFixed(1),
-  }));
-
-  const specificGravity = +(0.82 + sil * 0.14).toFixed(4);
-  const flashPoint = +(48 + (1 - evap[0]) * 35).toFixed(1);
-  const macDays = Math.round(14 + fix * 56);
-
-  // Serialize as hex — simulated AES-256-GCM ciphertext
-  const raw = JSON.stringify({ cas: casEntries, sg: specificGravity, fp: flashPoint, mac: macDays });
-  const hexPayload = Array.from(new TextEncoder().encode(raw))
-    .map(b => b.toString(16).padStart(2, '0')).join('');
-
-  return {
-    ciphertext: hexPayload,
-    casEntries,
-    specificGravity,
-    flashPoint,
-    macDays,
-    dilutionRatio: +(sil * 0.28 + 0.02).toFixed(4),
-  };
-}
-
+// The vault payload (encrypted formula, CAS numbers, SG / flash point /
+// maceration) was invented, not measured, so it is gone until P2 builds a real
+// formula from cited data. What remains is honest: the SHA-256 of the accord,
+// the collision's axes and its viability.
 export async function buildTesseractProfile(card, accord, domA, domB, result) {
   const hash = await generateAccordHash(card, accord, domA, domB);
-  const encryptedFormula = buildEncryptedFormula(card, accord);
   return {
     hash,
-    publicProfile: {
-      hash,
-      name: card.name,
-      conc: card.conc,
-      concPct: card.concPct,
-      topNotes: card.topNotes,
-      heartNotes: card.heartNotes,
-      baseNotes: card.baseNotes,
-      dom: card.dom,
-      sec: card.sec,
-      nodeClass: card.nodeClass,
-      polLabel: card.polLabel,
-      longevity: card.longevity,
-      evap: card.evap,
-    },
-    encryptedFormula,
     dims: result ? {
       convergence: result.convergence || [],
       divergence:  result.divergence  || [],

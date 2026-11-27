@@ -5,9 +5,12 @@ import { FIXTURES } from './fixtures.js';
 
 const fx = (name) => FIXTURES.find(f => f.name === name);
 
-// The fixtures carry string convergence entries; the manifest reads
-// {name, contrib, vA, vB} objects, so enrich a copy of the result here.
-const richResult = (result) => ({
+// The fixtures carry real-shaped convergence / divergence / paradox axes, so
+// the manifest reads them as they are. Only the scalar collision metrics are
+// laid over here: they print in the COLLISION MANIFOLD block, and putting them
+// in the shared fixtures would move the card pins (novelty > 0.55 adds a heart
+// note; viability feeds buildTesseractProfile).
+const withMetrics = (result) => ({
   ...result,
   nodeIdA: 'A-12', nodeIdB: 'B-34',
   cosine: 0.4321, angle: 64.4, sphereSim: 0.5123,
@@ -15,9 +18,6 @@ const richResult = (result) => ({
   coherence: 0.7312, entropy: 1.234,
   postSaponificationSim: 0.4012,
   vClass: 'VIABLE', viability: 6.1234,
-  convergence: [{ name: 'entropy', contrib: 0.812, vA: 0.7, vB: 0.65 }],
-  divergence: [{ name: 'synchrony', delta: 0.5, vA: 0.1, vB: 0.6 }],
-  paradoxes: [{ name: 'thermodynamic', residual: 0.21, original: 0.44 }],
 });
 
 const narrative = {
@@ -33,7 +33,7 @@ const narrative = {
 
 async function build(name, result) {
   const { domA, domB, result: base } = fx(name);
-  const res = result === null ? null : richResult(base);
+  const res = result === null ? null : withMetrics(base);
   const card = buildPerfumeCard(domA, domB, base);
   const tesseract = await buildTesseractProfile(card, base.accord, domA, domB, base);
   return { card, tesseract, res };
@@ -46,11 +46,11 @@ describe('manifest parity (P0 pin)', () => {
   });
   afterEach(() => { vi.useRealTimers(); });
 
-  it('no living, full result + narrative', async () => {
+  it('full result + narrative', async () => {
     const { card, tesseract, res } = await build('interference-extrait');
     expect(generateManifestMarkdown(card, tesseract, res, narrative)).toMatchSnapshot();
   });
-  it('no living, null result + null narrative', async () => {
+  it('null result + null narrative', async () => {
     const { card, tesseract } = await build('plain-chimera-name', null);
     expect(generateManifestMarkdown(card, tesseract, null, null)).toMatchSnapshot();
   });
