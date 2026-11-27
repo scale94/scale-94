@@ -237,20 +237,45 @@ describe('Review Focus 4: invariants after modulation', () => {
   const rng = mulberry32(0xa37e1);
   const SALTS = Array.from({ length: 16 }, () =>
     Uint8Array.from({ length: 32 }, () => Math.floor(rng() * 256)));
+  // FX_ACCORD's top is pinned at its 25% ceiling, so −1 cannot move it there:
+  // the base→top direction is swept on IN_BAND_ACCORD, where it does move.
+  const ACCORDS = { FX_ACCORD, IN_BAND_ACCORD };
+  const SWEEPS = [['FX_ACCORD', 1], ['IN_BAND_ACCORD', -1], ['IN_BAND_ACCORD', 1]];
   const CASES = [];
-  for (const solTilt of [-1, 1]) {
+  for (const [accordName, solTilt] of SWEEPS) {
     for (const element of ELEMENTS) {
-      for (const batchName of BATCH_NAMES) CASES.push([solTilt, element, batchName]);
+      for (const batchName of BATCH_NAMES) CASES.push([accordName, solTilt, element, batchName]);
     }
   }
+  const SOL_SHIFT = /^\/SOL → top ([+−])(\d+\.\d) pt \/ base ([+−])(\d+\.\d) pt$/;
 
   it.each(CASES)(
-    'solTilt %s, %s/%s, chaosReach 0.30 × 16 salts: every Task 1 invariant holds',
-    (solTilt, element, batchName) => {
+    '%s, solTilt %s, %s/%s, chaosReach 0.30 × 16 salts: every Task 1 invariant holds',
+    (accordName, solTilt, element, batchName) => {
       const batch = BATCHES[batchName];
       for (const salt of SALTS) {
         // FormulaInfeasible is not swallowed here: any infeasible combo fails the test
-        const f = run({ element, batchName, salt, solTilt, chaosReach: 0.3 });
+        const f = run({
+          element, batchName, salt, solTilt, chaosReach: 0.3, baseAccord: ACCORDS[accordName],
+        });
+
+        // the tilt really moved, in the asked direction, so this case is not a solTilt-0 run
+        const m = SOL_SHIFT.exec(f.log[1]);
+        expect(m).not.toBeNull();
+        expect(Number(m[2])).toBeGreaterThan(0);
+        expect(m[2]).toBe(m[4]);
+        expect(m[1]).toBe(solTilt > 0 ? '−' : '+');
+        expect(m[3]).toBe(solTilt > 0 ? '+' : '−');
+
+        // the IFRA path is reached: some limited row sits within one weighing grain
+        // of its limit (a binding cap), or a step-down line was logged
+        const binds = f.ifra.some((e) => {
+          const row = f.rows.find((r) => r.materialId === e.materialId);
+          const grainPct = (0.01 * row.stock) / batch.grams * 100;
+          return e.limitPct - e.neatPct <= grainPct + 1e-9;
+        }) || f.log.some((l) => l.startsWith('IFRA '));
+        expect(binds).toBe(true);
+
         expect(Math.abs(f.actualPct - TARGET_PCT[element])).toBeLessThanOrEqual(0.5);
         const neat = f.rows.reduce((s, r) => s + r.grams * r.stock, 0);
         expect(f.actualPct).toBeCloseTo(neat / batch.grams * 100, 8);
