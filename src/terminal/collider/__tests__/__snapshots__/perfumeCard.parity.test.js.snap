@@ -1,0 +1,1313 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`perfume card parity (P0 pin) > 'animalic-base-toilette': buildPerfumeCard 1`] = `
+{
+  "baseNotes": [
+    "Musk Absolute",
+    "Castoreum",
+  ],
+  "conc": "EAU DE TOILETTE",
+  "concPct": "8–14%",
+  "dom": "spicy",
+  "evap": [
+    0.2,
+    0.3,
+    0.5,
+  ],
+  "heartNotes": [
+    "Saffron",
+    "Oakmoss",
+  ],
+  "hueA": 340,
+  "hueB": 310,
+  "id": "7-11-650",
+  "interference": {
+    "label": "SUBTERRANEAN",
+    "notesBias": [
+      "petrichor",
+      "geosmin",
+      "wet stone",
+      "musk seed",
+    ],
+    "prefix": "Subterranean",
+  },
+  "longevity": "3–6 hours",
+  "name": "SUBTERRANEAN SAFFRON CHIMERA",
+  "nodeClass": "ANX",
+  "polLabel": "ANIMALIC",
+  "sec": "animalic",
+  "topNotes": [
+    "Coriander Seed",
+    "Galbanum",
+  ],
+}
+`;
+
+exports[`perfume card parity (P0 pin) > 'animalic-base-toilette': buildTesseractProfile 1`] = `
+{
+  "dims": {
+    "convergence": [
+      "shared lattice",
+    ],
+    "divergence": [
+      "split phase",
+    ],
+    "paradoxes": [],
+  },
+  "encryptedFormula": {
+    "casEntries": [
+      {
+        "cas": "8008-52-4",
+        "mg": 45,
+        "note": "Coriander Seed",
+        "pct": 10,
+      },
+      {
+        "cas": "9000-72-0",
+        "mg": 45,
+        "note": "Galbanum",
+        "pct": 10,
+      },
+      {
+        "cas": "8024-02-0",
+        "mg": 45,
+        "note": "Saffron",
+        "pct": 10,
+      },
+      {
+        "cas": "9000-50-4",
+        "mg": 45,
+        "note": "Oakmoss",
+        "pct": 10,
+      },
+      {
+        "cas": "81-14-1",
+        "mg": 45,
+        "note": "Musk Absolute",
+        "pct": 10,
+      },
+      {
+        "cas": "8023-83-4",
+        "mg": 75,
+        "note": "Castoreum",
+        "pct": 16.67,
+      },
+    ],
+    "ciphertext": "7b22636173223a5b7b226e6f7465223a22436f7269616e6465722053656564222c22636173223a22383030382d35322d34222c22706374223a31302c226d67223a34357d2c7b226e6f7465223a2247616c62616e756d222c22636173223a22393030302d37322d30222c22706374223a31302c226d67223a34357d2c7b226e6f7465223a2253616666726f6e222c22636173223a22383032342d30322d30222c22706374223a31302c226d67223a34357d2c7b226e6f7465223a224f616b6d6f7373222c22636173223a22393030302d35302d34222c22706374223a31302c226d67223a34357d2c7b226e6f7465223a224d75736b204162736f6c757465222c22636173223a2238312d31342d31222c22706374223a31302c226d67223a34357d2c7b226e6f7465223a22436173746f7265756d222c22636173223a22383032332d38332d34222c22706374223a31362e36372c226d67223a37357d5d2c227367223a302e3837362c226670223a37362c226d6163223a34327d",
+    "dilutionRatio": 0.132,
+    "flashPoint": 76,
+    "macDays": 42,
+    "specificGravity": 0.876,
+  },
+  "hash": "33c01895a5b80bb70818e19c8e30b8dd7405554b85e1425553b19b800e4d7d77",
+  "publicProfile": {
+    "baseNotes": [
+      "Musk Absolute",
+      "Castoreum",
+    ],
+    "conc": "EAU DE TOILETTE",
+    "concPct": "8–14%",
+    "dom": "spicy",
+    "evap": [
+      0.2,
+      0.3,
+      0.5,
+    ],
+    "hash": "33c01895a5b80bb70818e19c8e30b8dd7405554b85e1425553b19b800e4d7d77",
+    "heartNotes": [
+      "Saffron",
+      "Oakmoss",
+    ],
+    "longevity": "3–6 hours",
+    "name": "SUBTERRANEAN SAFFRON CHIMERA",
+    "nodeClass": "ANX",
+    "polLabel": "ANIMALIC",
+    "sec": "animalic",
+    "topNotes": [
+      "Coriander Seed",
+      "Galbanum",
+    ],
+  },
+  "viability": 6,
+}
+`;
+
+exports[`perfume card parity (P0 pin) > 'animalic-base-toilette': generateAccordHash 1`] = `"33c01895a5b80bb70818e19c8e30b8dd7405554b85e1425553b19b800e4d7d77"`;
+
+exports[`perfume card parity (P0 pin) > 'interference-extrait': buildPerfumeCard 1`] = `
+{
+  "baseNotes": [
+    "White Musk",
+    "Birch Tar",
+  ],
+  "conc": "EXTRAIT DE PARFUM",
+  "concPct": "22–30%",
+  "dom": "citrus",
+  "evap": [
+    0.3,
+    0.4,
+    0.3,
+  ],
+  "heartNotes": [
+    "Mimosa",
+    "Birch",
+  ],
+  "hueA": 280,
+  "hueB": 260,
+  "id": "0-10-540",
+  "interference": {
+    "label": "SMOKED",
+    "notesBias": [
+      "lapsang",
+      "cade",
+      "birch tar",
+      "smoked vetiver",
+    ],
+    "prefix": "Smoked",
+  },
+  "longevity": "14–20 hours",
+  "name": "SMOKED MIMOSA CHIMERA",
+  "nodeClass": "RTA",
+  "polLabel": "BALANCED",
+  "sec": "woody",
+  "topNotes": [
+    "Pink Grapefruit",
+    "Cistus",
+  ],
+}
+`;
+
+exports[`perfume card parity (P0 pin) > 'interference-extrait': buildTesseractProfile 1`] = `
+{
+  "dims": {
+    "convergence": [
+      "shared lattice",
+    ],
+    "divergence": [
+      "split phase",
+    ],
+    "paradoxes": [],
+  },
+  "encryptedFormula": {
+    "casEntries": [
+      {
+        "cas": "8016-20-4",
+        "mg": 67.5,
+        "note": "Pink Grapefruit",
+        "pct": 15,
+      },
+      {
+        "cas": "8016-26-0",
+        "mg": 67.5,
+        "note": "Cistus",
+        "pct": 15,
+      },
+      {
+        "cas": "8031-03-6",
+        "mg": 60,
+        "note": "Mimosa",
+        "pct": 13.33,
+      },
+      {
+        "cas": "8001-88-5",
+        "mg": 60,
+        "note": "Birch",
+        "pct": 13.33,
+      },
+      {
+        "cas": "81-14-1",
+        "mg": 60,
+        "note": "White Musk",
+        "pct": 13.33,
+      },
+      {
+        "cas": "8001-88-5",
+        "mg": 45,
+        "note": "Birch Tar",
+        "pct": 10,
+      },
+    ],
+    "ciphertext": "7b22636173223a5b7b226e6f7465223a2250696e6b2047726170656672756974222c22636173223a22383031362d32302d34222c22706374223a31352c226d67223a36372e357d2c7b226e6f7465223a22436973747573222c22636173223a22383031362d32362d30222c22706374223a31352c226d67223a36372e357d2c7b226e6f7465223a224d696d6f7361222c22636173223a22383033312d30332d36222c22706374223a31332e33332c226d67223a36307d2c7b226e6f7465223a224269726368222c22636173223a22383030312d38382d35222c22706374223a31332e33332c226d67223a36307d2c7b226e6f7465223a225768697465204d75736b222c22636173223a2238312d31342d31222c22706374223a31332e33332c226d67223a36307d2c7b226e6f7465223a22426972636820546172222c22636173223a22383030312d38382d35222c22706374223a31302c226d67223a34357d5d2c227367223a302e3933322c226670223a37322e352c226d6163223a35397d",
+    "dilutionRatio": 0.244,
+    "flashPoint": 72.5,
+    "macDays": 59,
+    "specificGravity": 0.932,
+  },
+  "hash": "2e7f04fe125273b2f652beb6db362613c13b2386f36dcee94c55ac748e1b4957",
+  "publicProfile": {
+    "baseNotes": [
+      "White Musk",
+      "Birch Tar",
+    ],
+    "conc": "EXTRAIT DE PARFUM",
+    "concPct": "22–30%",
+    "dom": "citrus",
+    "evap": [
+      0.3,
+      0.4,
+      0.3,
+    ],
+    "hash": "2e7f04fe125273b2f652beb6db362613c13b2386f36dcee94c55ac748e1b4957",
+    "heartNotes": [
+      "Mimosa",
+      "Birch",
+    ],
+    "longevity": "14–20 hours",
+    "name": "SMOKED MIMOSA CHIMERA",
+    "nodeClass": "RTA",
+    "polLabel": "BALANCED",
+    "sec": "woody",
+    "topNotes": [
+      "Pink Grapefruit",
+      "Cistus",
+    ],
+  },
+  "viability": 6,
+}
+`;
+
+exports[`perfume card parity (P0 pin) > 'interference-extrait': generateAccordHash 1`] = `"2e7f04fe125273b2f652beb6db362613c13b2386f36dcee94c55ac748e1b4957"`;
+
+exports[`perfume card parity (P0 pin) > 'missing-accord-defaults': buildPerfumeCard 1`] = `
+{
+  "baseNotes": [
+    "Vanilla Absolute",
+    "Castoreum",
+  ],
+  "conc": "EAU DE TOILETTE",
+  "concPct": "8–14%",
+  "dom": "floral",
+  "evap": [
+    0.33,
+    0.33,
+    0.34,
+  ],
+  "heartNotes": [
+    "Gardenia",
+    "Cinnamon Bark",
+  ],
+  "hueA": 30,
+  "hueB": 0,
+  "id": "2-3-30",
+  "interference": null,
+  "longevity": "3–6 hours",
+  "name": "BOULG × FEIGEN",
+  "nodeClass": "RTA",
+  "polLabel": "",
+  "sec": "spicy",
+  "topNotes": [
+    "Petitgrain",
+    "Cardamom",
+  ],
+}
+`;
+
+exports[`perfume card parity (P0 pin) > 'missing-accord-defaults': buildTesseractProfile 1`] = `
+{
+  "dims": {
+    "convergence": [],
+    "divergence": [],
+    "paradoxes": [],
+  },
+  "encryptedFormula": {
+    "casEntries": [
+      {
+        "cas": "8014-17-3",
+        "mg": 74.3,
+        "note": "Petitgrain",
+        "pct": 16.5,
+      },
+      {
+        "cas": "8000-66-6",
+        "mg": 74.3,
+        "note": "Cardamom",
+        "pct": 16.5,
+      },
+      {
+        "cas": "68917-05-5",
+        "mg": 49.5,
+        "note": "Gardenia",
+        "pct": 11,
+      },
+      {
+        "cas": "8015-91-6",
+        "mg": 49.5,
+        "note": "Cinnamon Bark",
+        "pct": 11,
+      },
+      {
+        "cas": "8024-06-4",
+        "mg": 49.5,
+        "note": "Vanilla Absolute",
+        "pct": 11,
+      },
+      {
+        "cas": "8023-83-4",
+        "mg": 51,
+        "note": "Castoreum",
+        "pct": 11.33,
+      },
+    ],
+    "ciphertext": "7b22636173223a5b7b226e6f7465223a225065746974677261696e222c22636173223a22383031342d31372d33222c22706374223a31362e352c226d67223a37342e337d2c7b226e6f7465223a2243617264616d6f6d222c22636173223a22383030302d36362d36222c22706374223a31362e352c226d67223a37342e337d2c7b226e6f7465223a2247617264656e6961222c22636173223a2236383931372d30352d35222c22706374223a31312c226d67223a34392e357d2c7b226e6f7465223a2243696e6e616d6f6e204261726b222c22636173223a22383031352d39312d36222c22706374223a31312c226d67223a34392e357d2c7b226e6f7465223a2256616e696c6c61204162736f6c757465222c22636173223a22383032342d30362d34222c22706374223a31312c226d67223a34392e357d2c7b226e6f7465223a22436173746f7265756d222c22636173223a22383032332d38332d34222c22706374223a31312e33332c226d67223a35317d5d2c227367223a302e38392c226670223a37312e342c226d6163223a34327d",
+    "dilutionRatio": 0.16,
+    "flashPoint": 71.4,
+    "macDays": 42,
+    "specificGravity": 0.89,
+  },
+  "hash": "dd7c336a69bc498f5c874f9d02ca29b51d7e09eed8ff313cd9e18dd338314da3",
+  "publicProfile": {
+    "baseNotes": [
+      "Vanilla Absolute",
+      "Castoreum",
+    ],
+    "conc": "EAU DE TOILETTE",
+    "concPct": "8–14%",
+    "dom": "floral",
+    "evap": [
+      0.33,
+      0.33,
+      0.34,
+    ],
+    "hash": "dd7c336a69bc498f5c874f9d02ca29b51d7e09eed8ff313cd9e18dd338314da3",
+    "heartNotes": [
+      "Gardenia",
+      "Cinnamon Bark",
+    ],
+    "longevity": "3–6 hours",
+    "name": "BOULG × FEIGEN",
+    "nodeClass": "RTA",
+    "polLabel": "",
+    "sec": "spicy",
+    "topNotes": [
+      "Petitgrain",
+      "Cardamom",
+    ],
+  },
+  "viability": 5,
+}
+`;
+
+exports[`perfume card parity (P0 pin) > 'missing-accord-defaults': generateAccordHash 1`] = `"dd7c336a69bc498f5c874f9d02ca29b51d7e09eed8ff313cd9e18dd338314da3"`;
+
+exports[`perfume card parity (P0 pin) > 'novelty-third-heart-parfum': buildPerfumeCard 1`] = `
+{
+  "baseNotes": [
+    "Vanilla Absolute",
+    "Salt Cedar",
+  ],
+  "conc": "EAU DE PARFUM",
+  "concPct": "15–20%",
+  "dom": "floral",
+  "evap": [
+    0.3,
+    0.4,
+    0.3,
+  ],
+  "heartNotes": [
+    "Gardenia",
+    "Sea Lily Accord",
+    "Cinnamon Bark",
+  ],
+  "hueA": 120,
+  "hueB": 140,
+  "id": "4-14-260",
+  "interference": null,
+  "longevity": "10–14 hours",
+  "name": "TEST CHIMERA",
+  "nodeClass": "RTA",
+  "polLabel": "BALANCED",
+  "sec": "oceanic",
+  "topNotes": [
+    "Petitgrain",
+    "Sea Salt",
+  ],
+}
+`;
+
+exports[`perfume card parity (P0 pin) > 'novelty-third-heart-parfum': buildTesseractProfile 1`] = `
+{
+  "dims": {
+    "convergence": [
+      "shared lattice",
+    ],
+    "divergence": [
+      "split phase",
+    ],
+    "paradoxes": [],
+  },
+  "encryptedFormula": {
+    "casEntries": [
+      {
+        "cas": "8014-17-3",
+        "mg": 67.5,
+        "note": "Petitgrain",
+        "pct": 15,
+      },
+      {
+        "cas": "7647-14-5",
+        "mg": 67.5,
+        "note": "Sea Salt",
+        "pct": 15,
+      },
+      {
+        "cas": "68917-05-5",
+        "mg": 60,
+        "note": "Gardenia",
+        "pct": 13.33,
+      },
+      {
+        "cas": "8000-48-4",
+        "mg": 60,
+        "note": "Sea Lily Accord",
+        "pct": 13.33,
+      },
+      {
+        "cas": "8015-91-6",
+        "mg": 60,
+        "note": "Cinnamon Bark",
+        "pct": 13.33,
+      },
+      {
+        "cas": "8024-06-4",
+        "mg": 45,
+        "note": "Vanilla Absolute",
+        "pct": 10,
+      },
+      {
+        "cas": "8000-27-9",
+        "mg": 45,
+        "note": "Salt Cedar",
+        "pct": 10,
+      },
+    ],
+    "ciphertext": "7b22636173223a5b7b226e6f7465223a225065746974677261696e222c22636173223a22383031342d31372d33222c22706374223a31352c226d67223a36372e357d2c7b226e6f7465223a225365612053616c74222c22636173223a22373634372d31342d35222c22706374223a31352c226d67223a36372e357d2c7b226e6f7465223a2247617264656e6961222c22636173223a2236383931372d30352d35222c22706374223a31332e33332c226d67223a36307d2c7b226e6f7465223a22536561204c696c79204163636f7264222c22636173223a22383030302d34382d34222c22706374223a31332e33332c226d67223a36307d2c7b226e6f7465223a2243696e6e616d6f6e204261726b222c22636173223a22383031352d39312d36222c22706374223a31332e33332c226d67223a36307d2c7b226e6f7465223a2256616e696c6c61204162736f6c757465222c22636173223a22383032342d30362d34222c22706374223a31302c226d67223a34357d2c7b226e6f7465223a2253616c74204365646172222c22636173223a22383030302d32372d39222c22706374223a31302c226d67223a34357d5d2c227367223a302e3930342c226670223a37322e352c226d6163223a34387d",
+    "dilutionRatio": 0.188,
+    "flashPoint": 72.5,
+    "macDays": 48,
+    "specificGravity": 0.904,
+  },
+  "hash": "4ad21422f3ccff6d4b7cd68b3397ec1624218597da527d2394cb35ba505482c2",
+  "publicProfile": {
+    "baseNotes": [
+      "Vanilla Absolute",
+      "Salt Cedar",
+    ],
+    "conc": "EAU DE PARFUM",
+    "concPct": "15–20%",
+    "dom": "floral",
+    "evap": [
+      0.3,
+      0.4,
+      0.3,
+    ],
+    "hash": "4ad21422f3ccff6d4b7cd68b3397ec1624218597da527d2394cb35ba505482c2",
+    "heartNotes": [
+      "Gardenia",
+      "Sea Lily Accord",
+      "Cinnamon Bark",
+    ],
+    "longevity": "10–14 hours",
+    "name": "TEST CHIMERA",
+    "nodeClass": "RTA",
+    "polLabel": "BALANCED",
+    "sec": "oceanic",
+    "topNotes": [
+      "Petitgrain",
+      "Sea Salt",
+    ],
+  },
+  "viability": 6,
+}
+`;
+
+exports[`perfume card parity (P0 pin) > 'novelty-third-heart-parfum': generateAccordHash 1`] = `"4ad21422f3ccff6d4b7cd68b3397ec1624218597da527d2394cb35ba505482c2"`;
+
+exports[`perfume card parity (P0 pin) > 'plain-chimera-name': buildPerfumeCard 1`] = `
+{
+  "baseNotes": [
+    "Myrrh Resinoid",
+    "Driftwood",
+  ],
+  "conc": "EAU DE TOILETTE",
+  "concPct": "8–14%",
+  "dom": "resinous",
+  "evap": [
+    0.3,
+    0.4,
+    0.3,
+  ],
+  "heartNotes": [
+    "Benzoin Absolute",
+    "Muguet",
+  ],
+  "hueA": 190,
+  "hueB": 200,
+  "id": "1-13-390",
+  "interference": null,
+  "longevity": "10–14 hours",
+  "name": "ABYSS ECHO",
+  "nodeClass": "RTA",
+  "polLabel": "BALANCED",
+  "sec": "fresh",
+  "topNotes": [
+    "Opoponax",
+    "Ozone",
+  ],
+}
+`;
+
+exports[`perfume card parity (P0 pin) > 'plain-chimera-name': buildTesseractProfile 1`] = `
+{
+  "dims": {
+    "convergence": [],
+    "divergence": [],
+    "paradoxes": [],
+  },
+  "encryptedFormula": {
+    "casEntries": [
+      {
+        "cas": "9000-78-6",
+        "mg": 67.5,
+        "note": "Opoponax",
+        "pct": 15,
+      },
+      {
+        "cas": "10028-15-6",
+        "mg": 67.5,
+        "note": "Ozone",
+        "pct": 15,
+      },
+      {
+        "cas": "9000-05-9",
+        "mg": 60,
+        "note": "Benzoin Absolute",
+        "pct": 13.33,
+      },
+      {
+        "cas": "80-54-6",
+        "mg": 60,
+        "note": "Muguet",
+        "pct": 13.33,
+      },
+      {
+        "cas": "9000-45-7",
+        "mg": 60,
+        "note": "Myrrh Resinoid",
+        "pct": 13.33,
+      },
+      {
+        "cas": "8000-27-9",
+        "mg": 45,
+        "note": "Driftwood",
+        "pct": 10,
+      },
+    ],
+    "ciphertext": "7b22636173223a5b7b226e6f7465223a224f706f706f6e6178222c22636173223a22393030302d37382d36222c22706374223a31352c226d67223a36372e357d2c7b226e6f7465223a224f7a6f6e65222c22636173223a2231303032382d31352d36222c22706374223a31352c226d67223a36372e357d2c7b226e6f7465223a2242656e7a6f696e204162736f6c757465222c22636173223a22393030302d30352d39222c22706374223a31332e33332c226d67223a36307d2c7b226e6f7465223a224d7567756574222c22636173223a2238302d35342d36222c22706374223a31332e33332c226d67223a36307d2c7b226e6f7465223a224d7972726820526573696e6f6964222c22636173223a22393030302d34352d37222c22706374223a31332e33332c226d67223a36307d2c7b226e6f7465223a224472696674776f6f64222c22636173223a22383030302d32372d39222c22706374223a31302c226d67223a34357d5d2c227367223a302e3836322c226670223a37322e352c226d6163223a34387d",
+    "dilutionRatio": 0.104,
+    "flashPoint": 72.5,
+    "macDays": 48,
+    "specificGravity": 0.862,
+  },
+  "hash": "28fb45cc965d52b967192e8acc7f0c945d4ca256e8aa9b500b4bd5ced065a01a",
+  "publicProfile": {
+    "baseNotes": [
+      "Myrrh Resinoid",
+      "Driftwood",
+    ],
+    "conc": "EAU DE TOILETTE",
+    "concPct": "8–14%",
+    "dom": "resinous",
+    "evap": [
+      0.3,
+      0.4,
+      0.3,
+    ],
+    "hash": "28fb45cc965d52b967192e8acc7f0c945d4ca256e8aa9b500b4bd5ced065a01a",
+    "heartNotes": [
+      "Benzoin Absolute",
+      "Muguet",
+    ],
+    "longevity": "10–14 hours",
+    "name": "ABYSS ECHO",
+    "nodeClass": "RTA",
+    "polLabel": "BALANCED",
+    "sec": "fresh",
+    "topNotes": [
+      "Opoponax",
+      "Ozone",
+    ],
+  },
+  "viability": 6,
+}
+`;
+
+exports[`perfume card parity (P0 pin) > 'plain-chimera-name': generateAccordHash 1`] = `"28fb45cc965d52b967192e8acc7f0c945d4ca256e8aa9b500b4bd5ced065a01a"`;
+
+exports[`perfume card parity (P0 pin) > 'planet-domains': buildPerfumeCard 1`] = `
+{
+  "baseNotes": [
+    "Castoreum",
+    "Tonka",
+  ],
+  "conc": "EAU DE PARFUM",
+  "concPct": "15–20%",
+  "dom": "animalic",
+  "evap": [
+    0.3,
+    0.4,
+    0.3,
+  ],
+  "heartNotes": [
+    "Oakmoss",
+    "Jasmine Absolute",
+  ],
+  "hueA": 210,
+  "hueB": 270,
+  "id": "71-80-480",
+  "interference": null,
+  "longevity": "14–20 hours",
+  "name": "MERCURY × PLUTO",
+  "nodeClass": "RTA",
+  "polLabel": "BALANCED",
+  "sec": "floral",
+  "topNotes": [
+    "Aldehydic Musk",
+    "Neroli Bigarade",
+  ],
+}
+`;
+
+exports[`perfume card parity (P0 pin) > 'planet-domains': buildTesseractProfile 1`] = `
+{
+  "dims": {
+    "convergence": [
+      "shared lattice",
+    ],
+    "divergence": [
+      "split phase",
+    ],
+    "paradoxes": [],
+  },
+  "encryptedFormula": {
+    "casEntries": [
+      {
+        "cas": "81-14-1",
+        "mg": 67.5,
+        "note": "Aldehydic Musk",
+        "pct": 15,
+      },
+      {
+        "cas": "72968-50-4",
+        "mg": 67.5,
+        "note": "Neroli Bigarade",
+        "pct": 15,
+      },
+      {
+        "cas": "9000-50-4",
+        "mg": 60,
+        "note": "Oakmoss",
+        "pct": 13.33,
+      },
+      {
+        "cas": "8022-96-6",
+        "mg": 60,
+        "note": "Jasmine Absolute",
+        "pct": 13.33,
+      },
+      {
+        "cas": "8023-83-4",
+        "mg": 60,
+        "note": "Castoreum",
+        "pct": 13.33,
+      },
+      {
+        "cas": "8046-22-8",
+        "mg": 45,
+        "note": "Tonka",
+        "pct": 10,
+      },
+    ],
+    "ciphertext": "7b22636173223a5b7b226e6f7465223a22416c64656879646963204d75736b222c22636173223a2238312d31342d31222c22706374223a31352c226d67223a36372e357d2c7b226e6f7465223a224e65726f6c69204269676172616465222c22636173223a2237323936382d35302d34222c22706374223a31352c226d67223a36372e357d2c7b226e6f7465223a224f616b6d6f7373222c22636173223a22393030302d35302d34222c22706374223a31332e33332c226d67223a36307d2c7b226e6f7465223a224a61736d696e65204162736f6c757465222c22636173223a22383032322d39362d36222c22706374223a31332e33332c226d67223a36307d2c7b226e6f7465223a22436173746f7265756d222c22636173223a22383032332d38332d34222c22706374223a31332e33332c226d67223a36307d2c7b226e6f7465223a22546f6e6b61222c22636173223a22383034362d32322d38222c22706374223a31302c226d67223a34357d5d2c227367223a302e3839372c226670223a37322e352c226d6163223a36347d",
+    "dilutionRatio": 0.174,
+    "flashPoint": 72.5,
+    "macDays": 64,
+    "specificGravity": 0.897,
+  },
+  "hash": "92959d9dc4f0088f546c3709bfea0d652fffd9241b15e462a6c5c18cbd574b16",
+  "publicProfile": {
+    "baseNotes": [
+      "Castoreum",
+      "Tonka",
+    ],
+    "conc": "EAU DE PARFUM",
+    "concPct": "15–20%",
+    "dom": "animalic",
+    "evap": [
+      0.3,
+      0.4,
+      0.3,
+    ],
+    "hash": "92959d9dc4f0088f546c3709bfea0d652fffd9241b15e462a6c5c18cbd574b16",
+    "heartNotes": [
+      "Oakmoss",
+      "Jasmine Absolute",
+    ],
+    "longevity": "14–20 hours",
+    "name": "MERCURY × PLUTO",
+    "nodeClass": "RTA",
+    "polLabel": "BALANCED",
+    "sec": "floral",
+    "topNotes": [
+      "Aldehydic Musk",
+      "Neroli Bigarade",
+    ],
+  },
+  "viability": 6,
+}
+`;
+
+exports[`perfume card parity (P0 pin) > 'planet-domains': generateAccordHash 1`] = `"92959d9dc4f0088f546c3709bfea0d652fffd9241b15e462a6c5c18cbd574b16"`;
+
+exports[`perfume card parity (P0 pin) > 'woody-base-cologne': buildPerfumeCard 1`] = `
+{
+  "baseNotes": [
+    "Oakmoss Absolute",
+    "Vanilla Absolute",
+  ],
+  "conc": "EAU DE COLOGNE",
+  "concPct": "2–6%",
+  "dom": "fresh",
+  "evap": [
+    0.5,
+    0.3,
+    0.2,
+  ],
+  "heartNotes": [
+    "Peony",
+    "Gardenia",
+  ],
+  "hueA": 220,
+  "hueB": 230,
+  "id": "5-20-450",
+  "interference": {
+    "label": "ROMANTIC",
+    "notesBias": [
+      "galbanum",
+      "mimosa",
+      "oakmoss",
+      "rose centifolia",
+    ],
+    "prefix": "Romantic",
+  },
+  "longevity": "3–6 hours",
+  "name": "ROMANTIC PEONY CHIMERA",
+  "nodeClass": "RTA",
+  "polLabel": "POLAR",
+  "sec": "floral",
+  "topNotes": [
+    "Water Lotus",
+    "Tiare",
+  ],
+}
+`;
+
+exports[`perfume card parity (P0 pin) > 'woody-base-cologne': buildTesseractProfile 1`] = `
+{
+  "dims": {
+    "convergence": [
+      "shared lattice",
+    ],
+    "divergence": [
+      "split phase",
+    ],
+    "paradoxes": [],
+  },
+  "encryptedFormula": {
+    "casEntries": [
+      {
+        "cas": "8002-44-0",
+        "mg": 112.5,
+        "note": "Water Lotus",
+        "pct": 25,
+      },
+      {
+        "cas": "8006-80-2",
+        "mg": 112.5,
+        "note": "Tiare",
+        "pct": 25,
+      },
+      {
+        "cas": "8002-09-3",
+        "mg": 45,
+        "note": "Peony",
+        "pct": 10,
+      },
+      {
+        "cas": "68917-05-5",
+        "mg": 45,
+        "note": "Gardenia",
+        "pct": 10,
+      },
+      {
+        "cas": "9000-50-4",
+        "mg": 45,
+        "note": "Oakmoss Absolute",
+        "pct": 10,
+      },
+      {
+        "cas": "8024-06-4",
+        "mg": 30,
+        "note": "Vanilla Absolute",
+        "pct": 6.67,
+      },
+    ],
+    "ciphertext": "7b22636173223a5b7b226e6f7465223a225761746572204c6f747573222c22636173223a22383030322d34342d30222c22706374223a32352c226d67223a3131322e357d2c7b226e6f7465223a225469617265222c22636173223a22383030362d38302d32222c22706374223a32352c226d67223a3131322e357d2c7b226e6f7465223a2250656f6e79222c22636173223a22383030322d30392d33222c22706374223a31302c226d67223a34357d2c7b226e6f7465223a2247617264656e6961222c22636173223a2236383931372d30352d35222c22706374223a31302c226d67223a34357d2c7b226e6f7465223a224f616b6d6f7373204162736f6c757465222c22636173223a22393030302d35302d34222c22706374223a31302c226d67223a34357d2c7b226e6f7465223a2256616e696c6c61204162736f6c757465222c22636173223a22383032342d30362d34222c22706374223a362e36372c226d67223a33307d5d2c227367223a302e3833342c226670223a36352e352c226d6163223a33317d",
+    "dilutionRatio": 0.048,
+    "flashPoint": 65.5,
+    "macDays": 31,
+    "specificGravity": 0.834,
+  },
+  "hash": "7a11ad6e700b89899034ab9c4e6727c8e0a6ea2e5a734ca766d934c5c394dabc",
+  "publicProfile": {
+    "baseNotes": [
+      "Oakmoss Absolute",
+      "Vanilla Absolute",
+    ],
+    "conc": "EAU DE COLOGNE",
+    "concPct": "2–6%",
+    "dom": "fresh",
+    "evap": [
+      0.5,
+      0.3,
+      0.2,
+    ],
+    "hash": "7a11ad6e700b89899034ab9c4e6727c8e0a6ea2e5a734ca766d934c5c394dabc",
+    "heartNotes": [
+      "Peony",
+      "Gardenia",
+    ],
+    "longevity": "3–6 hours",
+    "name": "ROMANTIC PEONY CHIMERA",
+    "nodeClass": "RTA",
+    "polLabel": "POLAR",
+    "sec": "floral",
+    "topNotes": [
+      "Water Lotus",
+      "Tiare",
+    ],
+  },
+  "viability": 6,
+}
+`;
+
+exports[`perfume card parity (P0 pin) > 'woody-base-cologne': generateAccordHash 1`] = `"7a11ad6e700b89899034ab9c4e6727c8e0a6ea2e5a734ca766d934c5c394dabc"`;
+
+exports[`perfume card parity (P0 pin) > domain table shape 1`] = `
+[
+  [
+    0,
+    "PQC",
+    280,
+  ],
+  [
+    1,
+    "BENTH",
+    190,
+  ],
+  [
+    2,
+    "BOULG",
+    30,
+  ],
+  [
+    3,
+    "FEIGEN",
+    0,
+  ],
+  [
+    4,
+    "MYCEL",
+    120,
+  ],
+  [
+    5,
+    "ATTN",
+    220,
+  ],
+  [
+    6,
+    "THERMO",
+    45,
+  ],
+  [
+    7,
+    "PANOPT",
+    340,
+  ],
+  [
+    8,
+    "GRAPHN",
+    170,
+  ],
+  [
+    9,
+    "OSTROM",
+    90,
+  ],
+  [
+    10,
+    "KURAM",
+    260,
+  ],
+  [
+    11,
+    "BAUDRL",
+    310,
+  ],
+  [
+    12,
+    "PLASMA",
+    15,
+  ],
+  [
+    13,
+    "SEMIO",
+    200,
+  ],
+  [
+    14,
+    "EVOL",
+    140,
+  ],
+  [
+    15,
+    "RIFT",
+    80,
+  ],
+  [
+    16,
+    "Rn",
+    55,
+  ],
+  [
+    17,
+    "Li",
+    150,
+  ],
+  [
+    18,
+    "Si",
+    210,
+  ],
+  [
+    19,
+    "C",
+    0,
+  ],
+  [
+    20,
+    "Co",
+    230,
+  ],
+  [
+    21,
+    "P",
+    100,
+  ],
+  [
+    22,
+    "U",
+    50,
+  ],
+  [
+    23,
+    "GaAs",
+    185,
+  ],
+  [
+    24,
+    "Nd",
+    295,
+  ],
+  [
+    25,
+    "He³",
+    60,
+  ],
+  [
+    26,
+    "Hg",
+    330,
+  ],
+  [
+    27,
+    "Pu",
+    15,
+  ],
+  [
+    28,
+    "Cu",
+    25,
+  ],
+  [
+    29,
+    "N",
+    110,
+  ],
+  [
+    30,
+    "W",
+    240,
+  ],
+  [
+    31,
+    "I",
+    270,
+  ],
+  [
+    32,
+    "KANT",
+    275,
+  ],
+  [
+    33,
+    "HEGEL",
+    285,
+  ],
+  [
+    34,
+    "QUALIA",
+    300,
+  ],
+  [
+    35,
+    "RHZM",
+    265,
+  ],
+  [
+    36,
+    "TOPOS",
+    180,
+  ],
+  [
+    37,
+    "GÖDEL",
+    195,
+  ],
+  [
+    38,
+    "BAYES",
+    175,
+  ],
+  [
+    39,
+    "LORENZ",
+    5,
+  ],
+  [
+    40,
+    "CHIRAL",
+    35,
+  ],
+  [
+    41,
+    "TERPN",
+    125,
+  ],
+  [
+    42,
+    "OR",
+    160,
+  ],
+  [
+    43,
+    "CRISPR",
+    145,
+  ],
+  [
+    44,
+    "MORPH",
+    115,
+  ],
+  [
+    45,
+    "BULB",
+    155,
+  ],
+  [
+    46,
+    "DURÉE",
+    335,
+  ],
+  [
+    47,
+    "PARFUM",
+    320,
+  ],
+  [
+    48,
+    "PRED",
+    290,
+  ],
+  [
+    49,
+    "PIRFM",
+    305,
+  ],
+  [
+    50,
+    "PROUST",
+    315,
+  ],
+  [
+    51,
+    "SUBLM",
+    270,
+  ],
+  [
+    52,
+    "ACCRD",
+    40,
+  ],
+  [
+    53,
+    "SLLGE",
+    50,
+  ],
+  [
+    54,
+    "TDA",
+    200,
+  ],
+  [
+    55,
+    "AUTO",
+    75,
+  ],
+  [
+    56,
+    "FORGE",
+    350,
+  ],
+  [
+    57,
+    "OMEGA",
+    10,
+  ],
+  [
+    58,
+    "ARAPA",
+    0,
+  ],
+  [
+    59,
+    "BOULG²",
+    30,
+  ],
+  [
+    60,
+    "PoPL",
+    340,
+  ],
+  [
+    61,
+    "SHELL",
+    45,
+  ],
+  [
+    62,
+    "SCLR",
+    55,
+  ],
+  [
+    63,
+    "ECO·A",
+    310,
+  ],
+  [
+    64,
+    "ECO·S",
+    200,
+  ],
+  [
+    65,
+    "NECRO",
+    270,
+  ],
+  [
+    66,
+    "TYLER",
+    350,
+  ],
+  [
+    67,
+    "MOIRÉ",
+    170,
+  ],
+  [
+    68,
+    "PURITY",
+    15,
+  ],
+  [
+    69,
+    "RAVE",
+    280,
+  ],
+  [
+    70,
+    "☉",
+    45,
+  ],
+  [
+    71,
+    "☿",
+    210,
+  ],
+  [
+    72,
+    "♀",
+    30,
+  ],
+  [
+    73,
+    "⊕",
+    120,
+  ],
+  [
+    74,
+    "☽",
+    220,
+  ],
+  [
+    75,
+    "♂",
+    0,
+  ],
+  [
+    76,
+    "♃",
+    25,
+  ],
+  [
+    77,
+    "♄",
+    40,
+  ],
+  [
+    78,
+    "⛢",
+    180,
+  ],
+  [
+    79,
+    "♆",
+    225,
+  ],
+  [
+    80,
+    "♇",
+    270,
+  ],
+]
+`;
