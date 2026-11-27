@@ -62,3 +62,47 @@ export const FX_NOTE_MATERIALS = {
   'White Musk': [{ materialId: 'fx-base-root', parts: 1 }],
   'Birch Tar': [{ materialId: 'fx-base-root', parts: 2 }, { materialId: 'fx-base-amber', parts: 1 }],
 };
+
+// Decision B fixture: one fictional restricted substance, "Fixture Sour"
+// (standard fx-std-sour, limit 0.6%), reached from three rows in two layers.
+// fx-top-sour IS the substance (its own cap); fx-top-peel and fx-heart-petal
+// are naturals that carry it as a constituent, under two different CAS
+// placeholders (like geranial / neral under Citral), so grouping by CAS would
+// miss them. Per-row caps alone let the bottle's total pass the limit.
+const SOUR_URL = 'fx-std-sour';
+const sour = (cas, pctInMaterial) => ({
+  cas, name: 'Fixture Sour', pctInMaterial, standard: 'Fixture Sour',
+  standardUrl: SOUR_URL, standardAmendment: 'fx', standardCat4MaxPct: 0.6,
+});
+const fxSourSources = { casSource: 'fixture', ifraSource: { standard: 'Fixture Sour', amendment: 'fx', url: SOUR_URL } };
+
+export const FX_SOUR_KIT = [
+  { id: 'fx-top-sour', name: 'Fixture Sour', cas: 'FX-0101', layer: 'top', role: 'bite',
+    stocks: [1.0, 0.1, 0.01], ifraCat4MaxPct: 0.6, ifraConstituents: [], sources: fxSourSources },
+  { id: 'fx-top-peel', name: 'Fixture Peel', cas: 'FX-0102', layer: 'top', role: 'lift',
+    stocks: [1.0, 0.1], ifraCat4MaxPct: null, ifraConstituents: [sour('FX-0111', 6)], sources: fxSources },
+  { id: 'fx-top-clear', name: 'Fixture Clear', cas: 'FX-0103', layer: 'top', role: 'lift',
+    stocks: [1.0, 0.1], ifraCat4MaxPct: null, ifraConstituents: [], sources: fxSources },
+  { id: 'fx-heart-petal', name: 'Fixture Petal', cas: 'FX-0104', layer: 'heart', role: 'body',
+    stocks: [1.0, 0.1], ifraCat4MaxPct: null, ifraConstituents: [sour('FX-0112', 4)], sources: fxSources },
+  { id: 'fx-heart-calm', name: 'Fixture Calm', cas: 'FX-0105', layer: 'heart', role: 'body',
+    stocks: [1.0, 0.1], ifraCat4MaxPct: null, ifraConstituents: [], sources: fxSources },
+  { id: 'fx-base-root', name: 'Fixture Root', cas: 'FX-0007', layer: 'base', role: 'fixative',
+    stocks: [1.0], ifraCat4MaxPct: null, sources: fxSources },
+  { id: 'fx-base-amber', name: 'Fixture Amber', cas: 'FX-0008', layer: 'base', role: 'fixative',
+    stocks: [1.0, 0.5], ifraCat4MaxPct: 10, sources: fxSources },
+];
+
+// Top is sour-heavy: the sour row alone would sit far over 0.6%, and the
+// naturals add their share on top of it.
+export const FX_SOUR_ACCORD = {
+  rows: [
+    { materialId: 'fx-top-sour', parts: 4 },
+    { materialId: 'fx-top-peel', parts: 10 },
+    { materialId: 'fx-top-clear', parts: 6 },
+    { materialId: 'fx-heart-petal', parts: 20 },
+    { materialId: 'fx-heart-calm', parts: 15 },
+    { materialId: 'fx-base-root', parts: 30 },
+    { materialId: 'fx-base-amber', parts: 15 },
+  ],
+};

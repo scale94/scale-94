@@ -5,7 +5,8 @@
 // into small pure steps so later tasks can insert modulation between them:
 //
 //   rawLayerShares → projectToBands → applySolTilt → applyChaos (per-row
-//   drift) → neatGramsByRow → settle (IFRA cap ⇄ stock selection)
+//   drift) → neatGramsByRow → settle (IFRA cap ⇄ stock selection; IFRA
+//   limits are per standard, summed across rows — ifraLimits)
 //   → roundWeighed (per-layer largest remainder) → ifraStepDown → bandRepair
 //   → assemble (+ strength guard)
 //
@@ -193,47 +194,118 @@ export function neatGramsByRow(rows, layerShares, concentrateG) {
   return rows.map((r) => concentrateG * (layerShares[r.layer] / 100) * (r.parts / layerParts[r.layer]));
 }
 
-// ── step 3: IFRA cap pass ───────────────────────────────────────────────────
+// ── step 3: IFRA limits, grouped by standard (author decision B) ────────────
 
-// Caps every active row whose neat grams exceed its limit, giving the excess
-// to the uncapped active rows of its layer in proportion to their parts.
-// Returns a new neat array. Throws FormulaInfeasible when a layer runs out of
-// uncapped rows.
-export function applyIfraCaps(rows, neat, active, batchG) {
+// IFRA counts a restricted substance from every source in the bottle: a row
+// that IS the substance (its own cap) and every natural that carries it
+// (ifraConstituents). So a limit is a standard, not a row: rows of one
+// standard are summed. Citral (STD 021) covers 5392-40-5, geranial and neral,
+// which is why the key is the standard, never the CAS.
+//
+// Each limit is Σ wᵢ · neatPctᵢ ≤ 1 over its member rows, with
+//   wᵢ = 1 / ownCap                         for a row's own limit, and
+//   wᵢ = (pctInMaterial / 100) / stdLimit   for a constituent.
+// With one limit per standard this is "Σ substance % ≤ limit"; it also reads
+// STD 089's "sum of % of their limits ≤ 100" correctly.
+
+const ownStandardKey = (r) => {
+  const src = r.material.sources?.ifraSource;
+  return src && src.unrestricted !== true && src.url ? src.url : `own:${r.materialId}`;
+};
+
+// Limits in first-appearance order (row order; a row's own limit before its
+// constituents), so a kit with only own caps behaves exactly as per-row caps.
+export function ifraLimits(rows) {
+  const byKey = new Map();
+  const limits = [];
+  const add = (key, standard, limitPct, i, w, viaConstituent) => {
+    let L = byKey.get(key);
+    if (!L) {
+      L = { key, standard, limitPct, members: [], viaConstituent: false };
+      byKey.set(key, L);
+      limits.push(L);
+    }
+    const m = L.members.find((x) => x.i === i);
+    if (m) m.w += w; else L.members.push({ i, w });
+    if (viaConstituent) L.viaConstituent = true;
+  };
+  rows.forEach((r, i) => {
+    const cap = r.material.ifraCat4MaxPct;
+    if (cap != null) {
+      add(ownStandardKey(r), r.material.sources?.ifraSource?.standard ?? r.material.name, cap, i, 1 / cap, false);
+    }
+    for (const c of r.material.ifraConstituents ?? []) {
+      if (c.standardCat4MaxPct == null || !(c.pctInMaterial > 0)) continue;
+      add(c.standardUrl ?? `std:${c.standard}`, c.standard ?? c.name, c.standardCat4MaxPct, i,
+        c.pctInMaterial / 100 / c.standardCat4MaxPct, true);
+    }
+  });
+  return limits;
+}
+
+// Σ wᵢ · neatPctᵢ for one limit; neatPctOf(i) gives a row's neat % of batch.
+const usageOf = (L, neatPctOf_) => round9(L.members.reduce((s, m) => s + m.w * neatPctOf_(m.i), 0));
+
+// Scales every active member of a broken limit down onto it, and gives each
+// member's excess to the active rows of that member's layer that are neither
+// frozen nor in the limit, in proportion to their parts. Members are then
+// frozen (they only shrink after), so each limit is settled at most once and
+// the pass ends. Sweeps limits in order until none changes (for own caps
+// alone this is the old per-row sweep). Returns a new neat array. Throws
+// FormulaInfeasible when a layer has no row left to take the excess.
+export function applyIfraCaps(rows, neat, active, batchG, limits = ifraLimits(rows)) {
   const out = neat.slice();
-  const capped = new Set();
-  for (let iter = 0; iter <= rows.length; iter++) {
+  const frozen = new Set();
+  const pct = (i) => (out[i] / batchG) * 100;
+  for (let iter = 0; iter <= limits.length; iter++) {
     let changed = false;
-    for (let i = 0; i < rows.length; i++) {
-      if (!active[i] || capped.has(i)) continue;
-      const limitPct = rows[i].material.ifraCat4MaxPct;
-      if (limitPct == null) continue;
-      const limitG = (limitPct / 100) * batchG;
-      if (out[i] <= limitG) continue;
-      const excess = out[i] - limitG;
-      out[i] = limitG;
-      capped.add(i);
+    for (const L of limits) {
+      const live = L.members.filter((m) => active[m.i] && out[m.i] > 0);
+      if (live.length === 0) continue;
+      const usage = live.reduce((s, m) => s + m.w * pct(m.i), 0);
+      if (!(usage > 1 + 1e-12)) continue;
       changed = true;
-      const takers = [];
-      let takerParts = 0;
-      for (let j = 0; j < rows.length; j++) {
-        if (j !== i && active[j] && !capped.has(j) && rows[j].layer === rows[i].layer) {
-          takers.push(j);
-          takerParts += rows[j].parts;
+      const inLimit = new Set(L.members.map((m) => m.i));
+      for (const { i } of live) {
+        const excess = out[i] - out[i] / usage;
+        out[i] /= usage;
+        frozen.add(i);
+        const takers = [];
+        let takerParts = 0;
+        for (let j = 0; j < rows.length; j++) {
+          if (active[j] && !frozen.has(j) && !inLimit.has(j) && rows[j].layer === rows[i].layer) {
+            takers.push(j);
+            takerParts += rows[j].parts;
+          }
         }
+        if (takers.length === 0) {
+          const what = L.viaConstituent ? `IFRA ${L.standard}: no ${rows[i].layer} row outside the standard`
+            : `IFRA: no uncapped ${rows[i].layer} row`;
+          throw new FormulaInfeasible(
+            `${what} left to take ${rows[i].materialId}'s excess`,
+            { layer: rows[i].layer, materialId: rows[i].materialId },
+          );
+        }
+        for (const j of takers) out[j] += excess * (rows[j].parts / takerParts);
       }
-      if (takers.length === 0) {
-        throw new FormulaInfeasible(
-          `IFRA: no uncapped ${rows[i].layer} row left to take ${rows[i].materialId}'s excess`,
-          { layer: rows[i].layer, materialId: rows[i].materialId },
-        );
-      }
-      for (const j of takers) out[j] += excess * (rows[j].parts / takerParts);
     }
     if (!changed) break;
   }
   return out;
 }
+
+// True when no limit containing row i is broken by the given weighed grams.
+function limitsHold(limits, byRow, i, grams, stocks, batchG) {
+  const pct = (j) => neatPctOf(grams[j], stocks[j] ?? 0, batchG);
+  for (const L of byRow[i] ?? []) if (usageOf(L, pct) > 1) return false;
+  return true;
+}
+
+const limitsByRow = (limits, n) => {
+  const byRow = Array.from({ length: n }, () => []);
+  for (const L of limits) for (const m of L.members) byRow[m.i].push(L);
+  return byRow;
+};
 
 // ── step 4: stock selection ─────────────────────────────────────────────────
 
@@ -247,12 +319,12 @@ export function selectStock(stocks, neatG) {
 // Settles IFRA caps and stock selection together (ruling R1): cap, select,
 // and if a row fits no stock, drop the worst such row, hand its neat grams to
 // its layer's remaining rows by parts, and go again until stable.
-export function settle(rows, neat0, batchG) {
+export function settle(rows, neat0, batchG, limits = ifraLimits(rows)) {
   const active = rows.map(() => true);
   let neat = neat0.slice();
   const dropped = [];
   for (let iter = 0; iter <= rows.length; iter++) {
-    neat = applyIfraCaps(rows, neat, active, batchG);
+    neat = applyIfraCaps(rows, neat, active, batchG, limits);
     let worst = -1;
     let worstRatio = Infinity;
     for (let i = 0; i < rows.length; i++) {
@@ -301,27 +373,34 @@ export function settle(rows, neat0, batchG) {
 // per-row rounding can drift many grains the same way; this keeps each
 // layer's Σ neat within about half a grain × stock of its target, so the
 // bottle's split follows the design split and not just its total.
-export function roundWeighed(rows, neat, stocks, active, batchG) {
+//
+// Every row's floor is set before any grain goes up, so a grain-up is checked
+// against the IFRA limits (decision B: summed by standard, across layers)
+// with every other row already in the bottle.
+export function roundWeighed(rows, neat, stocks, active, batchG, limits = ifraLimits(rows)) {
+  const byRow = limitsByRow(limits, rows.length);
   const grams = neat.map(() => 0);
+  const exact = neat.map(() => 0);
+  for (let i = 0; i < rows.length; i++) {
+    if (!active[i]) continue;
+    exact[i] = neat[i] / stocks[i];
+    grams[i] = round2(Math.max(MIN_WEIGH_G, Math.floor(exact[i] * 100 + 1e-9) / 100));
+  }
   for (const layer of LAYERS) {
     const order = [];
     let deficit = 0;
     for (let i = 0; i < rows.length; i++) {
       if (!active[i] || rows[i].layer !== layer) continue;
-      const exact = neat[i] / stocks[i];
-      const floor = Math.max(MIN_WEIGH_G, Math.floor(exact * 100 + 1e-9) / 100);
-      grams[i] = round2(floor);
       deficit += neat[i] - grams[i] * stocks[i];
-      order.push({ i, rem: exact - grams[i] });
+      order.push({ i, rem: exact[i] - grams[i] });
     }
     order.sort((a, b) => b.rem - a.rem || a.i - b.i);
     for (const { i } of order) {
       const step = 0.01 * stocks[i];
       if (!(Math.abs(deficit - step) < Math.abs(deficit))) continue;
-      const up = round2(grams[i] + 0.01);
-      const limitPct = rows[i].material.ifraCat4MaxPct;
-      if (limitPct != null && neatPctOf(up, stocks[i], batchG) > limitPct) continue;
-      grams[i] = up;
+      const prev = grams[i];
+      grams[i] = round2(prev + 0.01);
+      if (!limitsHold(limits, byRow, i, grams, stocks, batchG)) { grams[i] = prev; continue; }
       deficit -= step;
     }
   }
@@ -362,7 +441,8 @@ export function bandMiss(split) {
 // share can miss its band by at most one grain of the coarsest weighed stock,
 // as a share of the weighed concentrate:
 //   0.01 g × max stock ÷ Σ(grams × stock) × 100   (pt)
-export function bandRepair(rows, grams, stocks, active, batchG, targetPct) {
+export function bandRepair(rows, grams, stocks, active, batchG, targetPct, limits = ifraLimits(rows)) {
+  const byRow = limitsByRow(limits, rows.length);
   const out = grams.slice();
   const live = [];
   for (let i = 0; i < rows.length; i++) if (active[i]) live.push(i);
@@ -378,10 +458,9 @@ export function bandRepair(rows, grams, stocks, active, batchG, targetPct) {
       for (const d of [-0.01, 0.01]) {
         const next = round2(out[i] + d);
         if (next < MIN_WEIGH_G - WEIGH_EPS) continue;
-        const limitPct = rows[i].material.ifraCat4MaxPct;
-        if (d > 0 && limitPct != null && neatPctOf(next, stocks[i], batchG) > limitPct) continue;
         const prev = out[i];
         out[i] = next;
+        if (d > 0 && !limitsHold(limits, byRow, i, out, stocks, batchG)) { out[i] = prev; continue; }
         const weighed = live.reduce((s, j) => s + out[j], 0);
         const m = bandMiss(weighedSplitOf(view()));
         const ok = weighed <= batchG + WEIGH_EPS && strengthOk();
@@ -409,22 +488,34 @@ const neatPctOf = (grams, stock, batchG) => round9(((grams * stock) / batchG) * 
 
 // ── step 6: IFRA step-down after rounding ───────────────────────────────────
 
-export function ifraStepDown(rows, grams, stocks, active, batchG) {
+// Limits in order; while one is broken, the member carrying most of it (that
+// can still lose a grain) steps down 0.01 g. For a row's own cap that is the
+// row itself, as before; a standard summed across rows names its total.
+export function ifraStepDown(rows, grams, stocks, active, batchG, limits = ifraLimits(rows)) {
   const out = grams.slice();
   const lines = [];
-  for (let i = 0; i < rows.length; i++) {
-    if (!active[i]) continue;
-    const limitPct = rows[i].material.ifraCat4MaxPct;
-    if (limitPct == null) continue;
-    while (neatPctOf(out[i], stocks[i], batchG) > limitPct && out[i] > MIN_WEIGH_G) {
-      out[i] = round2(out[i] - 0.01);
-      lines.push(`IFRA ${rows[i].material.name} stepped down 0.01 g → ${out[i].toFixed(2)} g`);
-    }
-    if (neatPctOf(out[i], stocks[i], batchG) > limitPct) {
-      throw new FormulaInfeasible(
-        `IFRA: ${rows[i].materialId} cannot be weighed under its limit`,
-        { layer: rows[i].layer, materialId: rows[i].materialId },
-      );
+  const pct = (i) => (active[i] ? neatPctOf(out[i], stocks[i], batchG) : 0);
+  for (const L of limits) {
+    while (usageOf(L, pct) > 1) {
+      let pick = -1;
+      let most = -Infinity;
+      for (const m of L.members) {
+        if (!active[m.i] || !(out[m.i] > MIN_WEIGH_G + WEIGH_EPS)) continue;
+        const share = m.w * pct(m.i);
+        if (share > most) { most = share; pick = m.i; }
+      }
+      if (pick < 0) {
+        const r = rows[L.members.find((m) => active[m.i])?.i ?? L.members[0].i];
+        throw new FormulaInfeasible(
+          L.viaConstituent
+            ? `IFRA: ${L.standard} total cannot be weighed under its limit`
+            : `IFRA: ${r.materialId} cannot be weighed under its limit`,
+          { layer: r.layer, materialId: r.materialId },
+        );
+      }
+      out[pick] = round2(out[pick] - 0.01);
+      const why = L.viaConstituent ? ` (${L.standard} total)` : '';
+      lines.push(`IFRA ${rows[pick].material.name} stepped down 0.01 g → ${out[pick].toFixed(2)} g${why}`);
     }
   }
   return { grams: out, lines };
@@ -459,10 +550,11 @@ export function computeFormula({ baseAccord, salt, modulators, batch, kit }) {
   const concentrateG = (batchG * targetPct) / 100;
   const neat0 = neatGramsByRow(rows, designSplit, concentrateG);
 
-  const { active, neat, stocks, dropped } = settle(rows, neat0, batchG);
-  const rounded = roundWeighed(rows, neat, stocks, active, batchG);
-  const { grams: stepped, lines: stepLines } = ifraStepDown(rows, rounded, stocks, active, batchG);
-  const grams = bandRepair(rows, stepped, stocks, active, batchG, targetPct);
+  const limits = ifraLimits(rows);
+  const { active, neat, stocks, dropped } = settle(rows, neat0, batchG, limits);
+  const rounded = roundWeighed(rows, neat, stocks, active, batchG, limits);
+  const { grams: stepped, lines: stepLines } = ifraStepDown(rows, rounded, stocks, active, batchG, limits);
+  const grams = bandRepair(rows, stepped, stocks, active, batchG, targetPct, limits);
 
   const outRows = [];
   const ifra = [];
@@ -487,6 +579,17 @@ export function computeFormula({ baseAccord, salt, modulators, batch, kit }) {
     if (limitPct != null) {
       ifra.push({ materialId: r.materialId, neatPct, limitPct, ok: neatPct <= limitPct });
     }
+  }
+
+  // One entry per standard that a constituent contributes to (decision B):
+  // its summed neat % against the standard's limit.
+  const pctOf = (i) => (active[i] ? neatPctOf(grams[i], stocks[i], batchG) : 0);
+  for (const L of limits) {
+    if (!L.viaConstituent) continue;
+    const materialIds = L.members.filter((m) => active[m.i]).map((m) => rows[m.i].materialId);
+    if (materialIds.length === 0) continue;
+    const usage = usageOf(L, pctOf);
+    ifra.push({ standard: L.standard, materialIds, neatPct: round9(usage * L.limitPct), limitPct: L.limitPct, ok: usage <= 1 });
   }
 
   const actualPct = round9((neatSum / batchG) * 100);
