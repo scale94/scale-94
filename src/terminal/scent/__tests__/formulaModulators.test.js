@@ -344,3 +344,36 @@ describe('per-source log', () => {
     },
   );
 });
+
+describe('named readings (P3 ruling 4)', () => {
+  it('labels name the reading inside each source line; the numbers stay the engine’s', () => {
+    const plain = run({ salt: RAMP_SALT, solTilt: 0.5, chaosReach: 0.2 });
+    const named = run({
+      salt: RAMP_SALT, solTilt: 0.5, chaosReach: 0.2,
+      labels: { lunar: 'SMOKE DISSOLUTION', sol: 'last release 3.2e31 erg', chaos: 'λ +0.412' },
+    });
+    expect(named.log[1]).toBe(plain.log[1].replace('/SOL → ', '/SOL last release 3.2e31 erg → '));
+    expect(named.log[2]).toBe('/LUNAR SMOKE DISSOLUTION → 4 weeks in the dark');
+    expect(named.log[3]).toBe('/CHAOS λ +0.412 → salt ±20% per-row drift');
+    expect(named.rows).toEqual(plain.rows);
+  });
+  it('solAbsent replaces the unwitnessed /SOL line when there is no tilt', () => {
+    const f = run({ labels: { solAbsent: '/SOL entered — nothing left the star, the top notes left alone' } });
+    expect(f.log[1]).toBe('/SOL entered — nothing left the star, the top notes left alone');
+  });
+  it('a clause is ignored when its modulator is absent (no reading → P1 line)', () => {
+    const f = run({ labels: { sol: 'last release 1e30 erg', chaos: 'λ +0.100' } });
+    expect(f.log[1]).toBe(SOL_UNWITNESSED);
+    expect(f.log[3]).toBe(CHAOS_UNWITNESSED);
+  });
+  it('no labels → every P1 string unchanged', () => {
+    const f = run({ salt: RAMP_SALT, solTilt: -0.5, chaosReach: 0.05, labels: {} });
+    expect(f.log[1]).toBe(run({ salt: RAMP_SALT, solTilt: -0.5, chaosReach: 0.05 }).log[1]);
+    expect(f.log[1].startsWith('/SOL → top ')).toBe(true);
+    expect(f.log[2]).toBe('/LUNAR → 4 weeks in the dark');
+    expect(f.log[3]).toBe('/CHAOS salt → ±5% per-row drift');
+  });
+  it('rejects a non-string label', () => {
+    expect(() => run({ labels: { lunar: 7 } })).toThrow(RangeError);
+  });
+});

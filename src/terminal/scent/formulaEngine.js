@@ -80,6 +80,15 @@ function validate(modulators, batch, salt) {
   if (!isAbsent(chaosReach) && !(isFiniteNumber(chaosReach) && chaosReach >= lo && chaosReach <= hi)) {
     throw new RangeError(`chaosReach must be a number in ${lo}–${hi} or null, got ${String(chaosReach)}`);
   }
+  const { labels } = modulators;
+  if (!isAbsent(labels)) {
+    if (typeof labels !== 'object') throw new RangeError('labels must be an object or null');
+    for (const k of ['lunar', 'sol', 'solAbsent', 'chaos']) {
+      if (!isAbsent(labels[k]) && typeof labels[k] !== 'string') {
+        throw new RangeError(`labels.${k} must be a string or null, got ${String(labels[k])}`);
+      }
+    }
+  }
   if (!salt || salt.length !== SALT_BYTES) {
     throw new RangeError(`salt must be ${SALT_BYTES} bytes`);
   }
@@ -583,6 +592,10 @@ export function ifraStepDown(rows, grams, stocks, active, batchG, limits = ifraL
 export function computeFormula({ baseAccord, salt, modulators, batch, kit }) {
   validate(modulators, batch, salt);
   const { element, restWeeks, solTilt, chaosReach } = modulators;
+  // P3 ruling 4: a label names the reading inside its source's line; the
+  // numbers after the arrow stay the engine's own.
+  const labels = modulators.labels || {};
+  const named = (src, clause) => (clause ? `${src} ${clause} →` : `${src} →`);
   const targetPct = TARGET_PCT[element];
   const batchG = batch.grams;
 
@@ -593,16 +606,18 @@ export function computeFormula({ baseAccord, salt, modulators, batch, kit }) {
     }
   }
   let designSplit = projectToBands(rawLayerShares(joined));
-  let solLine = '/SOL unwitnessed — the sun left the top notes alone';
+  let solLine = labels.solAbsent || '/SOL unwitnessed — the sun left the top notes alone';
   if (!isAbsent(solTilt)) {
     const tilt = applySolTilt(designSplit, solTilt);
     designSplit = tilt.shares;
-    solLine = `/SOL → top ${signedPt(tilt.topShift)} pt / base ${signedPt(tilt.baseShift)} pt`;
+    solLine = `${named('/SOL', labels.sol)} top ${signedPt(tilt.topShift)} pt / base ${signedPt(tilt.baseShift)} pt`;
   }
   const reach = isAbsent(chaosReach) ? CHAOS_DEFAULT_REACH : chaosReach;
   const chaosLine = isAbsent(chaosReach)
     ? '/CHAOS periphery unwitnessed — default reach'
-    : `/CHAOS salt → ±${(reach * 100).toFixed(0)}% per-row drift`;
+    : (labels.chaos
+      ? `/CHAOS ${labels.chaos} → salt ±${(reach * 100).toFixed(0)}% per-row drift`
+      : `/CHAOS salt → ±${(reach * 100).toFixed(0)}% per-row drift`);
   const rows = applyChaos(joined, salt, reach);
   const concentrateG = (batchG * targetPct) / 100;
   const neat0 = neatGramsByRow(rows, designSplit, concentrateG);
@@ -688,7 +703,7 @@ export function computeFormula({ baseAccord, salt, modulators, batch, kit }) {
   const log = [
     `ELEMENT ${element} → ${TYPE_NAMES[element]} · ${targetPct.toFixed(1)}% concentrate`,
     solLine,
-    `/LUNAR → ${restWeeks} weeks in the dark`,
+    `${named('/LUNAR', labels.lunar)} ${restWeeks} weeks in the dark`,
     chaosLine,
     ...snapLines,
     ...stepLines,
