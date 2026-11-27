@@ -4,14 +4,11 @@
 // × 4 salts = 2,880 formulas. Every formula that compiles holds every Task 1
 // invariant, IFRA totals by standard included (decision B).
 //
-// OPEN (author call, research sources.md open question 14): coumarin, ambrox
-// and cashmeran have only a crystal stock and a 1% stock (no cited 10%
-// solubility; coumarin's measured saturation is 9.8% w/w at 20 °C). A dose
-// between 0.0005 g and 0.05 g neat must then be weighed as up to 5 g of 1%
-// solution, which can overfill the batch. Those formulas are a hard error
-// (FormulaInfeasible), never a silent bad formula. This test pins that gap
-// exactly: any other kind of infeasibility fails it. When the author rules,
-// KNOWN_GAP goes and every combination must compile.
+// Coumarin, ambrox and cashmeran have only crystals and a 1% stock (no cited
+// 10% solubility; coumarin's measured saturation is 9.8% w/w at 20 °C), so a
+// sub-0.05 g dose weighs as up to 5 g of 1% solution. Where that overfills the
+// batch the engine snaps it to 0.05 g of crystals (author ruling 2026-11-27);
+// before the ruling 314 of these formulas were FormulaInfeasible.
 import { describe, it, expect } from 'vitest';
 import {
   computeFormula, FormulaInfeasible, BATCHES, BANDS, TARGET_PCT, MIN_WEIGH_G,
@@ -23,8 +20,6 @@ import { NOTE_MATERIALS } from '../noteInterpretation';
 import { buildPerfumeCard, PERF_NOTES } from '../../collider/perfumeCard';
 import { FIXTURES } from '../../collider/__tests__/fixtures';
 import { expectWeighedSplitInBands } from './weighedSplit';
-
-const KNOWN_GAP = new Set(['coumarin', 'ambrox', 'cashmeran']);
 
 const ELEMENTS = ['AIR', 'WATER', 'EARTH', 'FIRE'];
 const SALTS = [0, 1, 2, 3].map((k) => Uint8Array.from({ length: 32 },
@@ -88,10 +83,24 @@ describe('formula coverage through the real kit (Review Focus 5)', () => {
     expect(CARDS.length).toBe(FIXTURES.length + Object.keys(PERF_NOTES.top).length);
   });
 
-  it('every infeasible formula is the known 1%-stock overfill (KNOWN_GAP), and nothing else', () => {
-    const other = infeasible.filter(({ err }) => !(/^weighed stocks exceed the batch weight/.test(err.message)
-      && KNOWN_GAP.has(err.materialId)));
-    expect(other.map(({ where, err }) => `${where}: ${err.message}`)).toEqual([]);
+  it('every combination compiles: no FormulaInfeasible', () => {
+    expect(infeasible.map(({ where, err }) => `${where}: ${err.message}`)).toEqual([]);
+  });
+
+  it('snaps happen only on the 1%-only solids, weigh 0.05 g of crystals, and are logged', () => {
+    const snappedFormulas = ok.filter(({ f }) => f.snapped.length > 0);
+    expect(snappedFormulas.length).toBeGreaterThan(0);
+    for (const { where, f } of snappedFormulas) {
+      expect(f.snapped.length, where).toBeLessThanOrEqual(3);
+      expect(f.log.filter((l) => l.startsWith('SNAP ')).length, where).toBe(f.snapped.length);
+      for (const s of f.snapped) {
+        expect(['coumarin', 'ambrox', 'cashmeran'], where).toContain(s.materialId);
+        const row = f.rows.find((r) => r.materialId === s.materialId);
+        expect(row.stock, where).toBe(1);
+        expect(row.grams, where).toBeGreaterThanOrEqual(MIN_WEIGH_G);
+        expect(s.takenG, where).toBeLessThan(MIN_WEIGH_G);
+      }
+    }
   });
 
   it('every compiled formula holds strength, grams, totals, fill and bands', () => {

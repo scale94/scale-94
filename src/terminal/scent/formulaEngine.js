@@ -8,10 +8,11 @@
 //   drift) → neatGramsByRow → settle (IFRA cap ⇄ stock selection; IFRA
 //   limits are per standard, summed across rows — ifraLimits)
 //   → roundWeighed (per-layer largest remainder) → ifraStepDown → bandRepair
+//   → (only if the batch overfills: snapToNeatFloor, then weigh again)
 //   → assemble (+ strength guard)
 //
 // The log carries exactly one line per source (ELEMENT, /SOL, /LUNAR, /CHAOS),
-// then any IFRA step-down and drop-out lines.
+// then any snap, IFRA step-down and drop-out lines.
 
 export const TARGET_PCT = Object.freeze({ AIR: 4, WATER: 10, EARTH: 18, FIRE: 25 });
 export const BANDS = Object.freeze({ top: [15, 25], heart: [30, 40], base: [40, 55] });
@@ -475,6 +476,62 @@ export function bandRepair(rows, grams, stocks, active, batchG, targetPct, limit
   return out;
 }
 
+// ── step 8: snap to the neat floor (author ruling, 2026-11-27) ──────────────
+
+// A dose under 0.05 g neat must be weighed from a dilute stock. From a 1%
+// stock that is up to 5 g of solution, which can overfill the batch (the
+// solids with no cited 10% solubility: coumarin, ambrox, cashmeran). Only
+// when the weighed formula overfills does the heaviest such row that also
+// has a neat stock (crystals, for a solid) snap up to 0.05 g neat, provided
+// every IFRA limit it belongs to still holds there. The grams it gains come
+// from the other rows of its layer that have not snapped themselves, in
+// proportion to their neat grams, so the layer share and the strength are
+// unchanged. A snapped row is pinned: it never gives grams back. Returns { neat, record } for a
+// fresh settle, or null when no row can snap.
+export function snapToNeatFloor(rows, w, batchG, limits = ifraLimits(rows), pinned = new Set()) {
+  const byRow = limitsByRow(limits, rows.length);
+  const candidates = [];
+  for (let i = 0; i < rows.length; i++) {
+    if (!w.active[i] || !(w.stocks[i] < 1) || rows[i].stocks[0] !== 1) continue;
+    if (!(w.neat[i] < MIN_WEIGH_G - WEIGH_EPS)) continue;
+    candidates.push(i);
+  }
+  candidates.sort((a, b) => w.grams[b] - w.grams[a] || a - b);
+  for (const c of candidates) {
+    const delta = MIN_WEIGH_G - w.neat[c];
+    const givers = [];
+    let pool = 0;
+    for (let j = 0; j < rows.length; j++) {
+      // a snapped row never gives back: that would undo its snap (ping-pong)
+      if (j !== c && w.active[j] && rows[j].layer === rows[c].layer && !pinned.has(j) && w.neat[j] > 0) {
+        givers.push(j);
+        pool += w.neat[j];
+      }
+    }
+    if (!(pool > delta)) continue;
+    const neat = w.neat.map((x, i) => (w.active[i] ? x : 0));
+    neat[c] = MIN_WEIGH_G;
+    for (const j of givers) neat[j] -= delta * (w.neat[j] / pool);
+    const pct = (i) => (neat[i] / batchG) * 100;
+    if (byRow[c].some((L) => usageOf(L, pct) > 1)) continue;
+    const r = rows[c];
+    const form = r.material.physicalState === 'solid' ? 'crystals' : 'neat';
+    const fromGrams = round2(w.grams[c]);
+    return {
+      neat,
+      record: {
+        index: c,
+        materialId: r.materialId,
+        fromStock: w.stocks[c],
+        fromGrams,
+        takenG: round9(delta),
+        line: `SNAP ${r.material.name} → ${MIN_WEIGH_G.toFixed(2)} g ${form} · from its ${stockLabel(w.stocks[c])} stock it weighed ${fromGrams.toFixed(2)} g and overfilled the ${batchG.toFixed(2)} g batch; the rest of the ${r.layer} gives up ${delta.toFixed(3)} g`,
+      },
+    };
+  }
+  return null;
+}
+
 // Final guard: the ±0.5 pt strength invariant is never returned violated.
 export function assertStrength(actualPct, targetPct) {
   if (!(Math.abs(actualPct - targetPct) <= STRENGTH_TOL_PT)) {
@@ -551,10 +608,24 @@ export function computeFormula({ baseAccord, salt, modulators, batch, kit }) {
   const neat0 = neatGramsByRow(rows, designSplit, concentrateG);
 
   const limits = ifraLimits(rows);
-  const { active, neat, stocks, dropped } = settle(rows, neat0, batchG, limits);
-  const rounded = roundWeighed(rows, neat, stocks, active, batchG, limits);
-  const { grams: stepped, lines: stepLines } = ifraStepDown(rows, rounded, stocks, active, batchG, limits);
-  const grams = bandRepair(rows, stepped, stocks, active, batchG, targetPct, limits);
+  const weigh = (start) => {
+    const s = settle(rows, start, batchG, limits);
+    const rounded = roundWeighed(rows, s.neat, s.stocks, s.active, batchG, limits);
+    const step = ifraStepDown(rows, rounded, s.stocks, s.active, batchG, limits);
+    const g = bandRepair(rows, step.grams, s.stocks, s.active, batchG, targetPct, limits);
+    return { ...s, stepLines: step.lines, grams: g };
+  };
+  let w = weigh(neat0);
+  const snapped = [];
+  for (let iter = 0; iter < rows.length; iter++) {
+    const weighed = w.grams.reduce((sum, g, i) => sum + (w.active[i] ? g : 0), 0);
+    if (round2(batchG - weighed) >= 0) break;
+    const snap = snapToNeatFloor(rows, w, batchG, limits, new Set(snapped.map((x) => x.index)));
+    if (!snap) break; // nothing can snap: assemble throws the overfill below
+    snapped.push(snap.record);
+    w = weigh(snap.neat);
+  }
+  const { active, stocks, dropped, stepLines, grams } = w;
 
   const outRows = [];
   const ifra = [];
@@ -612,11 +683,14 @@ export function computeFormula({ baseAccord, salt, modulators, batch, kit }) {
     return `DROP ${r.material.name} · ${d.reason} → its share goes to the ${r.layer}`;
   });
 
+  const snapLines = snapped.map((s) => s.line);
+
   const log = [
     `ELEMENT ${element} → ${TYPE_NAMES[element]} · ${targetPct.toFixed(1)}% concentrate`,
     solLine,
     `/LUNAR → ${restWeeks} weeks in the dark`,
     chaosLine,
+    ...snapLines,
     ...stepLines,
     ...dropLines,
   ];
@@ -634,6 +708,7 @@ export function computeFormula({ baseAccord, salt, modulators, batch, kit }) {
     restWeeks,
     ifra,
     dropped: dropped.map(({ materialId, reason }) => ({ materialId, reason })),
+    snapped: snapped.map(({ materialId, fromStock, fromGrams, takenG }) => ({ materialId, fromStock, fromGrams, takenG })),
     log,
   };
 }
