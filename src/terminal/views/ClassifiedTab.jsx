@@ -4,6 +4,7 @@ import { loadWasm } from '../../wasm/wasmSingleton';
 import { emit as emitObs } from '../../observatory/observatoryBus';
 import { notifyCrypto } from '../quintessence/observerStore';
 import { createCryptoEyeFeed, feedCryptoEye, pokeCryptoEye } from './cryptoEye';
+import IdentityPanel from './cryptography/IdentityPanel';
 
 // ── Hex rain characters ──────────────────────────────────────────────────────
 const HEX_CHARS = '0123456789ABCDEF'.split('');
@@ -673,32 +674,14 @@ const KEYGEN_LINES = [
   { delay: 1140, text: 'KEYGEN: computing t = A·s + e mod 3329...', color: 'text-orange-300/70' },
   { delay: 1400, text: 'KEYGEN: encoding encapsulation key (ek)... 1184 bytes', color: 'text-orange-300/70' },
   { delay: 1650, text: 'KEYGEN: encoding decapsulation key (dk)... 2400 bytes', color: 'text-orange-400/60' },
-  { delay: 1900, text: 'KEYGEN: zeroizing intermediate state via log_entropy_flush()', color: 'text-rose-400/60' },
+  { delay: 1900, text: 'KEYGEN: Rust-side key buffers zeroized on drop (zeroize crate)', color: 'text-rose-400/60' },
   { delay: 2150, text: 'KEYGEN: ✓ keypair ready — K=3, q=3329, 128-bit post-quantum security', color: 'text-amber-300/80' },
 ];
 
 // ── Keypair extraction + download helpers ─────────────────────────────────────
-// Parse the hex blocks out of run_classified(1) log output.
-// Lines carrying key material start with 6 spaces then uppercase hex chars.
-function parseMLKemKeypair(log) {
-  const lines = log.split('\n');
-  let section = null;
-  let ekHex = '';
-  let dkHex = '';
-  for (const line of lines) {
-    if (line.includes('ENCAPSULATION KEY (PUBLIC)'))  { section = 'ek'; continue; }
-    if (line.includes('DECAPSULATION KEY (PRIVATE)')) { section = 'dk'; continue; }
-    if (line.includes('CIPHERTEXT (ENCAPSULATED)'))   { section = null; continue; }
-    if (section && line.startsWith('      ')) {
-      const hex = line.trim();
-      if (/^[0-9A-F]+$/.test(hex)) {
-        if (section === 'ek') ekHex += hex;
-        else                  dkHex += hex;
-      }
-    }
-  }
-  return { ekHex, dkHex };
-}
+// Keys come from the structured mlkem768_keygen() export (scent-aether P2), never parsed
+// out of a log string.
+const bytesToHex = (b) => Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('').toUpperCase();
 
 function hexToBytes(hex) {
   const out = new Uint8Array(hex.length / 2);
@@ -757,8 +740,10 @@ function KeygenPhase() {
     setWasmState('running');
     try {
       const mod = await loadWasm();
-      const output = mod.run_classified(1);
-      const { ekHex, dkHex } = parseMLKemKeypair(output);
+      const { ek, dk } = mod.mlkem768_keygen();
+      const ekHex = bytesToHex(ek);
+      const dkHex = bytesToHex(dk);
+      dk.fill(0);
       if (ekHex.length !== 2368) throw new Error(`ek: ${ekHex.length / 2}B (expected 1184B)`);
       if (dkHex.length !== 4800) throw new Error(`dk: ${dkHex.length / 2}B (expected 2400B)`);
       setKeypair({ ekHex, dkHex });
@@ -831,7 +816,7 @@ function KeygenPhase() {
             </div>
             <div className="text-rose-400/60 tracking-wide" style={{ animation: 'cr-logIn 0.25s ease forwards' }}>
               <span className="text-orange-900/40 mr-2">{'>'}</span>
-              KEYGEN: log_entropy_flush() — ephemeral state zeroized via compiler_fence(SeqCst)
+              KEYGEN: mlkem768_keygen() — Rust-side buffers zeroized on drop (zeroize)
             </div>
           </>
         )}
@@ -1437,6 +1422,11 @@ function LockedPhase({ onInitiateEnclave }) {
           </div>
 
         </div>
+      </div>
+
+      {/* ── Identity — one post-quantum identity per visitor (scent-aether P2) ── */}
+      <div className="mt-8 border-t border-orange-900/20 pt-8">
+        <IdentityPanel />
       </div>
 
       {/* ── File Vault — full width below the two-column grid ── */}
