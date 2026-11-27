@@ -12,6 +12,7 @@
 // gold in a staggered sweep: three sources becoming one artifact, told in
 // colour. Arming had no visual register before this; it had a sentence.
 import { VERTEBRAE, truncate } from '../quintessence/vertebrae';
+import { SCENT_ORPHANED } from '../quintessence/spineStore';
 
 const ARMED_GOLD = 'rgb(251,191,36)';   // amber-400 — one step under the Some() amber-300
 const SWEEP_MS = 600;
@@ -23,13 +24,17 @@ export default function SpineMirror({ spine, armed = false, onNavigate }) {
       {VERTEBRAE.map((v, i) => {
         const raw = v.preview(spine);
         const marked = raw !== null && raw !== undefined;
+        // A sealed accord whose key is gone reads as absent, but says why (spec §6.3).
+        const orphaned = !marked && v.key === 'scent' && !!spine?.scent?.orphaned;
         const shown = marked ? (v.quoted ? `"${truncate(raw)}"` : truncate(raw)) : null;
         // The label carries every fact the hue does — if the mirror stops
         // working in greyscale, the words are not doing their job (spec §3).
         const label = marked
           ? `${v.field} — ${raw} · marked at ${v.label} · walk there`
-          : `${v.field} — unmarked · walk to ${v.house}`;
-        // An unmarked row can never be armed (armed ⇔ all three marked), so the
+          : orphaned
+            ? `${v.field} — ${SCENT_ORPHANED} · walk to ${v.house} to seal again`
+            : `${v.field} — unmarked · walk to ${v.house}`;
+        // An unmarked row can never be armed (armed ⇔ all four marked), so the
         // house hue is the only tail colour absence ever wears.
         const hue = `rgb(${v.tint[0]},${v.tint[1]},${v.tint[2]})`;
         const lit = armed ? ARMED_GOLD : hue;
@@ -62,7 +67,7 @@ export default function SpineMirror({ spine, armed = false, onNavigate }) {
                   className="ml-auto whitespace-nowrap opacity-70 transition-opacity group-hover:opacity-100"
                   style={{ color: hue }}
                 >
-                  {`→ ${v.house} holds it`}
+                  {orphaned ? SCENT_ORPHANED : `→ ${v.house} holds it`}
                 </span>
               )}
             </button>

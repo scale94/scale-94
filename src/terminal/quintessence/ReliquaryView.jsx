@@ -3,6 +3,7 @@
 // Post-compile: the sealed artifact, full code view, copy vial.
 import { useEffect, useReducer, useRef, useState } from 'react';
 import { getSpine, subscribeSpine, missingVertebrae } from './spineStore';
+import { isScentMarked } from './vertebrae';
 import { snapshotPeriphery } from './periphery';
 import { subscribe as subscribeBus } from '../../observatory/observatoryBus';
 import { loadSealedArtifact } from './sealedArtifact';
@@ -112,6 +113,7 @@ export default function ReliquaryView() {
     slot('narcos_payload',      'narcos payload · bsky trend',   !!spine.trend,   spine.trend?.label),
     slot('council_pair',        'friction pair · council',       !!spine.council, spine.council?.pair?.join(' × ')),
     slot('pirarucu',            'dryness · olfactory phase',     !!spine.phase,   spine.phase),
+    slot('sealed_accord',       'sealed accord · scent',         isScentMarked(spine), isScentMarked(spine) ? spine.scent.cardName : null),
     slot('entropy_lock',        'entropy_lock · lunar transit',  !!p.lunarRead,   p.lunarRead ? `${p.lunarRead.phase}` : null),
     slot('house_transmissions', 'mummy · transmission',          !!p.transmissions,
       p.transmissions?.lastKernel

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Database, GitBranch } from 'lucide-react';
 import KernelCoreIcon from '../components/icons/KernelCoreIcon';
 import { getSpine, subscribeSpine, missingVertebrae } from '../quintessence/spineStore';
+import { altarMeter } from '../quintessence/vertebrae';
 import { subscribe as subscribeBus } from '../../observatory/observatoryBus';
 import { loadSealedArtifact, clearSealedArtifact } from '../quintessence/sealedArtifact';
 import MercuryTerminator from '../components/MercuryTerminator';
@@ -89,15 +90,10 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
   useEffect(() => subscribeBus(() => queueMicrotask(forceQuint)), []);
   const artifact = loadSealedArtifact();
   const spine    = getSpine();
-  // Four vertebrae: trend · council · phase are witnessed on the journey and
-  // gate the compile; element is the ceremonial fourth, forged at the altar.
-  const vertebrae = [
-    { key: 'trend',   filled: !!spine.trend },
-    { key: 'council', filled: !!spine.council },
-    { key: 'phase',   filled: !!spine.phase },
-    { key: 'element', filled: !!spine.element },
-  ];
-  const missing = missingVertebrae();   // trend/council/phase only
+  // Five marks: trend · council · phase · scent are witnessed on the journey and
+  // gate the compile; element is the ceremonial fifth, forged at the altar.
+  const vertebrae = altarMeter(spine);
+  const missing = missingVertebrae();   // trend/council/phase/scent (element is not gated)
   const armed   = missing.length === 0; // the altar will accept ignition
   const toMercury = () => { onNavigateToMercury && onNavigateToMercury(); };
   // Developer-Options gesture: 7 taps on Mercury root the bypass (systemless);
@@ -732,8 +728,8 @@ const KernelTab = ({ kernelAxioms = [], kernelBuilds = [], handleKernelClick, lo
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0 ml-auto">
-                  {/* Vertebrae assembly meter — fills as trend/council/phase/element are witnessed */}
-                  <div className="flex items-center gap-1" aria-label={`${vertebrae.filter(v => v.filled).length} of 4 vertebrae witnessed`}>
+                  {/* Vertebrae assembly meter — fills as trend/council/phase/scent/element are witnessed */}
+                  <div className="flex items-center gap-1" aria-label={`${vertebrae.filter(v => v.filled).length} of ${vertebrae.length} vertebrae witnessed`}>
                     {vertebrae.map(v => (
                       <span key={v.key} title={v.key}
                         style={{ color: v.filled ? '#d4a82a' : 'rgba(120,113,90,0.5)', textShadow: v.filled ? '0 0 6px rgba(212,168,42,0.55)' : 'none', fontSize: '13px', lineHeight: 1 }}>

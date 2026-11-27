@@ -5,9 +5,11 @@ import { resolveEyeState, overlayLean } from '../resolveEyeState';
 import { VERTEBRAE } from '../../quintessence/vertebrae';
 import { NAV_TINTS, GLANCE_IN_MS, GLANCE_HOLD_MS, GLANCE_TOTAL_MS } from '../../quintessence/observerStore';
 
-const empty = { trend: null, council: null, phase: null, element: null };
+const empty = { trend: null, council: null, phase: null, element: null, scent: null };
+// scent-aether P2: the fourth vertebra is a sealed accord (envelope-shaped; crypto is tested elsewhere).
+const SEALED_SCENT = { envelope: { v: 1, kem: 'ML-KEM-768', fp: 'f'.repeat(32) }, cardName: 'x', sealedAt: 1, fp: 'f'.repeat(32) };
 const partial = { ...empty, trend: { label: 'x' } };
-const full = { trend: {}, council: {}, phase: 'DARK INCUBATION', element: null };
+const full = { trend: {}, council: {}, phase: 'DARK INCUBATION', element: null, scent: SEALED_SCENT };
 const GAZE = [0.15, -0.04];
 const S = (over = {}) => ({
   spine: empty, sealed: false, igniting: false, remarkedSinceSeal: false, flash: null, glance: null, ...over,
@@ -111,10 +113,18 @@ describe('the tints the compass leans in (spec §4.1)', () => {
       ['bsky',      [56, 189, 248]],
       ['manifesto', [167, 139, 250]],
       ['lunar',     [167, 139, 250]],
+      ['scaling',   [217, 70, 239]],
     ]);
   });
 
-  it('no vertebra leans in /SCALING fuchsia', () => {
-    for (const v of VERTEBRAE) expect(v.tint).not.toEqual(NAV_TINTS.scaling);
+  it('only the scent house leans in /SCALING fuchsia (the lunar entry once wore it by mistake)', () => {
+    for (const v of VERTEBRAE) expect(v.tint).toEqual(v.tab === 'scaling' ? NAV_TINTS.scaling : expect.anything());
+    expect(VERTEBRAE.filter(v => v.tint.join() === NAV_TINTS.scaling.join()).map(v => v.key)).toEqual(['scent']);
+  });
+
+  it('an orphaned scent does not arm the eye', () => {
+    const orphan = { ...full, scent: { ...SEALED_SCENT, orphaned: true } };
+    expect(resolveEyeState(S({ spine: orphan })).baseline).toBe('silver');
+    expect(resolveEyeState(S({ spine: { ...full, scent: null } })).baseline).toBe('silver');
   });
 });

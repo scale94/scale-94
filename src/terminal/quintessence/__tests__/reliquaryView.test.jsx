@@ -4,7 +4,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import ReliquaryView from '../ReliquaryView';
-import { _resetSpineForTests, setTrend } from '../spineStore';
+import { _resetSpineForTests, setTrend, reconcileScent } from '../spineStore';
+import { sealScentForTests } from './scentFixture';
 import { emit, _resetForTests } from '../../../observatory/observatoryBus';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -39,6 +40,21 @@ describe('ReliquaryView — the faculty roster on the schematic', () => {
     expect(text).toContain('read by ⟨AESTHETICS⟩');                      // house_essences
     expect(text).toContain('read by ⟨SOCIOLOGY⟩');                       // house_ecocide + privacy + surveillance
     expect(text).toContain('read by ⟨HISTORY⟩');                         // mummy·transmission + house_ledger
+  });
+
+  it('the sealed accord is a slot of its own, read by CHEMISTRY ⇄ ALCHEMY beside the dryness', () => {
+    const text = container.textContent;
+    expect(text).toContain('sealed accord · scent');
+    expect(text.match(/read by ⟨CHEMISTRY ⇄ ALCHEMY⟩/g)).toHaveLength(2); // pirarucu, sealed_accord
+    expect(text).toContain('no accord sealed');
+  });
+
+  it('a sealed accord shows its card name; an orphaned one does not', async () => {
+    await act(async () => { sealScentForTests(); });
+    expect(container.textContent).toContain('Fixture Accord');
+    await act(async () => { reconcileScent(null); });
+    expect(container.textContent).not.toContain('Fixture Accord');
+    expect(container.textContent).toContain('seal orphaned — the key evaporated');
   });
 
   it('multi-slot owners annotate each owned slot individually', () => {

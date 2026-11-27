@@ -5,7 +5,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import QuintessenceAltar from '../../mercury/QuintessenceAltar';
-import { setTrend, setCouncil, setPhase, _resetSpineForTests } from '../spineStore';
+import { setTrend, setCouncil, setPhase, reconcileScent, _resetSpineForTests } from '../spineStore';
+import { sealScentForTests } from './scentFixture';
 import { emit, subscribe, _resetForTests as resetBus } from '../../../observatory/observatoryBus';
 import { compileKernel } from '../compileKernel';
 import { launchCloud, _resetCloudsForTests } from '../../sol/cloudStore';
@@ -43,6 +44,7 @@ function completeSpine() {
     setTrend({ label: 'degrowth', velocity: 0.9 });
     setCouncil({ pair: ['OSTROM', 'WIENER'], directive: 'test directive', trajectory: 'FOUNDATION', paradoxCount: 2 });
     setPhase('SMOKE DISSOLUTION');
+    sealScentForTests();
   });
 }
 
@@ -65,10 +67,12 @@ afterEach(() => {
 });
 
 describe('QuintessenceAltar — the living altar', () => {
-  it('empty spine: three None rows name their houses — and the seals are NEVER disabled', () => {
+  it('empty spine: four None rows name their houses — and the seals are NEVER disabled', () => {
     const text = container.textContent;
     expect(text).not.toContain('SPINE INCOMPLETE');
-    expect(mirrorRows()).toHaveLength(3);
+    expect(mirrorRows()).toHaveLength(4);
+    expect(text).toContain('sealed accord');
+    expect(text).toContain('→ the scent house holds it');
     expect(text).toContain('narcos payload');
     expect(text).toContain('friction pair');
     expect(text).toContain('dryness');
@@ -116,6 +120,26 @@ describe('QuintessenceAltar — the living altar', () => {
     expect(onNavigate).toHaveBeenCalledWith('bsky');
   });
 
+  it('three marks without a sealed accord do not arm the altar; the scent row names its house', () => {
+    act(() => {
+      setTrend({ label: 'degrowth', velocity: 0.9 });
+      setCouncil({ pair: ['OSTROM', 'WIENER'], directive: 'd', trajectory: 'FOUNDATION', paradoxCount: 2 });
+      setPhase('SMOKE DISSOLUTION');
+    });
+    expect(container.textContent).not.toContain('ALTAR ARMED');
+    act(() => { mirrorRowFor('sealed accord').click(); });
+    expect(onNavigate).toHaveBeenCalledWith('scaling');
+  });
+
+  it('an orphaned seal reads absent and names why — the altar disarms', () => {
+    completeSpine();
+    expect(container.textContent).toContain('ALTAR ARMED');
+    act(() => { reconcileScent(null); });
+    expect(container.textContent).not.toContain('ALTAR ARMED');
+    expect(container.textContent).toContain('SEAL ORPHANED — the key evaporated');
+    expect(mirrorRowFor('sealed accord').getAttribute('aria-label')).toContain('SEAL ORPHANED — the key evaporated');
+  });
+
   it('a long trend label is truncated — the mirror is a row, not a paragraph', () => {
     act(() => { setTrend({ label: 'x'.repeat(60), velocity: 0.5 }); });
     expect(container.textContent).toContain('…');
@@ -124,7 +148,7 @@ describe('QuintessenceAltar — the living altar', () => {
 
   it('every row carries an aria-label — the hue is decoration, the label is the fact', () => {
     const labels = mirrorRows().map(b => b.getAttribute('aria-label'));
-    expect(labels).toHaveLength(3);
+    expect(labels).toHaveLength(4);
     for (const l of labels) expect(l).toBeTruthy();
     expect(labels.some(l => l.includes('unmarked') && l.includes('the lunar house'))).toBe(true);
   });
@@ -152,7 +176,7 @@ describe('QuintessenceAltar — the living altar', () => {
     expect(container.textContent).toContain('ALTAR ARMED · HOLD AN ELEMENT TO SEAL THE KERNEL');
     expect(container.querySelector('[data-testid="spine-mirror"]')).not.toBeNull();
     expect(container.textContent).not.toContain('None');
-    expect(mirrorRows()).toHaveLength(3);
+    expect(mirrorRows()).toHaveLength(4);
     act(() => { sealFor('EARTH').click(); });
     expect(onNavigate).toHaveBeenCalledWith('ecocide');
   });
@@ -218,9 +242,9 @@ describe('QuintessenceAltar — the living altar', () => {
       expect(ruleOf('friction pair')).toBe('rgb(167, 139, 250)');
     });
 
-    it('armed: all three houses resolve to one gold — rule and tail together', () => {
+    it('armed: all four houses resolve to one gold — rule and tail together', () => {
       completeSpine();
-      for (const field of ['narcos payload', 'friction pair', 'dryness']) {
+      for (const field of ['narcos payload', 'friction pair', 'dryness', 'sealed accord']) {
         expect(ruleOf(field), field).toBe(GOLD);
         expect(tailFor(field).style.color, field).toBe(GOLD);
       }

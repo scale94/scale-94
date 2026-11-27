@@ -36,6 +36,7 @@ describe('taxonomyRegistry — completeness', () => {
   it('ownerOf resolves the reliquary annotations', () => {
     expect(ownerOf('narcos_payload')).toBe('SEMIOTICS');
     expect(ownerOf('pirarucu')).toBe('CHEMISTRY ⇄ ALCHEMY');
+    expect(ownerOf('sealed_accord')).toBe('CHEMISTRY ⇄ ALCHEMY');
     expect(ownerOf('house_ledger')).toBe('HISTORY');
     expect(ownerOf('house_privacy')).toBe('SOCIOLOGY');
     expect(ownerOf('house_sol')).toBe('AESTHETICS');

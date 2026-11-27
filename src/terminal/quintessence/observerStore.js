@@ -77,15 +77,17 @@ const RULES = {
 // The kernel phrase owns the mei-phrase slot for a while: a whisper waits it out.
 const PHRASE_KINDS = new Set(['transmissions/kernel_loaded', 'transmissions/kernel_completed']);
 
-// The three spine vertebrae (the element write belongs to the ignition, never here).
-const SPINE_PIECES = { trend: 'bsky.trend', council: 'accretion.collide', phase: 'lunar.phase' };
+// The four spine vertebrae (the element write belongs to the ignition, never here).
+// The scent vertebra's piece is the collider's own: crystallize is where it is sealed.
+const SPINE_PIECES = { trend: 'bsky.trend', council: 'accretion.collide', phase: 'lunar.phase', scent: 'scent.collide' };
+const VERTEBRA_BY_KEY = Object.fromEntries(VERTEBRAE.map(v => [v.key, v]));
 const VERTEBRA_KEY = Object.fromEntries(Object.entries(SPINE_PIECES).map(([k, p]) => [p, k]));
 
 // Whisper target order (§5.8, D6). altar.ignite is a target only once armed.
 const TARGET_ORDER = [
   'mercury.flick',
   ...VERTEBRAE.map(v => SPINE_PIECES[v.key]),
-  'scent.collide', 'chaos.pick', 'sol.release', 'crypto.seal', 'ledger.write',
+  'chaos.pick', 'sol.release', 'crypto.seal', 'ledger.write',
   'transmission.mark', 'ecocide.growth', 'surveillance.privacy', 'kernel.run',
   'altar.ignite',
 ];
@@ -204,12 +206,12 @@ function drawCooldown() {
 
 // ---- pieces ---------------------------------------------------------------
 
-const armed = () => VERTEBRAE.every(v => spine?.[v.key]);
+const armed = () => VERTEBRAE.every(v => v.isMarked(spine));
 
 function done(piece) {
   if (trail.touched[piece]) return true;
   const key = VERTEBRA_KEY[piece];
-  if (key) return !!spine?.[key];                 // D10: a marked vertebra is never whispered
+  if (key) return VERTEBRA_BY_KEY[key].isMarked(spine);   // D10: a marked vertebra is never whispered
   if (piece === 'altar.ignite') return sealed;
   return false;
 }
@@ -365,7 +367,7 @@ function startGlance(tab, tint, shimmer, reason, t) {
   glance = { tab, tint, shimmer, reason, t0: t };
 }
 
-const compassTarget = () => (sealed || armed() ? null : VERTEBRAE.find(v => !spine?.[v.key]) || null);
+const compassTarget = () => (sealed || armed() ? null : VERTEBRAE.find(v => !v.isMarked(spine)) || null);
 const cooldownEnd = () => (trail.lastWhisperAt === null ? -Infinity : trail.lastWhisperAt + cooldownMs);
 
 function showWhisper(w, idleTab, t) {

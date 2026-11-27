@@ -1,10 +1,12 @@
 // src/terminal/quintessence/__tests__/vertebrae.test.js — the spine's table (spec §4).
 import { describe, it, expect, beforeEach } from 'vitest';
-import { VERTEBRAE, truncate, PREVIEW_MAX } from '../vertebrae';
+import { VERTEBRAE, truncate, PREVIEW_MAX, isScentMarked, altarMeter } from '../vertebrae';
 import { NAV_TINTS } from '../observerStore';
-import { getSpine, missingVertebrae, setTrend, setCouncil, setPhase, _resetSpineForTests } from '../spineStore';
+import { getSpine, missingVertebrae, setTrend, setCouncil, setPhase, reconcileScent, _resetSpineForTests } from '../spineStore';
+import { sealScentForTests } from './scentFixture';
 
 const EMPTY = { trend: null, council: null, phase: null, element: null };
+const EMPTY_P2 = { ...EMPTY, scent: null };
 
 describe('VERTEBRAE — the table', () => {
   beforeEach(() => { _resetSpineForTests(); });
@@ -13,8 +15,50 @@ describe('VERTEBRAE — the table', () => {
     const missing = missingVertebrae();
     expect(missing).toHaveLength(VERTEBRAE.length);
     VERTEBRAE.forEach((v, i) => {
-      expect(missing[i]).toContain(v.key.toUpperCase());
+      expect(missing[i]).toBe(v.absent);
     });
+  });
+
+  it('the fourth vertebra is the scent house (spec §5.3)', () => {
+    const { preview, isMarked, ...rest } = VERTEBRAE[3];
+    expect(rest).toEqual({
+      key: 'scent', tab: 'scaling', label: 'scent', tint: [217, 70, 239],
+      field: 'sealed accord', house: 'the scent house', absent: 'NO ACCORD SEALED',
+    });
+    expect(VERTEBRAE[3].tint).toEqual(NAV_TINTS.scaling);
+    expect(typeof preview).toBe('function');
+    expect(typeof isMarked).toBe('function');
+  });
+
+  it('scent is marked only by a real, un-orphaned envelope; its preview is the card name', () => {
+    expect(isScentMarked(EMPTY_P2)).toBe(false);
+    expect(isScentMarked({ ...EMPTY_P2, scent: { cardName: 'x' } })).toBe(false);
+    sealScentForTests();
+    const s = getSpine();
+    expect(isScentMarked(s)).toBe(true);
+    expect(VERTEBRAE[3].preview(s)).toBe('Fixture Accord');
+    reconcileScent(null);
+    expect(isScentMarked(getSpine())).toBe(false);
+    expect(VERTEBRAE[3].preview(getSpine())).toBeNull();
+  });
+
+  it('altarMeter: the kernel tab five marks — the four vertebrae in order, then the element', () => {
+    expect(altarMeter(EMPTY_P2)).toEqual([
+      { key: 'trend', filled: false }, { key: 'council', filled: false }, { key: 'phase', filled: false },
+      { key: 'scent', filled: false }, { key: 'element', filled: false },
+    ]);
+    sealScentForTests();
+    expect(altarMeter({ ...getSpine(), element: 'FIRE' }).map(m => m.filled)).toEqual([false, false, false, true, true]);
+    reconcileScent(null);
+    expect(altarMeter(getSpine())[3]).toEqual({ key: 'scent', filled: false });
+  });
+
+  it('isMarked agrees with missingVertebrae() for every vertebra', () => {
+    setTrend({ label: 'x', velocity: 0 });
+    sealScentForTests();
+    const s = getSpine();
+    const missing = missingVertebrae();
+    for (const v of VERTEBRAE) expect(v.isMarked(s)).toBe(!missing.includes(v.absent));
   });
 
   it('every tab is a real house in NAV_TINTS', () => {

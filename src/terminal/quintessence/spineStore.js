@@ -1,4 +1,5 @@
 // src/terminal/quintessence/spineStore.js — the deliberate choices (spec §6).
+// Four vertebrae since scent-aether P2: trend, council, phase, scent (the sealed accord).
 // Bus-adjacent store, same discipline as observatoryBus: no React, listeners
 // are a Set, localStorage-persisted so a reload mid-journey keeps the spine.
 // The element is written at the altar click (spec §4) and is not gate-checked.
@@ -8,7 +9,10 @@ const STORAGE_KEY = 'quintessence_spine_v1';
 const ELEMENTS = ['FIRE', 'EARTH', 'WATER', 'AIR'];
 const PHASES = LUNAR_ACCORDS.map(a => a.accord);
 
-const emptySpine = () => ({ trend: null, council: null, phase: null, element: null });
+const emptySpine = () => ({ trend: null, council: null, phase: null, element: null, scent: null });
+
+export const SCENT_ABSENT = 'NO ACCORD SEALED';
+export const SCENT_ORPHANED = 'SEAL ORPHANED — the key evaporated';
 
 let spine = restore();
 const listeners = new Set();
@@ -72,11 +76,34 @@ export function setElement(element) {
   write({ element });
 }
 
+// The scent vertebra (scent-aether P2, spec §5.3). Only a real ML-KEM-768
+// envelope fills it: an unsealed card (insecure origin, no WASM) never does.
+// The plaintext never touches the spine: only the ciphertext envelope does.
+export function setScent({ envelope, cardName, sealedAt, fp }) {
+  if (!envelope || envelope.v !== 1 || envelope.kem !== 'ML-KEM-768' || typeof envelope.fp !== 'string') {
+    throw new Error('setScent needs a sealed ML-KEM-768 envelope');
+  }
+  if (fp !== envelope.fp) throw new Error('setScent: fp does not match the envelope');
+  write({ scent: { envelope, cardName: String(cardName), sealedAt: Number(sealedAt) || 0, fp } });
+}
+
+// Orphaning is decided when the identity is known (boot, rotate, restore), not per
+// read, so missingVertebrae() stays synchronous for its readers (plan ruling 6).
+// currentFp null = no identity on this device.
+export function reconcileScent(currentFp) {
+  if (!spine.scent) return;
+  const orphaned = !currentFp || currentFp !== spine.scent.fp;
+  if (orphaned === !!spine.scent.orphaned) return;
+  write({ scent: { ...spine.scent, orphaned } });
+}
+
 export function missingVertebrae() {
   const missing = [];
   if (!spine.trend)   missing.push('NO TREND MARKED');
   if (!spine.council) missing.push('NO COUNCIL COLLISION');
   if (!spine.phase)   missing.push('NO PHASE COMPILED');
+  if (!spine.scent?.envelope)  missing.push(SCENT_ABSENT);
+  else if (spine.scent.orphaned) missing.push(SCENT_ORPHANED);
   return missing;
 }
 
@@ -99,5 +126,5 @@ export function _resetSpineForTests(opts = {}) {
 // DEV escape hatch: lets the altar→reliquary flow be exercised in the browser
 // before the bsky trend picker ships (spec §8.1). Stripped from prod builds.
 if (import.meta.env?.DEV && typeof window !== 'undefined') {
-  window.__quintessenceSpine = { getSpine, setTrend, setCouncil, setPhase, setElement };
+  window.__quintessenceSpine = { getSpine, setTrend, setCouncil, setPhase, setElement, reconcileScent };
 }

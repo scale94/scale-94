@@ -9,7 +9,8 @@ import {
   MOBILE_HOLD_MS, glanceLevel, GLANCE_TOTAL_MS, notifyTtyEnter, notifyAccretion, notifySurveillance, notifyCrypto, notifyLedger, ledgerSettleMs, holdEyeQuiet, notifyAltarStage,
 } from '../observerStore';
 import { PIECE_TAB, TAB_PIECES, RIDDLES } from '../whispers';
-import { setTrend, setCouncil, setPhase, setElement, _resetSpineForTests } from '../spineStore';
+import { setTrend, setCouncil, setPhase, setElement, reconcileScent, _resetSpineForTests } from '../spineStore';
+import { sealScentForTests } from './scentFixture';
 import { STORAGE_KEY } from '../sealedArtifact';
 import { _resetVolatileForTests, holdVolatile } from '../volatileHold';
 import { emit, subscribe as subscribeBus, _resetForTests as _resetBusForTests } from '../../../observatory/observatoryBus';
@@ -485,10 +486,26 @@ describe('observerStore — glances', () => {
     expect(getObserver().glance).toMatchObject({ tab: 'manifesto', tint: NAV_TINTS.manifesto });
   });
 
+  it('compass_points_at_the_scent_house_once_three_are_marked_and_again_when_orphaned', async () => {
+    setTrend({ label: 'x', velocity: 0.5 });
+    setCouncil(COUNCIL);
+    setPhase(PHASE);
+    boot(QUIET_TAB);
+    await step(QUIET_MS);
+    expect(getObserver().glance).toMatchObject({ tab: 'scaling', tint: NAV_TINTS.scaling, reason: 'compass' });
+    _resetObserverForTests({ now: () => t, random: () => 0 });
+    sealScentForTests();
+    reconcileScent(null);
+    boot(QUIET_TAB);
+    await step(QUIET_MS);
+    expect(getObserver().glance).toMatchObject({ tab: 'scaling', reason: 'compass' });
+  });
+
   it('no_compass_when_armed_or_sealed', async () => {
     setTrend({ label: 'x', velocity: 0.5 });
     setCouncil(COUNCIL);
     setPhase(PHASE);
+    sealScentForTests();
     boot(QUIET_TAB);
     await step(QUIET_MS + GLANCE_GAP_MS);
     expect(getObserver().glance).toBeNull();

@@ -1,7 +1,7 @@
 // src/terminal/components/resolveEyeState.js — baseline + overlay (spec §5.4, D15).
 // Pure: no React, no WebGL — the whole table is testable.
 // Baseline: igniting → charging; sealed & not remarked → silver + thread;
-//           all three vertebrae marked → aether (thread if sealed); else silver.
+//           all four vertebrae marked → aether (thread if sealed); else silver.
 // Overlay:  flash → leaning in the flash tint; tinted glance → leaning + gaze + pulse;
 //           shimmer glance (Mercury) → baseline state + shimmer + gaze.
 // Lean (D5): how far the overlay leans in, 0..1. A flash is immediate (1); a glance follows
@@ -22,7 +22,7 @@ export function overlayLean({ flash, glance } = {}, now) {
 
 export function resolveEyeState({ spine, sealed, igniting, remarkedSinceSeal, flash, glance, now } = {}) {
   const s = spine || {};
-  const armed = VERTEBRAE.every(v => !!s[v.key]);
+  const armed = VERTEBRAE.every(v => v.isMarked(s));
 
   let baseline, state, thread;
   if (igniting) { baseline = 'charging'; state = 'charging'; thread = 0; }

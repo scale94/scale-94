@@ -466,7 +466,7 @@ export const TAXONOMY = [
     id: 'chemistry_alchemy',
     tier: 'OVERLAP_MATRIX',
     tag: 'CHEMISTRY ⇄ ALCHEMY',
-    owns: ['pirarucu'],
+    owns: ['pirarucu', 'sealed_accord'],
     band: (ctx) => {
       const d = ctx?.meta?.dryness ?? 0;
       return d < 40 ? 'green' : d < 70 ? 'burn' : 'mineral';
