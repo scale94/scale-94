@@ -1224,7 +1224,7 @@ export default function LatentCollider({ onPolarity } = {}) {
             <div>
               <div className="text-[10px] font-bold text-fuchsia-500/60 uppercase tracking-widest mb-1">COLLISION MANIFOLD</div>
               <div className="text-[10px] font-mono text-cyan-600/50">
-                {result.nodeIdA} × {result.nodeIdB} · 16D feature space
+                {result.nodeIdA} × {result.nodeIdB} · {result.space}
               </div>
             </div>
             <div className="text-right">
@@ -2414,8 +2414,11 @@ function CrystallizeCard({ card }) {
           </div>
         </div>
 
-        {/* Note pyramid */}
+        {/* Note pyramid — the tier percentages are conceptual, not measured */}
         <div className="space-y-2.5 mb-6">
+          <div className="text-[7px] font-mono tracking-widest" style={{ color: 'rgba(255,215,0,0.4)' }}>
+            NOTE PYRAMID · conceptual
+          </div>
           {NOTE_LAYERS.map(({ key, label, glyph, notes, color, sub, pct }) => (
             <div key={key} className="rounded-lg p-3" style={{ border: `1px solid ${color}18`, background: `${color}04` }}>
               <div className="flex items-center justify-between mb-2">
@@ -2689,8 +2692,11 @@ function TesseractCard({ card, fullCard = card, sovereignty = null, sovereignVie
           </div>
         </div>
 
-        {/* ── Note pyramid (public key data) ── */}
+        {/* ── Note pyramid (public key data); the tier percentages are conceptual ── */}
         <div className="space-y-2 mb-5" style={{ opacity: 0, animation: 'sc-cardReveal 0.4s cubic-bezier(0.16,1,0.3,1) 600ms forwards' }}>
+          <div className="text-[7px] font-mono tracking-widest" style={{ color: 'rgba(255,215,0,0.4)' }}>
+            NOTE PYRAMID · conceptual
+          </div>
           {NOTE_LAYERS.map(({ key, label, glyph, field, notes, color, sub, pct }) => (
             <div key={key} className="rounded-lg p-2.5" style={{ border: `1px solid ${color}12`, background: `${color}04` }}>
               <div className="flex items-center justify-between mb-1.5">

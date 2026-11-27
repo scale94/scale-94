@@ -451,21 +451,21 @@ function buildDecayArc(card, narrative) {
   const interference = card.interference || null;
   return [
     {
-      time:  't = 0',
+      time:  't₀',
       label: '[bosonic flash]',
       notes: card.topNotes,
       prose: pickProse('top', tone, card.dom, interference),
       ...DOCTRINE_PHASES[0],
     },
     {
-      time:  't = 30 min',
+      time:  't₁',
       label: '[saponification threshold]',
       notes: card.heartNotes,
       prose: pickProse('heart', tone, card.dom, interference),
       ...DOCTRINE_PHASES[1],
     },
     {
-      time:  't = 4 h+',
+      time:  't∞',
       label: '[fermionic residue]',
       notes: card.baseNotes,
       prose: pickProse('base', tone, card.dom, interference),

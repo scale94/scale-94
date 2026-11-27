@@ -2,7 +2,7 @@
 // anything that reads like a lab measurement is calculated from cited data or
 // cut, so the invented concentration, wear time, evaporation split, loading,
 // flash point, density, maceration and the fake encrypted formula are gone.
-// Strength is set at the altar by the element (P2).
+// Strength is set at the altar by the element (P3).
 export function generateManifestMarkdown(card, tesseract, result = null, narrative = null) {
   const { hash } = tesseract;
   const ts = new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC';

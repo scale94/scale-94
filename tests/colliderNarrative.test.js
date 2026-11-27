@@ -53,7 +53,7 @@ describe('detectArchetype', () => {
 });
 
 describe('buildDecayArc', () => {
-  it('returns 3 beats with time labels', () => {
+  it('returns 3 beats with conceptual phase labels (R18: no physical time)', () => {
     const { buildDecayArc } = __test__;
     const card = {
       topNotes: ['bergamot', 'neroli'],
@@ -66,9 +66,9 @@ describe('buildDecayArc', () => {
     const narrative = { registerTone: 'assertive' };
     const beats = buildDecayArc(card, narrative);
     expect(beats).toHaveLength(3);
-    expect(beats[0].time).toBe('t = 0');
-    expect(beats[1].time).toBe('t = 30 min');
-    expect(beats[2].time).toBe('t = 4 h+');
+    expect(beats[0].time).toBe('t₀');
+    expect(beats[1].time).toBe('t₁');
+    expect(beats[2].time).toBe('t∞');
     expect(beats[0].notes).toEqual(['bergamot', 'neroli']);
   });
 

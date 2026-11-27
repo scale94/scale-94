@@ -54,6 +54,11 @@ describe('manifest parity (P0 pin)', () => {
     const { card, tesseract } = await build('plain-chimera-name', null);
     expect(generateManifestMarkdown(card, tesseract, null, null)).toMatchSnapshot();
   });
+  it('SPACE prints result.space (no snapshot)', async () => {
+    const { card, tesseract, res } = await build('interference-extrait');
+    const md = generateManifestMarkdown(card, tesseract, { ...res, space: '32-D feature tensor' }, narrative);
+    expect(md).toContain('SPACE          32-D feature tensor · OCK');
+  });
   it('planet domain fixture', async () => {
     const { card, tesseract, res } = await build('planet-domains');
     expect(generateManifestMarkdown(card, tesseract, res, narrative)).toMatchSnapshot();

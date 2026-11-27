@@ -16,6 +16,11 @@ const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 const VIEW = 'src/terminal/views/LatentCollider.jsx';
 const MANIFEST = 'src/terminal/collider/manifest.js';
 const CARD = 'src/terminal/collider/perfumeCard.js';
+const NARRATIVE = 'src/terminal/hooks/useColliderNarrative.js';
+
+// Physical times that used to label the decay arc (ruling R18). The arc's
+// phases are conceptual: t₀, t₁, t∞.
+const DECAY_ARC_TIMES = ["'t = 0'", 't = 30 min', 't = 4 h+', '30 min', '4 h+'];
 
 // Strings that read like a lab measurement, a cryptographic claim or fake
 // precision. None may appear in the card model, the manifest or the view.
@@ -108,6 +113,23 @@ describe('honesty sweep: no fake lab measurement', () => {
   it('LatentCollider.jsx puts no physical time on the note pyramids', () => {
     const src = read(VIEW);
     expect(PYRAMID_TIMINGS.filter((s) => src.includes(s))).toEqual([]);
+  });
+
+  it('useColliderNarrative.js labels the decay arc with conceptual phases, not minutes or hours', () => {
+    const src = read(NARRATIVE);
+    expect(DECAY_ARC_TIMES.filter((s) => src.includes(s))).toEqual([]);
+    for (const label of ["'t₀'", "'t₁'", "'t∞'"]) expect(src).toContain(label);
+  });
+
+  it('the COLLISION MANIFOLD subline names the space the run used', () => {
+    const src = read(VIEW);
+    expect(src).not.toContain('16D feature space');
+    expect(src).toContain('{result.nodeIdA} × {result.nodeIdB} · {result.space}');
+  });
+
+  it('both note pyramids mark their evaporation percentages conceptual (R19)', () => {
+    const src = read(VIEW);
+    expect(src.match(/NOTE PYRAMID · conceptual/g) ?? []).toHaveLength(2);
   });
 
   it('LatentCollider.jsx does not render the concentration percentage', () => {
