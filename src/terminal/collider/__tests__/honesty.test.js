@@ -204,6 +204,11 @@ describe('P1 ledger cleanup', () => {
     expect(read('src/terminal/lib/sovereignty.js')).not.toContain("vectorId: 'SERVER_LOG_RETENTION'");
   });
 
+  it('the card model carries no dead conc / concPct / longevity fields', () => {
+    const src = read(CARD);
+    for (const key of ['conc:', 'concPct:', 'longevity:']) expect(src).not.toContain(key);
+  });
+
   it('the card strips do not repeat the header\'s dom × sec as OLFACTIVE', () => {
     expect(read(VIEW)).not.toContain("label: 'OLFACTIVE'");
   });

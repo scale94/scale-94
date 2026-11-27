@@ -98,24 +98,12 @@ export function buildPerfumeCard(domA, domB, result) {
     }
   }
 
-  const sil  = acc?.sillage  ?? 0.5;
-  const fix  = acc?.fixation ?? 0.5;
-  const pers = acc?.persists ?? false;
-
   return {
     name: (interference
       ? `${interference.prefix} ${heartNotes[0]} Chimera`
       : (result.chimeraName || `${dA.short} × ${dB.short}`))
         .replace(/[^\w\s×·]/g, '').trim().toUpperCase().slice(0, 42),
     id: `${domA}-${domB}-${Math.round(hA + hB)}`,
-    conc:
-      sil > 0.72 ? 'EXTRAIT DE PARFUM' : sil > 0.50 ? 'EAU DE PARFUM' :
-      sil > 0.28 ? 'EAU DE TOILETTE'   : 'EAU DE COLOGNE',
-    concPct:
-      sil > 0.72 ? '22–30%' : sil > 0.50 ? '15–20%' : sil > 0.28 ? '8–14%' : '2–6%',
-    longevity:
-      pers && fix > 0.75 ? '14–20 hours' : pers ? '10–14 hours' :
-      fix > 0.55         ? '6–10 hours'  : '3–6 hours',
     topNotes, heartNotes, baseNotes,
     dom, sec,
     hueA: hA, hueB: hB,
