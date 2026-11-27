@@ -27,6 +27,12 @@ const DISHONEST = [
   'physical synthesis', 'SOMA SHOP', 'ShimmeringCipher',
 ];
 
+// The kernel parser's regex literal, exempted by exact text (see below).
+const EVAP_PARSER_REGEX = String.raw`/EVAP CURVE\s*=\s*\[([\d., ]+)\]/`;
+
+// Physical timings that used to label the conceptual top / heart / base tiers.
+const PYRAMID_TIMINGS = ['0–30 min', '30 min–4 hr', '4 hr – days', '4 hr+', '<15min'];
+
 const FORBIDDEN_IN_VIEW = [
   'fetch(', '/api/transmute', 'sealForVault', 'TESSERACT_PUB_KEY_B64', 'TIERS',
   'PRODUCTION_THRESHOLD', 'handleAcquire', 'RedeemInput', 'ContactForm',
@@ -89,14 +95,37 @@ describe('honesty sweep: no fake lab measurement', () => {
   });
 
   it('LatentCollider.jsx carries none of the dishonest strings', () => {
-    const src = read(VIEW);
+    // Rust kernel output key; parsed, never displayed. The parser's literal
+    // regex is the one allowed use of 'EVAP CURVE' in the view.
+    const src = read(VIEW).replaceAll(EVAP_PARSER_REGEX, '');
     expect(DISHONEST.filter((s) => src.includes(s))).toEqual([]);
+  });
+
+  it('the EVAP CURVE exemption still matches the parser verbatim', () => {
+    expect(read(VIEW)).toContain(EVAP_PARSER_REGEX);
+  });
+
+  it('LatentCollider.jsx puts no physical time on the note pyramids', () => {
+    const src = read(VIEW);
+    expect(PYRAMID_TIMINGS.filter((s) => src.includes(s))).toEqual([]);
+  });
+
+  it('LatentCollider.jsx does not render the concentration percentage', () => {
+    expect(read(VIEW)).not.toContain('card.concPct');
   });
 
   it('LatentCollider.jsx names volatility tiers and the JS-path space', () => {
     const src = read(VIEW);
     expect(src).toContain('VOLATILITY TIERS');
     expect(src).toContain("'32-D feature tensor'");
+  });
+
+  it('the header names WASM only when the WASM path ran', () => {
+    const src = read(VIEW);
+    expect(src).toContain('parsed.viaWasm = true');
+    expect(src).toContain('viaWasm: false');
+    expect(src).not.toContain("INTERACT v1.2.0 · WASM · '");
+    expect(src).toContain("result?.viaWasm ? 'WASM · ' : ''");
   });
 
   it('the card model no longer builds a vault payload', async () => {

@@ -456,9 +456,7 @@ function parseColliderOutput(text) {
     ockFixation:    num(/FIXATION\s*=\s*([\d.]+)/),
     ockPersists:    str(/PERSISTS\s*=\s*(\w+)/) === 'YES',
     ockEvapCurve:   (() => {
-      // the kernel's evaporation-curve output key: parsed for the tier bars
-      // and the card hash, never displayed
-      const m = text.match(/EVAP\s+CURVE\s*=\s*\[([\d., ]+)\]/);
+      const m = text.match(/EVAP CURVE\s*=\s*\[([\d., ]+)\]/);
       return m ? m[1].split(',').map(Number) : [0.33, 0.33, 0.34];
     })(),
 
@@ -612,6 +610,7 @@ export default function LatentCollider({ onPolarity } = {}) {
         const raw = mod.run_latent_collider(a, b, 8.0, 1.0);
         parsed = parseColliderOutput(raw);
         parsed.space = '16-D · expanded to 1536';
+        parsed.viaWasm = true;
       } else {
         // Extended domains 32+: JS-only collision from 32D feature tensors
         const mapA = DOMAIN_SPHERE_MAP[a], mapB = DOMAIN_SPHERE_MAP[b];
@@ -648,7 +647,7 @@ export default function LatentCollider({ onPolarity } = {}) {
         familyScores.sort((x, y) => y.score - x.score);
 
         parsed = {
-          space: '32-D feature tensor',
+          space: '32-D feature tensor', viaWasm: false,
           cosine: sim, angle, normA: nA, normB: nB, dot,
           rawAttn: dot, scaledAttn: dot / Math.sqrt(32), softmax: sim,
           entropy: -sim * Math.log2(Math.max(sim, 0.001)), projNorm: novelty,
@@ -890,7 +889,7 @@ export default function LatentCollider({ onPolarity } = {}) {
             LATENT SPACE COLLIDER
           </h3>
           <div className="text-[10px] text-fuchsia-500/50 font-mono uppercase tracking-widest mt-0.5">
-            {`// ${result?.space ?? '16-D · expanded to 1536'} CROSS-ATTENTION SYNTHESIS · OCK v1.1.0 · INTERACT v1.2.0 · WASM · `}{phase.toUpperCase()}
+            {`// ${result?.space ?? '16-D · expanded to 1536'} CROSS-ATTENTION SYNTHESIS · OCK v1.1.0 · INTERACT v1.2.0 · ${result?.viaWasm ? 'WASM · ' : ''}`}{phase.toUpperCase()}
           </div>
         </div>
         {(domainA !== null) && (
@@ -1641,7 +1640,7 @@ export default function LatentCollider({ onPolarity } = {}) {
               </div>
 
               {/* Sillage + Fixation + Permeability strip */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <div className="border border-amber-900/20 bg-black/30 rounded p-2">
                   <div className="text-[8px] font-bold text-amber-500/50 uppercase tracking-widest mb-1">SILLAGE</div>
                   <div className="text-sm font-bold font-mono" style={{ color: result.accord.sillage > 0.6 ? '#FFD700' : result.accord.sillage > 0.3 ? '#d946ef' : '#06b6d4' }}>
@@ -2371,9 +2370,9 @@ function PerfumeBottleSVG({ nodeClass, hA, hB }) {
 // ── Crystallize Card component ─────────────────────────────────────────────────
 function CrystallizeCard({ card }) {
   const NOTE_LAYERS = [
-    { key: 'top',   label: 'TOP NOTES',   glyph: 'ᛏ', notes: card.topNotes,   color: '#FFD700', sub: '0–30 min',    pct: card.evap[0] },
-    { key: 'heart', label: 'HEART NOTES', glyph: 'ᚺ', notes: card.heartNotes, color: '#d946ef', sub: '30 min–4 hr', pct: card.evap[1] },
-    { key: 'base',  label: 'BASE NOTES',  glyph: 'ᛒ', notes: card.baseNotes,  color: '#B8860B', sub: '4 hr – days', pct: card.evap[2] },
+    { key: 'top',   label: 'TOP NOTES',   glyph: 'ᛏ', notes: card.topNotes,   color: '#FFD700', sub: 'high volatility',   pct: card.evap[0] },
+    { key: 'heart', label: 'HEART NOTES', glyph: 'ᚺ', notes: card.heartNotes, color: '#d946ef', sub: 'medium volatility', pct: card.evap[1] },
+    { key: 'base',  label: 'BASE NOTES',  glyph: 'ᛒ', notes: card.baseNotes,  color: '#B8860B', sub: 'low volatility',    pct: card.evap[2] },
   ];
 
   const mid = Math.round((card.hueA + card.hueB) / 2);
@@ -2406,8 +2405,6 @@ function CrystallizeCard({ card }) {
             </div>
             <div className="flex items-center gap-2 mt-1.5 flex-wrap">
               <span className="text-[9px] font-mono tracking-widest" style={{ color: 'rgba(255,215,0,0.55)' }}>{card.conc}</span>
-              <span style={{ color: 'rgba(255,215,0,0.2)' }}>·</span>
-              <span className="text-[9px] font-mono" style={{ color: 'rgba(255,215,0,0.35)' }}>{card.concPct}</span>
               <span style={{ color: 'rgba(255,215,0,0.2)' }}>·</span>
               <span className="text-[9px] font-mono" style={{ color: 'rgba(255,215,0,0.35)' }}>{card.dom} × {card.sec}</span>
             </div>
@@ -2589,9 +2586,9 @@ function TesseractCard({ card, fullCard = card, sovereignty = null, sovereignVie
   const { hash } = tesseract;
 
   const NOTE_LAYERS = [
-    { key: 'top',   label: 'TOP',   glyph: 'ᛏ', field: 'topNotes',   notes: card.topNotes,   color: '#FFD700', sub: '0–30 min',    pct: card.evap[0] },
-    { key: 'heart', label: 'HEART', glyph: 'ᚺ', field: 'heartNotes', notes: card.heartNotes, color: '#d946ef', sub: '30 min–4 hr', pct: card.evap[1] },
-    { key: 'base',  label: 'BASE',  glyph: 'ᛒ', field: 'baseNotes',  notes: card.baseNotes,  color: '#B8860B', sub: '4 hr+',      pct: card.evap[2] },
+    { key: 'top',   label: 'TOP',   glyph: 'ᛏ', field: 'topNotes',   notes: card.topNotes,   color: '#FFD700', sub: 'high volatility',   pct: card.evap[0] },
+    { key: 'heart', label: 'HEART', glyph: 'ᚺ', field: 'heartNotes', notes: card.heartNotes, color: '#d946ef', sub: 'medium volatility', pct: card.evap[1] },
+    { key: 'base',  label: 'BASE',  glyph: 'ᛒ', field: 'baseNotes',  notes: card.baseNotes,  color: '#B8860B', sub: 'low volatility',    pct: card.evap[2] },
   ];
 
   return (
@@ -2672,8 +2669,6 @@ function TesseractCard({ card, fullCard = card, sovereignty = null, sovereignVie
             </div>
             <div className="flex items-center gap-2 mt-1.5 flex-wrap">
               <span className="text-[9px] font-mono tracking-widest" style={{ color: 'rgba(255,215,0,0.55)' }}>{card.conc}</span>
-              <span style={{ color: 'rgba(255,215,0,0.2)' }}>·</span>
-              <span className="text-[9px] font-mono" style={{ color: 'rgba(255,215,0,0.35)' }}>{card.concPct}</span>
               <span style={{ color: 'rgba(255,215,0,0.2)' }}>·</span>
               <span className="text-[9px] font-mono" style={{ color: 'rgba(255,215,0,0.35)' }}>{card.dom} × {card.sec}</span>
             </div>
