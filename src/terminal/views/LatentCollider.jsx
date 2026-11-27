@@ -6,15 +6,10 @@ import {
   cosineSim, topDrivers, analyzeFullEdge, extractParadoxes,
 } from '../data/nodeFeatures';
 import { useColliderNarrative } from '../hooks/useColliderNarrative';
-import { useProductionThreshold } from '../hooks/useProductionThreshold';
-import { useOrderStatus, recordDispatchedOrder } from '../hooks/useOrderStatus';
-import { sealForVault } from '../lib/vaultSeal';
 import { buildChimeraGlyph } from './chimeraGlyph.js';
-import { runPreExecTheater, theaterDuration } from '../utils/preExecTheater.js';
 import { emit as emitObs } from '../../observatory/observatoryBus';
-import CopySpan from '../components/CopySpan';
 import { getPanopticonState } from '../lib/panopticon';
-import { assessSovereignty, redactCard, publishAssessment, transitTag } from '../lib/sovereignty';
+import { assessSovereignty, redactCard, publishAssessment } from '../lib/sovereignty';
 import ColliderChamber from '../collider/ColliderChamber';
 import { usePhaseAdvance } from '../collider/usePhaseAdvance';
 import { buildDomainMass } from '../collider/domainMass';
@@ -493,32 +488,6 @@ function parseColliderOutput(text) {
   };
 }
 
-// ── Tesseract RSA-OAEP — public key for formula vault encryption ─────────────
-const TESSERACT_PUB_KEY_B64 = 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuF5JUFwt6vCs/6kWTFGq10NZjqeRKK7Ek5X6DPGl+NgiCVZUT1VYhOB0ssL91Mr0DBmG7EbOUqEs5s23x4z5gQEgEAPXZ0fvyODdimrk95XduOpGUNOSxWe4rFTZAxm5Qkqj75hHMOIcnadgp0wnY4HslR08EWcACUgucYt3uR2XA0I1BD7Ece45R/miA4lcFta7q3TVzkIbl7CFO9JWuFzf5EFTotuNXR1gzN33neuxLuS0lu/6MI9TMaQ5s9G5I5RKEzv2hHSq5ACCKayO+1h3facgb9AvdDRdbUdSCAFUIsnfmcK42FUNM13Z6VP1G1W39ZaAmoI1dtNNSmQDpwIDAQAB';
-
-let _rsaPubKeyPromise = null;
-function getTesseractPubKey() {
-  if (!_rsaPubKeyPromise) {
-    const binaryStr = atob(TESSERACT_PUB_KEY_B64);
-    const bytes = new Uint8Array(binaryStr.length);
-    for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
-    _rsaPubKeyPromise = crypto.subtle.importKey(
-      'spki', bytes.buffer,
-      { name: 'RSA-OAEP', hash: 'SHA-256' },
-      false, ['encrypt']
-    );
-  }
-  return _rsaPubKeyPromise;
-}
-
-const PRODUCTION_THRESHOLD = 10; // minimum acquisitions before physical synthesis
-
-// ── Pricing tiers — size / price / G²T allocation (10%) ─────────────────────
-const TIERS = [
-  { id: 'discovery', label: '10 ml · DISCOVERY',  size: '10ml', price: 25,  g2t: 2.50 },
-  { id: 'sovereign', label: '50 ml · SOVEREIGN',  size: '50ml', price: 100, g2t: 10   },
-];
-
 // ── 16-Beam parameter trace at collision impact ────────────────────────────
 // One beam per OCK dimension; convergence beams green-shifted, divergence
 // magenta-shifted, paradox red. Lifespan scales with magnitude.
@@ -555,7 +524,7 @@ function buildBeams(result, hueA, hueB) {
 // COMPONENT
 // ══════════════════════════════════════════════════════════════════════════════
 
-export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {}) {
+export default function LatentCollider({ onPolarity } = {}) {
   const phaseRef = useRef('idle'); // idle | selecting | accelerating | colliding | result
   const metricsRef = useRef(null);
   const beamsRef = useRef(null); // { beams, startedAt } populated at impact
@@ -578,18 +547,7 @@ export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {})
   // ── Crystallize + Tesseract state ──────────────────────────────────────────
   const [crystal,    setCrystal]    = useState(null);
   const [tesseract,  setTesseract]  = useState(null);
-  const [living,     setLiving]     = useState(null);
-  const [acquired,     setAcquired]     = useState(false);
-  const [acquiring,    setAcquiring]    = useState(false);
-  const [acquireLog,   setAcquireLog]   = useState([]);
-  const [selectedTier, setSelectedTier] = useState(TIERS[0]);
   const [sovereignView, setSovereignView] = useState(false);
-
-  // ── Persistent production threshold (Vercel KV via /api/transmute/threshold) ─
-  const serverThreshold = useProductionThreshold();
-
-  // ── Order fulfillment status (polls KV via /api/transmute/status) ─
-  const orderStatus = useOrderStatus(tesseract?.hash);
 
   const handleCrystallize = useCallback(async () => {
     if (!result || domainA === null || domainB === null) return;
@@ -602,10 +560,6 @@ export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {})
       archetype: narrative?.archetype ?? null,
       colors: [domainRgb(domainA), domainRgb(domainB)],
     });
-    try {
-      const ids = JSON.parse(localStorage.getItem('ck_ids') || '[]');
-      setAcquired(ids.includes(card.id));
-    } catch { setAcquired(false); }
     // Build Tesseract cryptographic identity
     try {
       const profile = await buildTesseractProfile(card, result.accord, domainA, domainB, result);
@@ -631,131 +585,11 @@ export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {})
 
       setTesseract(profile);
       // TODO(phase-b): emit('ciphers', 'cipher_sealed', { hashPrefix: profile?.hash?.slice(0, 10) ?? '' })
-      // Hydrate living-accord state from localStorage if we've redeemed this hash before
-      try {
-        const stored = localStorage.getItem(`living:${profile.hash}`);
-        if (stored) setLiving(JSON.parse(stored));
-        else setLiving(null);
-      } catch { setLiving(null); }
     } catch (e) {
       console.error('[TESSERACT] hash generation failed:', e);
       setTesseract(null);
-      setLiving(null);
     }
   }, [result, domainA, domainB]);
-
-  const handleAcquire = useCallback(async (cardId, contact = {}, tier = TIERS[1]) => {
-    let newCount = 1;
-    let isDupe   = false;
-    try {
-      const ids = JSON.parse(localStorage.getItem('ck_ids') || '[]');
-      isDupe = ids.includes(cardId);
-      if (!isDupe) {
-        const next = [...ids, cardId];
-        localStorage.setItem('ck_ids',   JSON.stringify(next));
-        localStorage.setItem('ck_count', String(next.length));
-        newCount = next.length;
-      } else {
-        newCount = ids.length;
-      }
-    } catch { /* storage blocked */ }
-    setAcquired(true);
-    setSelectedTier(tier);
-
-    // ── RSA-OAEP encrypt the formula for zero-knowledge relay ────────────
-    const card = crystal;
-    if (!card) return;
-
-    // ── Sovereignty: plaintext leaving the browser ships redacted; the
-    // RSA-OAEP encryptedPayload below already carries the complete formula
-    // (redacted-in-transit, complete-in-vault — spec §3).
-    const sovereignty = tesseract?.sovereignty;
-    const redactionList = sovereignty?.redactions ?? [];
-    const txCard = redactionList.length ? redactCard(card, redactionList) : card;
-
-    let encryptedPayload = '—';
-    try {
-      const formulaPlaintext = JSON.stringify(tesseract?.encryptedFormula || {});
-      encryptedPayload = await sealForVault(formulaPlaintext, await getTesseractPubKey());
-    } catch (e) {
-      console.error('[TESSERACT] RSA-OAEP encryption failed:', e);
-    }
-
-    // ── Persistent order dispatch → /api/transmute/order ────────────────
-    if (isDupe) return;
-
-    const tHash          = tesseract?.hash || '—';
-    const sovereignRatio = tier.price;
-    const g2tAllocation  = tier.g2t;
-
-    const noteBlock = [
-      `ᛏ TOP    ${txCard.topNotes.join(' · ')}${transitTag(redactionList, 'topNotes')}`,
-      `ᚺ HEART  ${txCard.heartNotes.join(' · ')}${transitTag(redactionList, 'heartNotes')}`,
-      `ᛒ BASE   ${txCard.baseNotes.join(' · ')}${transitTag(redactionList, 'baseNotes')}`,
-    ].join('\n');
-
-    const physBlock = [
-      `CONCENTRATION  ${txCard.conc} · ${txCard.concPct}${transitTag(redactionList, 'concPct')}`,
-      `LONGEVITY      ${txCard.longevity}${transitTag(redactionList, 'longevity')}`,
-      `NODE CLASS     ${txCard.nodeClass}${transitTag(redactionList, 'nodeClass')}`,
-      `POLARITY       ${txCard.polLabel || 'MERIDIAN'}${transitTag(redactionList, 'polLabel')}`,
-      `DOM / SEC      ${txCard.dom.toUpperCase()} × ${txCard.sec.toUpperCase()}`,
-    ].join('\n');
-
-    const vaultBlock = [
-      `SHA-256      ${tHash.slice(0, 32)}`,
-      `             ${tHash.slice(32) || '—'}`,
-      `STATE        ◈ MANIFEST COMPILED`,
-      `DELIVERY     DIGITAL ASSET DOWNLOADED`,
-      `PROTOCOL     TESSERACT · RSA-OAEP + AES-256-GCM`,
-      `SOVEREIGNTY  EXPOSURE ${sovereignty?.exposure ?? '—'}/100 · ${redactionList.length} FIELDS VAULTED`,
-    ].join('\n');
-
-    const orderBody = JSON.stringify({
-      formulaId:        card.id,
-      formulaHash:      tHash,
-      encryptedPayload,
-      sovereignRatio,
-      g2tAmount:        g2tAllocation,
-      tierSize:         tier.size,
-      tierLabel:        tier.label,
-      cardName:         card.name,
-      domainPair:       card.id.split('-').slice(0, 2).map(s => s.toUpperCase()).join(' × '),
-      noteBlock,
-      physBlock,
-      vaultBlock,
-      sovereignty: sovereignty
-        ? {
-            threat: sovereignty.threat,
-            resistance: sovereignty.resistance,
-            exposure: sovereignty.exposure,
-            redactionCount: redactionList.length,
-            panopticonIndexAtSeal: sovereignty.panopticonIndexAtSeal,
-          }
-        : null,
-      contact:          { signal: contact.signal || '', email: contact.email || '' },
-      kernelHistory:    (kernelRunHistoryRef?.current ?? []).slice(-30),
-    });
-
-    // ── Pre-transmit theater ─────────────────────────────────────────────────
-    setAcquiring(true);
-    setAcquireLog([]);
-    try {
-      await runPreExecTheater(
-        line => setAcquireLog(prev => [...prev, line].slice(-20)),
-        theaterDuration(),
-      );
-    } finally {
-      setAcquiring(false);
-      setAcquireLog([]);
-    }
-
-    fetch('/api/transmute/order', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    orderBody,
-    }).then((res) => { recordDispatchedOrder(res, tHash); }).catch(() => { /* silent — notification is best-effort */ });
-  }, [crystal, tesseract, kernelRunHistoryRef]);
 
   // ── Run the WASM collision ─────────────────────────────────────────────────
   const runCollision = useCallback(async (a, b) => {
@@ -970,8 +804,6 @@ export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {})
     } else if (domainB === null && id !== domainA) {
       setCrystal(null);
       setTesseract(null);
-      setLiving(null);
-      setAcquired(false);
       setDomainB(id);
       runCollision(domainA, id);
       // window.scrollTo({top:0}) was a no-op here: the terminal's own <main>
@@ -983,8 +815,6 @@ export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {})
       // Reset
       setCrystal(null);
       setTesseract(null);
-      setLiving(null);
-      setAcquired(false);
       emitObs('essences', 'node_selected', { nodeId: id, name: domainById(id)?.name ?? null });
       setDomainA(id);
       setDomainB(null);
@@ -998,7 +828,6 @@ export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {})
   const handleReset = useCallback(() => {
     setCrystal(null);
     setTesseract(null);
-    setLiving(null);
     setDomainA(null);
     setDomainB(null);
     setResult(null);
@@ -2419,38 +2248,9 @@ export default function LatentCollider({ kernelRunHistoryRef, onPolarity } = {})
           tesseract={tesseract}
           narrative={narrative}
           result={result}
-          acquired={acquired}
-          selectedTier={selectedTier}
-          onRegister={(contact, tier) => handleAcquire(crystal.id, contact, tier)}
-          serverCount={serverThreshold.current}
-          serverTarget={serverThreshold.target}
-          orderStatus={orderStatus}
-          living={living}
-          onLivingRedeemed={(payload) => {
-            setLiving(payload);
-            try { localStorage.setItem(`living:${tesseract.hash}`, JSON.stringify(payload)); } catch { /* ignore */ }
-          }}
         />
       ) : crystal && (
-        <CrystallizeCard
-          card={crystal}
-          acquired={acquired}
-          selectedTier={selectedTier}
-          onRegister={(contact, tier) => handleAcquire(crystal.id, contact, tier)}
-          serverCount={serverThreshold.current}
-          serverTarget={serverThreshold.target}
-          orderStatus={orderStatus}
-        />
-      )}
-      {acquiring && acquireLog.length > 0 && (
-        <div
-          className="font-mono text-[9px] leading-relaxed mt-3 select-none"
-          style={{ color: 'rgba(232,210,138,0.45)' }}
-        >
-          {acquireLog.map((line, i) => (
-            <div key={i}>{line}</div>
-          ))}
-        </div>
+        <CrystallizeCard card={crystal} />
       )}
     </div>
   );
@@ -2575,142 +2375,8 @@ function PerfumeBottleSVG({ nodeClass, hA, hB }) {
   );
 }
 
-// ── Contact form — shared by both CrystallizeCard and TesseractCard ────────────
-function ContactForm({ onSubmit, label }) {
-  const [signal, setSignal] = useState('');
-  const [email,  setEmail]  = useState('');
-  const [tier,   setTier]   = useState(TIERS[0]);
-  const canSubmit = signal.trim() || email.trim();
-
-  const inputStyle = {
-    borderColor: 'rgba(255,215,0,0.22)',
-    color: '#FFD700',
-    caretColor: '#FFD700',
-    background: 'rgba(255,215,0,0.03)',
-    outline: 'none',
-    fontFamily: 'inherit',
-  };
-
-  return (
-    <div className="space-y-2.5 text-left w-full">
-      <div className="text-[8px] font-mono text-center uppercase tracking-[0.25em] mb-3"
-        style={{ color: 'rgba(255,215,0,0.38)' }}>
-        SELECT SIZE + CONTACT FOR DELIVERY
-      </div>
-
-      {/* Tier selector */}
-      <div className="grid grid-cols-2 gap-2 mb-1">
-        {TIERS.map(t => (
-          <button
-            key={t.id}
-            onClick={() => setTier(t)}
-            className="rounded border py-2.5 px-2 text-center transition-all"
-            style={{
-              borderColor: tier.id === t.id ? 'rgba(255,215,0,0.5)'  : 'rgba(255,215,0,0.12)',
-              background:  tier.id === t.id ? 'rgba(255,215,0,0.07)' : 'transparent',
-              boxShadow:   tier.id === t.id ? '0 0 12px rgba(255,215,0,0.15)' : 'none',
-            }}
-          >
-            <div className="text-[10px] font-mono font-bold tracking-wider"
-              style={{ color: tier.id === t.id ? '#FFD700' : 'rgba(255,215,0,0.4)' }}>
-              {t.size}
-            </div>
-            <div className="text-[12px] font-bold font-mono mt-0.5"
-              style={{ color: tier.id === t.id ? '#FFD700' : 'rgba(255,215,0,0.5)', textShadow: tier.id === t.id ? '0 0 10px rgba(255,215,0,0.3)' : 'none' }}>
-              €{t.price}
-            </div>
-            <div className="text-[7px] font-mono tracking-wider mt-0.5"
-              style={{ color: 'rgba(255,215,0,0.25)' }}>
-              {t.id === 'discovery' ? 'DISCOVERY' : 'SOVEREIGN'}
-            </div>
-            <div className="text-[6.5px] font-mono mt-0.5"
-              style={{ color: 'rgba(57,255,20,0.35)' }}>
-              G²T €{t.g2t}
-            </div>
-          </button>
-        ))}
-      </div>
-
-      {/* Signal */}
-      <div>
-        <div className="text-[8px] font-mono mb-1 uppercase tracking-widest" style={{ color: 'rgba(255,215,0,0.3)' }}>
-          ◎ SIGNAL
-        </div>
-        <input
-          type="text"
-          value={signal}
-          onChange={e => setSignal(e.target.value)}
-          placeholder="@handle"
-          className="w-full text-[10px] font-mono px-3 py-1.5 rounded border"
-          style={inputStyle}
-        />
-      </div>
-
-      {/* Email */}
-      <div>
-        <div className="text-[8px] font-mono mb-1 uppercase tracking-widest" style={{ color: 'rgba(255,215,0,0.3)' }}>
-          ✉ EMAIL
-        </div>
-        <input
-          type="email"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-          placeholder="address@domain.com"
-          className="w-full text-[10px] font-mono px-3 py-1.5 rounded border"
-          style={inputStyle}
-        />
-      </div>
-
-      {/* Actions */}
-      <div className="flex items-center gap-3 pt-1">
-        <button
-          onClick={() => onSubmit({ signal: signal.trim(), email: email.trim() }, tier)}
-          disabled={!canSubmit}
-          className="flex-1 text-[10px] font-mono uppercase tracking-widest px-4 py-1.5 rounded-full border transition-all hover:scale-105 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
-          style={{ borderColor: 'rgba(255,215,0,0.38)', color: '#FFD700', background: 'rgba(255,215,0,0.07)' }}
-        >
-          {label}
-        </button>
-        <button
-          onClick={() => onSubmit({}, tier)}
-          className="text-[8px] font-mono uppercase tracking-widest transition-colors hover:opacity-70"
-          style={{ color: 'rgba(255,215,0,0.28)' }}
-        >
-          SKIP
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ── Fulfillment status badge — mirrors Discord state machine ──────────────────
-const FULFILLMENT = {
-  QUEUED:       { glyph: '⬡', label: 'QUEUED',       color: '#D4AF37' },
-  ACKNOWLEDGED: { glyph: '◎', label: 'ACKNOWLEDGED', color: '#06B6D4' },
-  MACERATING:   { glyph: '⚗', label: 'MACERATING',  color: '#D946EF' },
-  SHIPPED:      { glyph: '✦', label: 'SHIPPED',      color: '#39FF14' },
-};
-
-function FulfillmentBadge({ state }) {
-  const s = FULFILLMENT[state];
-  if (!s) return null;
-  return (
-    <div className="flex items-center justify-center gap-2 mb-2 py-1.5 rounded"
-      style={{ border: `1px solid ${s.color}25`, background: `${s.color}08` }}>
-      <span className="text-[10px]" style={{ color: s.color, textShadow: `0 0 8px ${s.color}50` }}>{s.glyph}</span>
-      <span className="text-[9px] font-mono font-bold tracking-[0.2em]" style={{ color: `${s.color}cc` }}>
-        {s.label}
-      </span>
-    </div>
-  );
-}
-
 // ── Crystallize Card component ─────────────────────────────────────────────────
-function CrystallizeCard({ card, acquired, selectedTier, onRegister, serverCount, serverTarget, orderStatus }) {
-  const [showForm, setShowForm] = useState(false);
-  const getCount  = () => serverCount  != null ? serverCount  : (() => { try { return parseInt(localStorage.getItem('ck_count') || '0', 10); } catch { return 0; } })();
-  const getTarget = () => serverTarget != null ? serverTarget : PRODUCTION_THRESHOLD;
-
+function CrystallizeCard({ card }) {
   const NOTE_LAYERS = [
     { key: 'top',   label: 'TOP NOTES',   glyph: 'ᛏ', notes: card.topNotes,   color: '#FFD700', sub: '0–30 min',    pct: card.evap[0] },
     { key: 'heart', label: 'HEART NOTES', glyph: 'ᚺ', notes: card.heartNotes, color: '#d946ef', sub: '30 min–4 hr', pct: card.evap[1] },
@@ -2798,125 +2464,9 @@ function CrystallizeCard({ card, acquired, selectedTier, onRegister, serverCount
             </div>
           ))}
         </div>
-
-        {/* Register interest */}
-        <div className="rounded-lg p-4 text-center transition-all duration-500"
-          style={{
-            border:     acquired ? '1px solid rgba(255,215,0,0.3)' : '1px solid rgba(255,215,0,0.09)',
-            background: acquired ? 'rgba(255,215,0,0.04)'          : 'transparent',
-          }}>
-          {!acquired ? (
-            <>
-              <p className="text-[9px] font-mono mb-3 leading-relaxed" style={{ color: 'rgba(255,215,0,0.3)' }}>
-                If the production threshold is reached, this accord will be distilled as a limited physical release.
-                Each registration is unique — no duplicates.
-              </p>
-              {showForm ? (
-                <ContactForm
-                  label="⬡ REGISTER INTEREST"
-                  onSubmit={(contact, tier) => { setShowForm(false); onRegister(contact, tier); }}
-                />
-              ) : (
-                <button
-                  onClick={() => setShowForm(true)}
-                  className="text-[10px] font-mono uppercase tracking-widest px-6 py-2 rounded-full border transition-all hover:scale-105 active:scale-95"
-                  style={{ borderColor: 'rgba(255,215,0,0.38)', color: '#FFD700', background: 'rgba(255,215,0,0.07)' }}
-                >
-                  ⬡ REGISTER INTEREST
-                </button>
-              )}
-            </>
-          ) : (
-            <>
-              <div className="text-[11px] font-bold font-mono mb-1.5"
-                style={{ color: '#FFD700', textShadow: '0 0 10px rgba(255,215,0,0.35)' }}>
-                ✦ INTEREST LOGGED
-              </div>
-              {orderStatus?.fulfillmentState && <FulfillmentBadge state={orderStatus.fulfillmentState} />}
-              <div className="text-[9px] font-mono mb-3" style={{ color: 'rgba(255,215,0,0.42)' }}>
-                PRODUCTION THRESHOLD — {getCount()} / {getTarget()}
-              </div>
-              <div className="w-full h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,215,0,0.1)' }}>
-                <div className="h-full rounded-full"
-                  style={{
-                    width: `${Math.min(100, (getCount() / getTarget()) * 100)}%`,
-                    background: 'linear-gradient(90deg,rgba(255,215,0,0.3),rgba(255,215,0,0.8))',
-                    transition: 'width 1s ease',
-                  }} />
-              </div>
-              {getCount() >= getTarget() && (
-                <div className="text-[9px] font-bold font-mono mt-2" style={{ color: '#FFD700' }}>
-                  ■ THRESHOLD REACHED — PRODUCTION UNDER CONSIDERATION
-                </div>
-              )}
-            </>
-          )}
-        </div>
       </div>
 
       <div className="h-px w-full" style={{ background: 'linear-gradient(90deg,transparent,rgba(255,215,0,0.25),transparent)' }} />
-    </div>
-  );
-}
-
-// ── RedeemInput — sovereign key redemption affordance ──────────────────────
-function RedeemInput({ accordHash, accordCard, onSuccess }) {
-  const [token, setToken]       = useState('');
-  const [status, setStatus]     = useState('idle');
-  const [error, setError]       = useState(null);
-  const [errorCode, setErrorCode] = useState(null);
-
-  const handleRedeem = async () => {
-    setStatus('loading');
-    setError(null); setErrorCode(null);
-    try {
-      const r = await fetch('/api/transmute/redeem', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ token: token.trim(), accordHash, accordCard }),
-      });
-      const data = await r.json();
-      if (!data.ok) {
-        setError(data.error || 'redemption failed');
-        setErrorCode(data.code || 'invalid');
-        setStatus('error');
-        return;
-      }
-      setStatus('done');
-      onSuccess(data.living);
-    } catch (e) {
-      setError('Network error — try again.');
-      setErrorCode('network');
-      setStatus('error');
-    }
-  };
-
-  return (
-    <div className="rounded p-3 mt-3" style={{ border: '1px solid rgba(57,255,20,0.18)', background: 'rgba(0,0,0,0.4)' }}>
-      <div className="text-[7px] font-mono tracking-[0.3em] mb-2" style={{ color: 'rgba(57,255,20,0.4)' }}>
-        § REDEEM SOVEREIGN KEY
-      </div>
-      <textarea
-        rows={3}
-        value={token}
-        onChange={e => setToken(e.target.value)}
-        placeholder="paste sovereign key from discord dm"
-        className="w-full font-mono text-[9px] p-2 mb-2 rounded"
-        style={{ background: 'rgba(0,0,0,0.6)', border: '1px solid rgba(57,255,20,0.15)', color: 'rgba(57,255,20,0.85)', resize: 'none' }}
-      />
-      <button
-        onClick={handleRedeem}
-        disabled={status === 'loading' || !token.trim()}
-        className="text-[9px] font-mono uppercase tracking-widest px-4 py-1.5 rounded-full border transition-all hover:scale-105 active:scale-95 disabled:opacity-40"
-        style={{ borderColor: 'rgba(57,255,20,0.5)', color: '#39FF14', background: 'rgba(57,255,20,0.08)' }}
-      >
-        {status === 'loading' ? '[REDEEMING…]' : '◈ REDEEM'}
-      </button>
-      {error && (
-        <div className="text-[8px] font-mono mt-2" style={{ color: errorCode === 'expired' ? 'rgba(255,215,0,0.7)' : 'rgba(244,63,94,0.7)' }}>
-          {errorCode === 'expired' ? '⏳ ' : '⚠ '}{error}
-        </div>
-      )}
     </div>
   );
 }
@@ -3079,17 +2629,16 @@ function ShimmeringCipher({ rows }) {
 }
 
 // ── Tesseract Card — cryptographic identity layer ───────────────────────────
-function TesseractCard({ card, fullCard = card, sovereignty = null, sovereignView = false, onToggleSovereignView, tesseract, narrative, result, acquired, selectedTier, onRegister, serverCount, serverTarget, orderStatus, living, onLivingRedeemed }) {
-  const [manifestState, setManifestState] = useState(null); // null | 'compiling' | 'downloaded'
-  const [vaultGlyphClicks, setVaultGlyphClicks] = useState(0);
+function TesseractCard({ card, fullCard = card, sovereignty = null, sovereignView = false, onToggleSovereignView, tesseract, narrative, result }) {
+  const [manifestState, setManifestState] = useState(null); // null | 'compiling' | 'downloading' | 'downloaded'
 
-  // Reset 7-click counter when card changes
-  useEffect(() => { setVaultGlyphClicks(0); }, [card.id]);
+  // A new accord starts with the download button idle again
+  useEffect(() => { setManifestState(null); }, [card.id]);
 
   const handleDownload = async () => {
     setManifestState('compiling');
     await new Promise(r => setTimeout(r, 850));
-    const md = generateManifestMarkdown(fullCard, tesseract, living, result, narrative); // local file = client enclave: always complete
+    const md = generateManifestMarkdown(fullCard, tesseract, result, narrative); // local file = client enclave: always complete
     const filename = `ECO_Sx_TRANSMUTATION_${Date.now()}.md`;
     const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -3098,13 +2647,10 @@ function TesseractCard({ card, fullCard = card, sovereignty = null, sovereignVie
     document.body.appendChild(a); a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    setManifestState('downloaded');
+    setManifestState('downloading');
     await new Promise(r => setTimeout(r, 550));
-    onRegister({}, TIERS[1]);
+    setManifestState('downloaded');
   };
-
-  const getCount  = () => serverCount  != null ? serverCount  : (() => { try { return parseInt(localStorage.getItem('ck_count') || '0', 10); } catch { return 0; } })();
-  const getTarget = () => serverTarget != null ? serverTarget : PRODUCTION_THRESHOLD;
 
   const mid = Math.round((card.hueA + card.hueB) / 2);
   const { hash, encryptedFormula } = tesseract;
@@ -3246,22 +2792,15 @@ function TesseractCard({ card, fullCard = card, sovereignty = null, sovereignVie
                 </div>
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {notes.map((note, i) => {
-                  const isLiving = living && living.layer === key && living.slotIdx === i;
-                  const display  = isLiving ? living.newNote : note;
-                  return (
-                    <span
-                      key={i}
-                      className={`text-[10px] font-mono px-2 py-0.5 rounded ${isLiving ? 'living-note' : ''}`}
-                      style={isLiving
-                        ? { background: 'rgba(57,255,20,0.06)', border: '1px solid rgba(57,255,20,0.3)' }
-                        : { color: `${color}cc`, background: `${color}0d`, border: `1px solid ${color}1a` }}
-                      title={isLiving ? `your signature (was: ${living.oldNote})` : undefined}
-                    >
-                      {display}
-                    </span>
-                  );
-                })}
+                {notes.map((note, i) => (
+                  <span
+                    key={i}
+                    className="text-[10px] font-mono px-2 py-0.5 rounded"
+                    style={{ color: `${color}cc`, background: `${color}0d`, border: `1px solid ${color}1a` }}
+                  >
+                    {note}
+                  </span>
+                ))}
               </div>
             </div>
           ))}
@@ -3300,15 +2839,7 @@ function TesseractCard({ card, fullCard = card, sovereignty = null, sovereignVie
         <div className="mb-5 rounded-lg overflow-hidden" style={{ border: '1px solid rgba(217,70,239,0.12)', background: 'rgba(217,70,239,0.02)', opacity: 0, animation: 'sc-cardReveal 0.5s cubic-bezier(0.16,1,0.3,1) 1100ms forwards' }}>
           <div className="px-3 py-2 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(217,70,239,0.08)' }}>
             <div className="flex items-center gap-2">
-              <span
-                className="text-[8px] cursor-pointer select-none"
-                onClick={() => setVaultGlyphClicks(c => c + 1)}
-                style={{
-                  color: vaultGlyphClicks >= 4 ? 'rgba(57,255,20,0.85)' : 'rgba(217,70,239,0.6)',
-                  textShadow: vaultGlyphClicks >= 5 ? '0 0 6px rgba(57,255,20,0.5)' : 'none',
-                  transition: 'color 200ms ease, text-shadow 200ms ease',
-                }}
-              >◈</span>
+              <span className="text-[8px] select-none" style={{ color: 'rgba(217,70,239,0.6)' }}>◈</span>
               <span className="text-[7px] font-mono font-bold tracking-[0.3em]" style={{ color: 'rgba(217,70,239,0.45)' }}>
                 ENCRYPTED MOLECULAR FORMULA
               </span>
@@ -3342,126 +2873,48 @@ function TesseractCard({ card, fullCard = card, sovereignty = null, sovereignVie
           </div>
         </div>
 
-        {/* ── Living Accord badge (when redeemed) ── */}
-        {living && (
-          <div className="text-center mb-3" style={{ opacity: 0, animation: 'sc-hashReveal 0.8s cubic-bezier(0.16,1,0.3,1) forwards' }}>
-            <div className="text-[10px] font-bold font-mono tracking-[0.25em]" style={{ color: '#39FF14', textShadow: '0 0 12px rgba(57,255,20,0.5)' }}>
-              ◈ LIVING ACCORD · YOUR SIGNATURE
-            </div>
-            <div className="text-[7px] font-mono tracking-widest mt-1" style={{ color: 'rgba(57,255,20,0.45)' }}>
-              ENTROPY {living.editionEntropy} · WITNESS {living.witnessHash}
-            </div>
-          </div>
-        )}
-
-        {/* ── Acquire CTA ── */}
+        {/* ── Manifest download ── */}
         <div className="rounded-lg p-4 text-center transition-all duration-500"
           style={{
-            border: acquired ? '1px solid rgba(255,215,0,0.3)' : '1px solid rgba(255,215,0,0.09)',
-            background: acquired ? 'rgba(255,215,0,0.04)' : 'transparent',
+            border: manifestState === 'downloaded' ? '1px solid rgba(255,215,0,0.3)' : '1px solid rgba(255,215,0,0.09)',
+            background: manifestState === 'downloaded' ? 'rgba(255,215,0,0.04)' : 'transparent',
             opacity: 0,
             animation: 'sc-cardReveal 0.5s cubic-bezier(0.16,1,0.3,1) 1500ms forwards',
           }}>
-          {!acquired ? (
-            <>
-              <p className="text-[9px] font-mono mb-3 leading-relaxed" style={{ color: 'rgba(255,215,0,0.3)' }}>
-                This accord exists as a cryptographic data-sculpture. Acquisition compiles the
-                molecular architecture and delivers it as a sovereign digital asset — the physical
-                substrate remains vaulted.
-              </p>
-              {manifestState === 'compiling' || manifestState === 'downloaded' ? (
-                <div className="font-mono text-[10px] tracking-[0.2em] py-2" style={{ color: '#39FF14', textShadow: '0 0 10px rgba(57,255,20,0.5)' }}>
-                  {manifestState === 'compiling' ? '[COMPILING TESSERACT MANIFEST...]' : '[DOWNLOADING]'}
-                </div>
-              ) : (
-                <>
-                  <button
-                    onClick={handleDownload}
-                    className="text-[10px] font-mono uppercase tracking-widest px-6 py-2 rounded-full border transition-all hover:scale-105 active:scale-95"
-                    style={{
-                      borderColor: 'rgba(255,215,0,0.65)',
-                      color: '#FFD700',
-                      background: 'rgba(255,215,0,0.13)',
-                      textShadow: '0 0 12px rgba(255,215,0,0.5)',
-                      boxShadow: '0 0 18px rgba(255,215,0,0.08), inset 0 0 12px rgba(255,215,0,0.04)',
-                    }}
-                  >
-                    {living ? '◈ ACQUIRE LIVING ASSET' : '◈ ACQUIRE COMPILED ASSET'}
-                  </button>
-                  <p className="text-[7px] font-mono mt-2.5 leading-relaxed" style={{ color: 'rgba(255,215,0,0.15)' }}>
-                    The data-sculpture is compiled and transmitted. The substrate stays sovereign.
-                  </p>
-                </>
-              )}
-            </>
+          {manifestState === 'compiling' || manifestState === 'downloading' ? (
+            <div className="font-mono text-[10px] tracking-[0.2em] py-2" style={{ color: '#39FF14', textShadow: '0 0 10px rgba(57,255,20,0.5)' }}>
+              {manifestState === 'compiling' ? '[COMPILING TESSERACT MANIFEST...]' : '[DOWNLOADING]'}
+            </div>
           ) : (
             <>
-              <div
-                className="text-[12px] font-bold font-mono mb-1.5 tracking-[0.2em]"
-                style={{
-                  color: '#39FF14',
-                  textShadow: '0 0 15px rgba(57,255,20,0.4), 0 0 30px rgba(57,255,20,0.15)',
-                  opacity: 0,
-                  animation: 'sc-hashReveal 0.8s cubic-bezier(0.16,1,0.3,1) forwards',
-                }}>
-                ◈ MANIFEST COMPILED
-              </div>
-              <div className="text-[8px] font-mono mb-2 tracking-widest" style={{ color: 'rgba(57,255,20,0.55)' }}>
-                DELIVERY · DIGITAL ASSET DOWNLOADED
-              </div>
-              {orderStatus?.fulfillmentState && <FulfillmentBadge state={orderStatus.fulfillmentState} />}
-              <div className="text-[7.5px] font-mono mb-3 break-all leading-relaxed" style={{ color: 'rgba(255,215,0,0.35)' }}>
-                {hash.slice(0, 32)}…
-              </div>
-              <div className="text-[9px] font-mono mb-3" style={{ color: 'rgba(255,215,0,0.42)' }}>
-                PRODUCTION THRESHOLD — {getCount()} / {getTarget()}
-              </div>
-              <div className="w-full h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,215,0,0.1)' }}>
-                <div className="h-full rounded-full"
+              {manifestState === 'downloaded' && (
+                <div
+                  className="text-[12px] font-bold font-mono mb-3 tracking-[0.2em]"
                   style={{
-                    width: `${Math.min(100, (getCount() / getTarget()) * 100)}%`,
-                    background: 'linear-gradient(90deg,rgba(255,215,0,0.3),rgba(255,215,0,0.8))',
-                    transition: 'width 1s ease',
-                  }} />
-              </div>
-              {getCount() >= getTarget() && (
-                <div className="text-[9px] font-bold font-mono mt-2" style={{ color: '#FFD700' }}>
-                  ■ THRESHOLD REACHED — SYNTHESIS UNDER CONSIDERATION
+                    color: '#39FF14',
+                    textShadow: '0 0 15px rgba(57,255,20,0.4), 0 0 30px rgba(57,255,20,0.15)',
+                    opacity: 0,
+                    animation: 'sc-hashReveal 0.8s cubic-bezier(0.16,1,0.3,1) forwards',
+                  }}>
+                  ◈ MANIFEST COMPILED
                 </div>
               )}
-              <div className="mt-3 rounded p-3 text-left" style={{ border: '1px solid rgba(255,215,0,0.1)', background: 'rgba(0,0,0,0.35)' }}>
-                <div className="text-[7px] font-mono tracking-[0.3em] mb-2" style={{ color: 'rgba(255,215,0,0.25)' }}>
-                  § REQUEST DECRYPTION KEY
-                </div>
-                <div className="text-[8px] font-mono leading-relaxed mb-2" style={{ color: 'rgba(255,215,0,0.35)' }}>
-                  The ciphertext is in your manifest. The key is held by the vault operator.
-                </div>
-                <div className="space-y-1">
-                  <div className="flex gap-3 font-mono text-[9px]">
-                    <span style={{ color: 'rgba(255,215,0,0.28)' }}>SIGNAL</span>
-                    <CopySpan value="@scale.94" color="rgba(255,215,0,0.72)" />
-                  </div>
-                  <div className="flex gap-3 font-mono text-[9px]">
-                    <span style={{ color: 'rgba(255,215,0,0.28)' }}>EMAIL </span>
-                    <CopySpan value="scale0097@gmail.com" color="rgba(255,215,0,0.72)" />
-                  </div>
-                </div>
-              </div>
-              <div className="text-[7px] font-mono mt-2.5" style={{ color: 'rgba(217,70,239,0.25)' }}>
-                Formula encrypted via RSA-OAEP-2048 · data transmitted as sovereign digital asset
-              </div>
+              <button
+                onClick={handleDownload}
+                className="text-[10px] font-mono uppercase tracking-widest px-6 py-2 rounded-full border transition-all hover:scale-105 active:scale-95"
+                style={{
+                  borderColor: 'rgba(255,215,0,0.65)',
+                  color: '#FFD700',
+                  background: 'rgba(255,215,0,0.13)',
+                  textShadow: '0 0 12px rgba(255,215,0,0.5)',
+                  boxShadow: '0 0 18px rgba(255,215,0,0.08), inset 0 0 12px rgba(255,215,0,0.04)',
+                }}
+              >
+                ◈ DOWNLOAD MANIFEST
+              </button>
             </>
           )}
         </div>
-
-        {/* ── Hidden RedeemInput — appears after 7 vault-glyph clicks ── */}
-        {vaultGlyphClicks >= 7 && !living && (
-          <RedeemInput
-            accordHash={hash}
-            accordCard={fullCard} // sovereign key = decryption right: redemption always carries the complete card
-            onSuccess={onLivingRedeemed}
-          />
-        )}
       </div>
 
       {/* Bottom accent line */}

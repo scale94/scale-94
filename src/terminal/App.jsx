@@ -1331,7 +1331,6 @@ const App = () => {
                 setCurrentPath={setCurrentPath}
                 setOriginTab={setOriginTab}
                 loadKernel={handleNeuralLink}
-                kernelRunHistoryRef={kernelRunHistoryRef}
                 onPolarity={(polarity) => {
                   setLastPolarityClass(polarity);
                   emitObs('essences', 'polarity_shifted', { polarity });

@@ -1,5 +1,5 @@
 // Tesseract manifest generator (pure; moved verbatim from LatentCollider.jsx).
-export function generateManifestMarkdown(card, tesseract, living = null, result = null, narrative = null) {
+export function generateManifestMarkdown(card, tesseract, result = null, narrative = null) {
   const { hash, encryptedFormula } = tesseract;
   const { specificGravity, flashPoint, macDays, dilutionRatio, ciphertext } = encryptedFormula;
   const ts = new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
@@ -122,24 +122,5 @@ BLAKE3  INTEGRITY BOUND
 
 ${cRows.join('\n')}
 \`\`\`
-${living ? `
----
-
-## § LIVING SIGNATURE
-
-This accord carries the irreducible signature of one witness. The substituted note
-was selected from the signature-grade pool by deterministic hash of the witness's
-identity bound to this accord coordinate. The substitution is permanent for this
-witness, and unique among all possible witnesses.
-
-\`\`\`
-LAYER         ${living.layer.toUpperCase()}
-NOTE          ${living.newNote}  (was: ${living.oldNote})
-ENTROPY       ${living.editionEntropy}
-WITNESS HASH  ${living.witnessHash}
-PROTOCOL      HS256 · 24h sovereign key · server-deterministic
-\`\`\`
-
-The molecule that is yours did not exist before this transmission. It does now.
-` : ''}`;
+`;
 }

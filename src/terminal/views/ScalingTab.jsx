@@ -3,7 +3,7 @@ import { emit as emitObs } from '../../observatory/observatoryBus';
 import { Hexagon } from 'lucide-react';
 import LatentCollider from './LatentCollider';
 
-const ScalingTab = ({ setArchitectThesis, setCurrentPath, setOriginTab, loadKernel, kernelRunHistoryRef, onPolarity }) => {
+const ScalingTab = ({ setArchitectThesis, setCurrentPath, setOriginTab, loadKernel, onPolarity }) => {
   // Observatory witness: the saponification arc was approached (dead channel, now wired).
   useEffect(() => { emitObs('gaze', 'scaling_visit', {}); }, []);
   return (
@@ -43,13 +43,6 @@ const ScalingTab = ({ setArchitectThesis, setCurrentPath, setOriginTab, loadKern
           100% { color: rgba(217,70,239,0.18); filter: blur(1.5px); text-shadow: none; }
         }
         .vault-shimmer { animation: sc-vaultShimmer 200ms ease-out; }
-
-        @keyframes sc-livingNote {
-          0%   { color: rgba(255,215,0,0.7); text-shadow: none; }
-          50%  { color: #39FF14; text-shadow: 0 0 12px rgba(57,255,20,0.6); }
-          100% { color: rgba(57,255,20,0.85); text-shadow: 0 0 6px rgba(57,255,20,0.3); }
-        }
-        .living-note { animation: sc-livingNote 800ms cubic-bezier(0.16,1,0.3,1) forwards; }
 
         /* ── Monument pattern (Fade-Doctrine compliant) ──────────────────────
            Modernist typography moments for the project's load-bearing claims.
@@ -121,7 +114,7 @@ const ScalingTab = ({ setArchitectThesis, setCurrentPath, setOriginTab, loadKern
       </div>
 
       {/* ── Latent Space Collider (hero section) ── */}
-      <LatentCollider kernelRunHistoryRef={kernelRunHistoryRef} onPolarity={onPolarity} />
+      <LatentCollider onPolarity={onPolarity} />
 
     </div>
   );

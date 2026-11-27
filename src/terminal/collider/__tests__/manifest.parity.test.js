@@ -48,19 +48,14 @@ describe('manifest parity (P0 pin)', () => {
 
   it('no living, full result + narrative', async () => {
     const { card, tesseract, res } = await build('interference-extrait');
-    expect(generateManifestMarkdown(card, tesseract, null, res, narrative)).toMatchSnapshot();
+    expect(generateManifestMarkdown(card, tesseract, res, narrative)).toMatchSnapshot();
   });
   it('no living, null result + null narrative', async () => {
     const { card, tesseract } = await build('plain-chimera-name', null);
-    expect(generateManifestMarkdown(card, tesseract, null, null, null)).toMatchSnapshot();
+    expect(generateManifestMarkdown(card, tesseract, null, null)).toMatchSnapshot();
   });
   it('planet domain fixture', async () => {
     const { card, tesseract, res } = await build('planet-domains');
-    expect(generateManifestMarkdown(card, tesseract, null, res, narrative)).toMatchSnapshot();
-  });
-  it('LIVING case', async () => {
-    const { card, tesseract, res } = await build('interference-extrait');
-    const living = { layer: 'heart', slotIdx: 1, newNote: 'Iris', oldNote: 'Rose', editionEntropy: '0.8123', witnessHash: 'ab'.repeat(32) };
-    expect(generateManifestMarkdown(card, tesseract, living, res, narrative)).toMatchSnapshot();
+    expect(generateManifestMarkdown(card, tesseract, res, narrative)).toMatchSnapshot();
   });
 });
