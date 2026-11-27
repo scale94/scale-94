@@ -16,6 +16,9 @@ import { buildDomainMass } from '../collider/domainMass';
 import { DOMAINS, ELEM_DOMAINS, PHIL_MATH_DOMAINS, LIFE_HUM_DOMAINS, COGN_SYNTH_DOMAINS, FSK_DOMAINS, PLANET_DOMAINS, domainById } from '../collider/domains.js';
 import { buildPerfumeCard, buildTesseractProfile } from '../collider/perfumeCard.js';
 import { generateManifestMarkdown } from '../collider/manifest.js';
+import { sealAccordForSpine } from '../lib/sealAccordForSpine.js';
+import { aetherDeps } from '../lib/aetherRuntime.js';
+import { formatFingerprint, VOLATILE_LABEL } from '../lib/identityVault.js';
 
 // ── Collider Event Bus ───────────────────────────────────────────────────────
 // Cross-tab coupling: emits chimera synthesis results so the Art tab sphere
@@ -550,8 +553,16 @@ export default function LatentCollider({ onPolarity } = {}) {
     if (!result || domainA === null || domainB === null) return;
     const card = buildPerfumeCard(domainA, domainB, result);
     setCrystal(card);
+    // Crystallize is the sealing moment (scent-aether P2): the base accord and a
+    // fresh chaos salt are sealed under this visitor's ML-KEM-768 identity, and
+    // only the envelope reaches the spine. Never throws: an unsealed card still
+    // shows, but it never fills the fourth mark.
+    const seal = await sealAccordForSpine(card, aetherDeps());
+    if (seal.state === 'sealed') {
+      emitObs('ciphers', 'cipher_sealed', { hashPrefix: seal.fp.slice(0, 10), source: 'accord' });
+    }
     emitObs('essences', 'crystallized', {
-      kind: 'order_placed', polarity: result?.accord?.polarityClass?.label ?? null,
+      kind: seal.state === 'sealed' ? 'accord_sealed' : 'accord_unsealed', polarity: result?.accord?.polarityClass?.label ?? null,
       cardName: card.name, nodeIdA: result?.nodeIdA ?? null, nodeIdB: result?.nodeIdB ?? null,
       vClass: result?.vClass ?? null, viability: result?.viability ?? null,
       archetype: narrative?.archetype ?? null,
@@ -579,8 +590,8 @@ export default function LatentCollider({ onPolarity } = {}) {
       publishAssessment(profile.sovereignty);
       setSovereignView(false);
 
+      profile.seal = seal;
       setTesseract(profile);
-      // TODO(phase-b): emit('ciphers', 'cipher_sealed', { hashPrefix: profile?.hash?.slice(0, 10) ?? '' })
     } catch (e) {
       console.error('[TESSERACT] hash generation failed:', e);
       setTesseract(null);
@@ -2560,7 +2571,21 @@ function ScramblingHash({ value, duration = 1400, color = 'rgba(255,215,0,0.75)'
 }
 
 // ── Tesseract Card — cryptographic identity layer ───────────────────────────
+// The badge names the seal that actually ran, or why none did (spec §2, §6.6).
+const UNSEALED_BADGE = {
+  'no-webcrypto':     'UNSEALED — this origin has no WebCrypto',
+  'wasm-unavailable': 'UNSEALED — the WASM kernel did not load',
+  error:              'UNSEALED — the seal failed',
+};
+function sealBadge(seal) {
+  if (seal?.state === 'sealed') {
+    return `SEALED · ML-KEM-768 · FP ${formatFingerprint(seal.fp).slice(0, 9)}${seal.volatile ? ' · VOLATILE' : ''}`;
+  }
+  return UNSEALED_BADGE[seal?.reason] ?? UNSEALED_BADGE.error;
+}
+
 function TesseractCard({ card, fullCard = card, sovereignty = null, sovereignView = false, onToggleSovereignView, tesseract, narrative, result }) {
+  const sealed = tesseract?.seal?.state === 'sealed';
   const [manifestState, setManifestState] = useState(null); // null | 'compiling' | 'downloading' | 'downloaded'
 
   // A new accord starts with the download button idle again
@@ -2613,8 +2638,11 @@ function TesseractCard({ card, fullCard = card, sovereignty = null, sovereignVie
             TESSERACT PROTOCOL — ACCORD IDENTITY
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-1.5 h-1.5 rounded-full" style={{ border: '1px solid rgba(255,215,0,0.35)' }} />
-            <span className="text-[7px] font-mono tracking-widest" style={{ color: 'rgba(255,215,0,0.4)' }}>UNSEALED</span>
+            <div className="w-1.5 h-1.5 rounded-full" style={sealed
+              ? { background: 'rgba(217,70,239,0.7)', boxShadow: '0 0 6px rgba(217,70,239,0.5)' }
+              : { border: '1px solid rgba(255,215,0,0.35)' }} />
+            <span className="text-[7px] font-mono tracking-widest" title={tesseract?.seal?.volatile ? VOLATILE_LABEL : undefined}
+              style={{ color: sealed ? 'rgba(232,121,249,0.75)' : 'rgba(255,215,0,0.4)' }}>{sealBadge(tesseract?.seal)}</span>
           </div>
         </div>
 

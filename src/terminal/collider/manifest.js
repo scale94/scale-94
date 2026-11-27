@@ -3,6 +3,14 @@
 // cut, so the invented concentration, wear time, evaporation split, loading,
 // flash point, density, maceration and the fake encrypted formula are gone.
 // Strength is set at the altar by the element (P3).
+// What actually ran at crystallize (scent-aether P2, plan ruling 8): a statement,
+// not a probability. Anything short of a real envelope says so.
+export function sealLine(seal) {
+  return seal?.state === 'sealed'
+    ? 'ML-KEM-768 encapsulation + 32-byte chaos salt, both fresh per seal'
+    : 'none — this card was not sealed';
+}
+
 export function generateManifestMarkdown(card, tesseract, result = null, narrative = null) {
   const { hash } = tesseract;
   const ts = new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
@@ -45,6 +53,7 @@ NODE PAIR      ${result?.nodeIdA ?? '—'} × ${result?.nodeIdB ?? '—'}
 SHA-256        ${hash.slice(0, 32)}
                ${hash.slice(32)}
                deterministic — the same collision yields the same hash
+SEAL           ${sealLine(tesseract?.seal)}
 SPACE          ${result?.space ?? '—'} · OCK v1.1.0
 
 COS(θ)         ${result?.cosine != null ? result.cosine.toFixed(4) : '—'}

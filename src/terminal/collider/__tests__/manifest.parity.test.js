@@ -54,6 +54,14 @@ describe('manifest parity (P0 pin)', () => {
     const { card, tesseract } = await build('plain-chimera-name', null);
     expect(generateManifestMarkdown(card, tesseract, null, null)).toMatchSnapshot();
   });
+  it('SEAL states what ran: fresh encapsulation + salt when sealed, none otherwise (no snapshot)', async () => {
+    const { card, tesseract, res } = await build('interference-extrait');
+    const sealed = generateManifestMarkdown(card, { ...tesseract, seal: { state: 'sealed', fp: 'f'.repeat(32) } }, res, narrative);
+    expect(sealed).toContain('SEAL           ML-KEM-768 encapsulation + 32-byte chaos salt, both fresh per seal');
+    const unsealed = generateManifestMarkdown(card, { ...tesseract, seal: { state: 'unsealed', reason: 'no-webcrypto' } }, res, narrative);
+    expect(unsealed).toContain('SEAL           none — this card was not sealed');
+    expect(unsealed).not.toContain('ML-KEM-768');
+  });
   it('SPACE prints result.space (no snapshot)', async () => {
     const { card, tesseract, res } = await build('interference-extrait');
     const md = generateManifestMarkdown(card, tesseract, { ...res, space: '32-D feature tensor' }, narrative);

@@ -66,6 +66,7 @@ import { useEcologicalRam }   from './hooks/useEcologicalRam';
 import { getVerdictCount }    from './ledger/verdictStore';
 import { normalizeQuery }     from '../lib/normalize';
 import { setPanopticonCorpus } from './lib/panopticon';
+import { reconcileSpineAtBoot } from './lib/aetherRuntime';
 
 // KernelTab — static import (landing tab, always needed, avoids .df.js chunk on Firefox Android)
 import KernelTab, { KERNEL_INIT_MS } from './views/KernelTab';
@@ -343,6 +344,9 @@ const App = () => {
   // The eye (the whisper's speaker) is always on screen now — mobile included — so
   // the store never needs to hold a whisper for a hidden masthead.
   useEffect(() => { setChromeVisible(true); }, []);
+  // scent-aether P2: a sealed accord whose key is gone from this device reads as
+  // orphaned, never as marked. Async and never throws; skipped when nothing is sealed.
+  useEffect(() => { reconcileSpineAtBoot(); }, []);
 
   // Fiction articles for Transmission tab — updates when CAS data loads
   const transmissionStories = useMemo(() => articles.filter(a => a.type === 'fiction'), [articles]);

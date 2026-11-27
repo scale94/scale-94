@@ -187,10 +187,22 @@ describe('P1 ledger cleanup', () => {
     expect(src).not.toContain('one week');
   });
 
-  it('the Tesseract badge reads UNSEALED until P2 seals with ML-KEM / ML-DSA', () => {
+  it('the Tesseract badge names the seal that actually ran (P2): sealed, or why not', () => {
     const src = read(VIEW);
     expect(src).not.toMatch(/>VERIFIED</);
-    expect(src).toContain('>UNSEALED<');
+    expect(src).not.toContain('>UNSEALED<');
+    expect(src).toContain('SEALED · ML-KEM-768 · FP ');
+    expect(src).toContain('UNSEALED — this origin has no WebCrypto');
+    expect(src).toContain('UNSEALED — the WASM kernel did not load');
+  });
+
+  it('crystallize is the sealing moment: accord_sealed and cipher_sealed, no shop kind, no TODO', () => {
+    const src = read(VIEW);
+    expect(src).not.toContain("'order_placed'");
+    expect(src).toContain("'accord_sealed'");
+    expect(src).toMatch(/emitObs\('ciphers', 'cipher_sealed'/);
+    expect(src).not.toContain('TODO(phase-b)');
+    expect(src).toContain('sealAccordForSpine(');
   });
 
   it('the manifest has no VAULT label and one SHA-256 line', () => {

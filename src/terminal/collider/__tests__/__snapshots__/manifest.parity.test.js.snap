@@ -33,6 +33,7 @@ NODE PAIR      A-12 × B-34
 SHA-256        2e7f04fe125273b2f652beb6db362613
                c13b2386f36dcee94c55ac748e1b4957
                deterministic — the same collision yields the same hash
+SEAL           none — this card was not sealed
 SPACE          — · OCK v1.1.0
 
 COS(θ)         0.4321
@@ -123,6 +124,7 @@ NODE PAIR      — × —
 SHA-256        28fb45cc965d52b967192e8acc7f0c94
                5d4ca256e8aa9b500b4bd5ced065a01a
                deterministic — the same collision yields the same hash
+SEAL           none — this card was not sealed
 SPACE          — · OCK v1.1.0
 
 COS(θ)         —
@@ -207,6 +209,7 @@ NODE PAIR      A-12 × B-34
 SHA-256        92959d9dc4f0088f546c3709bfea0d65
                2fffd9241b15e462a6c5c18cbd574b16
                deterministic — the same collision yields the same hash
+SEAL           none — this card was not sealed
 SPACE          — · OCK v1.1.0
 
 COS(θ)         0.4321
