@@ -28,12 +28,17 @@ export function getVault() {
 export const aetherDeps = () => ({ loadWasm, getVault });
 
 // Boot, rotate and restore: compare the stored seal with this device's identity
-// (plan ruling 6). Nothing to compare, or no WebCrypto: nothing to do. Never throws.
-export async function reconcileSpineAtBoot() {
+// (plan ruling 6). Reads the fp straight from IndexedDB, so it needs no WASM and
+// runs before the kernel has loaded. Only a store that opened and holds no record
+// means the key is gone: a store that won't open or read is "unknown", and unknown
+// never orphans (the key may still be on disk). Never throws.
+export async function reconcileSpineAtBoot({ openStore = openIdentityStore } = {}) {
   try {
-    if (!getSpine().scent || !globalThis.crypto?.subtle) return;
-    const identity = await (await getVault()).getIdentityIfExists();
-    reconcileScent(identity?.fp ?? null);
+    if (!getSpine().scent) return;
+    const store = await openStore();
+    if (!store) return;
+    const rec = await store.get('identity');
+    reconcileScent(rec?.fp ?? null);
   } catch (e) {
     console.warn('[AETHER] reconcile skipped:', e?.message ?? e);
   }

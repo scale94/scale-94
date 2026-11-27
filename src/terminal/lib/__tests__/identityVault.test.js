@@ -23,6 +23,15 @@ function memStore() {
   };
 }
 
+// The first put is slow, so an unserialized second mutation would land first and be overwritten.
+function slowFirstPutStore() {
+  const s = memStore();
+  let first = true;
+  const put = s.put;
+  s.put = async (k, v) => { if (first) { first = false; await new Promise(r => setTimeout(r, 40)); } return put(k, v); };
+  return s;
+}
+
 const vaultWith = (store) => createIdentityVault({ wasm, subtle, getRandomValues, store, now: () => 1_700_000_000_000 });
 const same = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
 
@@ -170,6 +179,27 @@ describe('identityVault', () => {
     expect(same(wasm.mlkem768_decaps(dk, ct), ss)).toBe(true);
     expect(VOLATILE_LABEL).toBe('VOLATILE IDENTITY — will not survive reload');
   });
+
+  it('mutations are serialized: a rotate racing the first create wins, in memory and on disk', async () => {
+    const store = slowFirstPutStore();
+    const v = vaultWith(store);
+    const [a, b] = await Promise.all([v.getOrCreateIdentity(), v.rotate()]);
+    expect(b.fp).not.toBe(a.fp);
+    expect((await v.getIdentityIfExists()).fp).toBe(b.fp);
+    expect(store.map.get('identity').fp).toBe(b.fp);
+  });
+
+  it('mutations are serialized: a restore racing the first create leaves the restored identity', async () => {
+    const src = vaultWith(memStore());
+    const restored = await src.getOrCreateIdentity();
+    const backup = await src.exportBackup('a long enough passphrase');
+    const store = slowFirstPutStore();
+    const v = vaultWith(store);
+    const [, r] = await Promise.all([v.getOrCreateIdentity(), v.importBackup(backup, 'a long enough passphrase')]);
+    expect(r.ok).toBe(true);
+    expect((await v.getIdentityIfExists()).fp).toBe(restored.fp);
+    expect(store.map.get('identity').fp).toBe(restored.fp);
+  }, 30_000);
 
   it('store null is volatile from the start', async () => {
     expect((await vaultWith(null).getOrCreateIdentity()).volatile).toBe(true);

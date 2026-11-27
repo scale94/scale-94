@@ -85,8 +85,8 @@ export async function unsealAccord(envelope, identity, { wasm, subtle, unwrapSec
   }
 
   try {
-    const body = JSON.parse(fromUtf8(plain));
-    plain.fill(0);
+    let body;
+    try { body = JSON.parse(fromUtf8(plain)); } finally { plain.fill(0); }
     const salt = fromB64(body.salt);
     if (salt.length !== SALT_BYTES || !body.baseAccord || typeof body.baseAccord !== 'object') return { state: 'malformed' };
     return { state: 'ok', baseAccord: body.baseAccord, salt };

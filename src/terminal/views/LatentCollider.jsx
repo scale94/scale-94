@@ -2576,6 +2576,7 @@ const UNSEALED_BADGE = {
   'no-webcrypto':     'UNSEALED — this origin has no WebCrypto',
   'wasm-unavailable': 'UNSEALED — the WASM kernel did not load',
   error:              'UNSEALED — the seal failed',
+  'volatile-kept':    'UNSEALED — storage unavailable; your sealed accord was kept',
 };
 function sealBadge(seal) {
   if (seal?.state === 'sealed') {

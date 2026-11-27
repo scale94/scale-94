@@ -37,6 +37,14 @@ export function createIdentityVault({ wasm, subtle, getRandomValues, store = nul
   let current = null;    // the record in memory
   let inflight = null;   // dedupes concurrent first creation
   let loaded = false;
+  // Every identity mutation (first create, rotate, restore) runs one at a time, so a
+  // later mutation can never be overwritten by an earlier one's slower storage write.
+  let queue = Promise.resolve();
+  const serial = (fn) => {
+    const p = queue.then(fn, fn);
+    queue = p.catch(() => {});
+    return p;
+  };
 
   const volatile = () => backend === null;
   const nonce = () => getRandomValues(new Uint8Array(12));
@@ -96,16 +104,17 @@ export function createIdentityVault({ wasm, subtle, getRandomValues, store = nul
   }
 
   async function getIdentityIfExists() {
+    await queue;   // report the identity as it stands after any in-flight mutation
     const rec = await load();
     return rec ? publicView(rec, volatile()) : null;
   }
 
   async function getOrCreateIdentity() {
     if (inflight) return inflight;
-    inflight = (async () => {
+    inflight = serial(async () => {
       const rec = (await load()) ?? (await freshRecord());
       return publicView(rec, volatile());
-    })();
+    });
     try { return await inflight; }
     finally { inflight = null; }
   }
@@ -119,10 +128,12 @@ export function createIdentityVault({ wasm, subtle, getRandomValues, store = nul
     };
   }
 
-  async function rotate() {
-    await load();
-    const rec = await freshRecord();
-    return publicView(rec, volatile());
+  function rotate() {
+    return serial(async () => {
+      await load();
+      const rec = await freshRecord();
+      return publicView(rec, volatile());
+    });
   }
 
   async function exportBackup(passphrase) {
@@ -169,21 +180,21 @@ export function createIdentityVault({ wasm, subtle, getRandomValues, store = nul
     } catch (_) { return { ok: false, reason: 'bad-passphrase' }; }
 
     try {
-      const j = JSON.parse(fromUtf8(plain));
-      plain.fill(0);
+      let j;
+      try { j = JSON.parse(fromUtf8(plain)); } finally { plain.fill(0); }
       const keys = { ek: fromB64(j.ek), dk: fromB64(j.dk), pk: fromB64(j.pk), sk: fromB64(j.sk) };
       for (const [k, len] of Object.entries(SIZES)) if (keys[k].length !== len) return malformed;
       if (!Number.isFinite(j.createdAt)) return malformed;
       // The keys must actually work as a pair before they replace anything.
       const probe = wasm.mlkem768_encaps(keys.ek);
-      const ss = wasm.mlkem768_decaps(keys.dk.slice(), probe.ct);
+      const ss = wasm.mlkem768_decaps(keys.dk, probe.ct);   // passed by value: WASM wipes its copy
       const msg = utf8('scale94 identity restore probe');
       const kemOk = ss.length === probe.ss.length && ss.every((x, i) => x === probe.ss[i]);
-      const dsaOk = wasm.mldsa65_verify(keys.pk, msg, wasm.mldsa65_sign(keys.sk.slice(), msg));
+      const dsaOk = wasm.mldsa65_verify(keys.pk, msg, wasm.mldsa65_sign(keys.sk, msg));
       ss.fill(0); probe.ss.fill(0);
+      if (!kemOk || !dsaOk) { keys.dk.fill(0); keys.sk.fill(0); }
       if (!kemOk || !dsaOk) return malformed;
-      await load();
-      const rec = await seal({ ...keys, createdAt: j.createdAt });
+      const rec = await serial(async () => { await load(); return seal({ ...keys, createdAt: j.createdAt }); });
       return { ok: true, identity: publicView(rec, volatile()) };
     } catch (_) { return malformed; }
   }

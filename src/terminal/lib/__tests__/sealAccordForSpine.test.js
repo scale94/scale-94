@@ -6,7 +6,8 @@ import { loadWasmNode } from '../../../../tests/helpers/loadWasmNode.js';
 import { createIdentityVault } from '../identityVault.js';
 import { unsealAccord } from '../accordSeal.js';
 import { sealAccordForSpine } from '../sealAccordForSpine.js';
-import { getSpine, _resetSpineForTests } from '../../quintessence/spineStore';
+import { getSpine, missingVertebrae, _resetSpineForTests } from '../../quintessence/spineStore';
+import { sealScentForTests, FX_SCENT } from '../../quintessence/__tests__/scentFixture';
 import { buildBaseAccord } from '../../scent/baseAccord';
 import { MATERIALS } from '../../scent/materials';
 import { NOTE_MATERIALS } from '../../scent/noteInterpretation';
@@ -69,6 +70,28 @@ describe('sealAccordForSpine', () => {
     const r = await sealAccordForSpine(card, deps({ loadWasm: async () => { throw new Error('404'); } }));
     expect(r).toEqual({ state: 'unsealed', reason: 'wasm-unavailable' });
     expect(getSpine().scent).toBeNull();
+  });
+
+  it('a rotate that lands while the seal is in flight leaves the new seal orphaned, not marked', async () => {
+    const vault = createIdentityVault({ wasm, subtle, getRandomValues, store: memStore() });
+    const racing = { ...vault, getOrCreateIdentity: async () => { const id = await vault.getOrCreateIdentity(); await vault.rotate(); return id; } };
+    const r = await sealAccordForSpine(card, deps({ getVault: async () => racing }));
+    expect(r.state).toBe('sealed');
+    expect(missingVertebrae().at(-1)).toBe('SEAL ORPHANED — the key evaporated');
+  });
+
+  it('a volatile identity never replaces a sealed accord another key can still open', async () => {
+    sealScentForTests();
+    const volatileVault = createIdentityVault({ wasm, subtle, getRandomValues, store: null });
+    const r = await sealAccordForSpine(card, deps({ getVault: async () => volatileVault }));
+    expect(r).toEqual({ state: 'unsealed', reason: 'volatile-kept' });
+    expect(getSpine().scent.envelope).toEqual(FX_SCENT.envelope);
+  });
+
+  it('a volatile identity may seal when nothing sealed is at stake', async () => {
+    const volatileVault = createIdentityVault({ wasm, subtle, getRandomValues, store: null });
+    const r = await sealAccordForSpine(card, deps({ getVault: async () => volatileVault }));
+    expect(r).toMatchObject({ state: 'sealed', volatile: true });
   });
 
   it('any other failure → unsealed/error; it never throws', async () => {

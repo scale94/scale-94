@@ -9,7 +9,8 @@
 import { buildBaseAccord, drawChaosSalt } from '../scent/baseAccord';
 import { MATERIALS } from '../scent/materials';
 import { NOTE_MATERIALS } from '../scent/noteInterpretation';
-import { setScent } from '../quintessence/spineStore';
+import { getSpine, reconcileScent, setScent } from '../quintessence/spineStore';
+import { isScentMarked } from '../quintessence/vertebrae';
 import { sealAccord, envelopeSizes } from './accordSeal.js';
 
 export async function sealAccordForSpine(card, {
@@ -30,10 +31,22 @@ export async function sealAccordForSpine(card, {
   try {
     const baseAccord = buildBaseAccord(card, noteMaterials, kit);
     const salt = drawChaosSalt(getRandomValues);
-    const identity = await (await getVault()).getOrCreateIdentity();
+    const vault = await getVault();
+    const identity = await vault.getOrCreateIdentity();
+    // A volatile identity dies with the tab. It must not replace a sealed accord
+    // that a persisted key can still open (final review I1c).
+    const held = getSpine();
+    if (identity.volatile && isScentMarked(held) && held.scent.fp !== identity.fp) {
+      salt.fill(0);
+      return { state: 'unsealed', reason: 'volatile-kept' };
+    }
     const envelope = await sealAccord({ baseAccord, salt }, identity, { wasm, subtle, getRandomValues });
     salt.fill(0);
     setScent({ envelope, cardName: card.name, sealedAt: now(), fp: identity.fp });
+    // A rotate or restore that landed while this seal was in flight has already
+    // reconciled the old spine; check the new seal against the settled identity.
+    const settled = await vault.getIdentityIfExists();
+    if (settled?.fp !== identity.fp) reconcileScent(settled?.fp ?? null);
     return { state: 'sealed', fp: identity.fp, volatile: identity.volatile, sizes: envelopeSizes(envelope) };
   } catch (e) {
     console.error('[AETHER] seal failed:', e);

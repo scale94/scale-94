@@ -15,8 +15,11 @@
 //   aether_seal_params()              → the parameter record the labels read
 //
 // Known-answer tests: tests/fips_kat.rs (NIST ACVP, ml-kem =0.2.3, ml-dsa =0.1.0-rc.7).
-// Secrets cross the boundary by value (Vec<u8>) so this side can wipe its copy;
-// every secret buffer here is Zeroizing. Wrong-length input is an Err, never a panic.
+// Secrets cross the boundary by value (Vec<u8>) so this side can wipe its copy.
+// Rust-owned secret inputs and intermediates are Zeroizing. What is returned to
+// JS (dk, sk, ss, derived keys) is a copy in a JS Uint8Array that the JS callers
+// fill(0) once used; a returned Vec<u8>'s staging buffer in WASM linear memory is
+// freed by wasm-bindgen without a wipe. Wrong-length input is an Err, never a panic.
 
 use wasm_bindgen::prelude::*;
 use argon2::{Algorithm, Argon2, Params, Version};

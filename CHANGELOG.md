@@ -143,7 +143,7 @@ At crystallize, the card's base accord and a fresh 32-byte chaos salt are sealed
 
 /CRYPTOGRAPHY gains an identity panel: the fingerprint (SHA-256(ek‖pk), first 16 bytes), an Argon2id backup (m = 64 MiB, t = 3, p = 4, RFC 9106 §4 option 2), restore and rotate. Its keygen demo calls the structured `mlkem768_keygen` export instead of reading keys out of a log.
 
-The primitives are new structured Rust/WASM exports. They are checked against the NIST ACVP known-answer vectors (ML-KEM-768 and ML-DSA-65; `ml-kem =0.2.3`, `ml-dsa =0.1.0-rc.7`, both pinned exactly), and every secret buffer is zeroized. The altar arms only with a sealed accord; P3 is what makes ignite read it.
+The primitives are new structured Rust/WASM exports. They are checked against the NIST ACVP known-answer vectors (ML-KEM-768 and ML-DSA-65; `ml-kem =0.2.3`, `ml-dsa =0.1.0-rc.7`, both pinned exactly), and the secret buffers Rust owns are zeroized on drop; the JS side wipes the key and secret byte arrays it holds once they are used (JavaScript strings, including a backup file's base64 text, cannot be wiped). The altar arms only with a sealed accord; P3 is what makes ignite read it.
 
 ---
 
