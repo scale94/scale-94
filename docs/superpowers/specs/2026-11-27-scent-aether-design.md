@@ -244,7 +244,7 @@ Researching and citing the table is **its own task**. Values come from the sourc
 **Constraints:**
 - The actual strength lands within ±0.5 percentage points of the target.
 - Neat % in the finished bottle = grams × stock ÷ batch. It must be ≤ `ifraCat4MaxPct` for every material. This is checked **after** all modulation.
-- Every weighed amount is ≥ 0.05 g. Below that, the engine steps to a weaker stock (neat → 10% → 1%); if no stock fits, the material drops out and the change is logged.
+- Every weighed amount is ≥ 0.05 g. Below that, the engine steps to a weaker stock (neat → 10% → 1% → 0.1%; amended 2026-11-27 at the P1 sign-off so methyl octine carbonate, Cat 4 limit 0.010%, has a usable window); if no stock fits, the material drops out and the change is logged.
 - Σ weighed stock grams ≤ batch weight, and the alcohol top-up is ≥ 0. Solvent carried in by the stocks counts towards the alcohol.
 - The fill volume uses the worst-case density of 0.789 g/ml (ethanol): batch ÷ 0.789 ≤ 90% of the vial's nominal volume. That gives 7.00 g → 8.87 ml in a 10 ml vial, and 10.00 g → 12.67 ml in a 15 ml vial.
 - Grams are rounded to 0.01 g, and the totals are recomputed from the rounded values.

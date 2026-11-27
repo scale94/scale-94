@@ -27,7 +27,7 @@
 - Element → target concentrate: AIR 4%, WATER 10%, EARTH 18%, FIRE 25%. Actual strength is within ±0.5 percentage points of the target.
 - Layer bands (shares of the concentrate): top 15–25%, heart 30–40%, base 40–55%. The split sums to exactly 100%.
 - Batches: 7.00 g / 10 ml (default) and 10.00 g / 15 ml. Fill uses density 0.789 g/ml, and batch ÷ 0.789 ≤ 90% of the nominal volume.
-- Every weighed amount is ≥ 0.05 g, with stepping neat → 10% → 1% (only the stocks the material has). Grams are rounded to 0.01, and totals are recomputed from the rounded values.
+- Every weighed amount is ≥ 0.05 g, with stepping neat → 10% → 1% → 0.1% (only the stocks the material has; 0.1% added at the author's sign-off, 2026-11-27). Grams are rounded to 0.01, and totals are recomputed from the rounded values.
 - Neat % in the finished bottle = grams × stock ÷ batch × 100, and it is ≤ `ifraCat4MaxPct` for every material, checked **after** all modulation and rounding.
 - `PERF_NOTES` is not rewritten (spec §6.9).
 - New modules in `src/terminal/scent/` contain no React, DOM, GL, WASM or WebCrypto.
@@ -371,7 +371,7 @@
 
 - [ ] **Step 1: Write the failing tests (`materials.test.js`)**
   - `isValidCas`: '64-17-5' (ethanol) is true; '64-17-6' is false; a malformed string is false.
-  - `every MATERIALS row has id, name, cas, layer ∈ {top, heart, base}, role, non-empty stocks ⊂ {1.0, 0.5, 0.1, 0.01}, and ifraCat4MaxPct as a number or null`
+  - `every MATERIALS row has id, name, cas, layer ∈ {top, heart, base}, role, non-empty stocks ⊂ {1.0, 0.5, 0.1, 0.01, 0.001}, and ifraCat4MaxPct as a number or null`
   - `every row has sources.casSource {name, url, accessed}`
   - `every row has sources.ifraSource, or a citation that it is unrestricted`
   - `every solid has solubility and a solubilitySource`
