@@ -35,6 +35,17 @@ vi.mock('../../lib/openAccordForAltar', async (orig) => {
   };
 });
 
+// The reveal is pinned in accordReveal.test.jsx; here a stub that finishes after 500 ms.
+vi.mock('../../mercury/AccordReveal', async () => {
+  const { useEffect } = await import('react');
+  return {
+    default: function RevealStub({ formula, aeadBytes, onDone }) {
+      useEffect(() => { const id = setTimeout(() => onDone?.(), 500); return () => clearTimeout(id); }, [onDone]);
+      return <div data-testid="accord-reveal-stub" data-rows={formula.batches.small.rows.length} data-bytes={aeadBytes.length} />;
+    },
+  };
+});
+
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 const ELEMENT_IDS = ['FIRE', 'AIR', 'EARTH', 'WATER'];
@@ -458,5 +469,37 @@ describe('QuintessenceAltar — the accord opens at ignite', () => {
     await flush(650 * 6 + 50);
     expect(container.textContent).not.toContain(ALTAR_LINES['no-webcrypto']);
     expect(compileKernel).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('QuintessenceAltar — the reveal (scent-aether P3 Task 5)', () => {
+  const flush = async (ms) => { await act(async () => { await vi.advanceTimersByTimeAsync(ms); }); };
+  beforeEach(() => { vi.useFakeTimers(); vi.mocked(compileKernel).mockClear(); completeSpine(); });
+  afterEach(() => { vi.useRealTimers(); });
+
+  it('a formula artifact: the reveal runs over the envelope bytes, then ◈ BUILD', async () => {
+    const real = (await vi.importActual('../compileKernel')).compileKernel;
+    vi.mocked(compileKernel).mockImplementationOnce(real);
+    const seal = sealFor('EARTH');
+    act(() => { seal.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0 })); });
+    await flush(1200 + 650 * 6 + 50);
+    const stub = container.querySelector('[data-testid="accord-reveal-stub"]');
+    expect(stub).toBeTruthy();
+    expect(Number(stub.dataset.rows)).toBeGreaterThan(0);
+    // the fixture envelope's aead_ct is 'AAAA' → 3 bytes, decoded from the spine
+    expect(Number(stub.dataset.bytes)).toBe(3);
+    expect(container.textContent).not.toContain('◈ BUILD');
+    await flush(520);
+    expect(container.textContent).toContain('◈ BUILD');
+    // the reveal stays at its end state above the build line
+    expect(container.querySelector('[data-testid="accord-reveal-stub"]')).toBeTruthy();
+  });
+
+  it('an artifact without a formula goes straight to ◈ BUILD (no reveal)', async () => {
+    const seal = sealFor('FIRE');
+    act(() => { seal.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0 })); });
+    await flush(1200 + 650 * 6 + 50);
+    expect(container.querySelector('[data-testid="accord-reveal-stub"]')).toBeNull();
+    expect(container.textContent).toContain('◈ BUILD');
   });
 });

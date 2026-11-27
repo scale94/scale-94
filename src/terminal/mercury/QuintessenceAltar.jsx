@@ -1,7 +1,7 @@
 // src/terminal/mercury/QuintessenceAltar.jsx — the altar (spec §4).
 // Four elements · one click · the quintessence compiles. The nebula ignites
 // only when the deliberate spine exists; otherwise absences are named.
-import { useEffect, useReducer, useRef, useState } from 'react';
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { getSpine, setElement, missingVertebrae, subscribeSpine } from '../quintessence/spineStore';
 import { snapshotPeriphery } from '../quintessence/periphery';
 import { witnessEngine, trendToPressure } from '../quintessence/engineWitness';
@@ -14,6 +14,8 @@ import { drynessFor } from '../data/lunarAccords';
 import { getTotals, subscribe as subscribeBus, emit as emitObs } from '../../observatory/observatoryBus';
 import { notifyAltarStage } from '../quintessence/observerStore';
 import { openAccordForAltar } from '../lib/openAccordForAltar';
+import { fromB64 } from '../lib/bytes.js';
+import AccordReveal from './AccordReveal';
 import ElementSeal from './ElementSeal';
 import SpineMirror from './SpineMirror';
 import { useHoldToSeal } from './useHoldToSeal';
@@ -75,6 +77,10 @@ export default function QuintessenceAltar({ onDeposited, onNavigate }) {
   const [stage, setStage] = useState(-1);          // -1 idle, 0..5 compiling, 6 done
   const [result, setResult] = useState(null);
   const [sealNote, setSealNote] = useState(null);  // a named reason the accord did not open
+  // The reveal (spec §8) paints over the ciphertext that was opened at this ignite.
+  const [revealBytes, setRevealBytes] = useState(null);
+  const [revealed, setRevealed] = useState(false);
+  const markRevealed = useCallback(() => setRevealed(true), []);
   const alive = useRef(true);
   const igniting = useRef(false);
   useEffect(() => () => { alive.current = false; }, []);
@@ -126,6 +132,8 @@ export default function QuintessenceAltar({ onDeposited, onNavigate }) {
       if (!alive.current) return;
       if (opened.state !== 'ok') { setSealNote(opened.line); return; }
       const spine = getSpine();
+      setRevealBytes(fromB64(spine.scent.envelope.aead_ct));
+      setRevealed(false);
       const periphery = snapshotPeriphery();
       for (let s = 0; s < 3; s++) {
         setStage(s);
@@ -274,7 +282,12 @@ export default function QuintessenceAltar({ onDeposited, onNavigate }) {
         </div>
       )}
 
-      {stage === 6 && result && (
+      {/* The reveal stays at its end state: the formula is what the build sealed. */}
+      {stage === 6 && result?.formula && revealBytes && (
+        <AccordReveal formula={result.formula} aeadBytes={revealBytes} onDone={markRevealed} />
+      )}
+
+      {stage === 6 && result && (!result.formula || !revealBytes || revealed) && (
         <div className="py-4">
           <div className="font-mono text-[11px] text-amber-200 tracking-[0.2em] uppercase mb-1">
             ◈ BUILD 0x{result.hash.slice(0, 8).toUpperCase()} · VERDICT {result.meta.verdict}
@@ -288,7 +301,7 @@ export default function QuintessenceAltar({ onDeposited, onNavigate }) {
             className="mt-2 border border-amber-400/60 text-amber-200 font-mono text-[10px] tracking-[0.3em] uppercase px-4 py-2 hover:bg-amber-950/30">
             view the seal ↓
           </button>
-          <button type="button" onClick={() => { setResult(null); setStage(-1); }}
+          <button type="button" onClick={() => { setResult(null); setRevealBytes(null); setRevealed(false); setStage(-1); }}
             className="mt-2 ml-3 text-zinc-500 font-mono text-[9px] tracking-[0.25em] lowercase hover:text-zinc-300">
             the altar cools →
           </button>
