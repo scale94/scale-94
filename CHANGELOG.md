@@ -123,6 +123,16 @@ The /SCENT perfume shop is retired. The order flow, the production threshold, re
 
 ---
 
+## Layer 7.7.7 — SCENT: Honest Chemistry
+
+### The Kit, the Engine, the Vault Payload Removed
+
+Anything on /SCENT that read like a lab measurement is now calculated from cited data or cut. The invented concentration, wear time, evaporation timings, flash point, density, maceration and the fake encrypted formula (with its CAS registry) are gone from the card, the manifest and the view. The vault payload stays removed until P2 brings a real ML-KEM-768 / ML-DSA-65 seal, and the Tesseract badge reads UNSEALED until then.
+
+`src/terminal/scent/` is a pure formula engine. It takes a card's notes through the note interpretation into a cited 38-material kit (57 bottles: neat, 10%, 1% and 0.1% stocks, crystals for solids). It weighs a 7.00 g or 10.00 g batch on a 0.01 g scale: element strength ±0.5 pt, layer bands, the /SOL tilt, the /CHAOS drift, and IFRA Category 4 limits checked after all modulation and rounding, summed by standard across every row that carries a substance. Nothing in it runs at the altar yet (P3).
+
+---
+
 ## Deployment Metrics
 
 **Platform:** Vercel
