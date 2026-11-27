@@ -139,7 +139,7 @@ export default function IdentityPanel({
 
           <div className="space-y-1">
             <div className="text-[8px] text-orange-600/50 tracking-widest">RESTORE · replaces this identity</div>
-            <input data-field="restore-file" type="file" accept="application/json,.json" className="text-[9px] text-orange-400/50"
+            <input data-field="restore-file" type="file" accept="application/json,.json" className="text-[9px] text-orange-400/50 file:mr-2 file:px-2 file:py-1 file:rounded-sm file:border file:border-solid file:border-orange-500/30 file:bg-transparent file:text-orange-300/80 file:text-[9px] file:tracking-widest file:uppercase file:font-mono"
               onChange={e => setRestoreFile(e.target.files?.[0] ?? null)} />
             <input data-field="restore-pass" type="password" autoComplete="current-password" className={field}
               placeholder="the backup's passphrase" value={restorePass} onChange={e => setRestorePass(e.target.value)} />
