@@ -50,3 +50,15 @@ export const FX_ACCORD = {
     { materialId: 'fx-base-dust', parts: 0.005 },
   ],
 };
+
+// Maps exactly the notes of buildPerfumeCard(FIXTURES[0]) onto FX_KIT ids.
+// Pink Grapefruit splits 3:1; Mimosa and Birch share fx-heart-bloom; White Musk
+// and Birch Tar share fx-base-root. Every engine layer gets at least one material.
+export const FX_NOTE_MATERIALS = {
+  'Pink Grapefruit': [{ materialId: 'fx-top-glint', parts: 3 }, { materialId: 'fx-top-hush', parts: 1 }],
+  'Cistus': [{ materialId: 'fx-top-spark', parts: 1 }],
+  'Mimosa': [{ materialId: 'fx-heart-bloom', parts: 1 }],
+  'Birch': [{ materialId: 'fx-heart-bloom', parts: 1 }, { materialId: 'fx-heart-veil', parts: 1 }],
+  'White Musk': [{ materialId: 'fx-base-root', parts: 1 }],
+  'Birch Tar': [{ materialId: 'fx-base-root', parts: 2 }, { materialId: 'fx-base-amber', parts: 1 }],
+};
