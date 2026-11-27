@@ -17,7 +17,6 @@ const expectedResistance = (s, c) =>
 
 const CARD = Object.freeze({
   name: 'TEST × CHIMERA', id: 'a-b-123',
-  conc: 'EAU DE PARFUM', concPct: '15–20%', longevity: '6–10 hours',
   topNotes: ['bergamot', 'yuzu'], heartNotes: ['jasmine', 'rose', 'clove'], baseNotes: ['cedar', 'musk'],
   dom: 'floral', sec: 'fresh', hueA: 10, hueB: 200,
   nodeClass: 'RTA', polLabel: 'MERIDIAN', evap: [0.4, 0.35, 0.25],
@@ -77,6 +76,11 @@ describe('assessSovereignty', () => {
     expect(a.redactions).toHaveLength(expectedFieldCount);
   });
 
+  it('has no server-log tier: the card holds no field it could censor (P1 ledger cleanup)', () => {
+    expect(REDACTION_MAP.some((e) => e.vectorId === 'SERVER_LOG_RETENTION')).toBe(false);
+    for (const e of REDACTION_MAP) for (const f of e.fields) expect(['longevity', 'concPct']).not.toContain(f);
+  });
+
   it('is deterministic — same inputs, deep-equal output', () => {
     const args = { panopticonIndex: 61, accord: accordOf(0.31, 0.62) };
     expect(assessSovereignty(args)).toEqual(assessSovereignty(args));
@@ -102,8 +106,6 @@ describe('redactCard', () => {
     expect(r.topNotes).toEqual([CENSOR, CENSOR]);
     expect(r.heartNotes).toEqual([CENSOR, CENSOR, CENSOR]);
     expect(r.baseNotes).toEqual([CENSOR, CENSOR]);
-    expect(r.longevity).toBe(CENSOR);
-    expect(r.concPct).toBe(CENSOR);
     expect(r.nodeClass).toBe(CENSOR);
     expect(r.polLabel).toBe(CENSOR);
     expect(r.evap).toEqual([0, 0, 0]);
@@ -115,7 +117,6 @@ describe('redactCard', () => {
     const r = redactCard(CARD, a.redactions);
     expect(r.name).toBe(CARD.name);
     expect(r.id).toBe(CARD.id);
-    expect(r.conc).toBe(CARD.conc);
     expect(r.dom).toBe(CARD.dom);
     expect(r.sec).toBe(CARD.sec);
     // Original untouched (CARD is frozen — mutation would have thrown — but verify values too):
