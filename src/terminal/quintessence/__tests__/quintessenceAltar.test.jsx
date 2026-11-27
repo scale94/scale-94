@@ -6,7 +6,7 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import QuintessenceAltar from '../../mercury/QuintessenceAltar';
 import { setTrend, setCouncil, setPhase, reconcileScent, markScentBroken, _resetSpineForTests } from '../spineStore';
-import { sealScentForTests } from './scentFixture';
+import { sealScentForTests, FX_ENVELOPE } from './scentFixture';
 import { emit, subscribe, _resetForTests as resetBus } from '../../../observatory/observatoryBus';
 import { compileKernel } from '../compileKernel';
 import { launchCloud, _resetCloudsForTests } from '../../sol/cloudStore';
@@ -459,6 +459,15 @@ describe('QuintessenceAltar — the accord opens at ignite', () => {
     expect(stored.formula.modulators.element).toBe('WATER');
     expect(raw).not.toContain(Buffer.from(salt).toString('base64'));
     expect(raw).not.toContain(Buffer.from(salt).toString('hex'));
+  });
+
+  it('a fresh crystallize clears a stale failure line and the altar reads ARMED again (final review)', async () => {
+    vi.mocked(openAccordForAltar).mockResolvedValueOnce({ state: 'tampered', line: ALTAR_LINES.tampered });
+    await holdSeal('FIRE');
+    expect(container.textContent).toContain(ALTAR_LINES.tampered);
+    act(() => { sealScentForTests({ envelope: { ...FX_ENVELOPE, ct: 'BBBB' } }); });
+    expect(container.textContent).not.toContain(ALTAR_LINES.tampered);
+    expect(container.textContent).toContain('ALTAR ARMED');
   });
 
   it('a failed open, then a retry that opens, compiles and clears the line', async () => {

@@ -74,3 +74,16 @@ describe('buildAccordFormula (P3 ruling 6)', () => {
     expect(() => buildAccordFormula({ baseAccord: REAL_ACCORD, salt: new Uint8Array(4) }, CTX, ENVELOPE_META)).toThrow();
   });
 });
+
+describe('a seal outlives a kit revision (final review)', () => {
+  it('an accord naming a material the kit no longer holds compiles as infeasible, named — never throws', () => {
+    const kit = MATERIALS.filter((m) => m.id !== REAL_ACCORD.rows[0].materialId);
+    const f = buildAccordFormula({ baseAccord: REAL_ACCORD, salt: SALT }, CTX, ENVELOPE_META, kit);
+    expect(f.state).toBe('infeasible');
+    for (const b of Object.values(f.batches)) {
+      expect(b.state).toBe('infeasible');
+      expect(b.reason).toBe(`the kit no longer holds this accord — material not in kit: ${REAL_ACCORD.rows[0].materialId}`);
+    }
+    expect(f.notes).toEqual(REAL_ACCORD.notes);
+  });
+});

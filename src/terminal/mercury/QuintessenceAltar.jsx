@@ -76,7 +76,9 @@ export default function QuintessenceAltar({ onDeposited, onNavigate }) {
   const [, force] = useReducer(x => x + 1, 0);
   const [stage, setStage] = useState(-1);          // -1 idle, 0..5 compiling, 6 done
   const [result, setResult] = useState(null);
-  const [sealNote, setSealNote] = useState(null);  // a named reason the accord did not open
+  // A named reason the accord did not open, tied to the envelope it was about:
+  // a fresh crystallize (a new envelope) retires it.
+  const [sealFail, setSealFail] = useState(null);   // { line, ct }
   // The reveal (spec §8) paints over the ciphertext that was opened at this ignite.
   const [revealBytes, setRevealBytes] = useState(null);
   const [revealed, setRevealed] = useState(false);
@@ -95,6 +97,7 @@ export default function QuintessenceAltar({ onDeposited, onNavigate }) {
     if (evt.category === 'gaze' && evt.kind === 'tab_navigated') setVisited(readVisited());
   }), []);
 
+  const sealNote = sealFail && sealFail.ct === getSpine().scent?.envelope?.ct ? sealFail.line : null;
   const missing = missingVertebrae();
   const armed = missing.length === 0 && stage === -1;
 
@@ -124,13 +127,14 @@ export default function QuintessenceAltar({ onDeposited, onNavigate }) {
     try {
       setElement(elementId);
       emitObs('edge', 'kernel_ignited', { element: elementId });
-      setSealNote(null);
+      setSealFail(null);
       // The compile is the unsealing (scent-aether P3 ruling 1): open the
       // accord before any stage, so a seal that cannot open costs nothing and
       // no stage line ever claims what didn't happen. Never throws.
+      const tried = getSpine().scent?.envelope?.ct;
       opened = await openAccordForAltar(getSpine());
       if (!alive.current) return;
-      if (opened.state !== 'ok') { setSealNote(opened.line); return; }
+      if (opened.state !== 'ok') { setSealFail({ line: opened.line, ct: tried }); return; }
       const spine = getSpine();
       setRevealBytes(fromB64(spine.scent.envelope.aead_ct));
       setRevealed(false);
