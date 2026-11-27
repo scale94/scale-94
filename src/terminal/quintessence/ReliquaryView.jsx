@@ -9,6 +9,7 @@ import { subscribe as subscribeBus } from '../../observatory/observatoryBus';
 import { loadSealedArtifact } from './sealedArtifact';
 import { ownerOf } from './taxonomyRegistry';
 import { trendToPressure } from './engineWitness';
+import FormulaBench from './FormulaBench';
 
 const MONUMENT_CSS = `
 /* ── Monument pattern (Fade-Doctrine compliant) ──────────────────────
@@ -92,6 +93,11 @@ export default function ReliquaryView() {
             VOLATILE BUILD — will not survive reload
           </div>
         )}
+        {/* The opened vial (scent-aether P3): a kernel compiled before the
+            feature has no formula, and says so — an empty house, not an error. */}
+        {artifact.formula
+          ? <FormulaBench formula={artifact.formula} />
+          : <div className="font-mono text-[10px] text-zinc-600 mb-4">{'// sealed before the aether'}</div>}
         <button type="button" onClick={copyVial}
           className="mb-4 border border-amber-400/60 text-amber-200 font-mono text-[10px] tracking-[0.3em] uppercase px-4 py-2 hover:bg-amber-950/30">
           {copied ? '◈ vial copied' : 'copy the vial →'}

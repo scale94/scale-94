@@ -31,7 +31,7 @@ export const SALT_BYTES = 32;
 
 export const LAYERS = Object.freeze(['top', 'heart', 'base']);
 
-const TYPE_NAMES = Object.freeze({
+export const TYPE_NAMES = Object.freeze({
   AIR: 'Eau de Cologne',
   WATER: 'Eau de Toilette',
   EARTH: 'Eau de Parfum',

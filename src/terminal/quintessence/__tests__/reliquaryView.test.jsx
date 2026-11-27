@@ -98,3 +98,110 @@ describe('ReliquaryView — the faculty roster on the schematic', () => {
     c3.remove();
   });
 });
+
+// ── scent-aether P3 Task 6: the opened vial on the reliquary ────────────────
+import { STORAGE_KEY } from '../sealedArtifact';
+import { buildAccordFormula } from '../../scent/accordFormula';
+import { TYPE_NAMES } from '../../scent/formulaEngine';
+import { REAL_ACCORD, RAMP_SALT, ENVELOPE_META } from '../../scent/__tests__/accordFixture';
+import { expectEveryNumberFromFormula } from '../../scent/__tests__/formulaNumbers';
+import { LAYER_HEX } from '../../mercury/AccordReveal';
+
+const FORMULA = buildAccordFormula(
+  { baseAccord: REAL_ACCORD, salt: RAMP_SALT() },
+  { element: 'EARTH', phase: 'SMOKE DISSOLUTION', periphery: { sol: { lastReleaseErg: 3.2e31, inFlight: [], landings: [] }, art: { lyapunov: 0.3 } } },
+  ENVELOPE_META,
+);
+const ART = (formula) => ({
+  source: '// KERNEL OF QUINTESSENCE :: test source',
+  hash: 'ab'.repeat(32),
+  meta: { compiledAt: '2026-11-27T12:00:00.000Z', element: 'EARTH', verdict: 'PLOMO' },
+  ...(formula ? { formula } : {}),
+});
+function showSealed(artifact) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(artifact));
+  act(() => { root.render(<ReliquaryView key={Math.random()} />); });
+}
+const bench = () => container.querySelector('[data-testid="formula-bench"]');
+const rowEls = () => [...container.querySelectorAll('[data-testid="bench-row"]')];
+
+describe('ReliquaryView — the opened vial (scent-aether P3)', () => {
+  it('a legacy kernel (no formula) reads "// sealed before the aether"; the source view is unchanged', () => {
+    showSealed(ART(null));
+    expect(container.querySelector('[data-testid="reliquary-sealed"]')).toBeTruthy();
+    expect(container.textContent).toContain('// sealed before the aether');
+    expect(bench()).toBeNull();
+    expect(container.querySelector('pre').textContent).toBe('// KERNEL OF QUINTESSENCE :: test source');
+  });
+
+  it('header, rows, top-up and split render from the small batch', () => {
+    showSealed(ART(FORMULA));
+    const s = FORMULA.batches.small;
+    const text = bench().textContent;
+    expect(text).toContain(`FORMULA · ${TYPE_NAMES.EARTH} · ${s.actualPct.toFixed(2)}% concentrate`);
+    expect(rowEls().length).toBe(s.rows.length);
+    for (const el of rowEls()) {
+      const r = s.rows.find((x) => x.materialId === el.dataset.material);
+      expect(el.querySelector('[data-part="name"]').textContent).toBe(r.name);
+      expect(el.querySelector('[data-part="grams"]').textContent).toBe(`${r.grams.toFixed(2)} g`);
+      expect(el.querySelector('[data-part="meta"]').textContent).toContain(r.cas);
+      expect(el.querySelector('[data-part="name"]').style.color).not.toBe('');
+      expect(el.dataset.layer).toBe(r.layer);
+    }
+    expect(text).toContain(`ethanol top-up ${s.alcoholGrams.toFixed(2)} g`);
+    expect(text).toContain(`top ${s.weighedSplit.top.toFixed(1)}% · heart ${s.weighedSplit.heart.toFixed(1)}% · base ${s.weighedSplit.base.toFixed(1)}%`);
+  });
+
+  it('rows are grouped top, heart, base', () => {
+    showSealed(ART(FORMULA));
+    const order = { top: 0, heart: 1, base: 2 };
+    const layers = rowEls().map((el) => order[el.dataset.layer]);
+    expect(layers).toEqual([...layers].sort((a, b) => a - b));
+    expect(Object.keys(LAYER_HEX)).toEqual(['top', 'heart', 'base']);
+  });
+
+  it('the batch toggle switches every gram to the large batch', () => {
+    showSealed(ART(FORMULA));
+    const toggle = [...container.querySelectorAll('button')].find((b) => b.textContent === '10.00 g / 15 ml');
+    expect(toggle).toBeTruthy();
+    act(() => { toggle.click(); });
+    const l = FORMULA.batches.large;
+    expect(rowEls().length).toBe(l.rows.length);
+    for (const el of rowEls()) {
+      const r = l.rows.find((x) => x.materialId === el.dataset.material);
+      expect(el.querySelector('[data-part="grams"]').textContent).toBe(`${r.grams.toFixed(2)} g`);
+    }
+    expect(bench().textContent).toContain(`ethanol top-up ${l.alcoholGrams.toFixed(2)} g`);
+    expect(toggle.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('shows every note → material mapping, the modulation log, IFRA results and the envelope line', () => {
+    showSealed(ART(FORMULA));
+    const text = bench().textContent;
+    for (const n of FORMULA.notes) expect(text).toContain(n.note);
+    for (const line of FORMULA.batches.small.log) expect(text).toContain(line);
+    expect(container.querySelectorAll('[data-testid="bench-ifra"]').length).toBe(FORMULA.batches.small.ifra.length);
+    expect(text).toContain(`opened at this compile · ML-KEM-768 ct ${ENVELOPE_META.ctBytes} B · BLAKE3-derive_key · AES-256-GCM ${ENVELOPE_META.aeadBytes} B`);
+  });
+
+  it('an infeasible batch is named, with no rows for it', () => {
+    const inf = { state: 'infeasible', reason: 'accord has no top row', batch: { grams: 7, vialMl: 10 } };
+    showSealed(ART({ ...FORMULA, batches: { ...FORMULA.batches, small: inf } }));
+    expect(bench().textContent).toContain('FORMULA INFEASIBLE AT 7.00 g — accord has no top row');
+    expect(rowEls().length).toBe(0);
+  });
+
+  // Review Focus 4
+  it('every number in the bench is in the formula', () => {
+    showSealed(ART(FORMULA));
+    expectEveryNumberFromFormula(bench().textContent, FORMULA);
+  });
+
+  it('no white at rest in the bench', () => {
+    showSealed(ART(FORMULA));
+    for (const el of bench().querySelectorAll('*')) {
+      expect(['rgb(255, 255, 255)', 'white']).not.toContain(el.style.color);
+      expect(String(el.className)).not.toMatch(/text-white|text-zinc-50\b|text-neutral-50\b/);
+    }
+  });
+});
