@@ -115,6 +115,14 @@ This converts the system from a black-box model into an Explainable AI interface
 
 ---
 
+## Layer 6.6.6 — SCENT: The Shop Is Retired
+
+### Shop and Living Accord Removed
+
+The /SCENT perfume shop is retired. The order flow, the production threshold, redemption, the Discord order buttons and the Living Accord redeem bot are gone, along with `/api/transmute/*`, `/api/discord/interactions` and `bot/`. The collision chamber, the perfume card and the sovereign view are unchanged, and the manifest download remains.
+
+---
+
 ## Deployment Metrics
 
 **Platform:** Vercel

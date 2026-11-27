@@ -45,4 +45,15 @@ describe('shop retired from the client', () => {
     expect(src).toContain('generateManifestMarkdown(');
     expect(src).toContain('text/markdown');
   });
+
+  it('the shop server side is deleted', () => {
+    const present = ['api/transmute', 'api/discord/interactions.js', 'api/_alien/composeVerdict.js', 'bot']
+      .filter((f) => fs.existsSync(path.join(ROOT, f)));
+    expect(present).toEqual([]);
+  });
+
+  it('.env.example carries no shop variables', () => {
+    const src = read('.env.example');
+    expect(['DISCORD_', 'KV_REST_API', 'RATE_LIMIT_SALT', 'SOVEREIGN'].filter((s) => src.includes(s))).toEqual([]);
+  });
 });

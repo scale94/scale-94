@@ -68,8 +68,8 @@ function load({ network = () => reply(), existing = [] } = {}) {
 
 describe('service worker', () => {
   it.each([
-    '/api/transmute/status?hash=abc',
-    '/api/transmute/threshold',
+    '/api/classified/challenge',
+    '/api/classified/verify',
     '/api/graphtracks/top-posts',
     '/api/sigil/abc.json',
   ])('leaves %s entirely to the network', async path => {
