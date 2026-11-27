@@ -133,6 +133,20 @@ Anything on /SCENT that read like a lab measurement is now calculated from cited
 
 ---
 
+## Layer 8.8.8 — SCENT: The Identity and the Seal
+
+### One Post-Quantum Identity, a Real Seal, the Fourth Vertebra
+
+Crystallize now seals for real. Each visitor holds one identity: an ML-KEM-768 keypair (FIPS 203) that seals, and an ML-DSA-65 keypair (FIPS 204) kept for the dossier signature. The secret halves are wrapped with AES-256-GCM under a non-extractable key in IndexedDB, or held in memory and labelled VOLATILE when storage is unavailable.
+
+At crystallize, the card's base accord and a fresh 32-byte chaos salt are sealed under that identity: ML-KEM-768 encapsulation, a BLAKE3 `derive_key` ("scale94 scent accord seal v1"), then AES-256-GCM. Only the ciphertext envelope reaches the spine. /SCENT is the fourth vertebra: only a real envelope marks it, and a seal whose key has gone from this device reads `SEAL ORPHANED — the key evaporated`. The Tesseract badge names the seal that ran, or why none did.
+
+/CRYPTOGRAPHY gains an identity panel: the fingerprint (SHA-256(ek‖pk), first 16 bytes), an Argon2id backup (m = 64 MiB, t = 3, p = 4, RFC 9106 §4 option 2), restore and rotate. Its keygen demo calls the structured `mlkem768_keygen` export instead of reading keys out of a log.
+
+The primitives are new structured Rust/WASM exports. They are checked against the NIST ACVP known-answer vectors (ML-KEM-768 and ML-DSA-65; `ml-kem =0.2.3`, `ml-dsa =0.1.0-rc.7`, both pinned exactly), and every secret buffer is zeroized. The altar arms only with a sealed accord; P3 is what makes ignite read it.
+
+---
+
 ## Deployment Metrics
 
 **Platform:** Vercel
