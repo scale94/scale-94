@@ -127,3 +127,15 @@ describe('tabLabels — renamed tabs never leak their old names', () => {
     expect(tabLabel('bsky')).toBe('bsky');
   });
 });
+
+describe('isScentMarked · broken (scent-aether P3)', () => {
+  it('a broken seal is not a mark', async () => {
+    const { markScentBroken } = await import('../spineStore');
+    _resetSpineForTests();
+    sealScentForTests();
+    expect(isScentMarked(getSpine())).toBe(true);
+    markScentBroken();
+    expect(isScentMarked(getSpine())).toBe(false);
+    expect(VERTEBRAE.find(v => v.key === 'scent').preview(getSpine())).toBeNull();
+  });
+});

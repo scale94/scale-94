@@ -5,11 +5,13 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import QuintessenceAltar from '../../mercury/QuintessenceAltar';
-import { setTrend, setCouncil, setPhase, reconcileScent, _resetSpineForTests } from '../spineStore';
+import { setTrend, setCouncil, setPhase, reconcileScent, markScentBroken, _resetSpineForTests } from '../spineStore';
 import { sealScentForTests } from './scentFixture';
 import { emit, subscribe, _resetForTests as resetBus } from '../../../observatory/observatoryBus';
 import { compileKernel } from '../compileKernel';
 import { launchCloud, _resetCloudsForTests } from '../../sol/cloudStore';
+import { openAccordForAltar, ALTAR_LINES } from '../../lib/openAccordForAltar';
+import { STORAGE_KEY } from '../sealedArtifact';
 
 // Ignition doubles: the real engine is wasm, the real compile is crypto.subtle.
 vi.mock('../engineWitness', async (orig) => ({ ...(await orig()), witnessEngine: vi.fn(async () => ({ stub: true })) }));
@@ -17,6 +19,21 @@ vi.mock('../compileKernel', async (orig) => ({
   ...(await orig()),
   compileKernel: vi.fn(async () => ({ hash: 'abc123def456', meta: { element: 'FIRE' }, text: 'k' })),
 }));
+
+// The accord opens through the P3 bridge (real crypto pinned in openAccordForAltar.test.js).
+const OPENED_SALT = { current: null };
+vi.mock('../../lib/openAccordForAltar', async (orig) => {
+  // Imported here, at factory time: a dynamic import inside the mock would
+  // resolve on real I/O while the fake timers race ahead.
+  const { REAL_ACCORD, ENVELOPE_META } = await import('../../scent/__tests__/accordFixture');
+  return {
+    ...(await orig()),
+    openAccordForAltar: vi.fn(async () => {
+      OPENED_SALT.current = Uint8Array.from({ length: 32 }, (_, i) => i + 1);
+      return { state: 'ok', baseAccord: REAL_ACCORD, salt: OPENED_SALT.current, envelopeMeta: ENVELOPE_META };
+    }),
+  };
+});
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -140,6 +157,14 @@ describe('QuintessenceAltar — the living altar', () => {
     expect(mirrorRowFor('sealed accord').getAttribute('aria-label')).toContain('SEAL ORPHANED — the key evaporated');
   });
 
+  it('a broken seal reads absent and names why — the altar disarms (P3)', () => {
+    completeSpine();
+    act(() => { markScentBroken(); });
+    expect(container.textContent).not.toContain('ALTAR ARMED');
+    expect(container.textContent).toContain('SEAL BROKEN — the accord would not open');
+    expect(mirrorRowFor('sealed accord').getAttribute('aria-label')).toContain('SEAL BROKEN — the accord would not open');
+  });
+
   it('a long trend label is truncated — the mirror is a row, not a paragraph', () => {
     act(() => { setTrend({ label: 'x'.repeat(60), velocity: 0.5 }); });
     expect(container.textContent).toContain('…');
@@ -181,12 +206,14 @@ describe('QuintessenceAltar — the living altar', () => {
     expect(onNavigate).toHaveBeenCalledWith('ecocide');
   });
 
-  it('compiling: the mirror yields the frame to the stages', () => {
+  it('compiling: the mirror yields the frame to the stages', async () => {
     vi.useFakeTimers();
     completeSpine();
     const seal = sealFor('FIRE');
     act(() => { seal.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0 })); });
     act(() => { vi.advanceTimersByTime(1200); });
+    // P3: the accord opens (async) before the first stage.
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
     expect(container.textContent).toContain('SPINE READ');
     expect(container.querySelector('[data-testid="spine-mirror"]')).toBeNull();
     vi.useRealTimers();
@@ -198,6 +225,8 @@ describe('QuintessenceAltar — the living altar', () => {
     const seal = sealFor('FIRE');
     act(() => { seal.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0 })); });
     act(() => { vi.advanceTimersByTime(1200); });
+    // P3: the accord opens (async) before the first stage.
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
     // ignite() ran: the compile staging begins (grid unmounts into the stage list)
     expect(container.textContent).toContain('SPINE READ');
     vi.useRealTimers();
@@ -352,5 +381,82 @@ describe('QuintessenceAltar — bus emits', () => {
     await holdSeal('FIRE');
     await flush(650 * 6 + 50);
     expect(edge()).toEqual(['kernel_ignited', 'kernel_ignite_ended']);
+  });
+});
+
+// scent-aether P3: ignite opens the sealed accord before the stages (rulings 1–2).
+describe('QuintessenceAltar — the accord opens at ignite', () => {
+  let events;
+  let offBus;
+  const edge = () => events.filter(e => e.category === 'edge').map(e => e.kind);
+  const flush = async (ms) => { await act(async () => { await vi.advanceTimersByTimeAsync(ms); }); };
+  async function holdSeal(id) {
+    const seal = sealFor(id);
+    act(() => { seal.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0 })); });
+    await flush(1200);
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    events = [];
+    offBus = subscribe(e => events.push(e));
+    vi.mocked(compileKernel).mockClear();
+    vi.mocked(openAccordForAltar).mockClear();
+    completeSpine();
+  });
+  afterEach(() => { offBus(); vi.useRealTimers(); });
+
+  it.each(['orphaned', 'tampered', 'malformed', 'no-webcrypto', 'wasm-unavailable', 'error'])(
+    '%s: the line is named, no stage runs, nothing compiles, the ignition ends unsealed',
+    async (state) => {
+      vi.mocked(openAccordForAltar).mockResolvedValueOnce({ state, line: ALTAR_LINES[state] });
+      await holdSeal('FIRE');
+      await flush(650 * 6 + 50);
+      expect(container.querySelector('[role="status"]')?.textContent).toContain(ALTAR_LINES[state]);
+      expect(container.textContent).not.toContain('SPINE READ');
+      expect(compileKernel).not.toHaveBeenCalled();
+      expect(edge()).toEqual(['kernel_ignited', 'kernel_ignite_ended']);
+      expect(events.find(e => e.kind === 'kernel_ignite_ended').payload).toEqual({ sealed: false });
+      // the grid is back: the altar cooled, it did not brick
+      expect(sealFor('FIRE')).toBeTruthy();
+    },
+  );
+
+  it('ok: compileKernel receives the opened accord, and the salt is zeroed afterwards', async () => {
+    await holdSeal('EARTH');
+    await flush(650 * 6 + 50);
+    expect(openAccordForAltar).toHaveBeenCalledTimes(1);
+    const opts = vi.mocked(compileKernel).mock.calls[0][3];
+    expect(opts.accord.baseAccord.rows.length).toBeGreaterThan(0);
+    expect(opts.accord.envelopeMeta.ctBytes).toBe(1088);
+    expect(opts.accord.salt).toBe(OPENED_SALT.current);
+    expect([...OPENED_SALT.current].every(b => b === 0)).toBe(true);
+    expect(edge()).toContain('kernel_sealed');
+  });
+
+  // Review Focus 6: the real compile, end to end through storage.
+  it('the stored artifact holds the formula and no trace of the salt', async () => {
+    const real = (await vi.importActual('../compileKernel')).compileKernel;
+    vi.mocked(compileKernel).mockImplementationOnce(real);
+    await holdSeal('WATER');
+    const salt = OPENED_SALT.current.slice();
+    await flush(650 * 6 + 50);
+    const raw = localStorage.getItem(STORAGE_KEY);
+    expect(raw).toBeTruthy();
+    const stored = JSON.parse(raw);
+    expect(stored.formula.state).toBe('ok');
+    expect(stored.formula.modulators.element).toBe('WATER');
+    expect(raw).not.toContain(Buffer.from(salt).toString('base64'));
+    expect(raw).not.toContain(Buffer.from(salt).toString('hex'));
+  });
+
+  it('a failed open, then a retry that opens, compiles and clears the line', async () => {
+    vi.mocked(openAccordForAltar).mockResolvedValueOnce({ state: 'no-webcrypto', line: ALTAR_LINES['no-webcrypto'] });
+    await holdSeal('FIRE');
+    expect(container.textContent).toContain(ALTAR_LINES['no-webcrypto']);
+    await holdSeal('FIRE');
+    await flush(650 * 6 + 50);
+    expect(container.textContent).not.toContain(ALTAR_LINES['no-webcrypto']);
+    expect(compileKernel).toHaveBeenCalledTimes(1);
   });
 });

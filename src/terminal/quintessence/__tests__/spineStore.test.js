@@ -120,3 +120,43 @@ describe('spineStore — the scent vertebra (P2)', () => {
     expect(missingVertebrae().at(-1)).toBe('NO ACCORD SEALED');
   });
 });
+
+// ── scent-aether P3: a seal that would not open at the altar ────────────────
+import { markScentBroken, SCENT_BROKEN, SCENT_ABSENT, SCENT_ORPHANED } from '../spineStore';
+
+describe('spineStore · broken seal (P3 ruling 2)', () => {
+  beforeEach(() => _resetSpineForTests());
+  const full = () => { setTrend({ label: 't', velocity: 1 }); setCouncil({ pair: ['A', 'B'], directive: 'd', trajectory: 'T', paradoxCount: 1 }); setPhase('SMOKE DISSOLUTION'); };
+
+  it('copy is exact', () => {
+    expect(SCENT_BROKEN).toBe('SEAL BROKEN — the accord would not open');
+  });
+  it('markScentBroken drops the mark and names it fourth', () => {
+    full(); sealScentForTests();
+    expect(missingVertebrae()).toEqual([]);
+    markScentBroken();
+    expect(getSpine().scent.broken).toBe(true);
+    expect(missingVertebrae()).toEqual([SCENT_BROKEN]);
+  });
+  it('no-op without a scent', () => {
+    markScentBroken();
+    expect(getSpine().scent).toBeNull();
+    expect(missingVertebrae().at(-1)).toBe(SCENT_ABSENT);
+  });
+  it('orphaned outranks broken (the key is gone either way)', () => {
+    sealScentForTests(); markScentBroken(); reconcileScent(null);
+    expect(missingVertebrae().at(-1)).toBe(SCENT_ORPHANED);
+  });
+  it('a reconcile keeps broken; a fresh seal clears it', () => {
+    sealScentForTests(); markScentBroken(); reconcileScent(FX_FP);
+    expect(getSpine().scent.broken).toBe(true);
+    sealScentForTests();
+    expect(getSpine().scent.broken).toBeUndefined();
+    expect(missingVertebrae().at(-1)).not.toBe(SCENT_BROKEN);
+  });
+  it('survives a reload', () => {
+    sealScentForTests(); markScentBroken();
+    _resetSpineForTests({ keepStorage: true });
+    expect(getSpine().scent.broken).toBe(true);
+  });
+});

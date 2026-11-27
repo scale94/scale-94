@@ -13,6 +13,7 @@ import { STORAGE_KEY } from '../quintessence/sealedArtifact';
 import { drynessFor } from '../data/lunarAccords';
 import { getTotals, subscribe as subscribeBus, emit as emitObs } from '../../observatory/observatoryBus';
 import { notifyAltarStage } from '../quintessence/observerStore';
+import { openAccordForAltar } from '../lib/openAccordForAltar';
 import ElementSeal from './ElementSeal';
 import SpineMirror from './SpineMirror';
 import { useHoldToSeal } from './useHoldToSeal';
@@ -73,6 +74,7 @@ export default function QuintessenceAltar({ onDeposited, onNavigate }) {
   const [, force] = useReducer(x => x + 1, 0);
   const [stage, setStage] = useState(-1);          // -1 idle, 0..5 compiling, 6 done
   const [result, setResult] = useState(null);
+  const [sealNote, setSealNote] = useState(null);  // a named reason the accord did not open
   const alive = useRef(true);
   const igniting = useRef(false);
   useEffect(() => () => { alive.current = false; }, []);
@@ -112,9 +114,17 @@ export default function QuintessenceAltar({ onDeposited, onNavigate }) {
     } catch (_) { /* no storage → nothing to overwrite */ }
     igniting.current = true;
     let sealed = false;
+    let opened = null;
     try {
       setElement(elementId);
       emitObs('edge', 'kernel_ignited', { element: elementId });
+      setSealNote(null);
+      // The compile is the unsealing (scent-aether P3 ruling 1): open the
+      // accord before any stage, so a seal that cannot open costs nothing and
+      // no stage line ever claims what didn't happen. Never throws.
+      opened = await openAccordForAltar(getSpine());
+      if (!alive.current) return;
+      if (opened.state !== 'ok') { setSealNote(opened.line); return; }
       const spine = getSpine();
       const periphery = snapshotPeriphery();
       for (let s = 0; s < 3; s++) {
@@ -138,7 +148,9 @@ export default function QuintessenceAltar({ onDeposited, onNavigate }) {
         await new Promise(r => setTimeout(r, 650));
         if (!alive.current) return;
       }
-      const artifact = await compileKernel(spine, periphery, engine);
+      const artifact = await compileKernel(spine, periphery, engine, {
+        accord: { baseAccord: opened.baseAccord, salt: opened.salt, envelopeMeta: opened.envelopeMeta },
+      });
       if (!alive.current) return;
       let volatile = false;
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(artifact)); }
@@ -158,6 +170,8 @@ export default function QuintessenceAltar({ onDeposited, onNavigate }) {
       if (import.meta.env?.DEV) console.debug('[quintessence] compile failed at the altar:', err);
       if (alive.current) { setResult(null); setStage(-1); }
     } finally {
+      // Opened vial (decision 17): the formula is the record, the salt is not kept.
+      if (opened?.salt) opened.salt.fill(0);
       igniting.current = false;
       // Every exit without a seal (catch, unmount midway) closes the ignition.
       if (!sealed) emitObs('edge', 'kernel_ignite_ended', { sealed: false });
@@ -176,7 +190,13 @@ export default function QuintessenceAltar({ onDeposited, onNavigate }) {
       {/* The mirror stays lit when armed: filling up and THEN arming is the payoff. */}
       {stage === -1 && <SpineMirror spine={getSpine()} armed={armed} onNavigate={onNavigate} />}
 
-      {armed && (
+      {stage === -1 && sealNote && (
+        <div role="status" className="mt-3 text-[10px] font-mono tracking-[0.2em] text-rose-300/80 uppercase">
+          [{sealNote}]
+        </div>
+      )}
+
+      {armed && !sealNote && (
         <div role="status" className="mt-3 text-[10px] font-mono tracking-[0.2em] text-amber-300/90 uppercase">
           [ALTAR ARMED · HOLD AN ELEMENT TO SEAL THE KERNEL]
         </div>

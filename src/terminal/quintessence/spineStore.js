@@ -13,6 +13,7 @@ const emptySpine = () => ({ trend: null, council: null, phase: null, element: nu
 
 export const SCENT_ABSENT = 'NO ACCORD SEALED';
 export const SCENT_ORPHANED = 'SEAL ORPHANED — the key evaporated';
+export const SCENT_BROKEN = 'SEAL BROKEN — the accord would not open';
 
 let spine = restore();
 const listeners = new Set();
@@ -97,6 +98,14 @@ export function reconcileScent(currentFp) {
   write({ scent: { ...spine.scent, orphaned } });
 }
 
+// The altar tried the envelope and it failed authentication or would not parse
+// (scent-aether P3 ruling 2). The mark falls until the visitor crystallizes again;
+// setScent writes a fresh scent, which carries no `broken`.
+export function markScentBroken() {
+  if (!spine.scent || spine.scent.broken) return;
+  write({ scent: { ...spine.scent, broken: true } });
+}
+
 export function missingVertebrae() {
   const missing = [];
   if (!spine.trend)   missing.push('NO TREND MARKED');
@@ -104,6 +113,7 @@ export function missingVertebrae() {
   if (!spine.phase)   missing.push('NO PHASE COMPILED');
   if (!spine.scent?.envelope)  missing.push(SCENT_ABSENT);
   else if (spine.scent.orphaned) missing.push(SCENT_ORPHANED);
+  else if (spine.scent.broken) missing.push(SCENT_BROKEN);
   return missing;
 }
 

@@ -17,7 +17,7 @@ export function truncate(s, max = PREVIEW_MAX) {
 // A scent is marked only by a real envelope that this device's identity can open.
 // Every reader asks v.isMarked(spine), never !!spine[v.key]: a stored-but-orphaned
 // scent is truthy and must still read as absent.
-export const isScentMarked = s => !!s?.scent?.envelope && !s.scent.orphaned;
+export const isScentMarked = s => !!s?.scent?.envelope && !s.scent.orphaned && !s.scent.broken;
 
 export const VERTEBRAE = [
   {
