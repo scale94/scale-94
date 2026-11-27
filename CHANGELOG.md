@@ -115,7 +115,7 @@ This converts the system from a black-box model into an Explainable AI interface
 
 ---
 
-## Layer 6.6.6 — SCENT: The Shop Is Retired
+## Layer 6.6.6 â€” SCENT: The Shop Is Retired
 
 ### Shop and Living Accord Removed
 
