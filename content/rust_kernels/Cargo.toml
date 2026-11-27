@@ -25,7 +25,7 @@ getrandom    = { version = "0.2", features = ["js"] }
 # js-sys: required for js_sys::Array return type in grayscott_params / classified_params
 js-sys       = "0.3"
 # ML-KEM-768: FIPS 203 compliant post-quantum key encapsulation
-ml-kem       = "0.2"
+ml-kem       = "=0.2.3"   # exact pin: FIPS 203 KAT gate (tests/fips_kat.rs) ran on this version
 # hex: encode key bytes as uppercase hex strings for terminal output
 hex          = "0.4"
 serde_json   = { version = "1", default-features = false, features = ["alloc"] }
@@ -47,7 +47,14 @@ zeroize      = "1"
 aes-gcm      = { version = "0.10", default-features = false, features = ["aes", "alloc"] }
 argon2       = { version = "0.5",  default-features = false, features = ["alloc"] }
 blake3       = { version = "1.5",  default-features = false }
-ml-dsa       = { version = "0.1.0-rc.5", features = ["zeroize"] }
+ml-dsa       = { version = "=0.1.0-rc.7", features = ["zeroize"] }   # exact pin: prerelease; FIPS 204 KAT gate ran on this version
+
+[dev-dependencies]
+# FIPS 203/204 known-answer gate (tests/fips_kat.rs). The deterministic feature
+# exposes ML-KEM generate_deterministic / encapsulate_deterministic for the NIST
+# vectors; resolver 2 keeps dev-dependency features out of the WASM build.
+ml-kem       = { version = "=0.2.3", features = ["deterministic"] }
+serde_json   = "1"   # std, for reading the vector files (hex is already a normal dependency)
 
 [profile.release]
 # Optimize for size — WASM binary is served over the network.
