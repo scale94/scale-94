@@ -147,6 +147,18 @@ The primitives are new structured Rust/WASM exports. They are checked against th
 
 ---
 
+## Layer 9.9.9 — SCENT: The Altar Opens the Accord
+
+### The Compile Is the Unsealing
+
+Igniting the Quintessence Altar now opens the sealed accord before the first stage: ML-KEM-768 decapsulation, BLAKE3 `derive_key`, then AES-256-GCM. A seal that will not open is named and the altar cools; no stage runs and nothing compiles. `SEAL ORPHANED — the key evaporated` means the key is not on this device. `SEAL BROKEN — the accord would not open` means the envelope failed authentication or would not parse, and the visitor crystallizes again. An origin without WebCrypto, or a kernel that did not load, is named too, and the seal is left alone.
+
+The opened accord is weighed inside the pure compile, after the hash: the build's hash covers the spine, which carries the ciphertext, never the plaintext. Four readings shape it, each named in the formula's log: the altar element sets the strength, the /LUNAR phase sets the rest window (two to eight weeks, from the phase's dryness), the last /SOL release tilts weight between top and base on the store's own log-energy scale, and the /CHAOS sphere's Lyapunov exponent sets how far the sealed salt's drift reaches. An absent reading is named, never guessed. Both batches (7.00 g / 10 ml and 10.00 g / 15 ml) are stored on the compiled kernel as plain text, never re-sealed; the chaos salt is not kept. The kernel source gains a `THE FIFTH` block with the small batch's rows.
+
+The reveal paints the formula over the ciphertext that held it. Under a header naming the real byte counts, each poetic note condenses into its material rows, and each row resolves left to right out of its own slice of the AES-256-GCM ciphertext. A note's grams land together with an 80 ms white flash, at most three per second; reduced motion shows the end state at once, and a held press or Esc skips to it. Layers wear muted cyan, orange and amber; gold is kept for the FORMULA and BUILD lines. The reliquary shows the opened vial as a bench sheet: batch toggle, rows by layer, the ethanol top-up, the weighed split, IFRA results, every note → material mapping and the modulation log. A kernel compiled before this reads `// sealed before the aether`.
+
+---
+
 ## Deployment Metrics
 
 **Platform:** Vercel
