@@ -11,6 +11,7 @@ import { doctrineFor } from '../data/kernelDoctrines';
 import kernelBuilds from '../data/kernelBuilds';
 import { yearOf } from '../sol/delayStack';
 import { CORE_PHOTON_YEARS, HELIUM_FLASH_YEARS } from '../sol/solPhysics';
+import { buildAccordFormula } from '../scent/accordFormula';
 
 export const ELEMENT_MAP = {
   FIRE:  { atom: 'Boson',   daemon: 'TheDevil' },
@@ -188,12 +189,48 @@ ${lines.join('\n')}
 ${tail}`;
 }
 
+// ── THE FIFTH (scent-aether P3 ruling 7) ─────────────────────────────────────
+// Only when an envelope opened at this compile. The small batch (7.00 g / 10 ml,
+// decision 11) is the one the source carries; the artifact holds both.
+const rustF64 = (x) => (Number.isInteger(x) ? x.toFixed(1) : String(x));
+
+function fifthBlock(formula) {
+  const e = formula.envelope;
+  const b = formula.batches.small;
+  const head = `/// **THE FIFTH** — the sealed accord, opened once at this compile.
+/// ${e.kem} → ${e.kdf} → ${e.aead} · ct ${e.ctBytes} B · aead ${e.aeadBytes} B · fp ${e.fp}`;
+  const struct = "    pub struct Row { pub name: &'static str, pub cas: &'static str, pub layer: &'static str, pub stock: f64, pub grams: f64 }";
+  if (b.state !== 'ok') {
+    return `${head}
+mod sealed_accord {
+${struct}
+    // FORMULA INFEASIBLE AT ${b.batch.grams.toFixed(2)} g — ${b.reason}
+    pub const SEALED_ACCORD: &[Row] = &[];
+}`;
+  }
+  const rows = b.rows.map((r) =>
+    `        Row { name: ${JSON.stringify(r.name)}, cas: ${JSON.stringify(r.cas)}, layer: ${JSON.stringify(r.layer)}, stock: ${rustF64(r.stock)}, grams: ${r.grams.toFixed(2)} },`);
+  return `${head}
+/// ${b.batch.grams.toFixed(2)} g batch · ${b.batch.vialMl} ml vial · target ${b.targetPct.toFixed(1)}% · actual ${b.actualPct.toFixed(2)}% concentrate
+mod sealed_accord {
+${struct}
+    pub const SEALED_ACCORD: &[Row] = &[
+${rows.join(NL)}
+    ];
+    pub const ETHANOL_TOP_UP_G: f64 = ${b.alcoholGrams.toFixed(2)};
+    pub const REST_WEEKS: u8 = ${b.restWeeks};
+}`;
+}
+
 // ── main ─────────────────────────────────────────────────────────────────────
 /**
  * @param spine     { trend, council, phase, element }  (all present — altar gates)
  * @param periphery snapshotPeriphery() result (nullable fields)
  * @param engine    witnessEngine() result or null (offline)
- * @param opts      { compiledAt: ISO string } — injected for determinism/tests
+ * @param opts      { compiledAt: ISO string, accord?: { baseAccord, salt, envelopeMeta } }
+ *                  compiledAt is injected for determinism/tests. accord is the
+ *                  envelope opened at ignite (scent-aether P3); it is NOT a hash
+ *                  input — the hash covers the spine, which carries the envelope.
  */
 export async function compileKernel(spine, periphery, engine, opts = {}) {
   const compiledAt = opts.compiledAt ?? new Date().toISOString();
@@ -213,6 +250,15 @@ export async function compileKernel(spine, periphery, engine, opts = {}) {
   const verdict = bpm >= 160 ? 'PLATA' : 'PLOMO';
   const lock    = entropyLockValue(periphery.lunarRead);
   const [mindA, mindB] = spine.council.pair;
+
+  // Computed after the hash: the opened accord never changes the build's identity.
+  const formula = opts.accord
+    ? buildAccordFormula(
+      { baseAccord: opts.accord.baseAccord, salt: opts.accord.salt },
+      { element: spine.element, phase: spine.phase, periphery },
+      opts.accord.envelopeMeta,
+    )
+    : null;
 
   const filledHouses = countFilledHouses(periphery);
   // The faculty's reading context (registry spec §6). Assembled AFTER the hash:
@@ -401,7 +447,7 @@ ${houseLine('house_sol', periphery.sol ?? null, solDescribe(periphery.sol ?? nul
 ${solTelemetryBlock(periphery.sol ?? null)}
 
 ${linkerBlock(periphery.corpus ?? null, ctx, rng)}
-
+${formula ? `${NL}${fifthBlock(formula)}${NL}` : ''}
 /// **PANIC HANDLER** — inherited verbatim from the genome.
 /// When this system fails, it does not crash — it calcifies.
 #[panic_handler]
@@ -410,10 +456,12 @@ fn panic(_info: &core::panic::PanicInfo) -> ! {
 }
 `;
 
-  return {
+  const artifact = {
     source,
     hash,
     meta: { compiledAt, verdict, bpm, r, dryness, element: spine.element,
             daemon: el.daemon, atom: el.atom, engineOnline: !!engine },
   };
+  if (formula) artifact.formula = formula;
+  return artifact;
 }

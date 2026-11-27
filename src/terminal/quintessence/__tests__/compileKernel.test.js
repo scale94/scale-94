@@ -324,3 +324,88 @@ describe('compileKernel — house_sol and sol_telemetry', () => {
     expect(a.hash).toBe(b.hash);
   });
 });
+
+// ── scent-aether P3: the opened accord enters the compile ───────────────────
+import { createHash } from 'node:crypto';
+import { REAL_ACCORD, RAMP_SALT, ENVELOPE_META } from '../../scent/__tests__/accordFixture';
+
+const sha = (s) => createHash('sha256').update(s).digest('hex');
+const ACCORD = () => ({ baseAccord: REAL_ACCORD, salt: RAMP_SALT(), envelopeMeta: ENVELOPE_META });
+
+describe('compileKernel · the fifth (scent-aether P3)', () => {
+  // Review Focus 2: literals captured on a91399dd+def0cc1f, before P3 touched compileKernel.
+  it('no accord → source, hash and meta byte-identical to before P3', async () => {
+    const on = await compileKernel(FULL_SPINE, FULL_PERIPHERY, ENGINE, OPTS);
+    expect(sha(on.source)).toBe('fce17d546486e08f2cd77adc96649cd3b2594fa65506ea1fd3910d6e557d0d29');
+    expect(on.hash).toBe('ebf162d8568de1556a6b8bb14276241c46c78ebd40a69a1c6b18ff893cdc00ea');
+    expect(JSON.stringify(on.meta)).toBe('{"compiledAt":"2026-07-09T12:00:00.000Z","verdict":"PLATA","bpm":174,"r":3.88,"dryness":85,"element":"FIRE","daemon":"TheDevil","atom":"Boson","engineOnline":true}');
+    expect(Object.keys(on)).toEqual(['source', 'hash', 'meta']);
+    const off = await compileKernel(FULL_SPINE, FULL_PERIPHERY, null, OPTS);
+    expect(sha(off.source)).toBe('4e045a7fde945202b2218076dcc9eef794d47976720be181c2124ac3a9a0ca4c');
+    expect(off.hash).toBe('299087fcb21002c6f9c4f4d3ae539795d921ab3eccee19247b8c95a5399b7210');
+  });
+
+  // Review Focus 1
+  it('the hash and meta are accord-blind', async () => {
+    const plain = await compileKernel(FULL_SPINE, FULL_PERIPHERY, ENGINE, OPTS);
+    const withAccord = await compileKernel(FULL_SPINE, FULL_PERIPHERY, ENGINE, { ...OPTS, accord: ACCORD() });
+    expect(withAccord.hash).toBe(plain.hash);
+    expect(withAccord.meta).toEqual(plain.meta);
+  });
+
+  it('the artifact gains a two-batch formula built from the spine element, phase and periphery', async () => {
+    const a = await compileKernel(FULL_SPINE, FULL_PERIPHERY, ENGINE, { ...OPTS, accord: ACCORD() });
+    expect(a.formula.state).toBe('ok');
+    expect(a.formula.modulators.element).toBe('FIRE');
+    expect(a.formula.sources.lunar.phase).toBe('SMOKE DISSOLUTION');
+    expect(a.formula.sources.chaos).toEqual({ lyapunov: 0.021 });
+    expect(a.formula.batches.small.state).toBe('ok');
+    expect(a.formula.batches.large.state).toBe('ok');
+    expect(a.formula.notes).toEqual(REAL_ACCORD.notes);
+  });
+
+  it('THE FIFTH block lists exactly the small batch rows, grams to 2 dp, before the panic handler', async () => {
+    const a = await compileKernel(FULL_SPINE, FULL_PERIPHERY, ENGINE, { ...OPTS, accord: ACCORD() });
+    const s = a.source;
+    const at = s.indexOf('/// **THE FIFTH**');
+    expect(at).toBeGreaterThan(0);
+    expect(at).toBeLessThan(s.indexOf('#[panic_handler]'));
+    const rows = [...s.matchAll(/^ {8}Row \{ name: "(.*?)", cas: "(.*?)", layer: "(top|heart|base)", stock: ([\d.]+), grams: (\d+\.\d\d) \},$/gm)];
+    const small = a.formula.batches.small;
+    expect(rows.length).toBe(small.rows.length);
+    rows.forEach((m, i) => {
+      expect(m[1]).toBe(small.rows[i].name);
+      expect(m[2]).toBe(small.rows[i].cas);
+      expect(m[3]).toBe(small.rows[i].layer);
+      expect(Number(m[4])).toBe(small.rows[i].stock);
+      expect(m[5]).toBe(small.rows[i].grams.toFixed(2));
+    });
+    expect(s).toContain(`pub const ETHANOL_TOP_UP_G: f64 = ${small.alcoholGrams.toFixed(2)};`);
+    expect(s).toContain(`pub const REST_WEEKS: u8 = ${small.restWeeks};`);
+    expect(s).toContain('ML-KEM-768 → BLAKE3-derive_key → AES-256-GCM');
+  });
+
+  it('no accord → no fifth block', async () => {
+    const a = await compileKernel(FULL_SPINE, FULL_PERIPHERY, ENGINE, OPTS);
+    expect(a.source).not.toContain('THE FIFTH');
+    expect(a.formula).toBeUndefined();
+  });
+
+  it('an infeasible accord still compiles and names it', async () => {
+    const { MATERIALS } = await import('../../scent/materials');
+    const noTop = { ...REAL_ACCORD, rows: REAL_ACCORD.rows.filter((r) => MATERIALS.find((m) => m.id === r.materialId).layer !== 'top') };
+    const a = await compileKernel(FULL_SPINE, FULL_PERIPHERY, ENGINE, { ...OPTS, accord: { ...ACCORD(), baseAccord: noTop } });
+    expect(a.formula.state).toBe('infeasible');
+    expect(a.source).toContain('// FORMULA INFEASIBLE AT 7.00 g — accord has no top row');
+    expect(a.source).toContain('pub const SEALED_ACCORD: &[Row] = &[];');
+  });
+
+  it('the serialized artifact carries no trace of the salt', async () => {
+    const acc = ACCORD();
+    const b64 = Buffer.from(acc.salt).toString('base64');
+    const hex = Buffer.from(acc.salt).toString('hex');
+    const json = JSON.stringify(await compileKernel(FULL_SPINE, FULL_PERIPHERY, ENGINE, { ...OPTS, accord: acc }));
+    expect(json).not.toContain(b64);
+    expect(json).not.toContain(hex);
+  });
+});
