@@ -26,6 +26,10 @@ export async function loadWasm() {
         _ready = true;
         _waiters.forEach(w => w.resolve(mod));
       } catch (err) {
+        // A failed init must not poison the page: drop the rejected promise so
+        // the next loadWasm() retries (a transient fetch or a stale service
+        // worker otherwise broke every WASM caller until reload).
+        _initPromise = null;
         _waiters.forEach(w => w.reject(err));
       } finally {
         _waiters = [];

@@ -27,7 +27,12 @@ export const colliderBus = {
   _listeners: [],
   _pending: [],        // buffered chimeras for tabs not yet mounted
   emit(data) {
-    this._listeners.forEach(fn => fn(data));
+    // A listener is decoration (the /CHAOS sphere, the Mercury sphere). One that
+    // throws must never abort the collision that emitted — the observatory bus
+    // isolates its subscribers the same way.
+    this._listeners.forEach(fn => {
+      try { fn(data); } catch (e) { console.error('[COLLIDER BUS] listener failed:', e); }
+    });
     if (data.type === 'CHIMERA_SYNTHESIS') this._pending.push(data);
   },
   on(fn) {
@@ -535,6 +540,9 @@ export default function LatentCollider({ onPolarity } = {}) {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [phase, setPhase] = useState('idle');
+  // A collision that throws is named, never a silent fall back to IDLE with both
+  // domains still lit (author's live test, OSTROM × Cu, scent-aether P3).
+  const [collisionFail, setCollisionFail] = useState(null);
   const [phaseStart, setPhaseStart] = useState(0);
   const narrativeCardPreview = useMemo(() => {
     if (!result || domainA == null || domainB == null) return null;
@@ -608,6 +616,7 @@ export default function LatentCollider({ onPolarity } = {}) {
     setPhaseStart(performance.now());
     colliderBus.emit({ type: 'COLLIDER_PHASE', phase: 'accelerating' });
 
+    let step = 'kernel';
     try {
       // Delay so the acceleration animation plays
       await new Promise(r => setTimeout(r, 1800));
@@ -618,11 +627,13 @@ export default function LatentCollider({ onPolarity } = {}) {
       if (wasmSupported) {
         // Legacy domains 0-31: run through WASM latent collider
         const mod = await loadWasm();
+        step = 'compute';
         const raw = mod.run_latent_collider(a, b, 8.0, 1.0);
         parsed = parseColliderOutput(raw);
         parsed.space = '16-D · expanded to 1536';
         parsed.viaWasm = true;
       } else {
+        step = 'compute';
         // Extended domains 32+: JS-only collision from 32D feature tensors
         const mapA = DOMAIN_SPHERE_MAP[a], mapB = DOMAIN_SPHERE_MAP[b];
         const idxA = NODE_IDX[mapA.nodeId], idxB = NODE_IDX[mapB.nodeId];
@@ -792,9 +803,19 @@ export default function LatentCollider({ onPolarity } = {}) {
         } : null,
       });
     } catch (e) {
-      console.error('[COLLIDER] WASM error:', e);
+      console.error('[COLLIDER] collision failed:', e);
+      setCollisionFail(step === 'kernel'
+        ? 'COLLISION DID NOT RUN — the kernel did not load'
+        : 'COLLISION DID NOT RUN — the computation failed');
+      setDomainA(null);
+      setDomainB(null);
+      setResult(null);
+      metricsRef.current = null;
+      beamsRef.current = null;
       setPhase('idle');
       phaseRef.current = 'idle';
+      setPhaseStart(performance.now());
+      colliderBus.emit({ type: 'COLLIDER_PHASE', phase: 'idle' });
     } finally {
       setLoading(false);
     }
@@ -803,6 +824,7 @@ export default function LatentCollider({ onPolarity } = {}) {
   // ── Domain selection handler ───────────────────────────────────────────────
   const handleSelect = useCallback((id) => {
     if (phase === 'accelerating' || phase === 'colliding') return;
+    setCollisionFail(null);
 
     if (domainA === null) {
       emitObs('essences', 'node_selected', { nodeId: id, name: domainById(id)?.name ?? null });
@@ -836,6 +858,7 @@ export default function LatentCollider({ onPolarity } = {}) {
   }, [domainA, domainB, phase, runCollision]);
 
   const handleReset = useCallback(() => {
+    setCollisionFail(null);
     setCrystal(null);
     setTesseract(null);
     setDomainA(null);
@@ -932,6 +955,12 @@ export default function LatentCollider({ onPolarity } = {}) {
         {phase === 'idle' && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className="text-center border border-dashed border-fuchsia-500/20 rounded-sm px-10 py-6">
+              {collisionFail && (
+                <div data-testid="collision-failed" role="status"
+                  className="text-[10px] font-mono text-rose-300/80 uppercase tracking-widest mb-2">
+                  {collisionFail}
+                </div>
+              )}
               <div className="text-[11px] font-mono text-fuchsia-500/40 uppercase tracking-widest animate-pulse">
                 SELECT TWO DOMAINS TO COLLIDE
               </div>
