@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   TARGET_PCT, BANDS, BATCHES, MIN_WEIGH_G, ETHANOL_G_PER_ML, FILL_MAX,
-  FormulaInfeasible, computeFormula, projectToBands, ifraStepDown,
+  FormulaInfeasible, computeFormula, projectToBands, ifraStepDown, assertStrength,
 } from '../formulaEngine';
 import { FX_KIT, FX_ACCORD } from './kitFixture';
 
@@ -48,6 +48,10 @@ describe('projectToBands', () => {
     expect(s.top).toBeCloseTo(25, 12);
     expect(s.heart).toBeCloseTo(32, 12);
     expect(s.base).toBeCloseTo(43, 12);
+  });
+
+  it('throws instead of silently breaking when no layer has room', () => {
+    expect(() => projectToBands({ top: NaN, heart: 35, base: 45 })).toThrow(FormulaInfeasible);
   });
 
   it('handles a negative residual', () => {
@@ -155,7 +159,8 @@ describe('computeFormula core', () => {
     const f = run(el, b);
     const mote = f.rows.find((r) => r.materialId === 'fx-heart-mote');
     expect(mote).toBeDefined();
-    expect(mote.grams * mote.stock).toBeLessThan(MIN_WEIGH_G); // neat would be < 0.05 g
+    // its exact neat dose is < 0.05 g; the weighed grams sit within one 0.01 g grain of exact
+    expect(mote.grams * mote.stock).toBeLessThan(MIN_WEIGH_G + 0.01 * mote.stock);
     expect(mote.stock).toBeLessThan(1);
     // generally: any row whose material has a 1.0 stock but whose neat dose is under 0.05 g
     for (const r of f.rows) {
@@ -239,5 +244,73 @@ describe('computeFormula core', () => {
     try { run('AIR', 'small', { kit, baseAccord }); } catch (e) { err = e; }
     expect(err).toBeInstanceOf(FormulaInfeasible);
     expect(err.layer).toBe('top');
+  });
+});
+
+// Synthetic many-row kit: 2 top, 4 heart, 7 base rows, all neat-only, equal parts.
+// At WATER/small every row's exact dose is ≈0.0538 g, so plain per-row round2
+// takes 0.0038 g off all 13 rows: −0.05 g = −0.71 pt, outside ±0.5.
+const MANY_KIT = [
+  ...['a', 'b'].map((x) => ['top', x]),
+  ...['a', 'b', 'c', 'd'].map((x) => ['heart', x]),
+  ...['a', 'b', 'c', 'd', 'e', 'f', 'g'].map((x) => ['base', x]),
+].map(([layer, x], i) => ({
+  id: `fx-many-${layer}-${x}`, name: `Fixture Many ${layer} ${x}`, cas: `FX-1${String(i).padStart(3, '0')}`,
+  layer, role: 'body', stocks: [1.0], ifraCat4MaxPct: null, solubility: null,
+  sources: { casSource: 'fixture', ifraSource: 'fixture' },
+}));
+const MANY_ACCORD = { rows: MANY_KIT.map((m) => ({ materialId: m.id, parts: 1 })) };
+
+describe('strength holds under same-direction rounding (R2)', () => {
+  it('plain per-row rounding would break ±0.5 pt for the many-row kit', () => {
+    // pre-condition proving the fixture is a real trap
+    const conc = 7 * 10 / 100;
+    const shares = projectToBands({ top: 200 / 13, heart: 400 / 13, base: 700 / 13 });
+    const counts = { top: 2, heart: 4, base: 7 };
+    let plain = 0;
+    for (const k of ['top', 'heart', 'base']) {
+      const x = conc * shares[k] / 100 / counts[k];
+      plain += counts[k] * (Math.round(x * 100) / 100);
+    }
+    expect(Math.abs(plain / 7 * 100 - 10)).toBeGreaterThan(0.5);
+  });
+
+  it.each(Object.keys(BATCHES))('WATER/%s: largest-remainder rounding keeps actualPct within ±0.5', (b) => {
+    const f = computeFormula({
+      baseAccord: MANY_ACCORD, salt: SALT, modulators: { element: 'WATER', restWeeks: 4 },
+      batch: BATCHES[b], kit: MANY_KIT,
+    });
+    expect(f.rows.length).toBe(13);
+    expect(Math.abs(f.actualPct - 10)).toBeLessThanOrEqual(0.5);
+    for (const r of f.rows) {
+      expect(r.grams).toBeGreaterThanOrEqual(MIN_WEIGH_G);
+      expect(Math.abs(r.grams * 100 - Math.round(r.grams * 100))).toBeLessThan(1e-9);
+    }
+  });
+
+  it.each(ELEMENTS)('%s/small: many-row kit holds the bound wherever it is feasible', (el) => {
+    let f;
+    try {
+      f = computeFormula({
+        baseAccord: MANY_ACCORD, salt: SALT, modulators: { element: el, restWeeks: 4 },
+        batch: BATCHES.small, kit: MANY_KIT,
+      });
+    } catch (e) {
+      expect(e).toBeInstanceOf(FormulaInfeasible);
+      return;
+    }
+    expect(Math.abs(f.actualPct - TARGET_PCT[el])).toBeLessThanOrEqual(0.5);
+  });
+});
+
+describe('assertStrength guard', () => {
+  it('passes inside ±0.5 pt', () => {
+    expect(() => assertStrength(10.5, 10)).not.toThrow();
+    expect(() => assertStrength(9.5, 10)).not.toThrow();
+  });
+  it('throws FormulaInfeasible outside ±0.5 pt', () => {
+    expect(() => assertStrength(10.51, 10)).toThrow(FormulaInfeasible);
+    expect(() => assertStrength(9.4, 10)).toThrow(FormulaInfeasible);
+    expect(() => assertStrength(NaN, 10)).toThrow(FormulaInfeasible);
   });
 });

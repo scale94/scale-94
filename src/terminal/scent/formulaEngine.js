@@ -6,7 +6,7 @@
 //
 //   rawLayerShares → projectToBands → [sol tilt, Task 2] → neatGramsByRow
 //   → [chaos per-row drift, Task 2] → settle (IFRA cap ⇄ stock selection)
-//   → roundWeighed → ifraStepDown → assemble
+//   → roundWeighed (largest remainder) → ifraStepDown → assemble (+ strength guard)
 //
 // `salt`, `modulators.solTilt` and `modulators.chaosReach` are accepted but
 // unused here (Task 2).
@@ -20,6 +20,7 @@ export const BATCHES = Object.freeze({
 export const MIN_WEIGH_G = 0.05;
 export const ETHANOL_G_PER_ML = 0.789;
 export const FILL_MAX = 0.9;
+export const STRENGTH_TOL_PT = 0.5;
 
 export const LAYERS = Object.freeze(['top', 'heart', 'base']);
 
@@ -102,7 +103,9 @@ export function projectToBands(shares) {
       if (room[k] < 0) room[k] = 0;
       roomSum += room[k];
     }
-    if (roomSum <= 0) break;
+    if (!(roomSum > 0)) {
+      throw new FormulaInfeasible(`bands cannot absorb a residual of ${residual} pt`);
+    }
     for (const k of LAYERS) {
       const next = s[k] + residual * (room[k] / roomSum);
       s[k] = Math.min(BANDS[k][1], Math.max(BANDS[k][0], next));
@@ -216,10 +219,45 @@ export function settle(rows, neat0, batchG) {
   throw new FormulaInfeasible('formula did not settle');
 }
 
-// ── step 5: round weighed grams ─────────────────────────────────────────────
+// ── step 5: round weighed grams (largest remainder, ruling R2) ──────────────
 
-export function roundWeighed(neat, stocks, active) {
-  return neat.map((n, i) => (active[i] ? round2(n / stocks[i]) : 0));
+// Every active row is weighed at floor(exact, 0.01 g) or one grain above it.
+// Rows take their extra grain in order of largest remainder, but only while
+// that brings Σ neat grams closer to `targetNeatG` and keeps the row under its
+// IFRA limit. Plain per-row rounding can drift many grains the same way; this
+// keeps Σ neat within about half a grain × stock of the target.
+export function roundWeighed(rows, neat, stocks, active, batchG, targetNeatG) {
+  const grams = neat.map(() => 0);
+  const order = [];
+  let deficit = targetNeatG;
+  for (let i = 0; i < rows.length; i++) {
+    if (!active[i]) continue;
+    const exact = neat[i] / stocks[i];
+    const floor = Math.max(MIN_WEIGH_G, Math.floor(exact * 100 + 1e-9) / 100);
+    grams[i] = round2(floor);
+    deficit -= grams[i] * stocks[i];
+    order.push({ i, rem: exact - grams[i] });
+  }
+  order.sort((a, b) => b.rem - a.rem || a.i - b.i);
+  for (const { i } of order) {
+    const step = 0.01 * stocks[i];
+    if (!(Math.abs(deficit - step) < Math.abs(deficit))) continue;
+    const up = round2(grams[i] + 0.01);
+    const limitPct = rows[i].material.ifraCat4MaxPct;
+    if (limitPct != null && neatPctOf(up, stocks[i], batchG) > limitPct) continue;
+    grams[i] = up;
+    deficit -= step;
+  }
+  return grams;
+}
+
+// Final guard: the ±0.5 pt strength invariant is never returned violated.
+export function assertStrength(actualPct, targetPct) {
+  if (!(Math.abs(actualPct - targetPct) <= STRENGTH_TOL_PT)) {
+    throw new FormulaInfeasible(
+      `strength ${actualPct}% is outside ${targetPct} ± ${STRENGTH_TOL_PT} pt`,
+    );
+  }
 }
 
 const neatPctOf = (grams, stock, batchG) => round9(((grams * stock) / batchG) * 100);
@@ -267,7 +305,7 @@ export function computeFormula({ baseAccord, salt, modulators, batch, kit }) {
   const neat0 = neatGramsByRow(rows, layerSplit, concentrateG);
 
   const { active, neat, stocks, dropped } = settle(rows, neat0, batchG);
-  const rounded = roundWeighed(neat, stocks, active);
+  const rounded = roundWeighed(rows, neat, stocks, active, batchG, concentrateG);
   const { grams, lines: stepLines } = ifraStepDown(rows, rounded, stocks, active, batchG);
 
   const outRows = [];
@@ -295,6 +333,9 @@ export function computeFormula({ baseAccord, salt, modulators, batch, kit }) {
     }
   }
 
+  const actualPct = round9((neatSum / batchG) * 100);
+  assertStrength(actualPct, targetPct);
+
   const alcoholGrams = round2(batchG - weighedSum);
   if (alcoholGrams < 0) {
     throw new FormulaInfeasible('weighed stocks exceed the batch weight');
@@ -315,7 +356,7 @@ export function computeFormula({ baseAccord, salt, modulators, batch, kit }) {
   return {
     element,
     targetPct,
-    actualPct: round9((neatSum / batchG) * 100),
+    actualPct,
     batch: { grams: batch.grams, vialMl: batch.vialMl },
     fillMl: batchG / ETHANOL_G_PER_ML,
     rows: outRows,
