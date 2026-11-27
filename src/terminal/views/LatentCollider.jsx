@@ -2203,7 +2203,9 @@ export default function LatentCollider({ onPolarity } = {}) {
 
           {/* ── WASM telemetry ── */}
           <div className="text-[10px] font-mono text-cyan-600/30 space-y-0.5 pt-2 border-t border-cyan-900/15">
-            <div>WASM: Q×Kᵀ/√d_k = {result.scaledAttn.toFixed(6)} · softmax = {result.softmax.toFixed(4)} · PHASE: {result.phase}</div>
+            {result.viaWasm && (
+              <div>WASM: Q×Kᵀ/√d_k = {result.scaledAttn.toFixed(6)} · softmax = {result.softmax.toFixed(4)} · PHASE: {result.phase}</div>
+            )}
             <div>‖A‖ = {result.normA.toFixed(3)} · ‖B‖ = {result.normB.toFixed(3)} · A·B = {result.dot.toFixed(3)} · ‖S‖ = {result.synthNorm.toFixed(4)}</div>
           </div>
 
@@ -2404,9 +2406,7 @@ function CrystallizeCard({ card }) {
               {card.name}
             </div>
             <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-              <span className="text-[9px] font-mono tracking-widest" style={{ color: 'rgba(255,215,0,0.55)' }}>{card.conc}</span>
-              <span style={{ color: 'rgba(255,215,0,0.2)' }}>·</span>
-              <span className="text-[9px] font-mono" style={{ color: 'rgba(255,215,0,0.35)' }}>{card.dom} × {card.sec}</span>
+              <span className="text-[9px] font-mono tracking-widest" style={{ color: 'rgba(255,215,0,0.55)' }}>{card.dom} × {card.sec}</span>
             </div>
           </div>
           <div className="shrink-0">
@@ -2668,9 +2668,7 @@ function TesseractCard({ card, fullCard = card, sovereignty = null, sovereignVie
               {card.name}
             </div>
             <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-              <span className="text-[9px] font-mono tracking-widest" style={{ color: 'rgba(255,215,0,0.55)' }}>{card.conc}</span>
-              <span style={{ color: 'rgba(255,215,0,0.2)' }}>·</span>
-              <span className="text-[9px] font-mono" style={{ color: 'rgba(255,215,0,0.35)' }}>{card.dom} × {card.sec}</span>
+              <span className="text-[9px] font-mono tracking-widest" style={{ color: 'rgba(255,215,0,0.55)' }}>{card.dom} × {card.sec}</span>
             </div>
           </div>
           <div className="shrink-0 flex items-center gap-3">

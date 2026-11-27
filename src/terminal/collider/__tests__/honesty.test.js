@@ -114,6 +114,12 @@ describe('honesty sweep: no fake lab measurement', () => {
     expect(read(VIEW)).not.toContain('card.concPct');
   });
 
+  it('LatentCollider.jsx does not render a fixed concentration type', () => {
+    // card.conc exactly (not card.concPct or any other card.conc* name): the
+    // type is set at the altar by the element, so a fixed one is false.
+    expect(read(VIEW)).not.toMatch(/\bcard\.conc\b/);
+  });
+
   it('LatentCollider.jsx names volatility tiers and the JS-path space', () => {
     const src = read(VIEW);
     expect(src).toContain('VOLATILITY TIERS');
@@ -126,6 +132,10 @@ describe('honesty sweep: no fake lab measurement', () => {
     expect(src).toContain('viaWasm: false');
     expect(src).not.toContain("INTERACT v1.2.0 · WASM · '");
     expect(src).toContain("result?.viaWasm ? 'WASM · ' : ''");
+    // the attention trace line is WASM telemetry too
+    const traces = src.match(/<div>WASM: Q×K/g) ?? [];
+    expect(traces).toHaveLength(1);
+    expect(src).toMatch(/\{result\.viaWasm && \(\s*<div>WASM: Q×K/);
   });
 
   it('the card model no longer builds a vault payload', async () => {
