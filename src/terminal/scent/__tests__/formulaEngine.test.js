@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
   TARGET_PCT, BANDS, BATCHES, MIN_WEIGH_G, ETHANOL_G_PER_ML, FILL_MAX,
-  FormulaInfeasible, computeFormula, projectToBands, ifraStepDown, assertStrength,
+  FormulaInfeasible, computeFormula, projectToBands, ifraStepDown, assertStrength, joinAccord,
 } from '../formulaEngine';
+import { expectWeighedSplitInBands } from './weighedSplit';
 import { FX_KIT, FX_ACCORD } from './kitFixture';
 
 const SALT = new Uint8Array(32);
@@ -94,13 +95,26 @@ describe('computeFormula core', () => {
     expect(Math.abs(f.actualPct - TARGET_PCT[el])).toBeLessThanOrEqual(0.5);
   });
 
-  it.each(CASES)('%s/%s: layerSplit sums to 100 and each share is inside BANDS', (el, b) => {
-    const { layerSplit } = run(el, b);
-    const sum = layerSplit.top + layerSplit.heart + layerSplit.base;
+  it.each(CASES)('%s/%s: designSplit sums to 100 and each share is inside BANDS', (el, b) => {
+    const { designSplit } = run(el, b);
+    const sum = designSplit.top + designSplit.heart + designSplit.base;
     expect(Math.abs(sum - 100)).toBeLessThan(1e-9);
     for (const k of ['top', 'heart', 'base']) {
-      expect(layerSplit[k]).toBeGreaterThanOrEqual(BANDS[k][0]);
-      expect(layerSplit[k]).toBeLessThanOrEqual(BANDS[k][1]);
+      expect(designSplit[k]).toBeGreaterThanOrEqual(BANDS[k][0]);
+      expect(designSplit[k]).toBeLessThanOrEqual(BANDS[k][1]);
+    }
+  });
+
+  it.each(CASES)('%s/%s: weighedSplit is inside BANDS (or misses by under one grain)', (el, b) => {
+    expectWeighedSplitInBands(run(el, b));
+  });
+
+  it.each(CASES)('%s/%s: the fixture weighs strictly inside BANDS (R17 regression)', (el, b) => {
+    // before per-layer rounding + band repair, WATER/small weighed top at 25.14
+    const { weighedSplit } = run(el, b);
+    for (const k of ['top', 'heart', 'base']) {
+      expect(weighedSplit[k]).toBeGreaterThanOrEqual(BANDS[k][0] - 1e-9);
+      expect(weighedSplit[k]).toBeLessThanOrEqual(BANDS[k][1] + 1e-9);
     }
   });
 
@@ -236,6 +250,23 @@ describe('computeFormula core', () => {
     expect(err.layer).toBe('heart');
   });
 
+  it('a duplicate materialId in the accord throws RangeError naming it (R20)', () => {
+    const baseAccord = { rows: [...FX_ACCORD.rows, { materialId: 'fx-heart-veil', parts: 15 }] };
+    expect(() => joinAccord(baseAccord, FX_KIT)).toThrow(RangeError);
+    expect(() => run('WATER', 'small', { baseAccord })).toThrow(/duplicate material in accord: fx-heart-veil/);
+  });
+
+  it('weighed stocks over the batch weight throw FormulaInfeasible naming the heaviest dilute row', () => {
+    // fx-base-root only at 10%: ≈0.74 g neat at FIRE/small weighs ≈7.4 g of stock alone
+    const kit = FX_KIT.map((m) => (m.id === 'fx-base-root' ? { ...m, stocks: [0.1] } : m));
+    let err;
+    try { run('FIRE', 'small', { kit }); } catch (e) { err = e; }
+    expect(err).toBeInstanceOf(FormulaInfeasible);
+    expect(err.message).toMatch(/weighed stocks exceed the batch weight/);
+    expect(err.layer).toBe('base');
+    expect(err.materialId).toBe('fx-base-root');
+  });
+
   it('throws FormulaInfeasible when every row of a layer drops out', () => {
     // top projected up to its 15% floor = 0.042 g neat at AIR/small: under 0.05 g even as one row
     const kit = FX_KIT.map((m) => (m.layer === 'top' ? { ...m, stocks: [1.0] } : m));
@@ -290,18 +321,21 @@ describe('strength holds under same-direction rounding (R2)', () => {
     }
   });
 
-  it.each(ELEMENTS)('%s/small: many-row kit holds the bound wherever it is feasible', (el) => {
-    let f;
-    try {
-      f = computeFormula({
-        baseAccord: MANY_ACCORD, salt: SALT, modulators: { element: el, restWeeks: 4 },
-        batch: BATCHES.small, kit: MANY_KIT,
-      });
-    } catch (e) {
-      expect(e).toBeInstanceOf(FormulaInfeasible);
-      return;
-    }
+  it.each(['WATER', 'EARTH', 'FIRE'])('%s/small: many-row kit is feasible and holds the bound', (el) => {
+    const f = computeFormula({
+      baseAccord: MANY_ACCORD, salt: SALT, modulators: { element: el, restWeeks: 4 },
+      batch: BATCHES.small, kit: MANY_KIT,
+    });
+    expect(f.rows.length).toBe(13);
     expect(Math.abs(f.actualPct - TARGET_PCT[el])).toBeLessThanOrEqual(0.5);
+    expectWeighedSplitInBands(f);
+  });
+
+  it('AIR/small: many-row kit is infeasible (13 rows × 0.05 g floor > 0.28 g neat)', () => {
+    expect(() => computeFormula({
+      baseAccord: MANY_ACCORD, salt: SALT, modulators: { element: 'AIR', restWeeks: 4 },
+      batch: BATCHES.small, kit: MANY_KIT,
+    })).toThrow(FormulaInfeasible);
   });
 });
 

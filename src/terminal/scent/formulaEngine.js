@@ -6,7 +6,8 @@
 //
 //   rawLayerShares → projectToBands → applySolTilt → applyChaos (per-row
 //   drift) → neatGramsByRow → settle (IFRA cap ⇄ stock selection)
-//   → roundWeighed (largest remainder) → ifraStepDown → assemble (+ strength guard)
+//   → roundWeighed (per-layer largest remainder) → ifraStepDown → bandRepair
+//   → assemble (+ strength guard)
 //
 // The log carries exactly one line per source (ELEMENT, /SOL, /LUNAR, /CHAOS),
 // then any IFRA step-down and drop-out lines.
@@ -89,9 +90,15 @@ function validate(modulators, batch, salt) {
 
 // ── step 0: join the accord to the kit ──────────────────────────────────────
 
+// A material may appear only once (ruling R20): IFRA limits are checked per
+// row, so two rows of one material could each sit at the limit and together
+// weigh twice it.
 export function joinAccord(baseAccord, kit) {
   const byId = new Map(kit.map((m) => [m.id, m]));
+  const seen = new Set();
   return baseAccord.rows.map(({ materialId, parts }) => {
+    if (seen.has(materialId)) throw new RangeError(`duplicate material in accord: ${materialId}`);
+    seen.add(materialId);
     const material = byId.get(materialId);
     if (!material) throw new RangeError(`material not in kit: ${materialId}`);
     if (!LAYERS.includes(material.layer)) throw new RangeError(`bad layer on ${materialId}`);
@@ -283,36 +290,110 @@ export function settle(rows, neat0, batchG) {
   throw new FormulaInfeasible('formula did not settle');
 }
 
-// ── step 5: round weighed grams (largest remainder, ruling R2) ──────────────
+// ── step 5: round weighed grams (largest remainder, rulings R2 + R17) ───────
 
 // Every active row is weighed at floor(exact, 0.01 g) or one grain above it.
-// Rows take their extra grain in order of largest remainder, but only while
-// that brings Σ neat grams closer to `targetNeatG` and keeps the row under its
-// IFRA limit. Plain per-row rounding can drift many grains the same way; this
-// keeps Σ neat within about half a grain × stock of the target.
-export function roundWeighed(rows, neat, stocks, active, batchG, targetNeatG) {
+// The largest-remainder pass runs per layer (R17): each layer's target is the
+// Σ of its settled neat grams (settle only moves grams within a layer, so this
+// is the design split × concentrate). Within a layer, rows take their extra
+// grain in order of largest remainder, but only while that brings the layer's
+// Σ neat closer to its target and keeps the row under its IFRA limit. Plain
+// per-row rounding can drift many grains the same way; this keeps each
+// layer's Σ neat within about half a grain × stock of its target, so the
+// bottle's split follows the design split and not just its total.
+export function roundWeighed(rows, neat, stocks, active, batchG) {
   const grams = neat.map(() => 0);
-  const order = [];
-  let deficit = targetNeatG;
-  for (let i = 0; i < rows.length; i++) {
-    if (!active[i]) continue;
-    const exact = neat[i] / stocks[i];
-    const floor = Math.max(MIN_WEIGH_G, Math.floor(exact * 100 + 1e-9) / 100);
-    grams[i] = round2(floor);
-    deficit -= grams[i] * stocks[i];
-    order.push({ i, rem: exact - grams[i] });
-  }
-  order.sort((a, b) => b.rem - a.rem || a.i - b.i);
-  for (const { i } of order) {
-    const step = 0.01 * stocks[i];
-    if (!(Math.abs(deficit - step) < Math.abs(deficit))) continue;
-    const up = round2(grams[i] + 0.01);
-    const limitPct = rows[i].material.ifraCat4MaxPct;
-    if (limitPct != null && neatPctOf(up, stocks[i], batchG) > limitPct) continue;
-    grams[i] = up;
-    deficit -= step;
+  for (const layer of LAYERS) {
+    const order = [];
+    let deficit = 0;
+    for (let i = 0; i < rows.length; i++) {
+      if (!active[i] || rows[i].layer !== layer) continue;
+      const exact = neat[i] / stocks[i];
+      const floor = Math.max(MIN_WEIGH_G, Math.floor(exact * 100 + 1e-9) / 100);
+      grams[i] = round2(floor);
+      deficit += neat[i] - grams[i] * stocks[i];
+      order.push({ i, rem: exact - grams[i] });
+    }
+    order.sort((a, b) => b.rem - a.rem || a.i - b.i);
+    for (const { i } of order) {
+      const step = 0.01 * stocks[i];
+      if (!(Math.abs(deficit - step) < Math.abs(deficit))) continue;
+      const up = round2(grams[i] + 0.01);
+      const limitPct = rows[i].material.ifraCat4MaxPct;
+      if (limitPct != null && neatPctOf(up, stocks[i], batchG) > limitPct) continue;
+      grams[i] = up;
+      deficit -= step;
+    }
   }
   return grams;
+}
+
+// Shares (of 100) of the weighed neat grams per layer: the split the bottle
+// actually holds, after rounding, IFRA step-down and band repair.
+export function weighedSplitOf(rows) {
+  const sums = { top: 0, heart: 0, base: 0 };
+  for (const r of rows) sums[r.layer] += r.grams * r.stock;
+  const total = sums.top + sums.heart + sums.base;
+  return {
+    top: (sums.top / total) * 100,
+    heart: (sums.heart / total) * 100,
+    base: (sums.base / total) * 100,
+  };
+}
+
+// Σ over layers of how far each weighed share sits outside its band (pt).
+export function bandMiss(split) {
+  let miss = 0;
+  for (const k of LAYERS) miss += Math.max(0, BANDS[k][0] - split[k], split[k] - BANDS[k][1]);
+  return miss;
+}
+
+// ── step 7: band repair (ruling R17) ────────────────────────────────────────
+
+// Per-layer rounding keeps each layer near its target, but a layer designed on
+// a band edge (or the grains of the other layers) can still tip the weighed
+// split just outside BANDS. While it is outside, try every single-grain move
+// (one row ±0.01 g; never under 0.05 g, never over its IFRA limit, never past
+// the batch weight, strength kept within ±0.5 pt) and take the one that cuts
+// the total band miss most; stop when no move cuts it.
+//
+// Tolerance rule: what is left outside a band is what no single 0.01 g grain
+// can fix. Each layer was rounded to within half a grain of its target, so a
+// share can miss its band by at most one grain of the coarsest weighed stock,
+// as a share of the weighed concentrate:
+//   0.01 g × max stock ÷ Σ(grams × stock) × 100   (pt)
+export function bandRepair(rows, grams, stocks, active, batchG, targetPct) {
+  const out = grams.slice();
+  const live = [];
+  for (let i = 0; i < rows.length; i++) if (active[i]) live.push(i);
+  const view = () => live.map((i) => ({ layer: rows[i].layer, grams: out[i], stock: stocks[i] }));
+  const strengthOk = () => {
+    const neat = live.reduce((s, i) => s + out[i] * stocks[i], 0);
+    return Math.abs(round9((neat / batchG) * 100) - targetPct) <= STRENGTH_TOL_PT;
+  };
+  let miss = bandMiss(weighedSplitOf(view()));
+  for (let iter = 0; iter < 4 * live.length && miss > 1e-12; iter++) {
+    let best = null;
+    for (const i of live) {
+      for (const d of [-0.01, 0.01]) {
+        const next = round2(out[i] + d);
+        if (next < MIN_WEIGH_G - WEIGH_EPS) continue;
+        const limitPct = rows[i].material.ifraCat4MaxPct;
+        if (d > 0 && limitPct != null && neatPctOf(next, stocks[i], batchG) > limitPct) continue;
+        const prev = out[i];
+        out[i] = next;
+        const weighed = live.reduce((s, j) => s + out[j], 0);
+        const m = bandMiss(weighedSplitOf(view()));
+        const ok = weighed <= batchG + WEIGH_EPS && strengthOk();
+        out[i] = prev;
+        if (ok && m < miss - 1e-12 && (best === null || m < best.m - 1e-12)) best = { i, next, m };
+      }
+    }
+    if (best === null) break;
+    out[best.i] = best.next;
+    miss = best.m;
+  }
+  return out;
 }
 
 // Final guard: the ±0.5 pt strength invariant is never returned violated.
@@ -363,11 +444,11 @@ export function computeFormula({ baseAccord, salt, modulators, batch, kit }) {
       throw new FormulaInfeasible(`accord has no ${k} row`, { layer: k });
     }
   }
-  let layerSplit = projectToBands(rawLayerShares(joined));
+  let designSplit = projectToBands(rawLayerShares(joined));
   let solLine = '/SOL unwitnessed — the sun left the top notes alone';
   if (!isAbsent(solTilt)) {
-    const tilt = applySolTilt(layerSplit, solTilt);
-    layerSplit = tilt.shares;
+    const tilt = applySolTilt(designSplit, solTilt);
+    designSplit = tilt.shares;
     solLine = `/SOL → top ${signedPt(tilt.topShift)} pt / base ${signedPt(tilt.baseShift)} pt`;
   }
   const reach = isAbsent(chaosReach) ? CHAOS_DEFAULT_REACH : chaosReach;
@@ -376,11 +457,12 @@ export function computeFormula({ baseAccord, salt, modulators, batch, kit }) {
     : `/CHAOS salt → ±${(reach * 100).toFixed(0)}% per-row drift`;
   const rows = applyChaos(joined, salt, reach);
   const concentrateG = (batchG * targetPct) / 100;
-  const neat0 = neatGramsByRow(rows, layerSplit, concentrateG);
+  const neat0 = neatGramsByRow(rows, designSplit, concentrateG);
 
   const { active, neat, stocks, dropped } = settle(rows, neat0, batchG);
-  const rounded = roundWeighed(rows, neat, stocks, active, batchG, concentrateG);
-  const { grams, lines: stepLines } = ifraStepDown(rows, rounded, stocks, active, batchG);
+  const rounded = roundWeighed(rows, neat, stocks, active, batchG);
+  const { grams: stepped, lines: stepLines } = ifraStepDown(rows, rounded, stocks, active, batchG);
+  const grams = bandRepair(rows, stepped, stocks, active, batchG, targetPct);
 
   const outRows = [];
   const ifra = [];
@@ -412,7 +494,14 @@ export function computeFormula({ baseAccord, salt, modulators, batch, kit }) {
 
   const alcoholGrams = round2(batchG - weighedSum);
   if (alcoholGrams < 0) {
-    throw new FormulaInfeasible('weighed stocks exceed the batch weight');
+    // name the heaviest dilute row (the one a stronger stock would shrink most);
+    // the heaviest row overall when every stock is neat
+    const pool = outRows.some((r) => r.stock < 1) ? outRows.filter((r) => r.stock < 1) : outRows;
+    const heaviest = pool.reduce((a, b) => (b.grams > a.grams ? b : a));
+    throw new FormulaInfeasible(
+      `weighed stocks exceed the batch weight (heaviest dilute row: ${heaviest.materialId})`,
+      { layer: heaviest.layer, materialId: heaviest.materialId },
+    );
   }
 
   const dropLines = dropped.map((d) => {
@@ -437,7 +526,8 @@ export function computeFormula({ baseAccord, salt, modulators, batch, kit }) {
     fillMl: batchG / ETHANOL_G_PER_ML,
     rows: outRows,
     alcoholGrams,
-    layerSplit: { top: layerSplit.top, heart: layerSplit.heart, base: layerSplit.base },
+    designSplit: { top: designSplit.top, heart: designSplit.heart, base: designSplit.base },
+    weighedSplit: weighedSplitOf(outRows),
     restWeeks,
     ifra,
     dropped: dropped.map(({ materialId, reason }) => ({ materialId, reason })),

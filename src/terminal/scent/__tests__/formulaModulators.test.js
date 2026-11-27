@@ -5,6 +5,7 @@ import {
   FormulaInfeasible, computeFormula, joinAccord, applyChaos,
 } from '../formulaEngine';
 import { FX_KIT, FX_ACCORD } from './kitFixture';
+import { expectWeighedSplitInBands } from './weighedSplit';
 
 const ZERO_SALT = new Uint8Array(32);
 const RAMP_SALT = Uint8Array.from({ length: 32 }, (_, i) => (i * 37 + 11) % 256);
@@ -70,15 +71,15 @@ describe('/SOL tilt', () => {
   it('solTilt +1 moves ≤5 pt from top to base, staying inside BANDS', () => {
     const plain = run();
     const f = run({ solTilt: 1 });
-    const dTop = f.layerSplit.top - plain.layerSplit.top;
-    const dBase = f.layerSplit.base - plain.layerSplit.base;
+    const dTop = f.designSplit.top - plain.designSplit.top;
+    const dBase = f.designSplit.base - plain.designSplit.base;
     expect(dTop).toBeLessThan(0);
     expect(dTop).toBeGreaterThanOrEqual(-SOL_MAX_SHIFT_PT - 1e-9);
     expect(dBase).toBeCloseTo(-dTop, 9);
-    expect(f.layerSplit.heart).toBeCloseTo(plain.layerSplit.heart, 12);
+    expect(f.designSplit.heart).toBeCloseTo(plain.designSplit.heart, 12);
     for (const k of LAYERS) {
-      expect(f.layerSplit[k]).toBeGreaterThanOrEqual(BANDS[k][0]);
-      expect(f.layerSplit[k]).toBeLessThanOrEqual(BANDS[k][1]);
+      expect(f.designSplit[k]).toBeGreaterThanOrEqual(BANDS[k][0]);
+      expect(f.designSplit[k]).toBeLessThanOrEqual(BANDS[k][1]);
     }
     // FX_ACCORD's top sits at 25 with base ≈ 43: the full 5 pt fits
     expect(dTop).toBeCloseTo(-5, 9);
@@ -88,14 +89,14 @@ describe('/SOL tilt', () => {
   it('solTilt −1 does the reverse', () => {
     const plain = run({ baseAccord: IN_BAND_ACCORD });
     const f = run({ baseAccord: IN_BAND_ACCORD, solTilt: -1 });
-    const dTop = f.layerSplit.top - plain.layerSplit.top;
-    const dBase = f.layerSplit.base - plain.layerSplit.base;
+    const dTop = f.designSplit.top - plain.designSplit.top;
+    const dBase = f.designSplit.base - plain.designSplit.base;
     expect(dTop).toBeGreaterThan(0);
     expect(dTop).toBeLessThanOrEqual(SOL_MAX_SHIFT_PT + 1e-9);
     expect(dBase).toBeCloseTo(-dTop, 9);
-    expect(f.layerSplit.heart).toBeCloseTo(plain.layerSplit.heart, 12);
+    expect(f.designSplit.heart).toBeCloseTo(plain.designSplit.heart, 12);
     // top had only ≈3.02 pt of room below its 25% ceiling: clamped, and the log says what moved
-    expect(f.layerSplit.top).toBeCloseTo(25, 9);
+    expect(f.designSplit.top).toBeCloseTo(25, 9);
     expect(f.log[1]).toBe(solLine(dTop, dBase));
   });
 
@@ -103,10 +104,10 @@ describe('/SOL tilt', () => {
     const plain = run({ baseAccord: IN_BAND_ACCORD });
     const up = run({ baseAccord: IN_BAND_ACCORD, solTilt: 0.5 });
     const down = run({ baseAccord: IN_BAND_ACCORD, solTilt: -0.5 });
-    expect(up.layerSplit.top - plain.layerSplit.top).toBeCloseTo(-2.5, 9);
-    expect(up.layerSplit.base - plain.layerSplit.base).toBeCloseTo(2.5, 9);
-    expect(down.layerSplit.top - plain.layerSplit.top).toBeCloseTo(2.5, 9);
-    expect(down.layerSplit.base - plain.layerSplit.base).toBeCloseTo(-2.5, 9);
+    expect(up.designSplit.top - plain.designSplit.top).toBeCloseTo(-2.5, 9);
+    expect(up.designSplit.base - plain.designSplit.base).toBeCloseTo(2.5, 9);
+    expect(down.designSplit.top - plain.designSplit.top).toBeCloseTo(2.5, 9);
+    expect(down.designSplit.base - plain.designSplit.base).toBeCloseTo(-2.5, 9);
     expect(up.log[1]).toBe('/SOL → top −2.5 pt / base +2.5 pt');
     expect(down.log[1]).toBe('/SOL → top +2.5 pt / base −2.5 pt');
   });
@@ -116,10 +117,10 @@ describe('/SOL tilt', () => {
     for (const solTilt of [null, undefined]) {
       const f = run({ solTilt });
       expect(f.log[1]).toBe(SOL_UNWITNESSED);
-      expect(f.layerSplit).toEqual(absent.layerSplit);
+      expect(f.designSplit).toEqual(absent.designSplit);
     }
     // Task 1's projected split for FX_ACCORD: top clamped to 25, the rest by room
-    expect(absent.layerSplit.top).toBeCloseTo(25, 12);
+    expect(absent.designSplit.top).toBeCloseTo(25, 12);
     expect(absent.log[1]).toBe(SOL_UNWITNESSED);
   });
 
@@ -133,10 +134,10 @@ describe('/SOL tilt', () => {
 });
 
 describe('/CHAOS salt drift', () => {
-  it('salt micro-shifts: two different salts → different row grams, same layerSplit', () => {
+  it('salt micro-shifts: two different salts → different row grams, same designSplit', () => {
     const a = run({ element: 'FIRE', batchName: 'large', salt: ZERO_SALT });
     const b = run({ element: 'FIRE', batchName: 'large', salt: RAMP_SALT });
-    expect(b.layerSplit).toEqual(a.layerSplit);
+    expect(b.designSplit).toEqual(a.designSplit);
     const gramsOf = (f) => Object.fromEntries(f.rows.map((r) => [r.materialId, r.grams]));
     expect(gramsOf(b)).not.toEqual(gramsOf(a));
   });
@@ -280,13 +281,14 @@ describe('Review Focus 4: invariants after modulation', () => {
         const neat = f.rows.reduce((s, r) => s + r.grams * r.stock, 0);
         expect(f.actualPct).toBeCloseTo(neat / batch.grams * 100, 8);
 
-        const sum = f.layerSplit.top + f.layerSplit.heart + f.layerSplit.base;
+        const sum = f.designSplit.top + f.designSplit.heart + f.designSplit.base;
         expect(Math.abs(sum - 100)).toBeLessThan(1e-9);
         for (const k of LAYERS) {
-          expect(f.layerSplit[k]).toBeGreaterThanOrEqual(BANDS[k][0]);
-          expect(f.layerSplit[k]).toBeLessThanOrEqual(BANDS[k][1]);
+          expect(f.designSplit[k]).toBeGreaterThanOrEqual(BANDS[k][0]);
+          expect(f.designSplit[k]).toBeLessThanOrEqual(BANDS[k][1]);
           expect(f.rows.some((r) => r.layer === k)).toBe(true);
         }
+        expectWeighedSplitInBands(f);
 
         for (const r of f.rows) {
           expect(r.grams).toBeGreaterThanOrEqual(MIN_WEIGH_G);
