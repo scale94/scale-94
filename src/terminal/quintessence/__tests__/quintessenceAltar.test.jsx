@@ -512,3 +512,80 @@ describe('QuintessenceAltar — the reveal (scent-aether P3 Task 5)', () => {
     expect(container.textContent).toContain('◈ BUILD');
   });
 });
+
+// Bug (author, live mouse test): with a kernel already in the reliquary, a held
+// element did not ignite. The overwrite question went to window.confirm, which
+// the built-in browser pane answers `false` at once with no dialog. The
+// question is now asked inline, by the altar itself.
+describe('QuintessenceAltar — mouse hold with a kernel already sealed', () => {
+  const flush = async (ms) => { await act(async () => { await vi.advanceTimersByTimeAsync(ms); }); };
+  const opt = { bubbles: true, button: 0, pointerType: 'mouse', isPrimary: true };
+  let confirmSpy;
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.mocked(compileKernel).mockClear();
+    onNavigate.mockClear();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ hash: 'f'.repeat(64), source: 's', meta: { element: 'FIRE' } }));
+    confirmSpy = vi.spyOn(window, 'confirm').mockImplementation(() => false); // what the pane does
+    completeSpine();
+  });
+  afterEach(() => { confirmSpy.mockRestore(); vi.useRealTimers(); });
+
+  async function pressHoldRelease(id, holdMs = 1300) {
+    const seal = sealFor(id);
+    act(() => { seal.dispatchEvent(new PointerEvent('pointerdown', opt)); });
+    await flush(holdMs);
+    act(() => { seal.dispatchEvent(new PointerEvent('pointerup', opt)); seal.click(); });
+    await flush(50);
+  }
+  const overwriteDialog = () => container.querySelector('[role="dialog"][data-testid="altar-overwrite"]');
+
+  it('a completed hold never asks window.confirm and never navigates; the altar asks inline', async () => {
+    await pressHoldRelease('EARTH');
+    expect(confirmSpy).not.toHaveBeenCalled();
+    expect(onNavigate).not.toHaveBeenCalled();
+    expect(overwriteDialog()).toBeTruthy();
+    expect(overwriteDialog().textContent).toContain('the reliquary holds one kernel');
+    expect(compileKernel).not.toHaveBeenCalled();
+  });
+
+  it('"seal over it" ignites: the accord opens, the stages run, the compile happens', async () => {
+    await pressHoldRelease('EARTH');
+    const go = [...overwriteDialog().querySelectorAll('button')].find(b => b.textContent.includes('seal over it'));
+    act(() => { go.click(); });
+    await flush(650 * 6 + 50);
+    expect(compileKernel).toHaveBeenCalledTimes(1);
+    expect(container.textContent).toContain('◈ BUILD');
+    expect(onNavigate).not.toHaveBeenCalled();
+  });
+
+  it('"keep the old seal" closes the question; nothing compiles, nothing navigates', async () => {
+    await pressHoldRelease('EARTH');
+    const keep = [...overwriteDialog().querySelectorAll('button')].find(b => b.textContent.includes('keep the old seal'));
+    act(() => { keep.click(); });
+    expect(overwriteDialog()).toBeNull();
+    expect(compileKernel).not.toHaveBeenCalled();
+    expect(onNavigate).not.toHaveBeenCalled();
+    expect(container.textContent).toContain('ALTAR ARMED');
+  });
+
+  it('no kernel sealed: a hold ignites straight away, and the release click does not walk', async () => {
+    localStorage.removeItem(STORAGE_KEY);
+    await pressHoldRelease('FIRE');
+    expect(overwriteDialog()).toBeNull();
+    await flush(650 * 6 + 50);
+    expect(compileKernel).toHaveBeenCalledTimes(1);
+    expect(onNavigate).not.toHaveBeenCalled();
+  });
+
+  it('keyboard: the confirm names the overwrite and seals over it in one step', async () => {
+    const seal = sealFor('WATER');
+    act(() => { seal.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); });
+    const go = [...container.querySelectorAll('[role="dialog"] button')].find(b => b.textContent.includes('seal over the old kernel'));
+    expect(go).toBeTruthy();
+    act(() => { go.click(); });
+    await flush(650 * 6 + 50);
+    expect(confirmSpy).not.toHaveBeenCalled();
+    expect(compileKernel).toHaveBeenCalledTimes(1);
+  });
+});

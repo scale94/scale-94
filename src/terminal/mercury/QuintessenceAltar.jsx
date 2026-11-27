@@ -106,6 +106,14 @@ export default function QuintessenceAltar({ onDeposited, onNavigate }) {
   // fires `contextmenu` mid-hold. That must not cancel the ritual — swallow it.
   const lastPointerType = useRef('mouse');
   const [confirming, setConfirming] = useState(null); // element id — keyboard path
+  // Spec §5.2: the reliquary holds one kernel, so a recompile asks first. The
+  // altar asks inline: window.confirm blocks the hold mid-gesture, and the
+  // built-in browser pane answers it `false` at once with no dialog, which
+  // silently refused every recompile (author's live mouse test, P3).
+  const [overwriteFor, setOverwriteFor] = useState(null); // element id
+  const kernelHeld = () => {
+    try { return !!localStorage.getItem(STORAGE_KEY); } catch (_) { return false; } // no storage → nothing to overwrite
+  };
 
   // Grid remount (stage back to -1): clear the hold latch. A completed hold
   // unmounts the grid before pointerup, so its click-swallow flag would
@@ -114,13 +122,11 @@ export default function QuintessenceAltar({ onDeposited, onNavigate }) {
   const holdReset = hold.reset;
   useEffect(() => { if (stage === -1) holdReset(); }, [stage, holdReset]);
 
-  async function ignite(elementId) {
+  async function ignite(elementId, { overwrite = false } = {}) {
     if (!armed || igniting.current) return;
-    // Spec §5.2: the reliquary holds one kernel at a time — recompile confirms.
-    try {
-      if (localStorage.getItem(STORAGE_KEY) &&
-          !window.confirm('the reliquary holds one kernel · recompile and overwrite the seal?')) return;
-    } catch (_) { /* no storage → nothing to overwrite */ }
+    // Spec §5.2: the reliquary holds one kernel at a time — recompile confirms, inline.
+    if (!overwrite && kernelHeld()) { setOverwriteFor(elementId); return; }
+    setOverwriteFor(null);
     igniting.current = true;
     let sealed = false;
     let opened = null;
@@ -265,9 +271,9 @@ export default function QuintessenceAltar({ onDeposited, onNavigate }) {
             className="mt-3 border border-amber-500/40 p-3 font-mono text-[10px] tracking-[0.2em] uppercase flex items-center gap-4">
             <span className="text-amber-200">{el.sigil} {el.id} —</span>
             <button type="button" autoFocus
-              onClick={() => { setConfirming(null); ignite(el.id); }}
+              onClick={() => { setConfirming(null); ignite(el.id, { overwrite: true }); }}
               className="border border-amber-400/60 px-3 py-1 text-amber-200 hover:bg-amber-950/30">
-              seal the kernel here
+              {kernelHeld() ? 'seal over the old kernel' : 'seal the kernel here'}
             </button>
             <button type="button"
               onClick={() => { setConfirming(null); onNavigate?.(el.house); }}
@@ -276,6 +282,25 @@ export default function QuintessenceAltar({ onDeposited, onNavigate }) {
             </button>
             <button type="button" onClick={() => setConfirming(null)}
               className="ml-auto text-zinc-600 hover:text-zinc-400 lowercase">esc</button>
+          </div>
+        );
+      })()}
+
+      {stage === -1 && overwriteFor && (() => {
+        const el = ELEMENTS.find(x => x.id === overwriteFor);
+        return (
+          <div role="dialog" data-testid="altar-overwrite" aria-label="the reliquary holds one kernel"
+            className="mt-3 border border-amber-500/40 p-3 font-mono text-[10px] tracking-[0.2em] uppercase flex flex-wrap items-center gap-4">
+            <span className="text-amber-200">{el.sigil} {el.id} — the reliquary holds one kernel</span>
+            <button type="button" autoFocus
+              onClick={() => ignite(el.id, { overwrite: true })}
+              className="border border-amber-400/60 px-3 py-1 text-amber-200 hover:bg-amber-950/30">
+              seal over it
+            </button>
+            <button type="button" onClick={() => setOverwriteFor(null)}
+              className="ml-auto text-zinc-400 hover:text-zinc-200 lowercase">
+              keep the old seal
+            </button>
           </div>
         );
       })()}
