@@ -1712,7 +1712,6 @@ export default function LatentCollider({ onPolarity } = {}) {
                 </div>
                 <div className="text-[8px] font-mono text-amber-600/20 mt-2 space-y-0.5">
                   <div>§ TRANSMUTE: raw input of Grey World Noise → distilled through the alembic</div>
-                  <div>§ ANNEALING: data must sit in darkness for one week to reach stable accord</div>
                 </div>
               </div>
             </div>
@@ -2444,9 +2443,8 @@ function CrystallizeCard({ card }) {
         </div>
 
         {/* Properties strip */}
-        <div className="grid grid-cols-3 gap-2 mb-6">
+        <div className="grid grid-cols-2 gap-2 mb-6">
           {[
-            { label: 'OLFACTIVE',  value: `${card.dom.toUpperCase()} × ${card.sec.toUpperCase()}` },
             { label: 'POLARITY',   value: card.polLabel || '—' },
             { label: 'NODE CLASS', value: card.nodeClass },
           ].map(({ label, value }) => (
@@ -2615,8 +2613,8 @@ function TesseractCard({ card, fullCard = card, sovereignty = null, sovereignVie
             TESSERACT PROTOCOL — ACCORD IDENTITY
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-1.5 h-1.5 rounded-full" style={{ background: '#39ff14', boxShadow: '0 0 6px rgba(57,255,20,0.6)', animation: 'sc-vaultPulse 3s ease-in-out infinite' }} />
-            <span className="text-[7px] font-mono tracking-widest" style={{ color: 'rgba(57,255,20,0.6)' }}>VERIFIED</span>
+            <div className="w-1.5 h-1.5 rounded-full" style={{ border: '1px solid rgba(255,215,0,0.35)' }} />
+            <span className="text-[7px] font-mono tracking-widest" style={{ color: 'rgba(255,215,0,0.4)' }}>UNSEALED</span>
           </div>
         </div>
 
@@ -2746,9 +2744,8 @@ function TesseractCard({ card, fullCard = card, sovereignty = null, sovereignVie
         )}
 
         {/* ── Properties strip ── */}
-        <div className="grid grid-cols-3 gap-2 mb-5" style={{ opacity: 0, animation: 'sc-cardReveal 0.4s cubic-bezier(0.16,1,0.3,1) 950ms forwards' }}>
+        <div className="grid grid-cols-2 gap-2 mb-5" style={{ opacity: 0, animation: 'sc-cardReveal 0.4s cubic-bezier(0.16,1,0.3,1) 950ms forwards' }}>
           {[
-            { label: 'OLFACTIVE',  value: `${card.dom.toUpperCase()} × ${card.sec.toUpperCase()}` },
             { label: 'POLARITY',   value: card.polLabel || 'MERIDIAN' },
             { label: 'NODE CLASS', value: card.nodeClass },
           ].map(({ label, value }) => (

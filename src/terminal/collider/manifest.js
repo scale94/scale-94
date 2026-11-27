@@ -18,7 +18,6 @@ export function generateManifestMarkdown(card, tesseract, result = null, narrati
   return `# ECO_Sx TRANSMUTATION MANIFEST
 
 \`\`\`
-VAULT    ${hash}
 COMPILED ${ts}
 STATE    ◈ MANIFEST COMPILED
 \`\`\`
@@ -43,10 +42,10 @@ OLFACTIVE    ${card.dom.toUpperCase()} × ${card.sec.toUpperCase()}
 \`\`\`
 DOMAIN         ${domPair}
 NODE PAIR      ${result?.nodeIdA ?? '—'} × ${result?.nodeIdB ?? '—'}
-HASH           ${hash.slice(0, 32)}
+SHA-256        ${hash.slice(0, 32)}
                ${hash.slice(32)}
+               deterministic — the same collision yields the same hash
 SPACE          ${result?.space ?? '—'} · OCK v1.1.0
-HASH           SHA-256 · deterministic — the same collision yields the same hash
 
 COS(θ)         ${result?.cosine != null ? result.cosine.toFixed(4) : '—'}
 θ              ${result?.angle != null ? result.angle.toFixed(1) + '°' : '—'}

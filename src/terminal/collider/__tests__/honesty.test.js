@@ -177,3 +177,34 @@ describe('P0 carry-over: dead code removed', () => {
     expect(read('package.json')).not.toContain('@upstash/redis');
   });
 });
+
+// P1 ledger cleanup (author sign-off 2026-11-27): copy that claimed more than
+// the artifact does.
+describe('P1 ledger cleanup', () => {
+  it('the view drops the one-week ANNEALING claim (/LUNAR owns the real rest window)', () => {
+    const src = read(VIEW);
+    expect(src).not.toContain('ANNEALING');
+    expect(src).not.toContain('one week');
+  });
+
+  it('the Tesseract badge reads UNSEALED until P2 seals with ML-KEM / ML-DSA', () => {
+    const src = read(VIEW);
+    expect(src).not.toMatch(/>VERIFIED</);
+    expect(src).toContain('>UNSEALED<');
+  });
+
+  it('the manifest has no VAULT label and one SHA-256 line', () => {
+    const src = read(MANIFEST);
+    expect(src).not.toMatch(/^VAULT\b/m);
+    expect(src).not.toMatch(/^HASH\b/m);
+    expect(src.match(/^SHA-256\b/gm) ?? []).toHaveLength(1);
+  });
+
+  it('no redaction tier is named for server logs (the app has no server routes)', () => {
+    expect(read('src/terminal/lib/sovereignty.js')).not.toContain("vectorId: 'SERVER_LOG_RETENTION'");
+  });
+
+  it('the card strips do not repeat the header\'s dom × sec as OLFACTIVE', () => {
+    expect(read(VIEW)).not.toContain("label: 'OLFACTIVE'");
+  });
+});

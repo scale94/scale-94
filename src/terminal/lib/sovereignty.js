@@ -22,7 +22,6 @@ export const RESISTANCE_WEIGHTS = { sovereignty: 0.4, cleanRoom: 0.15 };
 
 export const REDACTION_MAP = [
   { threshold: 15, vectorId: 'VERCEL_ANALYTICS',       category: 'behavioral_telemetry', fields: ['evap'] },
-  { threshold: 30, vectorId: 'SERVER_LOG_RETENTION',   category: 'traffic_retention',    fields: ['longevity', 'concPct'] },
   { threshold: 55, vectorId: 'COOKIE_STATUS',          category: 'behavioral_tracking',  fields: ['heartNotes'] },
   { threshold: 70, vectorId: 'CLASSIFIED_CHALLENGE',   category: 'ephemeral_session',    fields: ['nodeClass', 'polLabel'] },
   { threshold: 85, vectorId: 'EXTERNAL_LINK_EXPOSURE', category: 'third_party_handoff',  fields: ['baseNotes'] },
@@ -59,7 +58,7 @@ export function assessSovereignty({ panopticonIndex, accord }) {
   return { threat: panopticonIndex, resistance, exposure, redactions, verdict };
 }
 
-// Pure redaction: new card object, original untouched. `name`, `id`, `conc`,
+// Pure redaction: new card object, original untouched. `name`, `id`,
 // `dom`, `sec`, and the tesseract hash are never in REDACTION_MAP — the state
 // always sees THAT the artifact exists; it can't read its interior (spec §2).
 export function redactCard(card, redactions) {
